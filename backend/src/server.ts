@@ -6,7 +6,7 @@ import { disconnectDb } from './core/db.js';
 const app = createApp();
 
 const server = app.listen(env.PORT, () => {
-  logger.info(`Research-tracker API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
+  logger.info(`Santim API listening on http://localhost:${env.PORT} (${env.NODE_ENV})`);
 });
 
 async function shutdown(signal: string) {

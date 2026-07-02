@@ -16,19 +16,12 @@ usersRouter.get(
   }),
 );
 
-// Org-scoped directory — used by team pickers and assignment dropdowns.
-usersRouter.get(
-  '/',
-  asyncHandler(async (req, res) => {
-    res.json(await usersService.listByOrg(req.user!.orgId));
-  }),
-);
-
 const updateMeSchema = z.object({
   name: z.string().min(1).max(200).optional(),
   locale: z.string().min(2).max(10).optional(),
   calendar: z.enum(['gregorian', 'ethiopian']).optional(),
-  orcidId: z.string().regex(/^\d{4}-\d{4}-\d{4}-\d{3}[\dX]$/, 'Invalid ORCID iD format').optional(),
+  currency: z.string().length(3).toUpperCase().optional(),
+  firstDayOfWeek: z.number().int().min(0).max(1).optional(),
 });
 
 usersRouter.put(

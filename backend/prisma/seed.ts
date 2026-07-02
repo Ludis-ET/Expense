@@ -1,144 +1,271 @@
 import bcrypt from 'bcryptjs';
-import { ExpenseStatus, PrismaClient, ProjectStatus, Role, TeamRole } from '@prisma/client';
+import { AccountType, Frequency, PrismaClient, TxKind } from '@prisma/client';
+import { DEFAULT_CATEGORIES } from '../src/modules/categories/default-categories.js';
 
 const prisma = new PrismaClient();
 
-async function main() {
-  const org = await prisma.organization.upsert({
-    where: { id: 'seed-org' },
-    update: {},
-    create: { id: 'seed-org', name: 'Addis Ababa University', country: 'ET' },
-  });
+const DAY = 24 * 60 * 60 * 1000;
 
+function daysAgo(days: number, hour = 12): Date {
+  const d = new Date(Date.now() - days * DAY);
+  d.setUTCHours(hour, 0, 0, 0);
+  return d;
+}
+
+/** Deterministic pseudo-random so re-seeding produces the same data. */
+function makeRng(seed: number) {
+  let s = seed;
+  return () => {
+    s = (s * 1103515245 + 12345) % 2 ** 31;
+    return s / 2 ** 31;
+  };
+}
+
+async function main() {
   const passwordHash = await bcrypt.hash('password123', 12);
 
-  const admin = await prisma.user.upsert({
-    where: { email: 'admin@example.com' },
-    update: {},
-    create: {
-      email: 'admin@example.com',
-      name: 'Abebe Bekele',
-      passwordHash,
-      role: Role.ADMIN,
-      locale: 'am',
-      orgId: org.id,
-    },
-  });
+  // Idempotent: wipe and recreate the demo user so re-seeding is clean.
+  await prisma.user.deleteMany({ where: { email: 'demo@example.com' } });
 
-  const researcher = await prisma.user.upsert({
-    where: { email: 'researcher@example.com' },
-    update: {},
-    create: {
-      email: 'researcher@example.com',
-      name: 'Hanna Tesfaye',
-      passwordHash,
-      role: Role.RESEARCHER,
-      orgId: org.id,
-    },
-  });
-
-  const project = await prisma.project.create({
+  const user = await prisma.user.create({
     data: {
-      title: 'Drought-resistant Teff Varieties',
-      summary: 'Field trials of drought-tolerant teff across three regions.',
-      status: ProjectStatus.ACTIVE,
+      email: 'demo@example.com',
+      name: 'Kiflay Mehari',
+      passwordHash,
+      locale: 'en',
       currency: 'ETB',
-      orgId: org.id,
-      leadUserId: admin.id,
-      team: {
-        create: [
-          { userId: admin.id, role: TeamRole.PI },
-          { userId: researcher.id, role: TeamRole.COLLABORATOR },
-        ],
-      },
-      budgetItems: {
-        create: [
-          { category: 'equipment', plannedAmount: 250000, currency: 'ETB' },
-          { category: 'travel', plannedAmount: 80000, currency: 'ETB' },
-          { category: 'personnel', plannedAmount: 600000, currency: 'ETB' },
-        ],
-      },
-      milestones: {
-        create: [
-          { description: 'Site selection complete', status: 'DONE' },
-          { description: 'First planting season data collected', status: 'IN_PROGRESS', dueDate: daysFromNow(21) },
-          { description: 'Mid-term report submitted', status: 'PENDING', dueDate: daysFromNow(60) },
-        ],
-      },
-      publications: {
-        create: [
-          {
-            title: 'Yield stability of teff landraces under water stress',
-            journal: 'Journal of Agronomy',
-            doi: '10.1000/teff.2025.001',
-            authorList: 'Bekele A., Tesfaye H.',
-            pubDate: daysFromNow(-90),
-            keywords: ['teff', 'drought', 'agronomy'],
-            citationCount: 14,
-          },
-        ],
-      },
-      datasets: {
-        create: [
-          { title: 'Rainfall & yield panel 2024', description: 'Three-region panel dataset', format: 'CSV' },
-        ],
-      },
     },
-    include: { budgetItems: true },
   });
 
-  // A couple of expenses against the first budget item to populate the budget rollup.
-  const firstBudget = project.budgetItems[0];
-  if (firstBudget) {
-    await prisma.expense.createMany({
-      data: [
-        {
-          budgetItemId: firstBudget.id,
-          userId: researcher.id,
-          amount: 45000,
-          currency: 'ETB',
-          description: 'Soil moisture sensors',
-          status: ExpenseStatus.APPROVED,
-        },
-        {
-          budgetItemId: firstBudget.id,
-          userId: researcher.id,
-          amount: 12000,
-          currency: 'ETB',
-          description: 'Field tablets',
-          status: ExpenseStatus.PENDING,
-        },
-      ],
+  // --- Categories (same set every registered user gets) ---
+  await prisma.category.createMany({
+    data: DEFAULT_CATEGORIES.map((c) => ({ ...c, userId: user.id, isDefault: true })),
+  });
+  const categories = await prisma.category.findMany({ where: { userId: user.id } });
+  const cat = (name: string) => {
+    const found = categories.find((c) => c.name === name);
+    if (!found) throw new Error(`Seed category missing: ${name}`);
+    return found;
+  };
+
+  // --- Accounts ---
+  const cash = await prisma.account.create({
+    data: { userId: user.id, name: 'Cash', type: AccountType.CASH, openingBalance: 2000, icon: 'banknote', color: '#22c55e' },
+  });
+  const cbe = await prisma.account.create({
+    data: { userId: user.id, name: 'CBE', type: AccountType.BANK, openingBalance: 15000, icon: 'landmark', color: '#8b5cf6', isDefault: true },
+  });
+  const telebirr = await prisma.account.create({
+    data: { userId: user.id, name: 'Telebirr', type: AccountType.MOBILE_MONEY, openingBalance: 500, icon: 'smartphone', color: '#0ea5e9' },
+  });
+
+  // --- ~3 months of transactions ---
+  const rng = makeRng(42);
+  const txns: {
+    kind: TxKind;
+    amount: number;
+    date: Date;
+    accountId: string;
+    transferAccountId?: string;
+    categoryId?: string;
+    payee?: string;
+    note?: string;
+    tags?: string[];
+  }[] = [];
+
+  // Monthly salary (28th) and rent (1st) for the past 3 cycles.
+  for (const monthsBack of [2, 1, 0]) {
+    const now = new Date();
+    const salaryDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 28, 9));
+    const rentDate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - monthsBack, 1, 10));
+    if (salaryDate <= now) {
+      txns.push({
+        kind: TxKind.INCOME, amount: 45000, date: salaryDate, accountId: cbe.id,
+        categoryId: cat('Salary').id, payee: 'Employer', note: 'Monthly salary',
+      });
+    }
+    if (rentDate <= now) {
+      txns.push({
+        kind: TxKind.EXPENSE, amount: 12000, date: rentDate, accountId: cbe.id,
+        categoryId: cat('Rent').id, payee: 'Landlord', note: 'Monthly rent',
+      });
+    }
+  }
+
+  // Two freelance payments.
+  txns.push(
+    { kind: TxKind.INCOME, amount: 8500, date: daysAgo(52), accountId: cbe.id, categoryId: cat('Freelance').id, payee: 'Design client', note: 'Logo project', tags: ['side-hustle'] },
+    { kind: TxKind.INCOME, amount: 6200, date: daysAgo(18), accountId: telebirr.id, categoryId: cat('Freelance').id, payee: 'Web client', note: 'Landing page', tags: ['side-hustle'] },
+  );
+
+  // Weekly groceries.
+  const groceryPayees = ['Shoa Supermarket', 'Fresh Corner', 'Queens Supermarket'];
+  for (let week = 0; week < 13; week++) {
+    const amount = Math.round(800 + rng() * 1700);
+    txns.push({
+      kind: TxKind.EXPENSE, amount, date: daysAgo(week * 7 + Math.floor(rng() * 3), 18),
+      accountId: rng() > 0.5 ? cash.id : telebirr.id,
+      categoryId: cat('Food & Groceries').id,
+      payee: groceryPayees[Math.floor(rng() * groceryPayees.length)],
     });
   }
 
-  await prisma.idea.createMany({
+  // Transport 3-5x/week.
+  for (let day = 0; day < 92; day++) {
+    const rides = rng();
+    if (rides < 0.5) continue;
+    const amount = Math.round(40 + rng() * 360);
+    txns.push({
+      kind: TxKind.EXPENSE, amount, date: daysAgo(day, 8 + Math.floor(rng() * 10)),
+      accountId: rng() > 0.6 ? telebirr.id : cash.id,
+      categoryId: cat('Transport').id,
+      payee: rng() > 0.5 ? 'Ride' : 'Minibus',
+    });
+  }
+
+  // Airtime top-ups every ~10 days.
+  for (let i = 0; i < 9; i++) {
+    txns.push({
+      kind: TxKind.EXPENSE, amount: Math.round(100 + rng() * 400), date: daysAgo(i * 10 + Math.floor(rng() * 4)),
+      accountId: telebirr.id, categoryId: cat('Airtime & Data').id, payee: 'Ethio Telecom',
+    });
+  }
+
+  // Utilities monthly-ish.
+  for (const d of [80, 49, 20]) {
+    txns.push(
+      { kind: TxKind.EXPENSE, amount: Math.round(600 + rng() * 500), date: daysAgo(d), accountId: cbe.id, categoryId: cat('Utilities').id, payee: 'EEU', note: 'Electricity' },
+      { kind: TxKind.EXPENSE, amount: Math.round(250 + rng() * 250), date: daysAgo(d - 2), accountId: cbe.id, categoryId: cat('Utilities').id, payee: 'AAWSA', note: 'Water' },
+    );
+  }
+
+  // Entertainment, shopping, health, gifts, family support, unnecessary buys.
+  const extras: [string, string, number, number, string?][] = [
+    ['Entertainment', 'Cinema', 450, 75],
+    ['Entertainment', 'Cafe with friends', 380, 60],
+    ['Entertainment', 'Concert ticket', 1200, 33],
+    ['Entertainment', 'Cafe', 260, 12],
+    ['Shopping', 'Bole Boutique', 2800, 68],
+    ['Shopping', 'Shoe store', 1900, 25],
+    ['Health', 'Pharmacy', 540, 58],
+    ['Health', 'Clinic visit', 1500, 41],
+    ['Education', 'Online course', 1100, 47, 'learning'],
+    ['Gifts', 'Wedding gift', 2000, 55],
+    ['Gifts', 'Birthday gift', 800, 15],
+    ['Family Support', 'Sent to mom', 3000, 62],
+    ['Family Support', 'Sent to mom', 3000, 31],
+    ['Family Support', 'Sent to mom', 3000, 2],
+    ['Unnecessary', 'Late-night snacks', 350, 70],
+    ['Unnecessary', 'Impulse gadget', 1600, 44],
+    ['Unnecessary', 'Another coffee', 180, 26],
+    ['Unnecessary', 'Streaming trinket', 420, 9],
+    ['Unnecessary', 'Window-shopping haul', 950, 4],
+  ];
+  for (const [category, payee, amount, days, tag] of extras) {
+    txns.push({
+      kind: TxKind.EXPENSE, amount, date: daysAgo(days), accountId: rng() > 0.5 ? cash.id : cbe.id,
+      categoryId: cat(category).id, payee, tags: tag ? [tag] : [],
+    });
+  }
+
+  // Subscriptions (internet).
+  for (const d of [78, 47, 17]) {
+    txns.push({
+      kind: TxKind.EXPENSE, amount: 1100, date: daysAgo(d), accountId: cbe.id,
+      categoryId: cat('Subscriptions').id, payee: 'Ethio Telecom', note: 'Home internet',
+    });
+  }
+
+  // Transfers CBE → Telebirr / Cash.
+  txns.push(
+    { kind: TxKind.TRANSFER, amount: 5000, date: daysAgo(59), accountId: cbe.id, transferAccountId: telebirr.id, note: 'Top up Telebirr' },
+    { kind: TxKind.TRANSFER, amount: 4000, date: daysAgo(27), accountId: cbe.id, transferAccountId: telebirr.id, note: 'Top up Telebirr' },
+    { kind: TxKind.TRANSFER, amount: 3000, date: daysAgo(6), accountId: cbe.id, transferAccountId: cash.id, note: 'Cash withdrawal' },
+  );
+
+  await prisma.transaction.createMany({
+    data: txns.map((t) => ({ ...t, userId: user.id, currency: 'ETB', tags: t.tags ?? [] })),
+  });
+
+  // --- Recurring rules (nextRun in the future so seeding doesn't double-post) ---
+  const nextMonth = (day: number) => {
+    const now = new Date();
+    const candidate = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), day, 9));
+    return candidate > now
+      ? candidate
+      : new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() + 1, day, 9));
+  };
+
+  await prisma.recurringRule.createMany({
     data: [
-      { userId: admin.id, projectId: project.id, title: 'Add drone-based canopy imaging', priority: 4 },
-      { userId: researcher.id, title: 'Mobile data-collection app for field staff', priority: 3 },
-      { userId: researcher.id, title: 'Partner with regional ag bureaus', priority: 2 },
+      {
+        userId: user.id, name: 'Salary', kind: TxKind.INCOME, amount: 45000, currency: 'ETB',
+        accountId: cbe.id, categoryId: cat('Salary').id, payee: 'Employer',
+        frequency: Frequency.MONTHLY, dayOfMonth: 28, nextRun: nextMonth(28), autoPost: true,
+      },
+      {
+        userId: user.id, name: 'Rent', kind: TxKind.EXPENSE, amount: 12000, currency: 'ETB',
+        accountId: cbe.id, categoryId: cat('Rent').id, payee: 'Landlord',
+        frequency: Frequency.MONTHLY, dayOfMonth: 1, nextRun: nextMonth(1), autoPost: true,
+      },
+      {
+        userId: user.id, name: 'Home internet', kind: TxKind.EXPENSE, amount: 1100, currency: 'ETB',
+        accountId: cbe.id, categoryId: cat('Subscriptions').id, payee: 'Ethio Telecom',
+        frequency: Frequency.MONTHLY, dayOfMonth: 15, nextRun: nextMonth(15), autoPost: true,
+      },
+      {
+        userId: user.id, name: 'Gym membership', kind: TxKind.EXPENSE, amount: 1500, currency: 'ETB',
+        accountId: cash.id, categoryId: cat('Health').id, payee: 'Fitness First',
+        frequency: Frequency.MONTHLY, dayOfMonth: 5, nextRun: nextMonth(5), autoPost: false,
+      },
     ],
   });
 
-  await prisma.notification.createMany({
+  // --- Budgets ---
+  await prisma.budget.createMany({
     data: [
-      { userId: admin.id, type: 'expense', message: 'New expense awaiting approval: Field tablets', link: `/projects/${project.id}` },
-      { userId: admin.id, type: 'milestone', message: 'Milestone "First planting season data collected" is due soon' },
+      { userId: user.id, categoryId: cat('Food & Groceries').id, amount: 10000, alertThreshold: 80 },
+      { userId: user.id, categoryId: cat('Transport').id, amount: 4000, alertThreshold: 80 },
+      { userId: user.id, categoryId: cat('Unnecessary').id, amount: 1500, alertThreshold: 75 },
+      { userId: user.id, categoryId: cat('Entertainment').id, amount: 3000, alertThreshold: 80 },
     ],
   });
 
-  // eslint-disable-next-line no-console
-  console.log(`Seeded org=${org.id}, admin=${admin.email}, project=${project.id}`);
-  console.log('Login with admin@example.com / password123');
-}
+  // --- Savings goal with contributions ---
+  await prisma.savingsGoal.create({
+    data: {
+      userId: user.id,
+      name: 'Emergency Fund',
+      icon: 'shield',
+      color: '#10b981',
+      targetAmount: 100000,
+      deadline: new Date(Date.now() + 8 * 30 * DAY),
+      note: 'Six months of expenses, just in case.',
+      contributions: {
+        create: [
+          { amount: 10000, date: daysAgo(75), note: 'Initial deposit' },
+          { amount: 9000, date: daysAgo(45) },
+          { amount: 9000, date: daysAgo(14) },
+        ],
+      },
+    },
+  });
 
-function daysFromNow(days: number): Date {
-  return new Date(Date.now() + days * 24 * 60 * 60 * 1000);
+  await prisma.notification.create({
+    data: {
+      userId: user.id,
+      type: 'welcome',
+      message: 'Welcome to Santim! Your demo data is ready — explore the dashboard.',
+      link: '/dashboard',
+    },
+  });
+
+  console.log(`Seeded demo user ${user.email} with ${txns.length} transactions.`);
+  console.log('Login with demo@example.com / password123');
 }
 
 main()
   .catch((e) => {
-    // eslint-disable-next-line no-console
     console.error(e);
     process.exit(1);
   })

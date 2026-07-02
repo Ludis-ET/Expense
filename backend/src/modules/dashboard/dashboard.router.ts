@@ -1,15 +1,16 @@
 import { Router } from 'express';
 import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
+import { recurringCatchUp } from '../recurring/recurring.middleware.js';
 import * as dashboard from './dashboard.service.js';
 
 export const dashboardRouter = Router();
 
-dashboardRouter.use(requireAuth);
+dashboardRouter.use(requireAuth, recurringCatchUp);
 
 dashboardRouter.get(
-  '/stats',
+  '/',
   asyncHandler(async (req, res) => {
-    res.json(await dashboard.getStats(req.user!));
+    res.json(await dashboard.overview(req.user!));
   }),
 );

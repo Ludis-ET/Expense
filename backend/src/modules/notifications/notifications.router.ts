@@ -28,7 +28,7 @@ notificationsRouter.post(
   '/:id/read',
   validate({ params: z.object({ id: z.string().min(1) }) }),
   asyncHandler(async (req, res) => {
-    await notifications.markRead(req.user!, req.params.id);
+    await notifications.markRead(req.user!, req.params.id!);
     res.status(204).end();
   }),
 );

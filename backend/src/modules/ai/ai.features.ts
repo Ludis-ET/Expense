@@ -1,5 +1,5 @@
 import type { AuthUser } from '../../core/context.js';
-import { buildProjectSnapshot, buildWorkspaceSnapshot } from './ai.context.js';
+import { buildFinanceSnapshot, listUserCategories } from './ai.context.js';
 import { parseJson, runChat } from './ai.service.js';
 
 export interface AskResult {
@@ -8,14 +8,15 @@ export interface AskResult {
   provider: string;
 }
 
-/** "Ask your portfolio" — grounded NL Q&A with an optional chart spec. */
+/** "Ask about your money" — grounded NL Q&A over the user's finances. */
 export async function ask(user: AuthUser, question: string): Promise<AskResult> {
-  const snapshot = await buildWorkspaceSnapshot(user.orgId);
+  const snapshot = await buildFinanceSnapshot(user.id);
   const system =
-    'You are an analyst for a research-management workspace. Answer ONLY from the provided JSON data. ' +
-    'Be concise and specific, citing real numbers. If the data cannot answer the question, say so. ' +
+    'You are a personal-finance assistant. Answer ONLY from the provided JSON data about the user\'s ' +
+    'own money. Be concise, specific and friendly, citing real numbers with the currency. If the data ' +
+    'cannot answer the question, say so. ' +
     'Return a JSON object: {"answer": string, "chart"?: {"type":"bar"|"donut","title":string,"data":[{"label":string,"value":number}]}}. ' +
-    'Include a chart only when it genuinely helps visualise the answer (e.g. comparisons or breakdowns).';
+    'Include a chart only when it genuinely helps visualise the answer (comparisons or breakdowns).';
   const prompt = `DATA:\n${JSON.stringify(snapshot)}\n\nQUESTION: ${question}`;
 
   const { text, provider } = await runChat(user.id, { system, prompt, json: true, maxTokens: 1500 });
@@ -24,48 +25,66 @@ export async function ask(user: AuthUser, question: string): Promise<AskResult> 
   return { ...parsed, provider };
 }
 
-const REPORT_GUIDES: Record<string, string> = {
-  progress: 'a concise progress report covering status, milestones achieved and upcoming, budget utilisation, and risks',
-  funder: 'a formal report for a funder covering objectives, achievements, financial summary (planned vs spent), and next steps',
-  proposal: 'a short proposal/concept note covering background, objectives, methodology, team, and an indicative budget',
-};
-
-export interface ReportResult {
+export interface ReviewResult {
   markdown: string;
   provider: string;
 }
 
-/** AI report & proposal co-writer — generates Markdown from real project data. */
-export async function writeReport(user: AuthUser, projectId: string, type: string): Promise<ReportResult> {
-  const snapshot = await buildProjectSnapshot(user.orgId, projectId);
-  const guide = REPORT_GUIDES[type] ?? REPORT_GUIDES.progress;
+/** Monthly financial review — a personalized Markdown report with suggestions. */
+export async function monthlyReview(user: AuthUser, month: string): Promise<ReviewResult> {
+  const snapshot = await buildFinanceSnapshot(user.id);
   const system =
-    'You are a research administrator writing polished documents. Use ONLY the facts in the provided JSON; ' +
-    'do not invent results, citations, or numbers. Output clean GitHub-flavoured Markdown with clear headings, ' +
-    'short paragraphs, and tables where useful. Do not wrap the output in code fences.';
-  const prompt = `Write ${guide} for this project.\n\nPROJECT DATA:\n${JSON.stringify(snapshot)}`;
+    'You are a supportive personal-finance coach writing a monthly money review. Use ONLY the facts ' +
+    'in the provided JSON; never invent numbers. Output clean GitHub-flavoured Markdown with clear ' +
+    'headings and short paragraphs. Cover: income vs spending for the requested month, how spending ' +
+    'shifted between categories vs the previous month, budget adherence (call out overruns kindly but ' +
+    'honestly), goal progress, and end with exactly 3 specific, actionable suggestions based on the ' +
+    "user's real patterns. Do not wrap the output in code fences.";
+  const prompt = `Write the review for ${month}.\n\nFINANCE DATA:\n${JSON.stringify(snapshot)}`;
 
   const { text, provider } = await runChat(user.id, { system, prompt, maxTokens: 3000 });
   return { markdown: text, provider };
 }
 
-export interface ExtractResult {
-  fields: Record<string, unknown>;
+export interface CategorizeResult {
+  categoryId: string | null;
+  categoryName: string | null;
+  kind: 'INCOME' | 'EXPENSE' | null;
+  payee: string | null;
+  confidence: number;
   provider: string;
 }
 
-/** Document intelligence — extract structured fields from pasted text. */
-export async function extract(user: AuthUser, text: string): Promise<ExtractResult> {
+/** Suggest a category (from the user's own list) for a transaction description. */
+export async function categorize(
+  user: AuthUser,
+  description: string,
+  amount?: number,
+  payee?: string,
+): Promise<CategorizeResult> {
+  const categories = await listUserCategories(user.id);
   const system =
-    'You extract structured bibliographic metadata from messy text (a reference, abstract, email, or citation). ' +
-    'Return a JSON object with keys: title, authors (string), journal, doi, year (number|null), keywords (string[]), abstract. ' +
-    'Use null or empty values for anything not present. Do not invent data.';
-  const { text: out, provider } = await runChat(user.id, {
-    system,
-    prompt: text,
-    json: true,
-    maxTokens: 1200,
-  });
-  const fields = parseJson<Record<string, unknown>>(out) ?? {};
-  return { fields, provider };
+    'You classify a personal financial transaction into EXACTLY ONE of the user\'s own categories. ' +
+    'Return a JSON object: {"categoryName": string, "kind": "INCOME"|"EXPENSE", "payee": string|null, ' +
+    '"confidence": number between 0 and 1}. categoryName MUST be copied verbatim from the provided list. ' +
+    'Extract a clean payee/merchant name from the description if one is present.';
+  const prompt =
+    `CATEGORIES:\n${JSON.stringify(categories.map((c) => ({ name: c.name, kind: c.kind })))}\n\n` +
+    `TRANSACTION: ${JSON.stringify({ description, amount, payee })}`;
+
+  const { text, provider } = await runChat(user.id, { system, prompt, json: true, maxTokens: 300 });
+  const parsed = parseJson<{ categoryName?: string; kind?: string; payee?: string; confidence?: number }>(text);
+
+  const match = parsed?.categoryName
+    ? categories.find((c) => c.name.toLowerCase() === parsed.categoryName!.toLowerCase())
+    : undefined;
+
+  return {
+    categoryId: match?.id ?? null,
+    categoryName: match?.name ?? null,
+    kind: match?.kind ?? null,
+    payee: parsed?.payee ?? null,
+    confidence: Math.max(0, Math.min(1, parsed?.confidence ?? 0)),
+    provider,
+  };
 }

@@ -1,5 +1,4 @@
 import { describe, expect, it } from 'vitest';
-import { Role } from '@prisma/client';
 import {
   signAccessToken,
   signRefreshToken,
@@ -8,7 +7,7 @@ import {
 } from '../src/modules/auth/jwt.js';
 import type { AuthUser } from '../src/core/context.js';
 
-const user: AuthUser = { id: 'u1', email: 'a@b.com', role: Role.ADMIN, orgId: 'org1' };
+const user: AuthUser = { id: 'u1', email: 'a@b.com' };
 
 describe('jwt', () => {
   it('round-trips an access token', () => {
@@ -24,6 +23,11 @@ describe('jwt', () => {
   it('rejects a refresh token used as an access token', () => {
     const refresh = signRefreshToken(user.id);
     expect(() => verifyAccessToken(refresh)).toThrow();
+  });
+
+  it('rejects an access token used as a refresh token', () => {
+    const access = signAccessToken(user);
+    expect(() => verifyRefreshToken(access)).toThrow();
   });
 
   it('rejects a tampered token', () => {

@@ -66,22 +66,27 @@ aiRouter.post(
 );
 
 aiRouter.post(
-  '/report',
+  '/review',
   validate({
     body: z.object({
-      projectId: z.string().min(1),
-      type: z.enum(['progress', 'funder', 'proposal']).default('progress'),
+      month: z.string().regex(/^\d{4}-\d{2}$/, 'Expected YYYY-MM'),
     }),
   }),
   asyncHandler(async (req, res) => {
-    res.json(await features.writeReport(req.user!, req.body.projectId, req.body.type));
+    res.json(await features.monthlyReview(req.user!, req.body.month));
   }),
 );
 
 aiRouter.post(
-  '/extract',
-  validate({ body: z.object({ text: z.string().min(10).max(8000) }) }),
+  '/categorize',
+  validate({
+    body: z.object({
+      description: z.string().min(2).max(500),
+      amount: z.coerce.number().positive().optional(),
+      payee: z.string().max(200).optional(),
+    }),
+  }),
   asyncHandler(async (req, res) => {
-    res.json(await features.extract(req.user!, req.body.text));
+    res.json(await features.categorize(req.user!, req.body.description, req.body.amount, req.body.payee));
   }),
 );

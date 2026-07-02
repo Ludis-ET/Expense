@@ -4,7 +4,7 @@ import { env } from '../config/env.js';
 // Derive a stable 32-byte key. Prefer a dedicated AI_ENCRYPTION_KEY; otherwise
 // derive deterministically from JWT_SECRET so the app works out of the box.
 // In production, set AI_ENCRYPTION_KEY explicitly and rotate independently.
-const KEY = scryptSync(env.AI_ENCRYPTION_KEY ?? env.JWT_SECRET, 'research-tracker.ai.kdf', 32);
+const KEY = scryptSync(env.AI_ENCRYPTION_KEY ?? env.JWT_SECRET, 'santim.ai.kdf', 32);
 
 /** Encrypt a secret → "iv:tag:ciphertext" (all base64url). */
 export function encryptSecret(plaintext: string): string {

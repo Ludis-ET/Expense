@@ -1,7 +1,6 @@
-// Research-tracker data model (MVP).
-// Multi-tenancy: every tenant is an Organization. Tenant-scoped rows carry
-// orgId (directly or via their parent Project) and are filtered in the
-// service layer by the authenticated user's orgId.
+// Santim data model — personal finance.
+// Privacy model: every row is owned by exactly one User via userId (directly
+// or via its parent). Services always filter by the authenticated user's id.
 
 generator client {
   provider = "prisma-client-js"
@@ -12,263 +11,219 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-enum Role {
-  ADMIN
-  PROJECT_LEAD
-  RESEARCHER
-  REVIEWER
-  FUNDER
-  FINANCE_OFFICER
+enum TxKind {
+  INCOME
+  EXPENSE
+  TRANSFER
 }
 
-enum ProjectStatus {
-  PLANNING
-  ACTIVE
-  ON_HOLD
-  COMPLETED
-  CANCELLED
+enum CategoryKind {
+  INCOME
+  EXPENSE
 }
 
-enum TeamRole {
-  PI
-  CO_PI
-  COLLABORATOR
-  REVIEWER
+enum AccountType {
+  CASH
+  BANK
+  MOBILE_MONEY
+  CARD
+  OTHER
 }
 
-enum MilestoneStatus {
-  PENDING
-  IN_PROGRESS
-  DONE
-}
-
-enum ExpenseStatus {
-  PENDING
-  APPROVED
-  REJECTED
-}
-
-enum IdeaStatus {
-  OPEN
-  CONVERTED
-  CLOSED
-}
-
-model Organization {
-  id          String   @id @default(cuid())
-  name        String
-  country     String? // ISO 3166-1 alpha-2, e.g. "ET"
-  parentOrgId String?
-  parentOrg   Organization?  @relation("OrgHierarchy", fields: [parentOrgId], references: [id])
-  children    Organization[] @relation("OrgHierarchy")
-
-  users       User[]
-  projects    Project[]
-  invitations Invitation[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("organizations")
+enum Frequency {
+  DAILY
+  WEEKLY
+  MONTHLY
+  YEARLY
 }
 
 model User {
-  id           String  @id @default(cuid())
-  email        String  @unique
-  passwordHash String
-  name         String
-  role         Role    @default(RESEARCHER)
-  locale       String  @default("en")
-  calendar     String  @default("gregorian") // "gregorian" | "ethiopian" — display preference
-  orcidId      String? @unique
-  faydaId      String? // Ethiopian national (Fayda) ID — optional, encrypt at rest in prod
+  id             String @id @default(cuid())
+  email          String @unique
+  passwordHash   String
+  name           String
+  locale         String @default("en")
+  calendar       String @default("gregorian") // "gregorian" | "ethiopian" — display preference
+  currency       String @default("ETB") // default display/entry currency
+  firstDayOfWeek Int    @default(1) // 1 = Monday, 0 = Sunday
 
-  orgId String
-  org   Organization @relation(fields: [orgId], references: [id])
-
-  ledProjects     Project[]      @relation("ProjectLead")
-  memberships     TeamMember[]
-  expenses        Expense[]
-  ideas           Idea[]
-  notifications   Notification[]
-  invitationsSent Invitation[]   @relation("InvitedBy")
-  aiSetting       AiSetting?
+  accounts       Account[]
+  categories     Category[]
+  transactions   Transaction[]
+  recurringRules RecurringRule[]
+  budgets        Budget[]
+  goals          SavingsGoal[]
+  notifications  Notification[]
+  aiSetting      AiSetting?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId])
   @@map("users")
 }
 
-model Project {
-  id        String        @id @default(cuid())
-  title     String
-  summary   String?
-  status    ProjectStatus @default(PLANNING)
-  currency  String        @default("USD") // ISO 4217, e.g. "ETB"
-  startDate DateTime?
-  endDate   DateTime?
+model Account {
+  id             String      @id @default(cuid())
+  userId         String
+  user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name           String // "Cash", "CBE", "Telebirr"
+  type           AccountType @default(CASH)
+  currency       String      @default("ETB")
+  openingBalance Decimal     @default(0) @db.Decimal(14, 2)
+  icon           String? // lucide icon name
+  color          String? // hex
+  isDefault      Boolean     @default(false)
+  archived       Boolean     @default(false)
 
-  orgId String
-  org   Organization @relation(fields: [orgId], references: [id])
-
-  leadUserId String?
-  lead       User?   @relation("ProjectLead", fields: [leadUserId], references: [id])
-
-  team         TeamMember[]
-  publications Publication[]
-  datasets     Dataset[]
-  experiments  Experiment[]
-  milestones   Milestone[]
-  budgetItems  BudgetItem[]
-  ideas        Idea[]
+  transactions   Transaction[]   @relation("TxAccount")
+  transfersIn    Transaction[]   @relation("TxTransferAccount")
+  recurringRules RecurringRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([orgId])
-  @@map("projects")
+  @@index([userId])
+  @@map("accounts")
 }
 
-model TeamMember {
-  projectId String
-  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+model Category {
+  id        String       @id @default(cuid())
   userId    String
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  role      TeamRole @default(COLLABORATOR)
+  user      User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String
+  kind      CategoryKind
+  icon      String       @default("circle") // lucide icon name
+  color     String       @default("#64748b")
+  isDefault Boolean      @default(false) // seeded at registration
+  archived  Boolean      @default(false)
+
+  transactions   Transaction[]
+  recurringRules RecurringRule[]
+  budget         Budget?
 
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  @@id([projectId, userId])
+  @@unique([userId, name, kind])
   @@index([userId])
-  @@map("team_members")
+  @@map("categories")
 }
 
-model Publication {
+model Transaction {
+  id       String   @id @default(cuid())
+  userId   String
+  user     User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind     TxKind
+  amount   Decimal  @db.Decimal(14, 2) // always positive; kind carries the sign
+  currency String   @default("ETB")
+  date     DateTime
+
+  accountId         String
+  account           Account   @relation("TxAccount", fields: [accountId], references: [id], onDelete: Cascade)
+  transferAccountId String? // destination account, TRANSFER only
+  transferAccount   Account?  @relation("TxTransferAccount", fields: [transferAccountId], references: [id], onDelete: SetNull)
+  categoryId        String? // null for transfers
+  category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  note            String?
+  payee           String? // merchant / person
+  tags            String[]       @default([])
+  receiptUrl      String?
+  recurringRuleId String?
+  recurringRule   RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, date])
+  @@index([userId, categoryId])
+  @@index([userId, kind])
+  @@index([accountId])
+  @@map("transactions")
+}
+
+model RecurringRule {
   id         String    @id @default(cuid())
-  projectId  String
-  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title      String
-  doi        String?
-  journal    String?
-  pubDate    DateTime?
-  authorList String?
-  abstract   String?
-  keywords   String[]  @default([])
-  citationCount Int     @default(0) // optionally enriched from OpenAlex/Crossref
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name       String // "Salary", "Rent", "Netflix"
+  kind       TxKind // INCOME or EXPENSE (no recurring transfers, v1)
+  amount     Decimal   @db.Decimal(14, 2)
+  currency   String    @default("ETB")
+  accountId  String
+  account    Account   @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  categoryId String?
+  category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  payee      String?
+  note       String?
+
+  frequency  Frequency
+  interval   Int       @default(1) // every N periods
+  dayOfMonth Int? // MONTHLY: clamp 29–31 to month end
+  nextRun    DateTime
+  endDate    DateTime?
+  autoPost   Boolean   @default(true) // false = remind-only notification
+  active     Boolean   @default(true)
+  lastRunAt  DateTime?
+
+  transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([projectId])
-  @@map("publications")
+  @@index([userId, active, nextRun])
+  @@map("recurring_rules")
 }
 
-model Dataset {
-  id          String  @id @default(cuid())
-  projectId   String
-  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  link        String?
-  format      String?
+model Budget {
+  id             String   @id @default(cuid())
+  userId         String
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String   @unique // one ongoing monthly budget per category
+  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount         Decimal  @db.Decimal(14, 2) // monthly limit
+  alertThreshold Int      @default(80) // % — notify when crossed
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([projectId])
-  @@map("datasets")
+  @@index([userId])
+  @@map("budgets")
 }
 
-model Experiment {
-  id          String    @id @default(cuid())
-  projectId   String
-  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  name        String
-  description String?
-  date        DateTime?
-  resultsLink String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@map("experiments")
-}
-
-model Milestone {
-  id            String          @id @default(cuid())
-  projectId     String
-  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  description   String
-  dueDate       DateTime?
-  status        MilestoneStatus @default(PENDING)
-  completedDate DateTime?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@map("milestones")
-}
-
-model BudgetItem {
-  id            String   @id @default(cuid())
-  projectId     String
-  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
-  category      String // e.g. equipment, travel, personnel, indirect
-  plannedAmount Decimal  @db.Decimal(14, 2)
-  currency      String   @default("USD")
-  exchangeRate  Decimal? @db.Decimal(14, 6)
-  notes         String?
-
-  expenses Expense[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([projectId])
-  @@map("budget_items")
-}
-
-model Expense {
-  id           String        @id @default(cuid())
-  budgetItemId String
-  budgetItem   BudgetItem    @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+model SavingsGoal {
+  id           String    @id @default(cuid())
   userId       String
-  user         User          @relation(fields: [userId], references: [id])
-  amount       Decimal       @db.Decimal(14, 2)
-  currency     String        @default("USD")
-  date         DateTime      @default(now())
-  description  String?
-  receiptUrl   String?
-  status       ExpenseStatus @default(PENDING)
+  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name         String
+  icon         String?
+  color        String?
+  targetAmount Decimal   @db.Decimal(14, 2)
+  deadline     DateTime?
+  note         String?
+  achievedAt   DateTime?
+
+  contributions GoalContribution[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([budgetItemId])
   @@index([userId])
-  @@map("expenses")
+  @@map("savings_goals")
 }
 
-model Idea {
-  id          String     @id @default(cuid())
-  projectId   String?
-  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
-  userId      String
-  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  title       String
-  description String?
-  priority    Int        @default(0)
-  status      IdeaStatus @default(OPEN)
+model GoalContribution {
+  id     String      @id @default(cuid())
+  goalId String
+  goal   SavingsGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  amount Decimal     @db.Decimal(14, 2)
+  date   DateTime    @default(now())
+  note   String?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@index([userId])
-  @@map("ideas")
+  @@index([goalId])
+  @@map("goal_contributions")
 }
 
 model Notification {
@@ -283,30 +238,6 @@ model Notification {
 
   @@index([userId, readFlag])
   @@map("notifications")
-}
-
-enum InvitationStatus {
-  PENDING
-  ACCEPTED
-  REVOKED
-}
-
-// Invite a friend, family member, or collaborator into your workspace.
-model Invitation {
-  id          String           @id @default(cuid())
-  orgId       String
-  org         Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  email       String
-  token       String           @unique
-  role        Role             @default(RESEARCHER)
-  status      InvitationStatus @default(PENDING)
-  invitedById String
-  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id])
-  expiresAt   DateTime
-  createdAt   DateTime         @default(now())
-
-  @@index([orgId])
-  @@map("invitations")
 }
 
 // Per-user AI provider configuration. `providers` is an ordered JSON array

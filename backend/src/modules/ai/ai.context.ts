@@ -1,100 +1,109 @@
-import { ExpenseStatus, Prisma } from '@prisma/client';
+import { CategoryKind, Prisma, TxKind } from '@prisma/client';
 import { prisma } from '../../core/db.js';
-import { NotFoundError } from '../../core/errors.js';
 
-const sumApproved = (expenses: { amount: Prisma.Decimal; status: ExpenseStatus }[]) =>
-  expenses
-    .filter((e) => e.status === ExpenseStatus.APPROVED)
-    .reduce((acc, e) => acc.add(e.amount), new Prisma.Decimal(0));
+const zero = new Prisma.Decimal(0);
 
-/** Compact, grounded snapshot of a whole workspace — fed to the AI for "ask your portfolio". */
-export async function buildWorkspaceSnapshot(orgId: string) {
-  const org = await prisma.organization.findUnique({ where: { id: orgId }, select: { name: true } });
-  const projects = await prisma.project.findMany({
-    where: { orgId },
-    select: {
-      title: true,
-      status: true,
-      currency: true,
-      _count: { select: { team: true, publications: true } },
-      milestones: { select: { status: true } },
-      budgetItems: { select: { plannedAmount: true, expenses: { select: { amount: true, status: true } } } },
-    },
-  });
+/**
+ * Compact, grounded snapshot of a user's finances — compact aggregates rather
+ * than raw rows to keep prompt size (and token cost) low.
+ */
+export async function buildFinanceSnapshot(userId: string) {
+  const now = new Date();
+  const threeMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
 
-  let totalPlanned = new Prisma.Decimal(0);
-  let totalSpent = new Prisma.Decimal(0);
+  const [user, accounts, categories, transactions, budgets, goals, payees] = await Promise.all([
+    prisma.user.findUnique({ where: { id: userId }, select: { name: true, currency: true } }),
+    prisma.account.findMany({
+      where: { userId, archived: false },
+      select: { name: true, type: true, currency: true, openingBalance: true },
+    }),
+    prisma.category.findMany({
+      where: { userId },
+      select: { id: true, name: true, kind: true },
+    }),
+    prisma.transaction.findMany({
+      where: { userId, date: { gte: threeMonthsAgo }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
+      select: { kind: true, amount: true, date: true, categoryId: true, payee: true },
+    }),
+    prisma.budget.findMany({
+      where: { userId },
+      select: { amount: true, alertThreshold: true, category: { select: { name: true } } },
+    }),
+    prisma.savingsGoal.findMany({
+      where: { userId },
+      select: {
+        name: true,
+        targetAmount: true,
+        deadline: true,
+        achievedAt: true,
+        contributions: { select: { amount: true } },
+      },
+    }),
+    prisma.transaction.groupBy({
+      by: ['payee'],
+      where: { userId, kind: TxKind.EXPENSE, payee: { not: null }, date: { gte: threeMonthsAgo } },
+      _sum: { amount: true },
+      orderBy: { _sum: { amount: 'desc' } },
+      take: 10,
+    }),
+  ]);
 
-  const projectRows = projects.map((p) => {
-    const planned = p.budgetItems.reduce((acc, b) => acc.add(b.plannedAmount), new Prisma.Decimal(0));
-    const spent = p.budgetItems.reduce((acc, b) => acc.add(sumApproved(b.expenses)), new Prisma.Decimal(0));
-    totalPlanned = totalPlanned.add(planned);
-    totalSpent = totalSpent.add(spent);
-    return {
-      title: p.title,
-      status: p.status,
-      currency: p.currency,
-      planned: Number(planned),
-      spent: Number(spent),
-      utilizationPct: planned.gt(0) ? Math.round(Number(spent.div(planned)) * 100) : 0,
-      team: p._count.team,
-      publications: p._count.publications,
-      milestonesDone: p.milestones.filter((m) => m.status === 'DONE').length,
-      milestonesOpen: p.milestones.filter((m) => m.status !== 'DONE').length,
-    };
-  });
+  const categoryById = new Map(categories.map((c) => [c.id, c]));
 
-  const ideas = await prisma.idea.findMany({
-    where: { user: { orgId } },
-    select: { title: true, priority: true, status: true },
-    orderBy: { priority: 'desc' },
-    take: 30,
-  });
+  // Per-category totals per month: { '2026-06': { Transport: 1200, ... } }
+  const monthly: Record<string, { income: number; expense: number; byCategory: Record<string, number> }> = {};
+  for (const tx of transactions) {
+    const month = tx.date.toISOString().slice(0, 7);
+    monthly[month] ??= { income: 0, expense: 0, byCategory: {} };
+    const amt = Number(tx.amount);
+    if (tx.kind === TxKind.INCOME) monthly[month].income += amt;
+    else {
+      monthly[month].expense += amt;
+      const name = tx.categoryId ? (categoryById.get(tx.categoryId)?.name ?? 'Other') : 'Other';
+      monthly[month].byCategory[name] = (monthly[month].byCategory[name] ?? 0) + amt;
+    }
+  }
+
+  // Current-month spend per category, to pair with budgets.
+  const monthStart = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), 1));
+  const currentSpend: Record<string, number> = {};
+  for (const tx of transactions) {
+    if (tx.kind !== TxKind.EXPENSE || tx.date < monthStart || !tx.categoryId) continue;
+    const name = categoryById.get(tx.categoryId)?.name ?? 'Other';
+    currentSpend[name] = (currentSpend[name] ?? 0) + Number(tx.amount);
+  }
 
   return {
-    workspace: org?.name ?? 'Workspace',
-    projectCount: projects.length,
-    totals: { planned: Number(totalPlanned), spent: Number(totalSpent) },
-    projects: projectRows,
-    ideas,
+    user: user?.name,
+    defaultCurrency: user?.currency ?? 'ETB',
+    today: now.toISOString().slice(0, 10),
+    accounts: accounts.map((a) => ({ name: a.name, type: a.type, currency: a.currency })),
+    categories: categories.map((c) => ({ name: c.name, kind: c.kind })),
+    monthlyTotals: monthly,
+    budgets: budgets.map((b) => ({
+      category: b.category.name,
+      monthlyLimit: Number(b.amount),
+      spentThisMonth: Math.round((currentSpend[b.category.name] ?? 0) * 100) / 100,
+      alertThresholdPct: b.alertThreshold,
+    })),
+    goals: goals.map((g) => ({
+      name: g.name,
+      target: Number(g.targetAmount),
+      saved: Number(g.contributions.reduce((s, c) => s.add(c.amount), zero)),
+      deadline: g.deadline?.toISOString().slice(0, 10) ?? null,
+      achieved: Boolean(g.achievedAt),
+    })),
+    topPayees: payees.map((p) => ({ payee: p.payee, total: Number(p._sum.amount ?? zero) })),
   };
 }
 
-/** Detailed snapshot of one project — fed to the AI report writer. */
-export async function buildProjectSnapshot(orgId: string, projectId: string) {
-  const project = await prisma.project.findFirst({
-    where: { id: projectId, orgId },
-    include: {
-      lead: { select: { name: true } },
-      team: { include: { user: { select: { name: true } } } },
-      milestones: { orderBy: { dueDate: 'asc' } },
-      publications: true,
-      budgetItems: { include: { expenses: { select: { amount: true, status: true } } } },
-    },
+/** The user's category list in a form the categorizer prompt can choose from. */
+export async function listUserCategories(userId: string) {
+  return prisma.category.findMany({
+    where: { userId, archived: false },
+    select: { id: true, name: true, kind: true },
+    orderBy: [{ kind: 'asc' }, { name: 'asc' }],
   });
-  if (!project) throw new NotFoundError('Project not found');
-
-  const budget = project.budgetItems.map((b) => ({
-    category: b.category,
-    planned: Number(b.plannedAmount),
-    spent: Number(sumApproved(b.expenses)),
-  }));
-
-  return {
-    title: project.title,
-    summary: project.summary,
-    status: project.status,
-    currency: project.currency,
-    startDate: project.startDate,
-    endDate: project.endDate,
-    lead: project.lead?.name ?? null,
-    team: project.team.map((t) => ({ name: t.user.name, role: t.role })),
-    milestones: project.milestones.map((m) => ({ description: m.description, status: m.status, dueDate: m.dueDate })),
-    publications: project.publications.map((p) => ({ title: p.title, journal: p.journal, doi: p.doi })),
-    budget,
-    budgetTotals: {
-      planned: budget.reduce((s, b) => s + b.planned, 0),
-      spent: budget.reduce((s, b) => s + b.spent, 0),
-    },
-  };
 }
+
+export { CategoryKind };

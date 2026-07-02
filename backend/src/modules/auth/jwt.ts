@@ -18,7 +18,7 @@ export function signRefreshToken(userId: string): string {
 export function verifyAccessToken(token: string): AuthUser {
   const decoded = jwt.verify(token, env.JWT_SECRET) as AccessPayload;
   if (decoded.typ !== 'access') throw new Error('Not an access token');
-  return { id: decoded.id, email: decoded.email, role: decoded.role, orgId: decoded.orgId };
+  return { id: decoded.id, email: decoded.email };
 }
 
 export function verifyRefreshToken(token: string): { userId: string } {

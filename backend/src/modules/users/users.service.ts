@@ -5,13 +5,11 @@ const publicUserSelect = {
   id: true,
   name: true,
   email: true,
-  role: true,
   locale: true,
   calendar: true,
-  orcidId: true,
-  orgId: true,
+  currency: true,
+  firstDayOfWeek: true,
   createdAt: true,
-  org: { select: { name: true } },
 } as const;
 
 export async function getById(userId: string) {
@@ -22,16 +20,7 @@ export async function getById(userId: string) {
 
 export async function updateProfile(
   userId: string,
-  data: { name?: string; locale?: string; orcidId?: string; calendar?: string },
+  data: { name?: string; locale?: string; calendar?: string; currency?: string; firstDayOfWeek?: number },
 ) {
   return prisma.user.update({ where: { id: userId }, data, select: publicUserSelect });
-}
-
-/** Lists users within the caller's organization (for team pickers, mentions, etc.). */
-export async function listByOrg(orgId: string) {
-  return prisma.user.findMany({
-    where: { orgId },
-    select: { id: true, name: true, email: true, role: true },
-    orderBy: { name: 'asc' },
-  });
 }

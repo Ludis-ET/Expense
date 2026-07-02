@@ -1,0 +1,22 @@
+node_modules/
+dist/
+coverage/
+
+# Env & secrets
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# OS / editor
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+
+# Prisma
+prisma/*.db
+prisma/*.db-journal

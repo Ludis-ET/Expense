@@ -1,0 +1,323 @@
+// Research-tracker data model (MVP).
+// Multi-tenancy: every tenant is an Organization. Tenant-scoped rows carry
+// orgId (directly or via their parent Project) and are filtered in the
+// service layer by the authenticated user's orgId.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  ADMIN
+  PROJECT_LEAD
+  RESEARCHER
+  REVIEWER
+  FUNDER
+  FINANCE_OFFICER
+}
+
+enum ProjectStatus {
+  PLANNING
+  ACTIVE
+  ON_HOLD
+  COMPLETED
+  CANCELLED
+}
+
+enum TeamRole {
+  PI
+  CO_PI
+  COLLABORATOR
+  REVIEWER
+}
+
+enum MilestoneStatus {
+  PENDING
+  IN_PROGRESS
+  DONE
+}
+
+enum ExpenseStatus {
+  PENDING
+  APPROVED
+  REJECTED
+}
+
+enum IdeaStatus {
+  OPEN
+  CONVERTED
+  CLOSED
+}
+
+model Organization {
+  id          String   @id @default(cuid())
+  name        String
+  country     String? // ISO 3166-1 alpha-2, e.g. "ET"
+  parentOrgId String?
+  parentOrg   Organization?  @relation("OrgHierarchy", fields: [parentOrgId], references: [id])
+  children    Organization[] @relation("OrgHierarchy")
+
+  users       User[]
+  projects    Project[]
+  invitations Invitation[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("organizations")
+}
+
+model User {
+  id           String  @id @default(cuid())
+  email        String  @unique
+  passwordHash String
+  name         String
+  role         Role    @default(RESEARCHER)
+  locale       String  @default("en")
+  calendar     String  @default("gregorian") // "gregorian" | "ethiopian" — display preference
+  orcidId      String? @unique
+  faydaId      String? // Ethiopian national (Fayda) ID — optional, encrypt at rest in prod
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id])
+
+  ledProjects     Project[]      @relation("ProjectLead")
+  memberships     TeamMember[]
+  expenses        Expense[]
+  ideas           Idea[]
+  notifications   Notification[]
+  invitationsSent Invitation[]   @relation("InvitedBy")
+  aiSetting       AiSetting?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@map("users")
+}
+
+model Project {
+  id        String        @id @default(cuid())
+  title     String
+  summary   String?
+  status    ProjectStatus @default(PLANNING)
+  currency  String        @default("USD") // ISO 4217, e.g. "ETB"
+  startDate DateTime?
+  endDate   DateTime?
+
+  orgId String
+  org   Organization @relation(fields: [orgId], references: [id])
+
+  leadUserId String?
+  lead       User?   @relation("ProjectLead", fields: [leadUserId], references: [id])
+
+  team         TeamMember[]
+  publications Publication[]
+  datasets     Dataset[]
+  experiments  Experiment[]
+  milestones   Milestone[]
+  budgetItems  BudgetItem[]
+  ideas        Idea[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId])
+  @@map("projects")
+}
+
+model TeamMember {
+  projectId String
+  project   Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role      TeamRole @default(COLLABORATOR)
+
+  createdAt DateTime @default(now())
+
+  @@id([projectId, userId])
+  @@index([userId])
+  @@map("team_members")
+}
+
+model Publication {
+  id         String    @id @default(cuid())
+  projectId  String
+  project    Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title      String
+  doi        String?
+  journal    String?
+  pubDate    DateTime?
+  authorList String?
+  abstract   String?
+  keywords   String[]  @default([])
+  citationCount Int     @default(0) // optionally enriched from OpenAlex/Crossref
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("publications")
+}
+
+model Dataset {
+  id          String  @id @default(cuid())
+  projectId   String
+  project     Project @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  link        String?
+  format      String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("datasets")
+}
+
+model Experiment {
+  id          String    @id @default(cuid())
+  projectId   String
+  project     Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  name        String
+  description String?
+  date        DateTime?
+  resultsLink String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("experiments")
+}
+
+model Milestone {
+  id            String          @id @default(cuid())
+  projectId     String
+  project       Project         @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  description   String
+  dueDate       DateTime?
+  status        MilestoneStatus @default(PENDING)
+  completedDate DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("milestones")
+}
+
+model BudgetItem {
+  id            String   @id @default(cuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  category      String // e.g. equipment, travel, personnel, indirect
+  plannedAmount Decimal  @db.Decimal(14, 2)
+  currency      String   @default("USD")
+  exchangeRate  Decimal? @db.Decimal(14, 6)
+  notes         String?
+
+  expenses Expense[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([projectId])
+  @@map("budget_items")
+}
+
+model Expense {
+  id           String        @id @default(cuid())
+  budgetItemId String
+  budgetItem   BudgetItem    @relation(fields: [budgetItemId], references: [id], onDelete: Cascade)
+  userId       String
+  user         User          @relation(fields: [userId], references: [id])
+  amount       Decimal       @db.Decimal(14, 2)
+  currency     String        @default("USD")
+  date         DateTime      @default(now())
+  description  String?
+  receiptUrl   String?
+  status       ExpenseStatus @default(PENDING)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([budgetItemId])
+  @@index([userId])
+  @@map("expenses")
+}
+
+model Idea {
+  id          String     @id @default(cuid())
+  projectId   String?
+  project     Project?   @relation(fields: [projectId], references: [id], onDelete: SetNull)
+  userId      String
+  user        User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title       String
+  description String?
+  priority    Int        @default(0)
+  status      IdeaStatus @default(OPEN)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId])
+  @@map("ideas")
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  message   String
+  link      String?
+  readFlag  Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@index([userId, readFlag])
+  @@map("notifications")
+}
+
+enum InvitationStatus {
+  PENDING
+  ACCEPTED
+  REVOKED
+}
+
+// Invite a friend, family member, or collaborator into your workspace.
+model Invitation {
+  id          String           @id @default(cuid())
+  orgId       String
+  org         Organization     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  email       String
+  token       String           @unique
+  role        Role             @default(RESEARCHER)
+  status      InvitationStatus @default(PENDING)
+  invitedById String
+  invitedBy   User             @relation("InvitedBy", fields: [invitedById], references: [id])
+  expiresAt   DateTime
+  createdAt   DateTime         @default(now())
+
+  @@index([orgId])
+  @@map("invitations")
+}
+
+// Per-user AI provider configuration. `providers` is an ordered JSON array
+// (priority order) of { id, model, enabled, keyEnc }. API keys are encrypted
+// at rest (AES-256-GCM) and never returned to the client.
+model AiSetting {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  providers Json     @default("[]")
+  updatedAt DateTime @updatedAt
+
+  @@map("ai_settings")
+}

@@ -1,0 +1,21 @@
+{
+  "name": "research-tracker",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Research-tracker SaaS monorepo — Express/Prisma backend + Next.js frontend",
+  "packageManager": "pnpm@10.24.0",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "dev": "pnpm --parallel -r dev",
+    "dev:backend": "pnpm --filter @research-tracker/backend dev",
+    "dev:frontend": "pnpm --filter @research-tracker/frontend dev",
+    "build": "pnpm -r build",
+    "lint": "pnpm -r lint",
+    "test": "pnpm -r test",
+    "typecheck": "pnpm -r typecheck",
+    "db:migrate": "pnpm --filter @research-tracker/backend db:migrate",
+    "db:seed": "pnpm --filter @research-tracker/backend db:seed"
+  }
+}

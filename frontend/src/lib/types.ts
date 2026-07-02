@@ -1,102 +1,132 @@
-export type Role = 'ADMIN' | 'PROJECT_LEAD' | 'RESEARCHER' | 'REVIEWER' | 'FUNDER' | 'FINANCE_OFFICER';
-export type ProjectStatus = 'PLANNING' | 'ACTIVE' | 'ON_HOLD' | 'COMPLETED' | 'CANCELLED';
-export type TeamRole = 'PI' | 'CO_PI' | 'COLLABORATOR' | 'REVIEWER';
-export type MilestoneStatus = 'PENDING' | 'IN_PROGRESS' | 'DONE';
-export type ExpenseStatus = 'PENDING' | 'APPROVED' | 'REJECTED';
-export type IdeaStatus = 'OPEN' | 'CONVERTED' | 'CLOSED';
+export type TxKind = 'INCOME' | 'EXPENSE' | 'TRANSFER';
+export type CategoryKind = 'INCOME' | 'EXPENSE';
+export type AccountType = 'CASH' | 'BANK' | 'MOBILE_MONEY' | 'CARD' | 'OTHER';
+export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
 
 export interface User {
   id: string;
   name: string;
   email: string;
-  role: Role;
   locale?: string;
   calendar?: 'gregorian' | 'ethiopian';
-  orcidId?: string | null;
-  orgId: string;
-  org?: { name: string };
+  currency: string;
+  firstDayOfWeek: number;
 }
 
 export interface AuthResponse {
-  user: { id: string; email: string; role: Role; orgId: string };
+  user: { id: string; email: string };
   accessToken: string;
   refreshToken: string;
 }
 
-export interface Project {
+export interface Account {
   id: string;
-  title: string;
-  summary?: string | null;
-  status: ProjectStatus;
+  name: string;
+  type: AccountType;
   currency: string;
-  startDate?: string | null;
-  endDate?: string | null;
-  leadUserId?: string | null;
-  updatedAt: string;
-  _count?: { team: number; milestones: number; budgetItems: number };
+  openingBalance: string;
+  balance: string;
+  icon?: string | null;
+  color?: string | null;
+  isDefault: boolean;
+  archived: boolean;
 }
 
-export interface TeamMember {
-  projectId: string;
-  userId: string;
-  role: TeamRole;
-  user: { id: string; name: string; email: string };
-}
-
-export interface Milestone {
+export interface Category {
   id: string;
-  description: string;
-  dueDate?: string | null;
-  status: MilestoneStatus;
-  completedDate?: string | null;
+  name: string;
+  kind: CategoryKind;
+  icon: string;
+  color: string;
+  isDefault: boolean;
+  archived: boolean;
+  transactionCount?: number;
 }
 
-export interface ProjectDetail extends Project {
-  lead?: { id: string; name: string; email: string } | null;
-  team: TeamMember[];
-  milestones: Milestone[];
-  budgetItems: BudgetItem[];
-}
-
-export interface BudgetItem {
+export interface Transaction {
   id: string;
-  category: string;
-  plannedAmount: string;
-  currency: string;
-  notes?: string | null;
-}
-
-export interface Expense {
-  id: string;
+  kind: TxKind;
   amount: string;
   currency: string;
   date: string;
-  description?: string | null;
-  status: ExpenseStatus;
-  user?: { id: string; name: string };
+  accountId: string;
+  account?: { id: string; name: string; type?: AccountType };
+  transferAccountId?: string | null;
+  transferAccount?: { id: string; name: string } | null;
+  categoryId?: string | null;
+  category?: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  note?: string | null;
+  payee?: string | null;
+  tags: string[];
+  recurringRuleId?: string | null;
 }
 
-export interface BudgetSummaryItem extends BudgetItem {
-  spent: string;
-  pending: string;
-  remaining: string;
-  expenses: Expense[];
+export interface TransactionPage {
+  items: Transaction[];
+  total: number;
+  page: number;
+  pageSize: number;
 }
 
-export interface BudgetSummary {
-  items: BudgetSummaryItem[];
-  totalPlanned: string;
-}
-
-export interface Idea {
+export interface RecurringRule {
   id: string;
-  title: string;
-  description?: string | null;
-  priority: number;
-  status: IdeaStatus;
-  createdAt: string;
-  user: { id: string; name: string };
-  project?: { id: string; title: string } | null;
+  name: string;
+  kind: TxKind;
+  amount: string;
+  currency: string;
+  accountId: string;
+  account?: { id: string; name: string };
+  categoryId?: string | null;
+  category?: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  payee?: string | null;
+  note?: string | null;
+  frequency: Frequency;
+  interval: number;
+  dayOfMonth?: number | null;
+  nextRun: string;
+  endDate?: string | null;
+  autoPost: boolean;
+  active: boolean;
+  postedCount: number;
+}
+
+export interface BudgetRow {
+  id: string;
+  categoryId: string;
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> & { archived?: boolean };
+  amount: string;
+  alertThreshold: number;
+  spent: string;
+  remaining: string;
+  pct: number;
+  status: 'ok' | 'warning' | 'over';
+}
+
+export interface BudgetsResponse {
+  items: BudgetRow[];
+  totals: { budgeted: string; spent: string; remaining: string };
+}
+
+export interface GoalContribution {
+  id: string;
+  amount: string;
+  date: string;
+  note?: string | null;
+}
+
+export interface SavingsGoal {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  targetAmount: string;
+  saved: string;
+  pct: number;
+  monthlyNeeded: string | null;
+  deadline?: string | null;
+  note?: string | null;
+  achievedAt?: string | null;
+  contributions: GoalContribution[];
 }
 
 export interface Notification {
@@ -108,10 +138,53 @@ export interface Notification {
   createdAt: string;
 }
 
-export interface DashboardStats {
-  counts: { projects: number; publications: number; datasets: number; openIdeas: number; pendingExpenses: number };
-  projectsByStatus: { status: ProjectStatus; count: number }[];
-  budget: { totalPlanned: string; totalSpent: string; utilization: number };
-  recentProjects: Pick<Project, 'id' | 'title' | 'status' | 'currency' | 'updatedAt'>[];
-  upcomingMilestones: (Milestone & { project: { id: string; title: string } })[];
+export interface MonthSummary {
+  month: string;
+  income: string;
+  expense: string;
+  net: string;
+  incomeDeltaPct: number | null;
+  expenseDeltaPct: number | null;
+  avgDailySpend: string;
+  biggestExpense: {
+    id: string;
+    amount: string;
+    payee?: string | null;
+    note?: string | null;
+    date: string;
+    category?: Pick<Category, 'name' | 'icon' | 'color'> | null;
+  } | null;
+}
+
+export interface SeriesPoint {
+  bucket: string;
+  income: string;
+  expense: string;
+}
+
+export interface CategoryBreakdownItem {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  amount: string;
+  count: number;
+  pct: number;
+}
+
+export interface UnnecessaryStats {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  total: string;
+  prevTotal: string;
+  deltaPct: number | null;
+  count: number;
+}
+
+export interface DashboardData {
+  totalBalance: string;
+  accounts: Account[];
+  month: MonthSummary;
+  budgetsAtRisk: BudgetRow[];
+  goals: SavingsGoal[];
+  recentTransactions: Transaction[];
+  topCategories: CategoryBreakdownItem[];
+  upcomingRecurring: (RecurringRule & { category?: { name: string; icon: string; color: string } | null })[];
+  unnecessary: UnnecessaryStats;
 }

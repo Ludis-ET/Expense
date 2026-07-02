@@ -4,16 +4,18 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useTheme } from 'next-themes';
 import {
+  ArrowLeftRight,
   BarChart3,
-  FolderKanban,
-  Lightbulb,
+  LayoutDashboard,
   Moon,
-  Network,
-  FileText,
+  PiggyBank,
+  Plus,
+  Repeat,
   Search,
   Settings,
   Sparkles,
   Sun,
+  Target,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -41,13 +43,15 @@ export function CommandPalette() {
       setOpen(false);
     };
     return [
-      { id: 'dashboard', label: 'Go to Dashboard', icon: BarChart3, run: go('/dashboard') },
-      { id: 'projects', label: 'Go to Projects', icon: FolderKanban, run: go('/projects') },
-      { id: 'budget', label: 'Go to Budget', icon: Wallet, run: go('/budget') },
-      { id: 'ideas', label: 'Go to Ideas', icon: Lightbulb, run: go('/ideas') },
-      { id: 'insights', label: 'Go to Insights', hint: 'charts & network', icon: Network, run: go('/insights') },
-      { id: 'reports', label: 'Generate a Report', hint: 'AI', icon: FileText, run: go('/reports') },
-      { id: 'ask', label: 'Ask your portfolio', hint: 'AI', icon: Sparkles, run: go('/dashboard') },
+      { id: 'add', label: 'Add transaction', hint: 'quick add', icon: Plus, run: go('/transactions?add=1') },
+      { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: go('/dashboard') },
+      { id: 'transactions', label: 'Go to Transactions', icon: ArrowLeftRight, run: go('/transactions') },
+      { id: 'accounts', label: 'Go to Accounts', icon: Wallet, run: go('/accounts') },
+      { id: 'budgets', label: 'Go to Budgets', icon: PiggyBank, run: go('/budgets') },
+      { id: 'goals', label: 'Go to Goals', icon: Target, run: go('/goals') },
+      { id: 'recurring', label: 'Go to Recurring', icon: Repeat, run: go('/recurring') },
+      { id: 'analytics', label: 'Go to Analytics', icon: BarChart3, run: go('/analytics') },
+      { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: go('/assistant') },
       { id: 'settings', label: 'Go to Settings', icon: Settings, run: go('/settings') },
       {
         id: 'theme',

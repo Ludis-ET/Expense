@@ -12,7 +12,7 @@ import { ApiError } from '@/lib/api';
 
 export default function LoginPage() {
   const { login } = useAuth();
-  const [email, setEmail] = useState('admin@example.com');
+  const [email, setEmail] = useState('demo@example.com');
   const [password, setPassword] = useState('password123');
   const [loading, setLoading] = useState(false);
 
@@ -29,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <AuthShell title="Welcome back" subtitle="Sign in to your research workspace">
+    <AuthShell title="Welcome back" subtitle="Sign in to your money">
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Email">
           <Input type="email" autoComplete="email" required value={email} onChange={(e) => setEmail(e.target.value)} />

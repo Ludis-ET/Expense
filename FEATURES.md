@@ -1,135 +1,108 @@
-# ResearchTracker — Feature Guide
+# Santim — Feature Guide
 
-A walkthrough of everything you can do in the app, organized by page. Every record
-belongs to one organization (`orgId`) — you only ever see your own org's data.
+A walkthrough of everything you can do, page by page. Santim is a **personal** finance app: every account is completely private — there are no teams, orgs or admins. Sign-in exists only so more than one person can each keep their own separate data.
+
+**Demo login** (after `pnpm db:seed`): `demo@example.com` / `password123` — comes with three accounts and ~3 months of transactions so every screen is alive immediately.
 
 ## Getting in
 
 ### Register / Login (`/register`, `/login`)
-Create an account (becomes a `RESEARCHER` by default) or log in with an existing one.
-Auth uses a short-lived JWT access token plus a longer-lived refresh token, so you
-stay signed in across sessions without re-entering a password constantly.
-
-**Demo account** (after `pnpm db:seed`): `admin@example.com` / `password123`
-— org "Addis Ababa University", user "Abebe Bekele" (ADMIN).
-
-### Accept invite (`/accept?token=...`)
-If a teammate invites you by email, opening the link shows which org and role
-you're joining, then adds you to it once you accept (registering first if you
-don't have an account yet).
-
-## Roles — what each one can do
-
-| Role | Typical use |
-|---|---|
-| `ADMIN` | Full control: invite/remove members, manage all projects, approve budgets |
-| `PROJECT_LEAD` | Create/manage projects they lead, invite teammates, approve budget items and expenses |
-| `FINANCE_OFFICER` | Create/edit budget items, approve or reject expenses — no project-management rights |
-| `RESEARCHER` | Default role: work inside projects they're a member of, submit expenses, log ideas |
-| `REVIEWER` | Read/review access (project `TeamRole: REVIEWER` also exists at the per-project level) |
-| `FUNDER` | External stakeholder role, for future funder-facing reporting |
-
-A separate, per-project **team role** (`PI`, `CO_PI`, `COLLABORATOR`, `REVIEWER`) tracks
-someone's position on a specific project, independent of their org-wide role above.
+Create an account with just a name, email and password — you immediately get a starter set of categories and a "Cash" account. Auth uses a short-lived access token plus a refresh token, so you stay signed in without re-entering your password constantly. Your data is scoped to you and only you.
 
 ## Dashboard (`/dashboard`)
 
-Your home base after login:
-- **Stat cards** — quick counts (active projects, budget health, etc.)
-- **Budget donut chart** — SVG breakdown of spend by category
-- **Budget gauge** — planned vs. approved spend at a glance
-- **Recent projects** and **upcoming milestones** — jump back into active work fast
+Your money at a glance:
+- **Stat cards** — total balance across accounts, income this month, spending this month (with up/down trend vs last month), and net, with average daily spend.
+- **Recent transactions** — your latest activity, grouped by day.
+- **Top spending** donut — where this month's money went, by category.
+- **Budgets at risk** — any category near or over its limit.
+- **Goals** — progress bars toward your savings goals.
+- **Upcoming & unnecessary** — bills due in the next 7 days, plus how much you've spent on "unnecessary" impulse buys this month.
 
-## Projects (`/projects`)
+## Transactions (`/transactions`)
 
-- **Grid view** with filters (e.g. by status: `PLANNING`, `ACTIVE`, `ON_HOLD`,
-  `COMPLETED`, `CANCELLED`)
-- **Create Project** modal — spin up a new project in seconds
-- Click into a project for a **tabbed detail view**:
-  - **Overview** — description, status, timeline
-  - **Team** — see/manage members and their team role (PI, Co-PI, Collaborator, Reviewer)
-  - **Budget** — this project's budget items and expenses
-  - **Milestones** — this project's milestone list
+The core ledger — every birr in and out.
+- **Add** income or expense via the quick-add modal (the **+ Add transaction** button, the `N` shortcut, or the command palette). Pick a type, amount, account, category (filtered to the right type), date, payee, tags and a note.
+- **✨ Suggest** — if you've set an AI key, one click reads your payee/note and picks the best category for you.
+- **Filter** by month, type, category, account, tag, or free-text search across payees and notes.
+- **Edit or delete** any transaction inline; rows are grouped by day with running subtotals.
+- **Export** the current view to CSV.
 
-### Milestones (inside a project)
-Add a milestone with a description and optional due date. Each milestone has a
-status you move through: `PENDING` → `IN_PROGRESS` → `DONE`. Edit or delete as
-plans change.
+Three transaction kinds: **income**, **expense**, and **transfer** (moving money between your own accounts — transfers change balances but are excluded from income/expense analytics).
 
-## Budget (`/budget`)
+## Accounts (`/accounts`)
 
-The **org-wide portfolio view** — every project's budget side by side, planned vs.
-approved spend, so admins/finance can see the whole picture at once (not just one
-project at a time).
+Your wallets — **cash, bank, mobile-money (e.g. Telebirr), card or other**.
+- Each shows a **computed balance** (opening balance + income − expenses ± transfers).
+- Add, edit, archive, or delete accounts (deleting is blocked if it has transactions — archive instead).
+- **Transfer** money between accounts in one step.
+- Pick an icon and color for each.
 
-**How the money flow works:**
-1. An Admin, Project Lead, or Finance Officer creates a **budget item** on a project
-   (a category with a planned amount).
-2. Any project member can **submit an expense** against that budget item.
-3. An Admin, Project Lead, or Finance Officer **approves or rejects** it. Expenses
-   sit as `PENDING` until decided, then move to `APPROVED` or `REJECTED`.
+## Budgets (`/budgets`)
 
-This gives you an audit trail — who requested what, who approved it, and how actual
-spend compares to plan.
+Set a **monthly spending limit per category** and stay ahead of overspending.
+- Progress bars turn amber then red as you approach and cross the limit.
+- Set an **alert threshold** (e.g. 80%) — when you cross it, Santim drops a notification.
+- A month navigator lets you review any past month; a summary strip shows total budgeted vs spent vs remaining.
 
-## Ideas (`/ideas`)
+## Goals (`/goals`)
 
-A **drag-and-drop Kanban board** for capturing research ideas before they become
-full projects. Each idea has a priority and moves through a status: `OPEN` →
-`CONVERTED` (turned into a real project) → `CLOSED` (shelved). Great for a team
-backlog of "things we might want to research next."
+Save towards the things that matter — an emergency fund, a trip, a new laptop.
+- Set a **target amount** and an optional **deadline**; Santim tells you **how much per month** you need to save to get there.
+- Log **contributions** as you save; the goal marks itself **reached** (with a celebration) when you hit the target.
+- Give each goal its own icon and color.
 
-## Insights (`/insights`)
+## Recurring (`/recurring`)
 
-Analytics views that go beyond raw numbers:
-- **Burn-rate forecast** — a chart projecting how your budget will deplete over
-  time based on current spend
-- **Impact metrics** — summary stats on research output/impact
-- **Collaboration network graph** — a node-link visualization of who's working
-  with whom across your projects, useful for spotting silos or key connectors
+Automate money that repeats — salary, rent, subscriptions.
+- Choose a frequency (daily/weekly/monthly/yearly), interval, and for monthly rules a day of the month (safely clamped for short months, so "the 31st" still works in February).
+- **Auto-post** rules create the transaction automatically on schedule; **remind-only** rules just send you a notification.
+- **Run now** posts one occurrence on demand; pause/resume any rule with the active toggle.
 
-## Reports (`/reports`)
+Occurrences are materialized lazily whenever you open a money screen, so they're always up to date without a background job server.
 
-AI-assisted writing, grounded in your actual project data (not generic text):
-- **Generate a report** for any project — choose **Progress report**, **Funder
-  report**, or **Proposal draft**, and the AI pulls real milestones/budget/status
-  into a first draft you can edit.
-- **Extract** — paste reference text (e.g. a paper abstract or notes) and have AI
-  pull out structured information from it.
+## Analytics (`/analytics`)
 
-> Requires an AI provider to be configured first — see Settings below.
+The deep dive into your habits.
+- **Income vs. expense** trend — switch between **daily, weekly and monthly** buckets.
+- **Spending by category** donut.
+- **Top payees** — who you pay the most.
+- **12-month income vs. expense** with your **average savings rate**.
+- **Unnecessary spend** meter — this month's impulse buys vs last month.
+- **Spending heatmap** — a GitHub-style calendar of daily spend across the year.
+
+## Assistant (`/assistant`)
+
+AI features powered by **your own** provider key (Anthropic / OpenAI / Google — set under Settings):
+- **Ask about your money** — natural-language questions ("How much did I spend on transport this month?", "Where is my money leaking?"), answered from your real data, sometimes with a chart.
+- **Monthly review** — generate a personalized written review of any month: income vs spending, category shifts, budget adherence, goal progress, and three concrete suggestions.
+
+Without an AI key everything else in the app works normally; these features simply prompt you to add one.
 
 ## Settings (`/settings`)
 
-- **Profile** — name, ORCID iD (format `0000-0000-0000-0000`)
-- **Language** — English / Amharic / Oromo / Tigrinya
-- **Theme** — light / dark / system
-- **AI Providers** — bring your own API key for **Anthropic, OpenAI, or Google**:
-  add a key, pick a model, set a priority order (if one provider fails, the next
-  is tried), and test the connection before relying on it. Keys are encrypted at
-  rest on the server, never sent back to the browser in plaintext.
+- **Profile** — name, **default currency**, language (English/Amharic/Oromo/Tigrinya), first day of week, and an optional **Ethiopian (Geʿez) calendar** display.
+- **Appearance** — light / dark / system theme.
+- **Category manager** — rename, recolor, re-icon, add or delete your income and expense categories (deleting a used category asks where to move its transactions).
+- **AI providers** — add/test/prioritize your Anthropic, OpenAI or Google keys. Keys are encrypted at rest and never sent back to the browser.
 
 ## Notifications
 
-A live menu (bell icon) surfaces things needing your attention: new invites,
-expenses awaiting your approval, upcoming milestone deadlines, and similar
-org activity — so you don't have to go hunting for what changed.
+A live bell menu surfaces things needing attention: budget-threshold alerts, recurring-bill reminders, and goal-reached celebrations.
 
-## Team management (Invitations)
+## Command palette
 
-Admins and Project Leads can invite new teammates by email with a specific role
-attached. Pending invites can be listed or revoked before they're accepted. The
-invited person gets a link to `/accept` to join your org directly into that role.
+Press **⌘K / Ctrl+K** anywhere to jump to any page, add a transaction, or toggle the theme.
 
 ---
 
-## Not yet built (by design)
+## Starter categories
 
-Per the original scope, these are deliberately deferred: microservice extraction,
-Kubernetes/Terraform, Elasticsearch/vector semantic search, live ORCID/CrossRef
-integration, full i18n translation (the language *picker* exists, full translated
-UI does not), PWA/offline support, and payment gateways (telebirr/Chapa).
+New accounts (and the demo) begin with a rich default set you can fully customize:
 
-**Open question:** Ethiopia's PDPP law requires in-country storage of Ethiopian
-personal data, but no major cloud provider has an Ethiopia region yet — production
-data-residency hosting is intentionally left unresolved in this codebase.
+- **Income:** Salary, Freelance, Business, Gift Received, Other Income
+- **Expense:** Food & Groceries, Transport, Rent, Utilities, Airtime & Data, Health, Education, Entertainment, Shopping, Gifts, Family Support, Subscriptions, **Unnecessary** (impulse buys), Other
+
+## Not built (by design)
+
+Deliberately out of scope for now: multi-currency conversion (currencies are stored but analytics sum your default currency), shared/household accounts, bank-sync/import, mobile app, and receipt-image OCR. The data model leaves room for these later.

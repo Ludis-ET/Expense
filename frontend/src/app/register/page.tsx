@@ -12,7 +12,7 @@ import { AuthShell } from '@/components/auth-shell';
 
 export default function RegisterPage() {
   const { register } = useAuth();
-  const [form, setForm] = useState({ name: '', email: '', password: '', orgName: '' });
+  const [form, setForm] = useState({ name: '', email: '', password: '' });
   const [loading, setLoading] = useState(false);
 
   const set = (k: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) =>
@@ -23,7 +23,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      toast.success('Workspace created — welcome!');
+      toast.success('Account created — welcome!');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
       setLoading(false);
@@ -31,13 +31,10 @@ export default function RegisterPage() {
   }
 
   return (
-    <AuthShell title="Create your workspace" subtitle="You’ll be the admin of a new organisation">
+    <AuthShell title="Create your account" subtitle="Start tracking your money in minutes">
       <form onSubmit={onSubmit} className="space-y-4">
         <Field label="Your name">
-          <Input required value={form.name} onChange={set('name')} placeholder="Dr. Hanna Tesfaye" />
-        </Field>
-        <Field label="Organisation name" hint="e.g. your university, lab or institute">
-          <Input required value={form.orgName} onChange={set('orgName')} placeholder="Addis Ababa University" />
+          <Input required value={form.name} onChange={set('name')} placeholder="Kiflay Mehari" />
         </Field>
         <Field label="Email">
           <Input type="email" autoComplete="email" required value={form.email} onChange={set('email')} />
@@ -53,7 +50,7 @@ export default function RegisterPage() {
           />
         </Field>
         <Button type="submit" loading={loading} className="w-full" size="lg">
-          Create workspace <ArrowRight className="h-4 w-4" />
+          Create account <ArrowRight className="h-4 w-4" />
         </Button>
       </form>
       <p className="mt-6 text-center text-sm text-muted">

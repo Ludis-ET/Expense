@@ -1,6 +1,6 @@
-# ResearchTracker
+# Santim
 
-A research-management SaaS — **Express + Prisma backend** and a **Next.js 15 frontend**, in a single pnpm workspace.
+A personal income & expense tracker — **Express + Prisma backend** and a **Next.js 15 frontend**, in a single pnpm workspace. Know where every birr goes.
 
 ```
 .
@@ -12,20 +12,24 @@ A research-management SaaS — **Express + Prisma backend** and a **Next.js 15 f
 
 ## Features
 
-**Backend** — JWT auth (access + refresh), multi-tenant org isolation, RBAC, and modules for
-projects, teams, budgets/expenses (with an approval workflow), milestones, ideas, notifications,
-and a dashboard-stats aggregator. Zod-validated, pino-logged, fail-fast config.
+**Backend** — JWT auth (access + refresh), per-user data isolation (every row scoped by `userId`), and modules for accounts, categories, transactions (income/expense/transfer), recurring rules, budgets, savings goals, analytics, a dashboard aggregator, notifications, and an optional AI assistant. Zod-validated, pino-logged, fail-fast config.
 
 **Frontend** — a polished, responsive app with:
 
 - Marketing **landing page** with light/dark theme
-- **Auth** (login / register) wired to the backend
-- **Dashboard** with stat cards, an SVG donut chart, budget gauge, recent projects & upcoming milestones
-- **Projects**: filterable grid, create modal, and a tabbed detail view (Overview · Team · Budget · Milestones)
-- **Budget** portfolio view across all projects (planned vs. approved spend)
-- **Ideas** drag-and-drop Kanban backlog with priorities
-- **Settings**: profile, language (English/Amharic/Oromo/Tigrinya), ORCID iD, theme picker
-- Live **notifications** menu, command-free global theming, toasts, skeletons, empty states
+- **Auth** (login / register) — each person gets their own private account
+- **Dashboard** — balance, income/spend/net stat cards with trend deltas, a spending donut, recent transactions, budgets at risk, goal progress and upcoming bills
+- **Transactions** — month navigator, powerful filters (type, category, account, tag, text search), quick-add modal (press `N`), inline edit/delete, and CSV export
+- **Accounts** — cash / bank / mobile-money wallets with computed balances and transfers between them
+- **Budgets** — per-category monthly limits with progress bars and over-spend alerts
+- **Goals** — savings goals with contributions, deadlines and "how much per month to get there"
+- **Recurring** — salary, rent and subscriptions that auto-post or remind you
+- **Analytics** — daily/weekly/monthly income-vs-expense trends, category breakdowns, a calendar spend heatmap, top payees, an "unnecessary spend" meter and savings rate
+- **Assistant** — ask questions about your money and generate a personalized monthly review (using your own AI provider key)
+- **Settings** — profile, default currency, language (English/Amharic/Oromo/Tigrinya), Ethiopian calendar option, category manager, theme picker, and AI providers
+- Live **notifications**, global theming, toasts, skeletons and empty states throughout
+
+See [`FEATURES.md`](FEATURES.md) for a full walkthrough of what you can do on each page.
 
 ## Prerequisites
 
@@ -42,7 +46,7 @@ pnpm install
 # 2. Backend env + database
 cp backend/.env.example backend/.env        # then set DATABASE_URL and JWT_SECRET
 pnpm db:migrate                             # creates tables (name it "init")
-pnpm db:seed                                # demo org, users, project, budget, ideas
+pnpm db:seed                                # demo user, accounts, ~3 months of transactions
 
 # 3. Frontend env (optional — defaults work)
 cp frontend/.env.local.example frontend/.env.local
@@ -54,7 +58,7 @@ pnpm dev
 - Frontend → http://localhost:3000
 - Backend  → http://localhost:4000 (the frontend proxies `/api/*` to it)
 
-**Demo login:** `admin@example.com` / `password123`
+**Demo login:** `demo@example.com` / `password123`
 
 ## Workspace scripts
 
@@ -70,12 +74,11 @@ pnpm dev
 
 See [`backend/README.md`](backend/README.md) for the full API reference and data model.
 
-## Deliberately deferred
+## AI assistant (optional)
 
-Per the original design review, these remain future phases (the architecture is built to absorb them):
-microservice extraction, Kubernetes/Terraform, Elasticsearch/vector semantic search, AI summarization,
-ORCID/CrossRef live integration, full i18n translation, PWA/offline, and payment gateways (telebirr/Chapa).
+The AI features (ask-your-money, monthly review, category suggestions) use **your own** provider key — Anthropic, OpenAI or Google. Add a key under **Settings → AI providers**; keys are encrypted at rest (AES-256-GCM) and never returned to the browser. Everything else works without any AI key.
 
-> **Compliance note:** Ethiopia's PDPP requires in-country storage of Ethiopian personal data. No major
-> cloud has an Ethiopia region today, so production data-residency hosting is an open decision this
-> codebase does not resolve.
+## Notes
+
+- **Currency:** ETB by default, with per-account currencies stored. Analytics sum your default currency; v1 does not convert between currencies.
+- **Privacy:** there is no team/admin layer — each account only ever sees its own data.

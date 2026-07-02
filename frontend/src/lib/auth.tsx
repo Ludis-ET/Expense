@@ -18,8 +18,6 @@ interface RegisterInput {
   name: string;
   email: string;
   password: string;
-  orgName?: string;
-  inviteToken?: string;
 }
 
 const AuthContext = createContext<AuthContextValue | null>(null);

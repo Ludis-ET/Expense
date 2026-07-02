@@ -5,17 +5,36 @@ const CURRENCY_LOCALE: Record<string, string> = {
   GBP: 'en-GB',
 };
 
-export function formatMoney(amount: number | string, currency = 'USD'): string {
+export function formatMoney(
+  amount: number | string,
+  currency = 'ETB',
+  opts: { compact?: boolean; decimals?: boolean } = {},
+): string {
   const value = typeof amount === 'string' ? Number(amount) : amount;
   try {
     return new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? 'en-US', {
       style: 'currency',
       currency,
-      maximumFractionDigits: 0,
+      maximumFractionDigits: opts.decimals ? 2 : 0,
+      ...(opts.compact ? { notation: 'compact' as const } : {}),
     }).format(value);
   } catch {
     return `${currency} ${value.toLocaleString()}`;
   }
+}
+
+/** "+ETB 500" in green contexts / "−ETB 500" in red — sign carried by the caller's styling. */
+export function formatSignedMoney(amount: number | string, kind: 'INCOME' | 'EXPENSE' | 'TRANSFER', currency = 'ETB'): string {
+  const formatted = formatMoney(amount, currency);
+  if (kind === 'INCOME') return `+${formatted}`;
+  if (kind === 'EXPENSE') return `−${formatted}`;
+  return formatted;
+}
+
+/** "2026-07" → "July 2026". */
+export function formatMonth(yyyyMm: string): string {
+  const [y, m] = yyyyMm.split('-').map(Number);
+  return new Intl.DateTimeFormat('en-GB', { month: 'long', year: 'numeric' }).format(new Date(Date.UTC(y, (m ?? 1) - 1, 1)));
 }
 
 export function formatDate(date: string | Date | null | undefined): string {

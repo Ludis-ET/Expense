@@ -1,4 +1,4 @@
-import { CategoryKind, Prisma, TxKind } from '@prisma/client';
+import { Prisma, TxKind } from '@prisma/client';
 import { prisma } from '../../core/db.js';
 
 const zero = new Prisma.Decimal(0);
@@ -105,5 +105,3 @@ export async function listUserCategories(userId: string) {
     orderBy: [{ kind: 'asc' }, { name: 'asc' }],
   });
 }
-
-export { CategoryKind };

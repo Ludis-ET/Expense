@@ -1,184 +1,191 @@
 'use client';
 
-import Link from 'next/link';
 import useSWR from 'swr';
-import { BookOpen, Database, FolderKanban, Lightbulb, Receipt, TrendingUp } from 'lucide-react';
+import Link from 'next/link';
+import { ArrowRight, Flame, PiggyBank, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { StatusBadge } from '@/components/ui/badge';
-import { ProgressBar, Skeleton, PageHeader } from '@/components/ui/misc';
-import { Donut, type DonutSlice } from '@/components/charts/donut';
-import { AskWidget } from '@/components/ai/ask-widget';
-import { CalendarDate } from '@/components/calendar-date';
-import { formatMoney, relativeTime } from '@/lib/format';
+import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
+import { Donut } from '@/components/charts/donut';
+import { StatCard } from '@/components/finance/stat-card';
+import { TransactionList } from '@/components/finance/transaction-list';
+import { CategoryBadge } from '@/components/finance/category-badge';
+import { financeIcon } from '@/components/finance/icons';
+import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
-import type { DashboardStats, ProjectStatus } from '@/lib/types';
-
-const STATUS_COLORS: Record<ProjectStatus, string> = {
-  PLANNING: '#0ea5e9',
-  ACTIVE: '#10b981',
-  ON_HOLD: '#f59e0b',
-  COMPLETED: '#6366f1',
-  CANCELLED: '#ef4444',
-};
+import type { DashboardData } from '@/lib/types';
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { data, isLoading } = useSWR<DashboardStats>('/dashboard/stats');
+  const currency = user?.currency ?? 'ETB';
+  const { data } = useSWR<DashboardData>('/dashboard');
+  const money = (v: number | string) => formatMoney(v, currency);
 
-  const statCards = [
-    { label: 'Projects', value: data?.counts.projects, icon: FolderKanban, tone: 'text-sky-500' },
-    { label: 'Publications', value: data?.counts.publications, icon: BookOpen, tone: 'text-violet-500' },
-    { label: 'Datasets', value: data?.counts.datasets, icon: Database, tone: 'text-emerald-500' },
-    { label: 'Open ideas', value: data?.counts.openIdeas, icon: Lightbulb, tone: 'text-amber-500' },
-    { label: 'Pending expenses', value: data?.counts.pendingExpenses, icon: Receipt, tone: 'text-rose-500' },
-  ];
+  if (!data) {
+    return (
+      <div>
+        <PageHeader title="Dashboard" description="Your money at a glance." />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
+        </div>
+        <Skeleton className="mt-6 h-80" />
+      </div>
+    );
+  }
 
-  const donutData: DonutSlice[] =
-    data?.projectsByStatus.map((s) => ({
-      label: s.status.replace(/_/g, ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase()),
-      value: s.count,
-      color: STATUS_COLORS[s.status],
-    })) ?? [];
-
-  const firstName = user?.name?.split(' ')[0] ?? 'there';
+  const donutData = data.topCategories
+    .filter((c) => c.category)
+    .map((c) => ({ label: c.category!.name, value: Number(c.amount), color: c.category!.color }));
 
   return (
     <div>
-      <PageHeader title={`Welcome back, ${firstName}`} description="Here's what's happening across your workspace." />
+      <PageHeader title={`Welcome back, ${user?.name?.split(' ')[0] ?? ''}`} description="Here's how your money looks." />
 
-      <div className="mb-6">
-        <AskWidget />
-      </div>
-
-      {/* Stat cards */}
-      <div className="grid grid-cols-2 gap-4 lg:grid-cols-5">
-        {statCards.map((s) => (
-          <Card key={s.label} className="p-4">
-            <div className="flex items-center justify-between">
-              <s.icon className={`h-5 w-5 ${s.tone}`} />
-            </div>
-            <div className="mt-3 text-2xl font-bold tabular-nums">
-              {isLoading ? <Skeleton className="h-7 w-10" /> : (s.value ?? 0)}
-            </div>
-            <div className="mt-0.5 text-xs text-muted">{s.label}</div>
-          </Card>
-        ))}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <StatCard label="Total balance" value={money(data.totalBalance)} icon={<Wallet className="h-4 w-4" />} />
+        <StatCard
+          label="Income this month"
+          value={money(data.month.income)}
+          deltaPct={data.month.incomeDeltaPct}
+          icon={<TrendingUp className="h-4 w-4" />}
+        />
+        <StatCard
+          label="Spent this month"
+          value={money(data.month.expense)}
+          deltaPct={data.month.expenseDeltaPct}
+          invertDelta
+          icon={<TrendingDown className="h-4 w-4" />}
+        />
+        <StatCard label="Net this month" value={money(data.month.net)} hint={`avg ${money(data.month.avgDailySpend)}/day`} />
       </div>
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
-        {/* Budget overview */}
-        <Card className="lg:col-span-1">
-          <CardHeader>
-            <CardTitle>Budget overview</CardTitle>
-            <TrendingUp className="h-5 w-5 text-muted" />
-          </CardHeader>
-          <CardContent className="space-y-5">
-            {isLoading || !data ? (
-              <Skeleton className="h-32 w-full" />
-            ) : (
-              <>
-                <div>
-                  <div className="flex items-baseline justify-between">
-                    <span className="text-sm text-muted">Utilisation</span>
-                    <span className="text-lg font-bold">{data.budget.utilization}%</span>
-                  </div>
-                  <div className="mt-2">
-                    <ProgressBar
-                      value={data.budget.utilization}
-                      tone={data.budget.utilization > 90 ? 'danger' : data.budget.utilization > 70 ? 'warning' : 'success'}
-                    />
-                  </div>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="rounded-lg bg-surface-muted p-3">
-                    <div className="text-xs text-muted">Planned</div>
-                    <div className="mt-1 font-semibold">{formatMoney(data.budget.totalPlanned, 'ETB')}</div>
-                  </div>
-                  <div className="rounded-lg bg-surface-muted p-3">
-                    <div className="text-xs text-muted">Spent</div>
-                    <div className="mt-1 font-semibold">{formatMoney(data.budget.totalSpent, 'ETB')}</div>
-                  </div>
-                </div>
-              </>
-            )}
-          </CardContent>
-        </Card>
-
-        {/* Projects by status */}
         <Card className="lg:col-span-2">
           <CardHeader>
-            <CardTitle>Projects by status</CardTitle>
-          </CardHeader>
-          <CardContent>
-            {isLoading ? (
-              <Skeleton className="h-40 w-full" />
-            ) : donutData.length === 0 ? (
-              <p className="py-8 text-center text-sm text-muted">No projects yet.</p>
-            ) : (
-              <Donut data={donutData} />
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      <div className="mt-6 grid gap-6 lg:grid-cols-2">
-        {/* Recent projects */}
-        <Card>
-          <CardHeader>
-            <CardTitle>Recent projects</CardTitle>
-            <Link href="/projects" className="text-sm text-primary hover:underline">
+            <CardTitle>Recent transactions</CardTitle>
+            <Link href="/transactions" className="text-sm font-medium text-primary hover:underline">
               View all
             </Link>
           </CardHeader>
-          <CardContent className="space-y-1 pt-0">
-            {isLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : !data?.recentProjects.length ? (
-              <p className="py-6 text-center text-sm text-muted">No projects yet.</p>
+          <CardContent>
+            {data.recentTransactions.length === 0 ? (
+              <EmptyState title="No transactions yet" description="Add your first income or expense to get started." />
             ) : (
-              data.recentProjects.map((p) => (
-                <Link
-                  key={p.id}
-                  href={`/projects/${p.id}`}
-                  className="flex items-center justify-between rounded-lg px-3 py-2.5 transition-colors hover:bg-surface-muted"
-                >
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{p.title}</p>
-                    <p className="text-xs text-muted">Updated {relativeTime(p.updatedAt)}</p>
-                  </div>
-                  <StatusBadge.Project status={p.status} />
-                </Link>
-              ))
+              <TransactionList items={data.recentTransactions} compact />
             )}
           </CardContent>
         </Card>
 
-        {/* Upcoming milestones */}
         <Card>
           <CardHeader>
-            <CardTitle>Upcoming milestones</CardTitle>
+            <CardTitle>Top spending</CardTitle>
           </CardHeader>
-          <CardContent className="space-y-1 pt-0">
-            {isLoading ? (
-              <Skeleton className="h-24 w-full" />
-            ) : !data?.upcomingMilestones.length ? (
-              <p className="py-6 text-center text-sm text-muted">Nothing due soon.</p>
+          <CardContent>
+            {donutData.length === 0 ? (
+              <EmptyState title="No spending yet" />
             ) : (
-              data.upcomingMilestones.map((m) => (
-                <div key={m.id} className="flex items-center justify-between rounded-lg px-3 py-2.5 hover:bg-surface-muted">
-                  <div className="min-w-0">
-                    <p className="truncate text-sm font-medium">{m.description}</p>
-                    <Link href={`/projects/${m.project.id}`} className="text-xs text-muted hover:text-primary">
-                      {m.project.title}
-                    </Link>
+              <Donut data={donutData} format={(v) => money(v)} centerLabel="spent" />
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      <div className="mt-6 grid gap-6 lg:grid-cols-3">
+        <Card>
+          <CardHeader>
+            <CardTitle>Budgets at risk</CardTitle>
+            <Link href="/budgets" className="text-sm font-medium text-primary hover:underline">Manage</Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.budgetsAtRisk.length === 0 ? (
+              <p className="py-6 text-center text-sm text-muted">Everything is within budget. 🎉</p>
+            ) : (
+              data.budgetsAtRisk.map((b) => (
+                <div key={b.id}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <CategoryBadge category={b.category} />
+                    <span className="tabular-nums text-muted">
+                      {money(b.spent)} / {money(b.amount)}
+                    </span>
                   </div>
-                  <CalendarDate value={m.dueDate} className="shrink-0 text-xs text-muted" />
+                  <ProgressBar value={b.pct} tone={b.status === 'over' ? 'danger' : 'warning'} />
                 </div>
               ))
             )}
           </CardContent>
         </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Goals</CardTitle>
+            <Link href="/goals" className="text-sm font-medium text-primary hover:underline">All goals</Link>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            {data.goals.length === 0 ? (
+              <EmptyState icon={<PiggyBank className="h-5 w-5" />} title="No goals yet" />
+            ) : (
+              data.goals.map((g) => (
+                <div key={g.id}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
+                    <span className="font-medium">{g.name}</span>
+                    <span className="tabular-nums text-muted">{g.pct}%</span>
+                  </div>
+                  <ProgressBar value={g.pct} tone="success" />
+                  <p className="mt-1 text-xs text-muted">
+                    {money(g.saved)} of {money(g.targetAmount)}
+                  </p>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+
+        <Card>
+          <CardHeader>
+            <CardTitle>Upcoming & unnecessary</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="rounded-lg border border-border bg-surface-muted/40 p-3">
+              <div className="flex items-center gap-2 text-sm">
+                <Flame className="h-4 w-4 text-orange-500" />
+                <span className="font-medium">Unnecessary this month</span>
+              </div>
+              <p className="mt-1 text-xl font-bold tabular-nums">{money(data.unnecessary.total)}</p>
+              {data.unnecessary.deltaPct !== null && (
+                <p className="text-xs text-muted">
+                  {data.unnecessary.deltaPct >= 0 ? '↑' : '↓'} {Math.abs(data.unnecessary.deltaPct)}% vs last month
+                </p>
+              )}
+            </div>
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-muted">Upcoming (7 days)</p>
+              {data.upcomingRecurring.length === 0 ? (
+                <p className="text-sm text-muted">Nothing scheduled.</p>
+              ) : (
+                <ul className="space-y-2">
+                  {data.upcomingRecurring.map((r) => {
+                    const Icon = financeIcon(r.category?.icon);
+                    return (
+                      <li key={r.id} className="flex items-center gap-2 text-sm">
+                        <Icon className="h-4 w-4 text-muted" />
+                        <span className="flex-1 truncate">{r.name}</span>
+                        <span className="tabular-nums text-muted">{money(r.amount)}</span>
+                      </li>
+                    );
+                  })}
+                </ul>
+              )}
+            </div>
+          </CardContent>
+        </Card>
       </div>
+
+      <Link
+        href="/analytics"
+        className="mt-6 flex items-center justify-between rounded-xl border border-border bg-surface px-5 py-4 text-sm font-medium transition-colors hover:bg-surface-muted"
+      >
+        <span>See full analytics — trends, heatmap, top payees and more</span>
+        <ArrowRight className="h-4 w-4" />
+      </Link>
     </div>
   );
 }

@@ -2,17 +2,30 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import { BarChart3, FileText, FolderKanban, Lightbulb, Network, Settings, Wallet, X } from 'lucide-react';
+import {
+  ArrowLeftRight,
+  BarChart3,
+  LayoutDashboard,
+  PiggyBank,
+  Repeat,
+  Settings,
+  Sparkles,
+  Target,
+  Wallet,
+  X,
+} from 'lucide-react';
 import { Brand } from '@/components/brand';
 import { cn } from '@/lib/utils';
 
 const nav = [
-  { href: '/dashboard', label: 'Dashboard', icon: BarChart3 },
-  { href: '/projects', label: 'Projects', icon: FolderKanban },
-  { href: '/budget', label: 'Budget', icon: Wallet },
-  { href: '/ideas', label: 'Ideas', icon: Lightbulb },
-  { href: '/insights', label: 'Insights', icon: Network },
-  { href: '/reports', label: 'Reports', icon: FileText },
+  { href: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
+  { href: '/accounts', label: 'Accounts', icon: Wallet },
+  { href: '/budgets', label: 'Budgets', icon: PiggyBank },
+  { href: '/goals', label: 'Goals', icon: Target },
+  { href: '/recurring', label: 'Recurring', icon: Repeat },
+  { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+  { href: '/assistant', label: 'Assistant', icon: Sparkles },
   { href: '/settings', label: 'Settings', icon: Settings },
 ];
 
@@ -56,8 +69,8 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
           })}
         </nav>
         <div className="m-3 rounded-xl border border-border bg-surface-muted/60 p-4 text-xs text-muted">
-          <p className="font-medium text-foreground">MVP build</p>
-          <p className="mt-1 leading-relaxed">Auth · Projects · Budget · Ideas. Publications & datasets next.</p>
+          <p className="font-medium text-foreground">Santim</p>
+          <p className="mt-1 leading-relaxed">Know where every birr goes — income, spending, budgets & goals.</p>
         </div>
       </aside>
     </>

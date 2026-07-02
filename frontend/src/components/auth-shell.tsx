@@ -19,13 +19,13 @@ export function AuthShell({
           <Brand className="[&_span]:text-white [&_.text-primary]:text-white" />
           <div>
             <h2 className="max-w-sm text-3xl font-bold leading-snug">
-              The home for your institution&apos;s research.
+              Know where every birr goes.
             </h2>
             <p className="mt-4 max-w-sm text-white/80">
-              Projects, budgets, publications and ideas — organised, secured and ready for collaboration.
+              Track income and spending, set budgets, save towards goals, and get insights — all private to you.
             </p>
           </div>
-          <p className="text-sm text-white/70">© {new Date().getFullYear()} ResearchTracker</p>
+          <p className="text-sm text-white/70">© {new Date().getFullYear()} Santim</p>
         </div>
       </div>
 

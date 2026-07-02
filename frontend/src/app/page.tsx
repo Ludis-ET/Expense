@@ -1,34 +1,34 @@
 import Link from 'next/link';
 import {
+  ArrowLeftRight,
   ArrowRight,
   BarChart3,
-  BookOpen,
-  Banknote,
-  Globe2,
-  Lightbulb,
-  Lock,
-  Users,
   CheckCircle2,
+  Globe2,
+  Lock,
+  PiggyBank,
+  Repeat,
   Sparkles,
+  Target,
 } from 'lucide-react';
 import { Brand } from '@/components/brand';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
 const features = [
-  { icon: BarChart3, title: 'Project tracking', desc: 'Plan projects, assign teams, and track milestones from proposal to publication.' },
-  { icon: Banknote, title: 'Budgets & expenses', desc: 'Set category budgets, log expenses, and run an approval workflow — multi-currency, ETB-ready.' },
-  { icon: BookOpen, title: 'Publications', desc: 'Capture outputs with DOI, journal and author metadata, linked to the projects that produced them.' },
-  { icon: Users, title: 'Teams & roles', desc: 'PI, co-PI, reviewers and finance officers — fine-grained, role-based access on every action.' },
-  { icon: Lightbulb, title: 'Idea backlog', desc: 'A living wishlist of research ideas you can prioritise and convert into funded projects.' },
-  { icon: Lock, title: 'Secure by design', desc: 'JWT auth, tenant isolation, audit-ready data model and PDPP-aware data handling.' },
+  { icon: ArrowLeftRight, title: 'Income & expenses', desc: 'Log every birr in and out across cash, bank and mobile-money — with categories, payees and tags.' },
+  { icon: PiggyBank, title: 'Budgets that nudge', desc: 'Set monthly limits per category and get notified before you overspend, not after.' },
+  { icon: Target, title: 'Savings goals', desc: 'Save towards an emergency fund, a trip or a new laptop, and see exactly how much per month it takes.' },
+  { icon: Repeat, title: 'Recurring on autopilot', desc: 'Salary, rent and subscriptions post themselves on schedule — or just remind you.' },
+  { icon: BarChart3, title: 'Personal analytics', desc: 'Daily, weekly and monthly trends, a spending heatmap, top payees and an “unnecessary spend” meter.' },
+  { icon: Sparkles, title: 'AI money assistant', desc: 'Ask questions about your spending and get a personalized monthly review — using your own AI key.' },
 ];
 
 const stats = [
-  { value: '6', label: 'Built-in roles' },
-  { value: '12', label: 'Data entities' },
-  { value: '100%', label: 'Tenant isolation' },
-  { value: '2', label: 'Languages ready' },
+  { value: '3', label: 'Account types' },
+  { value: '19', label: 'Default categories' },
+  { value: '100%', label: 'Private to you' },
+  { value: 'ETB', label: 'Birr-first' },
 ];
 
 export default function LandingPage() {
@@ -40,7 +40,7 @@ export default function LandingPage() {
           <Brand />
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">Features</a>
-            <a href="#ethiopia" className="transition-colors hover:text-foreground">For Ethiopia</a>
+            <a href="#local" className="transition-colors hover:text-foreground">Made local</a>
             <a href="#cta" className="transition-colors hover:text-foreground">Get started</a>
           </nav>
           <div className="flex items-center gap-2">
@@ -61,15 +61,15 @@ export default function LandingPage() {
         <div className="relative mx-auto max-w-6xl px-5 py-20 text-center md:py-28">
           <div className="animate-in mx-auto mb-5 inline-flex items-center gap-2 rounded-full border border-border bg-surface px-3.5 py-1.5 text-xs font-medium text-muted">
             <Sparkles className="h-3.5 w-3.5 text-primary" />
-            Research management, reimagined for African institutions
+            Personal finance, birr-first
           </div>
           <h1 className="animate-in mx-auto max-w-3xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">
-            Track every project, grant and idea in{' '}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">one place</span>
+            Know where every{' '}
+            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">birr goes</span>
           </h1>
           <p className="animate-in mx-auto mt-5 max-w-xl text-base text-muted md:text-lg">
-            ResearchTracker brings projects, teams, publications, budgets and ideas together — with the security and
-            data-residency controls research institutions actually need.
+            Santim brings your income, spending, budgets and savings goals together — with analytics that actually
+            tell you something, all private to you.
           </p>
           <div className="animate-in mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
             <Link href="/register">
@@ -83,7 +83,7 @@ export default function LandingPage() {
               </Button>
             </Link>
           </div>
-          <p className="mt-4 text-xs text-muted">Demo login: admin@example.com · password123</p>
+          <p className="mt-4 text-xs text-muted">Demo login: demo@example.com · password123</p>
 
           {/* Stat strip */}
           <div className="mx-auto mt-14 grid max-w-3xl grid-cols-2 gap-4 sm:grid-cols-4">
@@ -100,9 +100,9 @@ export default function LandingPage() {
       {/* Features */}
       <section id="features" className="mx-auto max-w-6xl px-5 py-20">
         <div className="mx-auto mb-12 max-w-2xl text-center">
-          <h2 className="text-3xl font-bold tracking-tight">Everything a research office needs</h2>
+          <h2 className="text-3xl font-bold tracking-tight">Everything your money needs</h2>
           <p className="mt-3 text-muted">
-            One modular platform replacing the spreadsheets, shared drives and email threads.
+            One simple app replacing the notebook, the spreadsheet and the guesswork.
           </p>
         </div>
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
@@ -118,24 +118,24 @@ export default function LandingPage() {
         </div>
       </section>
 
-      {/* Ethiopia section */}
-      <section id="ethiopia" className="border-y border-border bg-surface/50">
+      {/* Local section */}
+      <section id="local" className="border-y border-border bg-surface/50">
         <div className="mx-auto grid max-w-6xl items-center gap-10 px-5 py-20 lg:grid-cols-2">
           <div>
             <div className="mb-4 inline-flex items-center gap-2 rounded-full bg-primary/10 px-3 py-1 text-xs font-medium text-primary">
-              <Globe2 className="h-3.5 w-3.5" /> Built for local compliance
+              <Globe2 className="h-3.5 w-3.5" /> Made for how you actually spend
             </div>
-            <h2 className="text-3xl font-bold tracking-tight">Designed with Ethiopia&apos;s PDPP in mind</h2>
+            <h2 className="text-3xl font-bold tracking-tight">Birr-first, with an Ethiopian touch</h2>
             <p className="mt-4 text-muted">
-              Personal-data handling is built around the 2024 Personal Data Protection Proclamation — consent records,
-              data-subject rights, and a data model ready for in-country residency.
+              Track cash, bank and mobile-money wallets like Telebirr side by side, with categories that match real
+              life — from family support to airtime top-ups.
             </p>
             <ul className="mt-6 space-y-3">
               {[
-                'Amharic & English ready (true left-to-right Ge’ez script)',
-                'Ethiopian Birr (ETB) budgets and multi-currency expenses',
-                'Tenant isolation so each institution’s data stays separate',
-                'Role-based access with an audit-ready schema',
+                'Ethiopian Birr (ETB) by default, with multi-currency accounts',
+                'Optional Ethiopian (Geʿez) calendar display',
+                'Cash, bank and mobile-money account types',
+                'Your data stays private to your own account',
               ].map((item) => (
                 <li key={item} className="flex items-start gap-3 text-sm">
                   <CheckCircle2 className="mt-0.5 h-5 w-5 shrink-0 text-emerald-500" />
@@ -146,21 +146,21 @@ export default function LandingPage() {
           </div>
           <div className="card overflow-hidden p-0">
             <div className="border-b border-border bg-surface-muted/60 px-5 py-3 text-xs font-medium text-muted">
-              Drought-resistant Teff Varieties · Addis Ababa University
+              This month · July
             </div>
             <div className="space-y-4 p-6">
               <div className="flex items-center justify-between">
-                <span className="text-sm text-muted">Budget utilisation</span>
-                <span className="text-sm font-semibold">18%</span>
+                <span className="text-sm text-muted">Food & Groceries budget</span>
+                <span className="text-sm font-semibold">72%</span>
               </div>
               <div className="h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
-                <div className="h-full w-[18%] rounded-full bg-gradient-to-r from-primary to-accent" />
+                <div className="h-full w-[72%] rounded-full bg-gradient-to-r from-primary to-accent" />
               </div>
               <div className="grid grid-cols-3 gap-3 pt-2">
                 {[
-                  ['Planned', 'Br 930k'],
-                  ['Spent', 'Br 45k'],
-                  ['Team', '2 people'],
+                  ['Income', 'Br 45k'],
+                  ['Spent', 'Br 31k'],
+                  ['Saved', 'Br 14k'],
                 ].map(([k, v]) => (
                   <div key={k} className="rounded-lg bg-surface-muted px-3 py-3">
                     <div className="text-xs text-muted">{k}</div>
@@ -177,14 +177,14 @@ export default function LandingPage() {
       <section id="cta" className="mx-auto max-w-6xl px-5 py-24">
         <div className="card relative overflow-hidden bg-gradient-to-br from-primary to-accent px-8 py-16 text-center text-white">
           <div className="pointer-events-none absolute inset-0 bg-grid opacity-20" />
-          <h2 className="relative text-3xl font-bold tracking-tight md:text-4xl">Ready to organise your research?</h2>
+          <h2 className="relative text-3xl font-bold tracking-tight md:text-4xl">Ready to take control of your money?</h2>
           <p className="relative mx-auto mt-3 max-w-md text-white/85">
-            Spin up an organisation in seconds. No credit card, no setup calls.
+            Create your account in seconds. No credit card, no fuss.
           </p>
           <div className="relative mt-8 flex justify-center">
             <Link href="/register">
               <Button size="lg" className="bg-white text-primary hover:bg-white/90">
-                Create your workspace <ArrowRight className="h-4 w-4" />
+                Create your account <ArrowRight className="h-4 w-4" />
               </Button>
             </Link>
           </div>
@@ -195,7 +195,7 @@ export default function LandingPage() {
       <footer className="border-t border-border">
         <div className="mx-auto flex max-w-6xl flex-col items-center justify-between gap-4 px-5 py-8 text-sm text-muted sm:flex-row">
           <Brand />
-          <p>© {new Date().getFullYear()} ResearchTracker. A demo project.</p>
+          <p>© {new Date().getFullYear()} Santim. A personal-finance demo.</p>
         </div>
       </footer>
     </div>

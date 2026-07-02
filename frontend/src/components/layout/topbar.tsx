@@ -1,14 +1,17 @@
 'use client';
 
 import { useState } from 'react';
-import { LogOut, Menu } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { LogOut, Menu, Plus } from 'lucide-react';
 import { Avatar } from '@/components/ui/misc';
+import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsMenu } from './notifications-menu';
 import { useAuth } from '@/lib/auth';
 
 export function Topbar({ onMenu }: { onMenu: () => void }) {
   const { user, logout } = useAuth();
+  const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
   return (
@@ -18,6 +21,9 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       </button>
       <div className="flex-1" />
       <div className="flex items-center gap-2">
+        <Button size="sm" onClick={() => router.push('/transactions?add=1')}>
+          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add transaction</span>
+        </Button>
         <ThemeToggle />
         <NotificationsMenu />
         <div className="relative">
@@ -35,9 +41,6 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
                 <div className="border-b border-border px-4 py-3">
                   <p className="truncate text-sm font-medium">{user?.name}</p>
                   <p className="truncate text-xs text-muted">{user?.email}</p>
-                  <span className="mt-1.5 inline-block rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-muted">
-                    {user?.role?.replace(/_/g, ' ')}
-                  </span>
                 </div>
                 <button
                   onClick={logout}

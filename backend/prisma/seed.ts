@@ -49,14 +49,16 @@ async function main() {
   };
 
   // --- Accounts ---
+  // Opening balances are set generously so accounts stay positive across the
+  // ~3 months of seeded spending (routing below keeps each account realistic).
   const cash = await prisma.account.create({
-    data: { userId: user.id, name: 'Cash', type: AccountType.CASH, openingBalance: 2000, icon: 'banknote', color: '#22c55e' },
+    data: { userId: user.id, name: 'Cash', type: AccountType.CASH, openingBalance: 18000, icon: 'banknote', color: '#22c55e' },
   });
   const cbe = await prisma.account.create({
-    data: { userId: user.id, name: 'CBE', type: AccountType.BANK, openingBalance: 15000, icon: 'landmark', color: '#8b5cf6', isDefault: true },
+    data: { userId: user.id, name: 'CBE', type: AccountType.BANK, openingBalance: 20000, icon: 'landmark', color: '#8b5cf6', isDefault: true },
   });
   const telebirr = await prisma.account.create({
-    data: { userId: user.id, name: 'Telebirr', type: AccountType.MOBILE_MONEY, openingBalance: 500, icon: 'smartphone', color: '#0ea5e9' },
+    data: { userId: user.id, name: 'Telebirr', type: AccountType.MOBILE_MONEY, openingBalance: 9000, icon: 'smartphone', color: '#0ea5e9' },
   });
 
   // --- ~3 months of transactions ---
@@ -92,32 +94,33 @@ async function main() {
     }
   }
 
-  // Two freelance payments.
+  // Freelance payments — one recent so the current month always shows income.
   txns.push(
     { kind: TxKind.INCOME, amount: 8500, date: daysAgo(52), accountId: cbe.id, categoryId: cat('Freelance').id, payee: 'Design client', note: 'Logo project', tags: ['side-hustle'] },
     { kind: TxKind.INCOME, amount: 6200, date: daysAgo(18), accountId: telebirr.id, categoryId: cat('Freelance').id, payee: 'Web client', note: 'Landing page', tags: ['side-hustle'] },
+    { kind: TxKind.INCOME, amount: 4000, date: daysAgo(1), accountId: telebirr.id, categoryId: cat('Freelance').id, payee: 'Tutoring', note: 'Weekend session', tags: ['side-hustle'] },
   );
 
-  // Weekly groceries.
+  // Weekly groceries (paid from the bank account).
   const groceryPayees = ['Shoa Supermarket', 'Fresh Corner', 'Queens Supermarket'];
   for (let week = 0; week < 13; week++) {
     const amount = Math.round(800 + rng() * 1700);
     txns.push({
       kind: TxKind.EXPENSE, amount, date: daysAgo(week * 7 + Math.floor(rng() * 3), 18),
-      accountId: rng() > 0.5 ? cash.id : telebirr.id,
+      accountId: cbe.id,
       categoryId: cat('Food & Groceries').id,
       payee: groceryPayees[Math.floor(rng() * groceryPayees.length)],
     });
   }
 
-  // Transport 3-5x/week.
+  // Transport 3-5x/week (cash).
   for (let day = 0; day < 92; day++) {
     const rides = rng();
     if (rides < 0.5) continue;
     const amount = Math.round(40 + rng() * 360);
     txns.push({
       kind: TxKind.EXPENSE, amount, date: daysAgo(day, 8 + Math.floor(rng() * 10)),
-      accountId: rng() > 0.6 ? telebirr.id : cash.id,
+      accountId: cash.id,
       categoryId: cat('Transport').id,
       payee: rng() > 0.5 ? 'Ride' : 'Minibus',
     });
@@ -158,12 +161,14 @@ async function main() {
     ['Unnecessary', 'Late-night snacks', 350, 70],
     ['Unnecessary', 'Impulse gadget', 1600, 44],
     ['Unnecessary', 'Another coffee', 180, 26],
-    ['Unnecessary', 'Streaming trinket', 420, 9],
-    ['Unnecessary', 'Window-shopping haul', 950, 4],
+    ['Unnecessary', 'Streaming trinket', 420, 2],
+    ['Unnecessary', 'Window-shopping haul', 950, 1],
   ];
   for (const [category, payee, amount, days, tag] of extras) {
+    // "Unnecessary" impulse buys come from cash/telebirr; everything else from the bank.
+    const accountId = category === 'Unnecessary' ? (rng() > 0.5 ? cash.id : telebirr.id) : cbe.id;
     txns.push({
-      kind: TxKind.EXPENSE, amount, date: daysAgo(days), accountId: rng() > 0.5 ? cash.id : cbe.id,
+      kind: TxKind.EXPENSE, amount, date: daysAgo(days), accountId,
       categoryId: cat(category).id, payee, tags: tag ? [tag] : [],
     });
   }

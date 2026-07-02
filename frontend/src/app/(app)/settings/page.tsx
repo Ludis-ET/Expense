@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { Avatar, PageHeader } from '@/components/ui/misc';
 import { AiProviders } from '@/components/settings/ai-providers';
-import { Members } from '@/components/settings/members';
+import { CategoryManager } from '@/components/settings/category-manager';
 import { api, ApiError } from '@/lib/api';
 import { formatEthiopian } from '@/lib/ethiopian-calendar';
 import { useAuth } from '@/lib/auth';
@@ -22,14 +22,17 @@ const LOCALES = [
   { code: 'ti', label: 'ትግርኛ (Tigrinya)' },
 ];
 
+const CURRENCIES = ['ETB', 'USD', 'EUR', 'GBP', 'KES', 'AED'];
+
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const [form, setForm] = useState({
     name: user?.name ?? '',
     locale: user?.locale ?? 'en',
-    calendar: user?.calendar ?? 'gregorian',
-    orcidId: user?.orcidId ?? '',
+    calendar: (user?.calendar ?? 'gregorian') as string,
+    currency: user?.currency ?? 'ETB',
+    firstDayOfWeek: String(user?.firstDayOfWeek ?? 1),
   });
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +44,8 @@ export default function SettingsPage() {
         name: form.name,
         locale: form.locale,
         calendar: form.calendar,
-        orcidId: form.orcidId || undefined,
+        currency: form.currency,
+        firstDayOfWeek: Number(form.firstDayOfWeek),
       });
       await refreshUser();
       toast.success('Profile updated');
@@ -54,13 +58,13 @@ export default function SettingsPage() {
 
   return (
     <div className="max-w-2xl">
-      <PageHeader title="Settings" description="Manage your profile, collaborators and AI providers." />
+      <PageHeader title="Settings" description="Manage your profile, categories and AI providers." />
 
       <Card className="mb-6">
         <CardHeader>
           <div>
             <CardTitle>Profile</CardTitle>
-            <CardDescription>Your personal details and researcher identity.</CardDescription>
+            <CardDescription>Your personal details and money preferences.</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -69,9 +73,6 @@ export default function SettingsPage() {
             <div>
               <p className="font-medium">{user?.name}</p>
               <p className="text-sm text-muted">{user?.email}</p>
-              <span className="mt-1 inline-block rounded-full bg-surface-muted px-2 py-0.5 text-xs text-muted">
-                {user?.role?.replace(/_/g, ' ')}
-              </span>
             </div>
           </div>
           <form onSubmit={save} className="space-y-4">
@@ -79,21 +80,25 @@ export default function SettingsPage() {
               <Input required value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} />
             </Field>
             <div className="grid gap-4 sm:grid-cols-2">
-              <Field label="Language">
-                <Select value={form.locale} onChange={(e) => setForm((f) => ({ ...f, locale: e.target.value }))}>
-                  {LOCALES.map((l) => (
-                    <option key={l.code} value={l.code}>
-                      {l.label}
-                    </option>
+              <Field label="Default currency">
+                <Select value={form.currency} onChange={(e) => setForm((f) => ({ ...f, currency: e.target.value }))}>
+                  {CURRENCIES.map((c) => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </Select>
               </Field>
-              <Field label="ORCID iD" hint="Format: 0000-0000-0000-0000">
-                <Input
-                  value={form.orcidId}
-                  onChange={(e) => setForm((f) => ({ ...f, orcidId: e.target.value }))}
-                  placeholder="0000-0002-1825-0097"
-                />
+              <Field label="Language">
+                <Select value={form.locale} onChange={(e) => setForm((f) => ({ ...f, locale: e.target.value }))}>
+                  {LOCALES.map((l) => (
+                    <option key={l.code} value={l.code}>{l.label}</option>
+                  ))}
+                </Select>
+              </Field>
+              <Field label="First day of week">
+                <Select value={form.firstDayOfWeek} onChange={(e) => setForm((f) => ({ ...f, firstDayOfWeek: e.target.value }))}>
+                  <option value="1">Monday</option>
+                  <option value="0">Sunday</option>
+                </Select>
               </Field>
               <Field
                 label="Calendar"
@@ -110,19 +115,17 @@ export default function SettingsPage() {
               </Field>
             </div>
             <div className="flex justify-end">
-              <Button type="submit" loading={loading}>
-                Save changes
-              </Button>
+              <Button type="submit" loading={loading}>Save changes</Button>
             </div>
           </form>
         </CardContent>
       </Card>
 
-      <Card>
+      <Card className="mb-6">
         <CardHeader>
           <div>
             <CardTitle>Appearance</CardTitle>
-            <CardDescription>Choose how ResearchTracker looks to you.</CardDescription>
+            <CardDescription>Choose how Santim looks to you.</CardDescription>
           </div>
         </CardHeader>
         <CardContent>
@@ -148,8 +151,8 @@ export default function SettingsPage() {
         </CardContent>
       </Card>
 
-      <div className="mt-6 space-y-6">
-        <Members />
+      <div className="space-y-6">
+        <CategoryManager />
         <AiProviders />
       </div>
     </div>

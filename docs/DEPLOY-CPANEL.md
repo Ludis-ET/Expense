@@ -58,15 +58,23 @@ GitHub Actions uploads build artifacts into these paths. You do **not** need sep
 
 #### How to find the correct FTP host
 
+**Recommended if hostname fails:** use the server **IP address**.
+
+1. cPanel home → right sidebar → **General Information**
+2. Copy **Shared IP Address** (e.g. `198.51.100.42`)
+3. GitHub → **Settings** → **Secrets** → edit `CPANEL_FTP_HOST` → paste **only the IP**
+
+**Or** use the FTP hostname:
+
 1. cPanel → **FTP Accounts**
-2. Find `ludis@lunafh.com` → click **Configure FTP Client**
-3. Copy the **FTP Server** value exactly (e.g. `ftp.lunafh.com`, `lunafh.com`, or a server name like `server123.lunafh.com`)
-4. Paste that into GitHub secret `CPANEL_FTP_HOST` — **hostname only**:
+2. Find `ludis@lunafh.com` → **Configure FTP Client**
+3. Copy **FTP Server** (e.g. `ftp.lunafh.com` or `server123.lunafh.com`)
+4. Paste into `CPANEL_FTP_HOST` — **hostname or IP only**:
+   - ✅ `198.51.100.42`
    - ✅ `ftp.lunafh.com`
-   - ✅ `198.51.100.42` (server IP)
-   - ❌ `ftp://ftp.lunafh.com` (no `ftp://`)
-   - ❌ `santim.lunafh.com` (website URL, not FTP server)
-   - ❌ `ludis@lunafh.com` (that's the username, not the host)
+   - ❌ `ftp://ftp.lunafh.com`
+   - ❌ `santim.lunafh.com`
+   - ❌ `ludis@lunafh.com`
 
 Because this FTP user is rooted at `santim.lunafh.com`, GitHub secrets use **relative** paths:
 
@@ -296,14 +304,15 @@ GitHub → **Actions** → **🚀 CI/CD — cPanel FTP Deploy** → **Run workfl
 
 ### FTP deploy fails — `ENOTFOUND` / "server doesn't seem to exist"
 
-DNS cannot resolve `CPANEL_FTP_HOST`. Fix:
+GitHub cannot resolve `CPANEL_FTP_HOST`. **Use your server IP** (most reliable):
 
-1. cPanel → **FTP Accounts** → **Configure FTP Client** → copy **FTP Server**
-2. GitHub → **Settings** → **Secrets** → edit `CPANEL_FTP_HOST`
-3. Use only the hostname (no `ftp://`, no port, no path)
-4. Do **not** use `santim.lunafh.com` — that's your website, not the FTP server
+1. cPanel → **General Information** → **Shared IP Address**
+2. GitHub → **Secrets** → `CPANEL_FTP_HOST` → set to that IP only (e.g. `203.0.113.10`)
+3. Re-run the deploy workflow
 
-If FTP still fails after DNS works, try secret `CPANEL_FTP_PROTOCOL` = `ftps` (some hosts require explicit FTPS).
+Do **not** use `santim.lunafh.com` or `ludis@lunafh.com` as the host.
+
+If FTP connects but auth fails, try secret `CPANEL_FTP_PROTOCOL` = `ftps`.
 
 ### FTP deploy fails — "Login authentication failed"
 

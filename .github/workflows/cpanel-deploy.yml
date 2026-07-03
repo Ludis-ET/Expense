@@ -132,36 +132,39 @@ jobs:
             exit 1
           fi
 
-          # Normalize and verify FTP host resolves (fixes common ENOTFOUND mistakes).
+          # Normalize FTP host (strip protocol, path, port, whitespace).
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
           HOST="${HOST%%/*}"
           HOST="${HOST%%:*}"
+          HOST="${HOST%.}"
           HOST="$(echo "$HOST" | xargs)"
+          echo "FTP_HOST=$HOST" >> "$GITHUB_ENV"
+          echo "ℹ️  Normalized FTP host length: ${#HOST} chars"
 
           if [ -z "$HOST" ]; then
             echo "❌ CPANEL_FTP_HOST is empty after normalization"
             exit 1
           fi
           if echo "$HOST" | grep -q '@'; then
-            echo "❌ CPANEL_FTP_HOST looks like an email/username — use the FTP server hostname from cPanel"
-            echo "   Example: ftp.lunafh.com (not ludis@lunafh.com)"
+            echo "❌ CPANEL_FTP_HOST looks like an email/username — use the FTP server hostname or IP from cPanel"
+            echo "   Example: ftp.lunafh.com or 198.51.100.42 (not ludis@lunafh.com)"
             exit 1
           fi
           if echo "$HOST" | grep -qi 'santim\.lunafh\.com'; then
-            echo "❌ CPANEL_FTP_HOST must be the cPanel server hostname, not santim.lunafh.com"
-            echo "   Open cPanel → FTP Accounts → Configure FTP Client → copy FTP Server"
-            echo "   Common values: ftp.lunafh.com, lunafh.com, or your server IP"
+            echo "❌ CPANEL_FTP_HOST must be the cPanel server hostname/IP, not santim.lunafh.com"
             exit 1
           fi
-          if ! getent hosts "$HOST" > /dev/null 2>&1; then
-            echo "❌ CPANEL_FTP_HOST cannot be resolved (DNS ENOTFOUND)"
-            echo "   Update the secret to the exact FTP Server from cPanel → FTP Accounts"
-            echo "   Use hostname only — no ftp:// prefix, no path, no port"
-            exit 1
+          if getent hosts "$HOST" > /dev/null 2>&1; then
+            echo "✅ FTP host resolves in DNS"
+          else
+            echo "⚠️  FTP host does not resolve in DNS (will still attempt upload)"
+            echo "   Fix CPANEL_FTP_HOST in GitHub Secrets:"
+            echo "   1. cPanel home → right sidebar → General Information → Shared IP Address"
+            echo "   2. Put that IP in CPANEL_FTP_HOST (e.g. 198.51.100.42)"
+            echo "   OR cPanel → FTP Accounts → Configure FTP Client → FTP Server"
           fi
-          echo "✅ FTP host resolves in DNS"
           echo "🎉 All FTP credentials present"
 
       - name: ⚙️ Resolve deploy config
@@ -219,7 +222,7 @@ jobs:
       - name: 📤 Upload backend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
-          server: ${{ secrets.CPANEL_FTP_HOST }}
+          server: ${{ env.FTP_HOST }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
@@ -232,7 +235,7 @@ jobs:
       - name: 📤 Upload frontend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
-          server: ${{ secrets.CPANEL_FTP_HOST }}
+          server: ${{ env.FTP_HOST }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}

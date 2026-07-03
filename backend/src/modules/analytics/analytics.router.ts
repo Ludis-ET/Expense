@@ -76,3 +76,10 @@ analyticsRouter.get(
     res.json(await analytics.unnecessary(req.user!, req.query.month as string | undefined));
   }),
 );
+
+analyticsRouter.get(
+  '/burn-rate',
+  asyncHandler(async (req, res) => {
+    res.json(await analytics.burnRate(req.user!));
+  }),
+);

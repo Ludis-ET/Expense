@@ -10,6 +10,7 @@ import { Field, Input, Select } from '@/components/ui/input';
 import { Avatar, PageHeader } from '@/components/ui/misc';
 import { AiProviders } from '@/components/settings/ai-providers';
 import { CategoryManager } from '@/components/settings/category-manager';
+import { HouseholdPanel } from '@/components/settings/household-panel';
 import { api, ApiError } from '@/lib/api';
 import { formatEthiopian } from '@/lib/ethiopian-calendar';
 import { useAuth } from '@/lib/auth';
@@ -150,6 +151,10 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mb-6">
+        <HouseholdPanel />
+      </div>
 
       <div className="space-y-6">
         <CategoryManager />

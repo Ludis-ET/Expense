@@ -2,6 +2,7 @@ import { CategoryKind, Prisma, TxKind } from '@prisma/client';
 import { prisma } from '../../core/db.js';
 import type { AuthUser } from '../../core/context.js';
 import { monthRange } from '../budgets/budgets.service.js';
+import * as budgets from '../budgets/budgets.service.js';
 import { UNNECESSARY_CATEGORY_NAME } from '../categories/default-categories.js';
 import { bucketKey, enumerateBuckets, type Granularity } from './analytics.buckets.js';
 
@@ -264,4 +265,21 @@ export async function unnecessary(user: AuthUser, month?: string) {
     deltaPct: prevTotal.gt(0) ? Number(total.sub(prevTotal).div(prevTotal).mul(100).toFixed(1)) : null,
     count: current._count,
   };
+}
+
+/** Cumulative spend this month vs total budgeted — for burn-rate chart. */
+export async function burnRate(user: AuthUser) {
+  const budgetList = await budgets.list(user);
+  const { start, end } = monthRange();
+  const rows = await prisma.transaction.findMany({
+    where: { userId: user.id, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
+    orderBy: { date: 'asc' },
+    select: { amount: true, date: true },
+  });
+  let cumulative = 0;
+  const points = rows.map((r) => {
+    cumulative += Number(r.amount);
+    return { date: r.date.toISOString().slice(0, 10), cumulative: cumulative.toFixed(2) };
+  });
+  return { points, totalPlanned: budgetList.totals.budgeted };
 }

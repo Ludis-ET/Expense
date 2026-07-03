@@ -27,7 +27,7 @@ const SUGGESTIONS = [
   'Where is my money leaking?',
 ];
 
-export function AskWidget() {
+export function AskWidget({ compact = false }: { compact?: boolean }) {
   const { user } = useAuth();
   const currency = user?.currency ?? 'ETB';
   const [question, setQuestion] = useState('');
@@ -56,6 +56,83 @@ export function AskWidget() {
   const slices: DonutSlice[] =
     result?.chart?.data.map((d, i) => ({ label: d.label, value: d.value, color: PALETTE[i % PALETTE.length]! })) ?? [];
 
+  const inner = (
+    <>
+      <form
+        onSubmit={(e) => {
+          e.preventDefault();
+          void ask(question);
+        }}
+        className="flex gap-2"
+      >
+        <input
+          value={question}
+          onChange={(e) => setQuestion(e.target.value)}
+          placeholder="e.g. How much did I spend on food this month?"
+          className="h-10 flex-1 rounded-lg border border-border bg-surface px-3.5 text-sm outline-none focus:ring-2 focus:ring-ring/60"
+        />
+        <Button type="submit" loading={loading} size="md">
+          <CornerDownLeft className="h-4 w-4" /> Ask
+        </Button>
+      </form>
+
+      {!result && !loading && !error && (
+        <div className="flex flex-wrap gap-2">
+          {SUGGESTIONS.map((s) => (
+            <button
+              key={s}
+              onClick={() => {
+                setQuestion(s);
+                void ask(s);
+              }}
+              className="rounded-full border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
+            >
+              {s}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {loading && (
+        <div className="flex items-center gap-2 py-4 text-sm text-muted">
+          <Spinner className="h-4 w-4" /> Thinking about your finances…
+        </div>
+      )}
+
+      {error && (
+        <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
+          {error}
+          {needsKey && (
+            <>
+              {' '}
+              <Link href="/settings" className="font-medium underline">
+                Configure an AI provider →
+              </Link>
+            </>
+          )}
+        </div>
+      )}
+
+      {result && (
+        <div className="space-y-4">
+          <p className="whitespace-pre-wrap text-sm leading-relaxed">{result.answer}</p>
+          {result.chart && slices.length > 0 && (
+            <div className="rounded-xl border border-border p-4">
+              <p className="mb-3 text-sm font-medium">{result.chart.title}</p>
+              {result.chart.type === 'donut' ? (
+                <Donut data={slices} format={(v) => formatMoney(v, currency)} centerLabel="total" />
+              ) : (
+                <BarChart data={result.chart.data} />
+              )}
+            </div>
+          )}
+        </div>
+      )}
+    </>
+  );
+
+  if (compact) return <div className="space-y-4">{inner}</div>;
+
   return (
     <Card className="overflow-hidden">
       <div className="flex items-center gap-2 border-b border-border bg-gradient-to-r from-primary/10 to-accent/10 px-5 py-3">
@@ -64,76 +141,7 @@ export function AskWidget() {
         {result && <span className="ml-auto text-xs text-muted">via {result.provider}</span>}
       </div>
       <CardContent className="space-y-4">
-        <form
-          onSubmit={(e) => {
-            e.preventDefault();
-            void ask(question);
-          }}
-          className="flex gap-2"
-        >
-          <input
-            value={question}
-            onChange={(e) => setQuestion(e.target.value)}
-            placeholder="e.g. How much did I spend on food this month?"
-            className="h-10 flex-1 rounded-lg border border-border bg-surface px-3.5 text-sm outline-none focus:ring-2 focus:ring-ring/60"
-          />
-          <Button type="submit" loading={loading} size="md">
-            <CornerDownLeft className="h-4 w-4" /> Ask
-          </Button>
-        </form>
-
-        {!result && !loading && !error && (
-          <div className="flex flex-wrap gap-2">
-            {SUGGESTIONS.map((s) => (
-              <button
-                key={s}
-                onClick={() => {
-                  setQuestion(s);
-                  void ask(s);
-                }}
-                className="rounded-full border border-border px-3 py-1.5 text-xs text-muted transition-colors hover:bg-surface-muted hover:text-foreground"
-              >
-                {s}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {loading && (
-          <div className="flex items-center gap-2 py-4 text-sm text-muted">
-            <Spinner className="h-4 w-4" /> Thinking about your finances…
-          </div>
-        )}
-
-        {error && (
-          <div className="rounded-lg bg-danger/10 px-4 py-3 text-sm text-danger">
-            {error}
-            {needsKey && (
-              <>
-                {' '}
-                <Link href="/settings" className="font-medium underline">
-                  Configure an AI provider →
-                </Link>
-              </>
-            )}
-          </div>
-        )}
-
-        {result && (
-          <div className="space-y-4">
-            <p className="whitespace-pre-wrap text-sm leading-relaxed">{result.answer}</p>
-            {result.chart && slices.length > 0 && (
-              <div className="rounded-xl border border-border p-4">
-                <p className="mb-3 text-sm font-medium">{result.chart.title}</p>
-                {result.chart.type === 'donut' ? (
-                  <Donut data={slices} format={(v) => formatMoney(v, currency)} centerLabel="total" />
-                ) : (
-                  <BarChart data={result.chart.data} />
-                )}
-              </div>
-            )}
-          </div>
-        )}
+        {inner}
       </CardContent>
     </Card>
   );

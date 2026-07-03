@@ -1,0 +1,194 @@
+name: 🚀 CI/CD — cPanel FTP Deploy
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+concurrency:
+  group: cpanel-deploy-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  PNPM_VERSION: "10.24.0"
+  NODE_VERSION: "20"
+
+jobs:
+  # ──────────────────────────────────────────────────────────────────────────
+  ci:
+    name: 🧪 CI — Lint, Typecheck & Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 💾 Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        run: |
+          echo "📦 Installing workspace dependencies..."
+          pnpm install --frozen-lockfile
+          echo "✅ Dependencies installed"
+
+      - name: 🔍 Lint
+        run: |
+          echo "🔍 Running ESLint across workspace..."
+          pnpm lint
+          echo "✅ Lint passed"
+
+      - name: 🧮 Typecheck
+        run: |
+          echo "🧮 Running TypeScript checks..."
+          pnpm typecheck
+          echo "✅ Typecheck passed"
+
+      - name: 🧪 Test
+        run: |
+          echo "🧪 Running test suite..."
+          pnpm test
+          echo "✅ All tests passed"
+
+      - name: 🏗️ Build (smoke)
+        run: |
+          echo "🏗️  Smoke-building both packages..."
+          pnpm --filter @santim/backend build
+          BACKEND_URL=http://localhost:4000 pnpm --filter @santim/frontend build
+          echo "✅ Build smoke test passed"
+
+  # ──────────────────────────────────────────────────────────────────────────
+  deploy:
+    name: 📤 CD — Deploy to cPanel via FTP
+    needs: ci
+    if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
+    runs-on: ubuntu-latest
+    environment: production
+    steps:
+      - name: 📥 Checkout repository
+        uses: actions/checkout@v4
+
+      - name: 🟢 Setup Node.js ${{ env.NODE_VERSION }}
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+
+      - name: 📦 Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: ${{ env.PNPM_VERSION }}
+
+      - name: 💾 Cache pnpm store
+        uses: actions/cache@v4
+        with:
+          path: ~/.pnpm-store
+          key: pnpm-${{ runner.os }}-${{ hashFiles('pnpm-lock.yaml') }}
+          restore-keys: |
+            pnpm-${{ runner.os }}-
+
+      - name: 📥 Install dependencies
+        run: |
+          echo "📦 Installing dependencies for production build..."
+          pnpm install --frozen-lockfile
+          echo "✅ Ready to build"
+
+      - name: 🔐 Validate FTP secrets
+        run: |
+          echo "🔐 Checking required GitHub secrets..."
+          missing=0
+          if [ -z "${{ secrets.CPANEL_FTP_HOST }}" ]; then echo "❌ Missing secret: CPANEL_FTP_HOST"; missing=1; else echo "✅ CPANEL_FTP_HOST is set"; fi
+          if [ -z "${{ secrets.CPANEL_FTP_USERNAME }}" ]; then echo "❌ Missing secret: CPANEL_FTP_USERNAME"; missing=1; else echo "✅ CPANEL_FTP_USERNAME is set"; fi
+          if [ -z "${{ secrets.CPANEL_FTP_PASSWORD }}" ]; then echo "❌ Missing secret: CPANEL_FTP_PASSWORD"; missing=1; else echo "✅ CPANEL_FTP_PASSWORD is set"; fi
+          if [ -z "${{ secrets.CPANEL_FTP_BACKEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_BACKEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_BACKEND_PATH is set"; fi
+          if [ -z "${{ secrets.CPANEL_FTP_FRONTEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_FRONTEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_FRONTEND_PATH is set"; fi
+          if [ -z "${{ vars.CPANEL_BACKEND_URL }}" ]; then
+            echo "❌ Missing repository variable: CPANEL_BACKEND_URL"
+            echo "   Set it under Settings → Secrets and variables → Actions → Variables"
+            missing=1
+          else
+            echo "✅ CPANEL_BACKEND_URL = ${{ vars.CPANEL_BACKEND_URL }}"
+          fi
+          if [ "$missing" -eq 1 ]; then
+            echo ""
+            echo "📖 See docs/DEPLOY-CPANEL.md for setup instructions."
+            exit 1
+          fi
+          echo "🎉 All deployment credentials present"
+
+      - name: 🏗️ Prepare backend deploy package
+        run: |
+          echo "🏗️  Building backend deploy bundle..."
+          chmod +x scripts/cpanel/prepare-backend.sh
+          ./scripts/cpanel/prepare-backend.sh
+          echo "📊 Backend package contents:"
+          ls -la deploy/backend/
+
+      - name: 🏗️ Prepare frontend deploy package
+        env:
+          BACKEND_URL: ${{ vars.CPANEL_BACKEND_URL }}
+        run: |
+          echo "🏗️  Building frontend deploy bundle..."
+          echo "🔗 API proxy target: $BACKEND_URL"
+          chmod +x scripts/cpanel/prepare-frontend.sh
+          ./scripts/cpanel/prepare-frontend.sh
+          echo "📊 Frontend package contents:"
+          ls -la deploy/frontend/
+
+      - name: 📤 Upload backend to cPanel (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.CPANEL_FTP_HOST }}
+          username: ${{ secrets.CPANEL_FTP_USERNAME }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
+          protocol: ftp
+          local-dir: ./deploy/backend/
+          server-dir: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
+          dangerous-clean-slate: false
+          log-level: verbose
+
+      - name: 📤 Upload frontend to cPanel (FTP)
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ secrets.CPANEL_FTP_HOST }}
+          username: ${{ secrets.CPANEL_FTP_USERNAME }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
+          protocol: ftp
+          local-dir: ./deploy/frontend/
+          server-dir: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
+          dangerous-clean-slate: false
+          log-level: verbose
+
+      - name: 🎉 Deployment summary
+        run: |
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo "🎉 Deployment finished successfully!"
+          echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
+          echo ""
+          echo "📦 Backend  → ${{ secrets.CPANEL_FTP_BACKEND_PATH }}"
+          echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}"
+          echo "🔗 API URL  → ${{ vars.CPANEL_BACKEND_URL }}"
+          echo ""
+          echo "⚠️  Post-deploy checklist (first time only):"
+          echo "   1. Restart both Node.js apps in cPanel"
+          echo "   2. Run: npx prisma migrate deploy  (in backend folder via cPanel Terminal)"
+          echo "   3. Set environment variables in cPanel Node.js app settings"
+          echo ""
+          echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

@@ -10,12 +10,10 @@ import {
   Moon,
   PiggyBank,
   Plus,
-  Repeat,
   Search,
   Settings,
   Sparkles,
   Sun,
-  Target,
   Wallet,
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
@@ -28,7 +26,6 @@ interface Command {
   run: () => void;
 }
 
-/** Spotlight-style command palette. Open with ⌘K / Ctrl+K. */
 export function CommandPalette() {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
@@ -46,12 +43,13 @@ export function CommandPalette() {
       { id: 'add', label: 'Add transaction', hint: 'quick add', icon: Plus, run: go('/transactions?add=1') },
       { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: go('/dashboard') },
       { id: 'transactions', label: 'Go to Transactions', icon: ArrowLeftRight, run: go('/transactions') },
+      { id: 'recurring', label: 'Go to Recurring rules', icon: ArrowLeftRight, run: go('/transactions?tab=recurring') },
       { id: 'accounts', label: 'Go to Accounts', icon: Wallet, run: go('/accounts') },
-      { id: 'budgets', label: 'Go to Budgets', icon: PiggyBank, run: go('/budgets') },
-      { id: 'goals', label: 'Go to Goals', icon: Target, run: go('/goals') },
-      { id: 'recurring', label: 'Go to Recurring', icon: Repeat, run: go('/recurring') },
+      { id: 'plan', label: 'Go to Budgets & Goals', icon: PiggyBank, run: go('/budgets') },
+      { id: 'goals', label: 'Go to Savings goals', icon: PiggyBank, run: go('/budgets?tab=goals') },
       { id: 'analytics', label: 'Go to Analytics', icon: BarChart3, run: go('/analytics') },
-      { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: go('/assistant') },
+      { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: go('/dashboard?assistant=1') },
+      { id: 'household', label: 'Couples & shared accounts', icon: Wallet, run: go('/settings#household') },
       { id: 'settings', label: 'Go to Settings', icon: Settings, run: go('/settings') },
       {
         id: 'theme',

@@ -1,7 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { ArrowRight, Calendar, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { formatEthiopian } from '@/lib/ethiopian-calendar';
 import { cn } from '@/lib/utils';
 import type { DashboardData } from '@/lib/types';
 
@@ -17,7 +18,11 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
   const expense = Number(data.month.expense);
   const savingsRate = income > 0 ? Math.round((net / income) * 100) : null;
 
-  const hour = new Date().getHours();
+  const now = new Date();
+  const gregorian = now.toLocaleDateString('en-GB', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const ethiopian = formatEthiopian(now);
+
+  const hour = now.getHours();
   const greeting = hour < 12 ? 'Good morning' : hour < 17 ? 'Good afternoon' : 'Good evening';
 
   return (
@@ -32,14 +37,25 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
             <p className="text-sm font-medium opacity-80">
               {greeting}{userName ? `, ${userName}` : ''}
             </p>
-            <p className="mt-1 text-xs opacity-60">Total balance across all accounts</p>
+            <div className="mt-2 flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
+              <span className="flex items-center gap-1.5 text-xs opacity-75">
+                <Calendar className="h-3.5 w-3.5" />
+                {gregorian}
+              </span>
+              <span className="hidden text-white/40 sm:inline">·</span>
+              <span className="text-xs font-medium opacity-90">
+                ግዕዝ · {ethiopian}
+              </span>
+            </div>
           </div>
           <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
             <Wallet className="h-5 w-5" />
           </div>
         </div>
 
-        <p className="mt-4 text-4xl font-bold tracking-tight tabular-nums md:text-5xl">
+        <p className="mt-1 text-xs opacity-60">Total balance across all accounts</p>
+
+        <p className="mt-3 text-4xl font-bold tracking-tight tabular-nums md:text-5xl">
           {money(data.totalBalance)}
         </p>
 
@@ -63,10 +79,7 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
               <p className="text-sm font-semibold tabular-nums">{money(expense)}</p>
             </div>
             {data.month.expenseDeltaPct !== null && (
-              <span className={cn(
-                'ml-1 text-xs font-medium',
-                (data.month.expenseDeltaPct ?? 0) > 0 ? 'opacity-90' : 'opacity-80',
-              )}>
+              <span className={cn('ml-1 text-xs font-medium', (data.month.expenseDeltaPct ?? 0) > 0 ? 'opacity-90' : 'opacity-80')}>
                 {data.month.expenseDeltaPct >= 0 ? '+' : ''}{data.month.expenseDeltaPct}%
               </span>
             )}
@@ -86,10 +99,10 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
             {data.accounts.slice(0, 4).map((a) => (
               <span
                 key={a.id}
-                className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium backdrop-blur-sm"
-                style={a.color ? { borderLeft: `3px solid ${a.color}` } : undefined}
+                className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium backdrop-blur-sm border-l-[3px]"
+                style={a.color ? { borderLeftColor: a.color } : undefined}
               >
-                {a.name}: {money(a.balance)}
+                {a.name}{a.isShared ? ' · shared' : ''}: {money(a.balance)}
               </span>
             ))}
             {data.accounts.length > 4 && (
@@ -100,10 +113,7 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
           </div>
         )}
 
-        <Link
-          href="/accounts"
-          className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium opacity-80 transition-opacity hover:opacity-100"
-        >
+        <Link href="/accounts" className="mt-5 inline-flex items-center gap-1.5 text-sm font-medium opacity-80 transition-opacity hover:opacity-100">
           Manage accounts <ArrowRight className="h-3.5 w-3.5" />
         </Link>
       </div>

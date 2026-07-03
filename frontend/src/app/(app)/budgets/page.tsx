@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { Suspense, useEffect, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
@@ -11,14 +12,26 @@ import { Field, Input, Select } from '@/components/ui/input';
 import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { CategoryBadge } from '@/components/finance/category-badge';
+import { GoalsPanel } from '@/components/finance/goals-panel';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { cn } from '@/lib/utils';
 import type { BudgetRow, BudgetsResponse, Category } from '@/lib/types';
 
 const tone = (status: BudgetRow['status']) => (status === 'over' ? 'danger' : status === 'warning' ? 'warning' : 'success');
 
 export default function BudgetsPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96" />}>
+      <PlanInner />
+    </Suspense>
+  );
+}
+
+function PlanInner() {
+  const params = useSearchParams();
+  const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
   const { user } = useAuth();
   const currency = user?.currency ?? 'ETB';
   const [month, setMonth] = useState(currentMonth());
@@ -45,15 +58,36 @@ export default function BudgetsPage() {
   return (
     <div>
       <PageHeader
-        title="Budgets"
-        description="Set monthly limits and get nudged before you overspend."
+        title="Plan"
+        description={tab === 'goals' ? 'Savings goals for what matters.' : 'Monthly budgets and spending limits.'}
         action={
-          <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }} disabled={unbudgeted.length === 0}>
-            <Plus className="h-4 w-4" /> Set budget
-          </Button>
+          tab === 'budgets' ? (
+            <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }} disabled={unbudgeted.length === 0}>
+              <Plus className="h-4 w-4" /> Set budget
+            </Button>
+          ) : undefined
         }
       />
 
+      <div className="mb-4 flex gap-1 rounded-xl border border-border p-1 w-fit">
+        {(['budgets', 'goals'] as const).map((t) => (
+          <a
+            key={t}
+            href={t === 'budgets' ? '/budgets' : '/budgets?tab=goals'}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors',
+              tab === t ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-surface-muted',
+            )}
+          >
+            {t === 'budgets' ? 'Budgets' : 'Goals'}
+          </a>
+        ))}
+      </div>
+
+      {tab === 'goals' ? (
+        <GoalsPanel />
+      ) : (
+        <>
       <div className="mb-4 flex items-center justify-between">
         <MonthNavigator month={month} onChange={setMonth} />
         {data && (
@@ -114,6 +148,8 @@ export default function BudgetsPage() {
         onClose={() => setModalOpen(false)}
         onSaved={() => void mutate()}
       />
+        </>
+      )}
     </div>
   );
 }

@@ -39,3 +39,6 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
 
 /** Name of the impulse-spend category used by the "unnecessary spend" analytics callout. */
 export const UNNECESSARY_CATEGORY_NAME = 'Unnecessary';
+
+/** Remittances & family support — tracked on the dashboard. */
+export const FAMILY_SUPPORT_CATEGORY_NAME = 'Family Support';

@@ -6,6 +6,7 @@ dist/
 build/
 .next/
 out/
+deploy/
 coverage/
 *.tsbuildinfo
 

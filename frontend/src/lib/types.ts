@@ -30,6 +30,8 @@ export interface Account {
   color?: string | null;
   isDefault: boolean;
   archived: boolean;
+  isShared?: boolean;
+  householdId?: string | null;
 }
 
 export interface Category {
@@ -177,6 +179,59 @@ export interface UnnecessaryStats {
   count: number;
 }
 
+export interface WeeklySnapshot {
+  weekStart: string;
+  income: string;
+  expense: string;
+  net: string;
+  prevIncome: string;
+  prevExpense: string;
+  incomeDeltaPct: number | null;
+  expenseDeltaPct: number | null;
+}
+
+export interface SpendingStreak {
+  currentDays: number;
+  label: string;
+  avgDailyLimit: string;
+  bestStreak: number;
+}
+
+export interface CategoryHeatAlert {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  amount: string;
+  prevAmount: string;
+  deltaPct: number;
+  severity: 'low' | 'medium' | 'high';
+}
+
+export interface FamilySupportStats {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  total: string;
+  prevTotal: string;
+  deltaPct: number | null;
+  count: number;
+  recent: { id: string; amount: string; date: string; payee?: string | null; note?: string | null }[];
+}
+
+export interface HouseholdMember {
+  id: string;
+  name: string;
+  email: string;
+  role: 'OWNER' | 'PARTNER';
+  isYou: boolean;
+}
+
+export interface HouseholdOverview {
+  id: string;
+  name: string;
+  role: 'OWNER' | 'PARTNER';
+  members: HouseholdMember[];
+  sharedAccounts: Pick<Account, 'id' | 'name' | 'type' | 'currency' | 'isShared' | 'color' | 'icon'>[];
+  sharedBalance: string;
+  pendingInvites: number;
+}
+
 export interface DashboardData {
   totalBalance: string;
   accounts: Account[];
@@ -187,4 +242,9 @@ export interface DashboardData {
   topCategories: CategoryBreakdownItem[];
   upcomingRecurring: (RecurringRule & { category?: { name: string; icon: string; color: string } | null })[];
   unnecessary: UnnecessaryStats;
+  weeklySnapshot: WeeklySnapshot;
+  spendingStreak: SpendingStreak;
+  categoryHeatAlerts: CategoryHeatAlert[];
+  familySupport: FamilySupportStats;
+  household: HouseholdOverview | null;
 }

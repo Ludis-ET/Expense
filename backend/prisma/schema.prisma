@@ -37,6 +37,18 @@ enum Frequency {
   YEARLY
 }
 
+enum HouseholdRole {
+  OWNER
+  PARTNER
+}
+
+enum InviteStatus {
+  PENDING
+  ACCEPTED
+  DECLINED
+  EXPIRED
+}
+
 model User {
   id             String @id @default(cuid())
   email          String @unique
@@ -47,14 +59,16 @@ model User {
   currency       String @default("ETB") // default display/entry currency
   firstDayOfWeek Int    @default(1) // 1 = Monday, 0 = Sunday
 
-  accounts       Account[]
-  categories     Category[]
-  transactions   Transaction[]
-  recurringRules RecurringRule[]
-  budgets        Budget[]
-  goals          SavingsGoal[]
-  notifications  Notification[]
-  aiSetting      AiSetting?
+  accounts          Account[]
+  categories        Category[]
+  transactions      Transaction[]
+  recurringRules    RecurringRule[]
+  budgets           Budget[]
+  goals             SavingsGoal[]
+  notifications     Notification[]
+  aiSetting         AiSetting?
+  householdMembers  HouseholdMember[]
+  sentInvites       HouseholdInvite[] @relation("InviteSender")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -62,10 +76,57 @@ model User {
   @@map("users")
 }
 
+model Household {
+  id      String @id @default(cuid())
+  name    String @default("Our Household")
+
+  members  HouseholdMember[]
+  invites  HouseholdInvite[]
+  accounts Account[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("households")
+}
+
+model HouseholdMember {
+  id          String        @id @default(cuid())
+  householdId String
+  household   Household     @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  userId      String
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role        HouseholdRole @default(PARTNER)
+  joinedAt    DateTime      @default(now())
+
+  @@unique([householdId, userId])
+  @@index([userId])
+  @@map("household_members")
+}
+
+model HouseholdInvite {
+  id          String       @id @default(cuid())
+  householdId String
+  household   Household    @relation(fields: [householdId], references: [id], onDelete: Cascade)
+  email       String
+  token       String       @unique @default(cuid())
+  invitedById String
+  invitedBy   User         @relation("InviteSender", fields: [invitedById], references: [id], onDelete: Cascade)
+  status      InviteStatus @default(PENDING)
+  expiresAt   DateTime
+  createdAt   DateTime     @default(now())
+
+  @@index([email, status])
+  @@map("household_invites")
+}
+
 model Account {
   id             String      @id @default(cuid())
   userId         String
   user           User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  householdId    String?
+  household      Household?  @relation(fields: [householdId], references: [id], onDelete: SetNull)
+  isShared       Boolean     @default(false) // visible to all household members
   name           String // "Cash", "CBE", "Telebirr"
   type           AccountType @default(CASH)
   currency       String      @default("ETB")
@@ -83,6 +144,7 @@ model Account {
   updatedAt DateTime @updatedAt
 
   @@index([userId])
+  @@index([householdId])
   @@map("accounts")
 }
 

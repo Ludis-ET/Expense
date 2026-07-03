@@ -7,10 +7,7 @@ import {
   BarChart3,
   LayoutDashboard,
   PiggyBank,
-  Repeat,
   Settings,
-  Sparkles,
-  Target,
   Wallet,
   X,
 } from 'lucide-react';
@@ -29,22 +26,15 @@ const navGroups = [
     items: [
       { href: '/transactions', label: 'Transactions', icon: ArrowLeftRight },
       { href: '/accounts', label: 'Accounts', icon: Wallet },
-      { href: '/recurring', label: 'Recurring', icon: Repeat },
-    ],
-  },
-  {
-    label: 'Plan',
-    items: [
-      { href: '/budgets', label: 'Budgets', icon: PiggyBank },
-      { href: '/goals', label: 'Goals', icon: Target },
     ],
   },
   {
     label: 'Insights',
-    items: [
-      { href: '/analytics', label: 'Analytics', icon: BarChart3 },
-      { href: '/assistant', label: 'AI Assistant', icon: Sparkles },
-    ],
+    items: [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }],
+  },
+  {
+    label: 'Plan',
+    items: [{ href: '/budgets', label: 'Budgets & Goals', icon: PiggyBank }],
   },
 ];
 
@@ -69,7 +59,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
       >
         <div className="flex h-16 items-center justify-between px-5">
           <Brand />
-          <button onClick={onClose} className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-muted lg:hidden">
+          <button onClick={onClose} className="rounded-lg p-1.5 text-muted transition-colors hover:bg-surface-muted lg:hidden" aria-label="Close menu">
             <X className="h-5 w-5" />
           </button>
         </div>
@@ -118,9 +108,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
                 onClick={onClose}
                 className={cn(
                   'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-all',
-                  active
-                    ? 'bg-primary/10 text-primary'
-                    : 'text-muted hover:bg-surface-muted hover:text-foreground',
+                  active ? 'bg-primary/10 text-primary' : 'text-muted hover:bg-surface-muted hover:text-foreground',
                 )}
               >
                 <item.icon className="h-4.5 w-4.5" />

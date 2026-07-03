@@ -2,13 +2,15 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import { Suspense } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { CommandPalette } from '@/components/command-palette';
+import { AssistantFab } from '@/components/ai/assistant-fab';
 import { Spinner } from '@/components/ui/misc';
 import { useAuth } from '@/lib/auth';
 
-export default function AppLayout({ children }: { children: React.ReactNode }) {
+function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -33,6 +35,13 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
         <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
       <CommandPalette />
+      <Suspense fallback={null}>
+        <AssistantFab />
+      </Suspense>
     </div>
   );
+}
+
+export default function AppLayout({ children }: { children: React.ReactNode }) {
+  return <AppShell>{children}</AppShell>;
 }

@@ -10,9 +10,11 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { TransactionForm } from '@/components/finance/transaction-form';
+import { RecurringPanel } from '@/components/finance/recurring-panel';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { cn } from '@/lib/utils';
 import type { Account, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
 
 function monthBounds(month: string) {
@@ -24,6 +26,7 @@ function monthBounds(month: string) {
 
 function TransactionsInner() {
   const params = useSearchParams();
+  const tab = params.get('tab') === 'recurring' ? 'recurring' : 'ledger';
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [kind, setKind] = useState<TxKind | ''>('');
@@ -118,19 +121,40 @@ function TransactionsInner() {
     <div>
       <PageHeader
         title="Transactions"
-        description="Every birr in and out. Press N to add."
+        description={tab === 'recurring' ? 'Scheduled income and bills.' : 'Every birr in and out. Press N to add.'}
         action={
-          <div className="flex items-center gap-2">
-            <Button variant="outline" size="sm" onClick={exportCsv}>
-              <Download className="h-4 w-4" /> Export
-            </Button>
-            <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
-              <Plus className="h-4 w-4" /> Add
-            </Button>
-          </div>
+          tab === 'ledger' ? (
+            <div className="flex items-center gap-2">
+              <Button variant="outline" size="sm" onClick={exportCsv}>
+                <Download className="h-4 w-4" /> Export
+              </Button>
+              <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
+                <Plus className="h-4 w-4" /> Add
+              </Button>
+            </div>
+          ) : undefined
         }
       />
 
+      <div className="mb-4 flex gap-1 rounded-xl border border-border p-1 w-fit">
+        {(['ledger', 'recurring'] as const).map((t) => (
+          <a
+            key={t}
+            href={t === 'ledger' ? '/transactions' : '/transactions?tab=recurring'}
+            className={cn(
+              'rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors',
+              tab === t ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-surface-muted',
+            )}
+          >
+            {t === 'ledger' ? 'Ledger' : 'Recurring'}
+          </a>
+        ))}
+      </div>
+
+      {tab === 'recurring' ? (
+        <RecurringPanel />
+      ) : (
+        <>
       <div className="mb-4 flex flex-wrap items-center gap-2">
         <MonthNavigator month={month} onChange={setMonth} />
         <div className="relative flex-1 min-w-40">
@@ -188,6 +212,8 @@ function TransactionsInner() {
         onClose={() => setFormOpen(false)}
         onSaved={() => void mutate()}
       />
+        </>
+      )}
     </div>
   );
 }

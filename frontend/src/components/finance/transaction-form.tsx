@@ -6,7 +6,7 @@ import { toast } from 'sonner';
 import { Sparkles } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select, Textarea } from '@/components/ui/input';
+import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { financeIcon } from './icons';
 import { api, ApiError } from '@/lib/api';
 import { cn } from '@/lib/utils';
@@ -171,7 +171,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
             />
           </Field>
           <Field label="Date">
-            <Input type="date" required value={date} onChange={(e) => setDate(e.target.value)} />
+            <DateInput required value={date} onChange={(e) => setDate(e.target.value)} />
           </Field>
         </div>
 

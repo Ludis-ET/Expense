@@ -1,6 +1,8 @@
 import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
+  // Minimal self-contained server bundle for cPanel / VPS Node.js hosting.
+  output: 'standalone',
   reactStrictMode: true,
   // Lint is run explicitly via `pnpm lint`; don't fail production builds on nits.
   eslint: { ignoreDuringBuilds: true },

@@ -20,7 +20,8 @@ fi
 
 echo "📋 Copying application files (no node_modules)..."
 cp -r "$ROOT/backend/dist" "$OUT/dist"
-cp -r "$ROOT/backend/generated/client" "$OUT/generated/client"
+mkdir -p "$OUT/generated"
+cp -a "$ROOT/backend/generated/client" "$OUT/generated/client"
 cp -r "$ROOT/backend/prisma" "$OUT/prisma"
 
 node - "$ROOT" "$OUT" <<'NODE'

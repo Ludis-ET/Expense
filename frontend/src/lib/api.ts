@@ -1,4 +1,5 @@
-const API_BASE = '/api/v1';
+// Path-based cPanel deploys set NEXT_PUBLIC_API_BASE=/backend/api/v1 at build time.
+const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? '/api/v1';
 const TOKEN_KEY = 'rt.accessToken';
 const REFRESH_KEY = 'rt.refreshToken';
 

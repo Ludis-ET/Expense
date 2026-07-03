@@ -7,17 +7,24 @@ OUT="$ROOT/deploy/frontend"
 STANDALONE="$ROOT/frontend/.next/standalone"
 
 if [ -z "${BACKEND_URL:-}" ]; then
-  echo "❌ BACKEND_URL is required (e.g. https://api.yourdomain.com)"
+  echo "❌ BACKEND_URL is required (e.g. https://santim.lunafh.com/backend)"
   exit 1
 fi
+
+# Path-based hosting: frontend at /frontend, API at /backend on the same domain.
+NEXT_BASE_PATH="${NEXT_BASE_PATH:-${CPANEL_FRONTEND_BASE_PATH:-/frontend}}"
+NEXT_PUBLIC_API_BASE="${NEXT_PUBLIC_API_BASE:-${CPANEL_API_BASE_PATH:-/backend/api/v1}}"
 
 echo "🧹 Cleaning previous frontend deploy folder..."
 rm -rf "$OUT"
 mkdir -p "$OUT"
 
-echo "🔨 Building Next.js (BACKEND_URL=$BACKEND_URL)..."
+echo "🔨 Building Next.js (BACKEND_URL=$BACKEND_URL, NEXT_BASE_PATH=${NEXT_BASE_PATH:-/}, NEXT_PUBLIC_API_BASE=${NEXT_PUBLIC_API_BASE:-/api/v1})..."
 cd "$ROOT/frontend"
-BACKEND_URL="$BACKEND_URL" pnpm build
+BACKEND_URL="$BACKEND_URL" \
+  NEXT_BASE_PATH="$NEXT_BASE_PATH" \
+  NEXT_PUBLIC_API_BASE="$NEXT_PUBLIC_API_BASE" \
+  pnpm build
 
 if [ ! -d "$STANDALONE" ]; then
   echo "❌ Standalone output not found. Ensure next.config.ts has output: 'standalone'."

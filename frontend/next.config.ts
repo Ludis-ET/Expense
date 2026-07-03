@@ -1,8 +1,12 @@
 import type { NextConfig } from 'next';
 
+// Set NEXT_BASE_PATH=/frontend when the app is served under a subdirectory (e.g. santim.lunafh.com/frontend).
+const basePath = process.env.NEXT_BASE_PATH ?? '';
+
 const nextConfig: NextConfig = {
   // Minimal self-contained server bundle for cPanel / VPS Node.js hosting.
   output: 'standalone',
+  basePath,
   reactStrictMode: true,
   // Lint is run explicitly via `pnpm lint`; don't fail production builds on nits.
   eslint: { ignoreDuringBuilds: true },

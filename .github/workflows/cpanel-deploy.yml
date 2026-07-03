@@ -119,10 +119,21 @@ jobs:
           if [ -z "${{ secrets.CPANEL_FTP_FRONTEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_FRONTEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_FRONTEND_PATH is set"; fi
           if [ -z "${{ vars.CPANEL_BACKEND_URL }}" ]; then
             echo "❌ Missing repository variable: CPANEL_BACKEND_URL"
+            echo "   Example: https://santim.lunafh.com/backend"
             echo "   Set it under Settings → Secrets and variables → Actions → Variables"
             missing=1
           else
             echo "✅ CPANEL_BACKEND_URL = ${{ vars.CPANEL_BACKEND_URL }}"
+          fi
+          if [ -z "${{ vars.CPANEL_FRONTEND_BASE_PATH }}" ]; then
+            echo "⚠️  CPANEL_FRONTEND_BASE_PATH not set — defaulting to /frontend in build"
+          else
+            echo "✅ CPANEL_FRONTEND_BASE_PATH = ${{ vars.CPANEL_FRONTEND_BASE_PATH }}"
+          fi
+          if [ -z "${{ vars.CPANEL_API_BASE_PATH }}" ]; then
+            echo "⚠️  CPANEL_API_BASE_PATH not set — defaulting to /backend/api/v1 in build"
+          else
+            echo "✅ CPANEL_API_BASE_PATH = ${{ vars.CPANEL_API_BASE_PATH }}"
           fi
           if [ "$missing" -eq 1 ]; then
             echo ""
@@ -142,9 +153,13 @@ jobs:
       - name: 🏗️ Prepare frontend deploy package
         env:
           BACKEND_URL: ${{ vars.CPANEL_BACKEND_URL }}
+          CPANEL_FRONTEND_BASE_PATH: ${{ vars.CPANEL_FRONTEND_BASE_PATH }}
+          CPANEL_API_BASE_PATH: ${{ vars.CPANEL_API_BASE_PATH }}
         run: |
           echo "🏗️  Building frontend deploy bundle..."
           echo "🔗 API proxy target: $BACKEND_URL"
+          echo "📁 Frontend base path: ${CPANEL_FRONTEND_BASE_PATH:-/frontend}"
+          echo "🌐 Browser API base: ${CPANEL_API_BASE_PATH:-/backend/api/v1}"
           chmod +x scripts/cpanel/prepare-frontend.sh
           ./scripts/cpanel/prepare-frontend.sh
           echo "📊 Frontend package contents:"
@@ -182,13 +197,14 @@ jobs:
           echo "🎉 Deployment finished successfully!"
           echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
           echo ""
-          echo "📦 Backend  → ${{ secrets.CPANEL_FTP_BACKEND_PATH }}"
-          echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}"
+          echo "📦 Backend  → ${{ secrets.CPANEL_FTP_BACKEND_PATH }}  (https://santim.lunafh.com/backend)"
+          echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ vars.CPANEL_BACKEND_URL }}"
           echo ""
           echo "⚠️  Post-deploy checklist (first time only):"
-          echo "   1. Restart both Node.js apps in cPanel"
-          echo "   2. Run: npx prisma migrate deploy  (in backend folder via cPanel Terminal)"
-          echo "   3. Set environment variables in cPanel Node.js app settings"
+          echo "   1. Restart both Node.js apps in cPanel (backend + frontend)"
+          echo "   2. Run: cd ~/santim.lunafh.com/backend && npx prisma migrate deploy"
+          echo "   3. Backend env: DATABASE_URL, JWT_SECRET, CORS_ORIGINS=https://santim.lunafh.com, APP_URL=https://santim.lunafh.com/frontend"
+          echo "   4. Open https://santim.lunafh.com/frontend"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

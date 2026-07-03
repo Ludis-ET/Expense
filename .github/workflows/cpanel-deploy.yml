@@ -145,12 +145,26 @@ jobs:
           fi
 
           PROTOCOL="${{ secrets.CPANEL_FTP_PROTOCOL }}"
-          if [ -z "$PROTOCOL" ]; then PROTOCOL="sftp"; fi
+          if [ -z "$PROTOCOL" ]; then PROTOCOL="ftps"; fi
+          # cPanel FTP users (ludis@domain.com) authenticate on port 21, not SFTP port 22.
+          if [ "$PROTOCOL" = "sftp" ]; then
+            echo "⚠️  CPANEL_FTP_PROTOCOL=sftp → using ftps on port 21 for FTP account login"
+            PROTOCOL="ftps"
+          fi
 
           PORT="${{ secrets.CPANEL_FTP_PORT }}"
-          if [ -z "$PORT" ]; then
-            if [ "$PROTOCOL" = "sftp" ]; then PORT="22"; else PORT="21"; fi
-          fi
+          if [ -z "$PORT" ] || [ "$PORT" = "22" ]; then PORT="21"; fi
+
+          # FTP accounts are chrooted to the site folder — use /backend not full home path.
+          BACKEND_DIR="${{ secrets.CPANEL_FTP_BACKEND_PATH }}"
+          FRONTEND_DIR="${{ secrets.CPANEL_FTP_FRONTEND_PATH }}"
+          BACKEND_DIR=$(echo "$BACKEND_DIR" | sed 's|.*/santim\.lunafh\.com/*|/|' | sed 's|/*$|/|')
+          FRONTEND_DIR=$(echo "$FRONTEND_DIR" | sed 's|.*/santim\.lunafh\.com/*|/|' | sed 's|/*$|/|')
+          [ -z "$BACKEND_DIR" ] || [ "$BACKEND_DIR" = "/" ] && BACKEND_DIR="/backend/"
+          [ -z "$FRONTEND_DIR" ] || [ "$FRONTEND_DIR" = "/" ] && FRONTEND_DIR="/frontend/"
+          echo "backend_dir=$BACKEND_DIR" >> "$GITHUB_OUTPUT"
+          echo "frontend_dir=$FRONTEND_DIR" >> "$GITHUB_OUTPUT"
+          echo "ℹ️  FTP remote dirs: backend=$BACKEND_DIR frontend=$FRONTEND_DIR"
 
           # Normalize host input.
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
@@ -269,41 +283,7 @@ jobs:
           echo "📊 Frontend .next (required for Next.js):"
           ls -la deploy/frontend/.next/ | head -20
 
-      - name: 📤 Upload to cPanel (SFTP via lftp)
-        if: steps.ftp.outputs.protocol == 'sftp'
-        env:
-          FTP_USER: ${{ secrets.CPANEL_FTP_USERNAME }}
-          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          FTP_HOST: ${{ steps.ftp.outputs.host }}
-          FTP_PORT: ${{ steps.ftp.outputs.port }}
-          REMOTE_BACKEND: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
-          REMOTE_FRONTEND: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
-        run: |
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq lftp
-          FTP_PASS_ESC=$(printf '%s' "$FTP_PASS" | sed "s/'/'\\\\''/g")
-
-          upload_pkg() {
-            local pkg="$1"
-            local remote="$2"
-            remote="${remote%/}"
-            echo "━━━━━━━━ Uploading $pkg → $remote (includes hidden files like .next)"
-            lftp -e "
-              set sftp:auto-confirm yes;
-              set sftp:connect-program 'ssh -a -x -oStrictHostKeyChecking=no';
-              open -u '${FTP_USER}','${FTP_PASS_ESC}' sftp://${FTP_HOST}:${FTP_PORT};
-              lcd deploy/${pkg};
-              cd ${remote};
-              mirror --reverse --verbose --parallel=4;
-              quit
-            "
-          }
-
-          upload_pkg backend "${REMOTE_BACKEND}"
-          upload_pkg frontend "${REMOTE_FRONTEND}"
-
-      - name: 📤 Upload backend to cPanel (FTP/FTPS)
-        if: steps.ftp.outputs.protocol != 'sftp'
+      - name: 📤 Upload backend to cPanel (FTPS)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -312,12 +292,11 @@ jobs:
           port: ${{ steps.ftp.outputs.port }}
           protocol: ${{ steps.ftp.outputs.protocol }}
           local-dir: ./deploy/backend/
-          server-dir: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
+          server-dir: ${{ steps.ftp.outputs.backend_dir }}
           dangerous-clean-slate: false
           log-level: verbose
 
-      - name: 📤 Upload frontend to cPanel (FTP/FTPS)
-        if: steps.ftp.outputs.protocol != 'sftp'
+      - name: 📤 Upload frontend to cPanel (FTPS)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -326,7 +305,7 @@ jobs:
           port: ${{ steps.ftp.outputs.port }}
           protocol: ${{ steps.ftp.outputs.protocol }}
           local-dir: ./deploy/frontend/
-          server-dir: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
+          server-dir: ${{ steps.ftp.outputs.frontend_dir }}
           dangerous-clean-slate: false
           log-level: verbose
 

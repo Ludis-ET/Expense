@@ -66,8 +66,10 @@ GitHub Actions uploads build artifacts into these paths. You do **not** need sep
 | `CPANEL_FTP_USERNAME` | `ludis@lunafh.com` |
 | `CPANEL_FTP_PASSWORD` | Your FTP password |
 | `CPANEL_FTP_PROTOCOL` | `sftp` |
-| `CPANEL_FTP_BACKEND_PATH` | `/backend/` |
-| `CPANEL_FTP_FRONTEND_PATH` | `/frontend/` |
+| `CPANEL_FTP_BACKEND_PATH` | `/home/lunafhin/santim.lunafh.com/backend` |
+| `CPANEL_FTP_FRONTEND_PATH` | `/home/lunafhin/santim.lunafh.com/frontend` |
+
+Use **full paths** for SCP upload (no trailing slash required). If your FTP user is chrooted to the site folder, use `/backend` and `/frontend` instead.
 
 > **Why `CPANEL_SERVER_IP`?** `ftp.lunafh.com` has no public DNS record. The workflow resolves the hostname; if that fails, it uses `CPANEL_SERVER_IP` for SFTP upload.
 
@@ -224,8 +226,10 @@ GitHub repo → **Settings** → **Secrets and variables** → **Actions**.
 | `CPANEL_FTP_PASSWORD` | Your generated FTP password |
 | `CPANEL_FTP_PROTOCOL` | `sftp` (default — most cPanel hosts; use `ftp` or `ftps` if needed) |
 | `CPANEL_FTP_PORT` | `22` for SFTP, `21` for FTP (optional — auto-selected) |
-| `CPANEL_FTP_BACKEND_PATH` | `/backend/` |
-| `CPANEL_FTP_FRONTEND_PATH` | `/frontend/` |
+| `CPANEL_FTP_BACKEND_PATH` | `/home/lunafhin/santim.lunafh.com/backend` |
+| `CPANEL_FTP_FRONTEND_PATH` | `/home/lunafhin/santim.lunafh.com/frontend` |
+
+Use **full paths** for SCP upload (no trailing slash required). If your FTP user is chrooted to the site folder, use `/backend` and `/frontend` instead.
 
 ### 5.2 Repository variables
 

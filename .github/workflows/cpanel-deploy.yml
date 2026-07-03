@@ -266,18 +266,22 @@ jobs:
           ./scripts/cpanel/prepare-frontend.sh
           echo "📊 Frontend package contents:"
           ls -la deploy/frontend/
+          echo "📊 Frontend .next (required for Next.js):"
+          ls -la deploy/frontend/.next/ | head -20
 
-      - name: 📤 Upload backend to cPanel (SFTP)
+      - name: 📤 Upload backend to cPanel (SCP/SFTP)
         if: steps.ftp.outputs.protocol == 'sftp'
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        uses: appleboy/scp-action@v1.0.0
         with:
-          server: ${{ steps.ftp.outputs.host }}
+          host: ${{ steps.ftp.outputs.host }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ steps.ftp.outputs.port }}
-          local_path: ./deploy/backend/*
-          remote_path: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
-          sftp_only: true
+          source: "deploy/backend/"
+          target: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
+          strip_components: 2
+          overwrite: true
+          timeout: 120s
 
       - name: 📤 Upload backend to cPanel (FTP)
         if: steps.ftp.outputs.protocol != 'sftp'
@@ -293,17 +297,19 @@ jobs:
           dangerous-clean-slate: false
           log-level: verbose
 
-      - name: 📤 Upload frontend to cPanel (SFTP)
+      - name: 📤 Upload frontend to cPanel (SCP/SFTP)
         if: steps.ftp.outputs.protocol == 'sftp'
-        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+        uses: appleboy/scp-action@v1.0.0
         with:
-          server: ${{ steps.ftp.outputs.host }}
+          host: ${{ steps.ftp.outputs.host }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ steps.ftp.outputs.port }}
-          local_path: ./deploy/frontend/*
-          remote_path: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
-          sftp_only: true
+          source: "deploy/frontend/"
+          target: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
+          strip_components: 2
+          overwrite: true
+          timeout: 300s
 
       - name: 📤 Upload frontend to cPanel (FTP)
         if: steps.ftp.outputs.protocol != 'sftp'

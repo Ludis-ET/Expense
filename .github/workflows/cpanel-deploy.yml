@@ -118,6 +118,7 @@ jobs:
         run: pnpm --filter @santim/backend db:generate
 
       - name: 🔐 Validate FTP secrets
+        id: ftp
         run: |
           echo "🔐 Checking required GitHub secrets..."
           missing=0
@@ -132,39 +133,56 @@ jobs:
             exit 1
           fi
 
-          # Normalize FTP host (strip protocol, path, port, whitespace).
+          PROTOCOL="${{ secrets.CPANEL_FTP_PROTOCOL }}"
+          if [ -z "$PROTOCOL" ]; then PROTOCOL="sftp"; fi
+          echo "protocol=$PROTOCOL" >> "$GITHUB_OUTPUT"
+
+          PORT="${{ secrets.CPANEL_FTP_PORT }}"
+          if [ -z "$PORT" ]; then
+            if [ "$PROTOCOL" = "sftp" ]; then PORT="22"; else PORT="21"; fi
+          fi
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+
+          # Normalize FTP/SFTP host (strip protocol, path, port, quotes, whitespace).
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
+          HOST="${HOST#sftp://}"
           HOST="${HOST%%/*}"
           HOST="${HOST%%:*}"
           HOST="${HOST%.}"
+          HOST="${HOST#\"}"
+          HOST="${HOST%\"}"
           HOST="$(echo "$HOST" | xargs)"
-          echo "FTP_HOST=$HOST" >> "$GITHUB_ENV"
-          echo "ℹ️  Normalized FTP host length: ${#HOST} chars"
+          echo "host=$HOST" >> "$GITHUB_OUTPUT"
+          echo "ℹ️  Normalized host length: ${#HOST} chars, protocol: $PROTOCOL, port: $PORT"
 
           if [ -z "$HOST" ]; then
             echo "❌ CPANEL_FTP_HOST is empty after normalization"
             exit 1
           fi
           if echo "$HOST" | grep -q '@'; then
-            echo "❌ CPANEL_FTP_HOST looks like an email/username — use the FTP server hostname or IP from cPanel"
-            echo "   Example: ftp.lunafh.com or 198.51.100.42 (not ludis@lunafh.com)"
+            echo "❌ CPANEL_FTP_HOST looks like an email — use server IP or FTP hostname from cPanel"
             exit 1
           fi
           if echo "$HOST" | grep -qi 'santim\.lunafh\.com'; then
-            echo "❌ CPANEL_FTP_HOST must be the cPanel server hostname/IP, not santim.lunafh.com"
+            echo "❌ CPANEL_FTP_HOST must not be santim.lunafh.com — use cPanel Shared IP"
             exit 1
           fi
-          if getent hosts "$HOST" > /dev/null 2>&1; then
-            echo "✅ FTP host resolves in DNS"
-          else
-            echo "⚠️  FTP host does not resolve in DNS (will still attempt upload)"
-            echo "   Fix CPANEL_FTP_HOST in GitHub Secrets:"
-            echo "   1. cPanel home → right sidebar → General Information → Shared IP Address"
-            echo "   2. Put that IP in CPANEL_FTP_HOST (e.g. 198.51.100.42)"
-            echo "   OR cPanel → FTP Accounts → Configure FTP Client → FTP Server"
+
+          resolves=0
+          if getent hosts "$HOST" > /dev/null 2>&1; then resolves=1; fi
+          if [[ "$HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then resolves=1; fi
+
+          if [ "$resolves" -eq 0 ]; then
+            echo "❌ CPANEL_FTP_HOST cannot be resolved"
+            echo ""
+            echo "   Fix: cPanel → General Information → Shared IP Address"
+            echo "   GitHub → Secrets → CPANEL_FTP_HOST → paste ONLY that IP"
+            echo "   Example: 203.0.113.10"
+            exit 1
           fi
+          echo "✅ Host is valid for $PROTOCOL upload"
           echo "🎉 All FTP credentials present"
 
       - name: ⚙️ Resolve deploy config
@@ -219,27 +237,53 @@ jobs:
           echo "📊 Frontend package contents:"
           ls -la deploy/frontend/
 
-      - name: 📤 Upload backend to cPanel (FTP)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+      - name: 📤 Upload backend to cPanel (SFTP)
+        if: steps.ftp.outputs.protocol == 'sftp'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server: ${{ env.FTP_HOST }}
+          server: ${{ steps.ftp.outputs.host }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
-          protocol: ${{ secrets.CPANEL_FTP_PROTOCOL != '' && secrets.CPANEL_FTP_PROTOCOL || 'ftp' }}
+          port: ${{ steps.ftp.outputs.port }}
+          local_path: ./deploy/backend/*
+          remote_path: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
+          sftp_only: true
+
+      - name: 📤 Upload backend to cPanel (FTP)
+        if: steps.ftp.outputs.protocol != 'sftp'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ steps.ftp.outputs.host }}
+          username: ${{ secrets.CPANEL_FTP_USERNAME }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          port: ${{ steps.ftp.outputs.port }}
+          protocol: ${{ steps.ftp.outputs.protocol }}
           local-dir: ./deploy/backend/
           server-dir: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
           dangerous-clean-slate: false
           log-level: verbose
 
-      - name: 📤 Upload frontend to cPanel (FTP)
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+      - name: 📤 Upload frontend to cPanel (SFTP)
+        if: steps.ftp.outputs.protocol == 'sftp'
+        uses: wlixcc/SFTP-Deploy-Action@v1.2.4
         with:
-          server: ${{ env.FTP_HOST }}
+          server: ${{ steps.ftp.outputs.host }}
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
-          protocol: ${{ secrets.CPANEL_FTP_PROTOCOL != '' && secrets.CPANEL_FTP_PROTOCOL || 'ftp' }}
+          port: ${{ steps.ftp.outputs.port }}
+          local_path: ./deploy/frontend/*
+          remote_path: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
+          sftp_only: true
+
+      - name: 📤 Upload frontend to cPanel (FTP)
+        if: steps.ftp.outputs.protocol != 'sftp'
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.6
+        with:
+          server: ${{ steps.ftp.outputs.host }}
+          username: ${{ secrets.CPANEL_FTP_USERNAME }}
+          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          port: ${{ steps.ftp.outputs.port }}
+          protocol: ${{ steps.ftp.outputs.protocol }}
           local-dir: ./deploy/frontend/
           server-dir: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
           dangerous-clean-slate: false

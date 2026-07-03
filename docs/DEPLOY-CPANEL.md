@@ -230,10 +230,11 @@ GitHub repo → **Settings** → **Secrets and variables** → **Actions**.
 
 | Secret name | Value |
 | --- | --- |
-| `CPANEL_FTP_HOST` | `ftp.lunafh.com` (or your server hostname / IP) |
+| `CPANEL_FTP_HOST` | `203.0.113.10` (**Shared IP** from cPanel — not `santim.lunafh.com`) |
 | `CPANEL_FTP_USERNAME` | `ludis@lunafh.com` |
 | `CPANEL_FTP_PASSWORD` | Your generated FTP password |
-| `CPANEL_FTP_PORT` | `21` (optional) |
+| `CPANEL_FTP_PROTOCOL` | `sftp` (default — most cPanel hosts; use `ftp` or `ftps` if needed) |
+| `CPANEL_FTP_PORT` | `22` for SFTP, `21` for FTP (optional — auto-selected) |
 | `CPANEL_FTP_BACKEND_PATH` | `/backend/` |
 | `CPANEL_FTP_FRONTEND_PATH` | `/frontend/` |
 
@@ -414,10 +415,11 @@ The browser loads the UI at `santim.lunafh.com/frontend` and calls `santim.lunaf
 
 | Name | Type | Value |
 | --- | --- | --- |
-| `CPANEL_FTP_HOST` | Secret | `ftp.lunafh.com` (or server hostname) |
+| `CPANEL_FTP_HOST` | Secret | cPanel **Shared IP** (e.g. `203.0.113.10`) |
 | `CPANEL_FTP_USERNAME` | Secret | `ludis@lunafh.com` |
 | `CPANEL_FTP_PASSWORD` | Secret | *(your generated password)* |
-| `CPANEL_FTP_PORT` | Secret | `21` |
+| `CPANEL_FTP_PROTOCOL` | Secret | `sftp` (recommended) |
+| `CPANEL_FTP_PORT` | Secret | `22` (optional) |
 | `CPANEL_FTP_BACKEND_PATH` | Secret | `/backend/` |
 | `CPANEL_FTP_FRONTEND_PATH` | Secret | `/frontend/` |
 | `CPANEL_BACKEND_URL` | Variable | `https://santim.lunafh.com/backend` |

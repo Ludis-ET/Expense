@@ -13,7 +13,7 @@ concurrency:
 
 env:
   PNPM_VERSION: "10.24.0"
-  NODE_VERSION: "20"
+  NODE_VERSION: "24"
 
 jobs:
   # ──────────────────────────────────────────────────────────────────────────
@@ -131,6 +131,37 @@ jobs:
             echo "📖 See docs/DEPLOY-CPANEL.md for setup instructions."
             exit 1
           fi
+
+          # Normalize and verify FTP host resolves (fixes common ENOTFOUND mistakes).
+          HOST="${{ secrets.CPANEL_FTP_HOST }}"
+          HOST="${HOST#ftp://}"
+          HOST="${HOST#ftps://}"
+          HOST="${HOST%%/*}"
+          HOST="${HOST%%:*}"
+          HOST="$(echo "$HOST" | xargs)"
+
+          if [ -z "$HOST" ]; then
+            echo "❌ CPANEL_FTP_HOST is empty after normalization"
+            exit 1
+          fi
+          if echo "$HOST" | grep -q '@'; then
+            echo "❌ CPANEL_FTP_HOST looks like an email/username — use the FTP server hostname from cPanel"
+            echo "   Example: ftp.lunafh.com (not ludis@lunafh.com)"
+            exit 1
+          fi
+          if echo "$HOST" | grep -qi 'santim\.lunafh\.com'; then
+            echo "❌ CPANEL_FTP_HOST must be the cPanel server hostname, not santim.lunafh.com"
+            echo "   Open cPanel → FTP Accounts → Configure FTP Client → copy FTP Server"
+            echo "   Common values: ftp.lunafh.com, lunafh.com, or your server IP"
+            exit 1
+          fi
+          if ! getent hosts "$HOST" > /dev/null 2>&1; then
+            echo "❌ CPANEL_FTP_HOST cannot be resolved (DNS ENOTFOUND)"
+            echo "   Update the secret to the exact FTP Server from cPanel → FTP Accounts"
+            echo "   Use hostname only — no ftp:// prefix, no path, no port"
+            exit 1
+          fi
+          echo "✅ FTP host resolves in DNS"
           echo "🎉 All FTP credentials present"
 
       - name: ⚙️ Resolve deploy config
@@ -192,7 +223,7 @@ jobs:
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
-          protocol: ftp
+          protocol: ${{ secrets.CPANEL_FTP_PROTOCOL != '' && secrets.CPANEL_FTP_PROTOCOL || 'ftp' }}
           local-dir: ./deploy/backend/
           server-dir: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
           dangerous-clean-slate: false
@@ -205,7 +236,7 @@ jobs:
           username: ${{ secrets.CPANEL_FTP_USERNAME }}
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ secrets.CPANEL_FTP_PORT != '' && secrets.CPANEL_FTP_PORT || '21' }}
-          protocol: ftp
+          protocol: ${{ secrets.CPANEL_FTP_PROTOCOL != '' && secrets.CPANEL_FTP_PROTOCOL || 'ftp' }}
           local-dir: ./deploy/frontend/
           server-dir: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
           dangerous-clean-slate: false

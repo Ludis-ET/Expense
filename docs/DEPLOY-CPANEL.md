@@ -51,11 +51,22 @@ GitHub Actions uploads build artifacts into these paths. You do **not** need sep
 
 | Setting | Value |
 | --- | --- |
-| **Host** | Your server hostname, e.g. `ftp.lunafh.com` or the server IP |
+| **Host (`CPANEL_FTP_HOST`)** | **Server hostname from cPanel** — see below (NOT `santim.lunafh.com`) |
 | **Username** | `ludis@lunafh.com` |
 | **Password** | The password you generated in cPanel (never commit this) |
 | **Port** | `21` (FTP) |
-| **Home directory** | `/home/lunafhin/santim.lunafh.com` |
+
+#### How to find the correct FTP host
+
+1. cPanel → **FTP Accounts**
+2. Find `ludis@lunafh.com` → click **Configure FTP Client**
+3. Copy the **FTP Server** value exactly (e.g. `ftp.lunafh.com`, `lunafh.com`, or a server name like `server123.lunafh.com`)
+4. Paste that into GitHub secret `CPANEL_FTP_HOST` — **hostname only**:
+   - ✅ `ftp.lunafh.com`
+   - ✅ `198.51.100.42` (server IP)
+   - ❌ `ftp://ftp.lunafh.com` (no `ftp://`)
+   - ❌ `santim.lunafh.com` (website URL, not FTP server)
+   - ❌ `ludis@lunafh.com` (that's the username, not the host)
 
 Because this FTP user is rooted at `santim.lunafh.com`, GitHub secrets use **relative** paths:
 
@@ -282,6 +293,17 @@ GitHub → **Actions** → **🚀 CI/CD — cPanel FTP Deploy** → **Run workfl
 ---
 
 ## Part 8 — Troubleshooting
+
+### FTP deploy fails — `ENOTFOUND` / "server doesn't seem to exist"
+
+DNS cannot resolve `CPANEL_FTP_HOST`. Fix:
+
+1. cPanel → **FTP Accounts** → **Configure FTP Client** → copy **FTP Server**
+2. GitHub → **Settings** → **Secrets** → edit `CPANEL_FTP_HOST`
+3. Use only the hostname (no `ftp://`, no port, no path)
+4. Do **not** use `santim.lunafh.com` — that's your website, not the FTP server
+
+If FTP still fails after DNS works, try secret `CPANEL_FTP_PROTOCOL` = `ftps` (some hosts require explicit FTPS).
 
 ### FTP deploy fails — "Login authentication failed"
 

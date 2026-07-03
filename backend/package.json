@@ -10,7 +10,7 @@
   "scripts": {
     "dev": "tsx watch src/server.ts",
     "build": "prisma generate && tsc -p tsconfig.json",
-    "start": "node dist/server.js",
+    "start": "prisma generate && node dist/server.js",
     "postinstall": "prisma generate",
     "typecheck": "prisma generate && tsc --noEmit",
     "lint": "eslint .",

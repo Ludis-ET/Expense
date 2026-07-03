@@ -85,6 +85,7 @@ jobs:
     needs: ci
     if: github.event_name == 'workflow_dispatch' || (github.event_name == 'push' && github.ref == 'refs/heads/main')
     runs-on: ubuntu-latest
+    timeout-minutes: 45
     environment: production
     steps:
       - name: 📥 Checkout repository
@@ -145,11 +146,11 @@ jobs:
           fi
 
           PROTOCOL="${{ secrets.CPANEL_FTP_PROTOCOL }}"
-          if [ -z "$PROTOCOL" ]; then PROTOCOL="ftps"; fi
-          # cPanel FTP users (ludis@domain.com) authenticate on port 21, not SFTP port 22.
+          if [ -z "$PROTOCOL" ]; then PROTOCOL="ftp"; fi
+          # cPanel FTP users authenticate on port 21 (plain FTP or explicit FTPS).
           if [ "$PROTOCOL" = "sftp" ]; then
-            echo "⚠️  CPANEL_FTP_PROTOCOL=sftp → using ftps on port 21 for FTP account login"
-            PROTOCOL="ftps"
+            echo "⚠️  CPANEL_FTP_PROTOCOL=sftp is not supported by this action — use ftp or ftps on port 21"
+            PROTOCOL="ftp"
           fi
 
           PORT="${{ secrets.CPANEL_FTP_PORT }}"
@@ -229,6 +230,28 @@ jobs:
           echo "✅ Deploy target: $CONNECT_HOST:$PORT ($PROTOCOL)"
           echo "🎉 All deploy credentials present"
 
+      - name: 🔌 Test FTP port reachability
+        run: |
+          HOST="${{ steps.ftp.outputs.host }}"
+          PORT="${{ steps.ftp.outputs.port }}"
+          echo "🔌 Probing $HOST:$PORT from GitHub Actions..."
+          if timeout 20 bash -c "echo > /dev/tcp/$HOST/$PORT" 2>/dev/null; then
+            echo "✅ Port $PORT is reachable"
+          else
+            echo "❌ Cannot open TCP connection to $HOST:$PORT"
+            echo ""
+            echo "   Your host firewall often blocks GitHub Actions IPs on FTP."
+            echo "   Ask your host (lunafh.com) to:"
+            echo "   • Allow inbound TCP port $PORT from the internet"
+            echo "   • Open passive FTP ports (usually 49152–65534) in CSF/firewall"
+            echo ""
+            echo "   Also verify GitHub secrets:"
+            echo "   • CPANEL_SERVER_IP = cPanel → General Information → Shared IP"
+            echo "   • CPANEL_FTP_USERNAME = full FTP login (e.g. user@lunafh.com)"
+            echo "   • CPANEL_FTP_PROTOCOL = ftp (try ftp before ftps)"
+            exit 1
+          fi
+
       - name: ⚙️ Resolve deploy config
         run: |
           BACKEND_URL="${{ vars.CPANEL_BACKEND_URL }}"
@@ -283,7 +306,7 @@ jobs:
           echo "📊 Frontend .next (required for Next.js):"
           ls -la deploy/frontend/.next/ | head -20
 
-      - name: 📤 Upload backend to cPanel (FTPS)
+      - name: 📤 Upload backend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -291,12 +314,18 @@ jobs:
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ steps.ftp.outputs.port }}
           protocol: ${{ steps.ftp.outputs.protocol }}
+          security: loose
+          timeout: 600000
           local-dir: ./deploy/backend/
           server-dir: ${{ steps.ftp.outputs.backend_dir }}
           dangerous-clean-slate: false
           log-level: verbose
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.ftp-deploy-sync-state.json
 
-      - name: 📤 Upload frontend to cPanel (FTPS)
+      - name: 📤 Upload frontend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -304,10 +333,16 @@ jobs:
           password: ${{ secrets.CPANEL_FTP_PASSWORD }}
           port: ${{ steps.ftp.outputs.port }}
           protocol: ${{ steps.ftp.outputs.protocol }}
+          security: loose
+          timeout: 600000
           local-dir: ./deploy/frontend/
           server-dir: ${{ steps.ftp.outputs.frontend_dir }}
           dangerous-clean-slate: false
           log-level: verbose
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/.ftp-deploy-sync-state.json
 
       - name: 🎉 Deployment summary
         run: |
@@ -319,10 +354,10 @@ jobs:
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
-          echo "⚠️  Post-deploy checklist (first time only):"
-          echo "   1. Restart both Node.js apps in cPanel (backend + frontend)"
-          echo "   2. Run: cd ~/santim.lunafh.com/backend && npx prisma migrate deploy"
-          echo "   3. Backend env: DATABASE_URL, JWT_SECRET, CORS_ORIGINS=https://santim.lunafh.com, APP_URL=https://santim.lunafh.com/frontend"
+          echo "⚠️  Post-deploy checklist:"
+          echo "   1. cPanel → Setup Node.js App → startup file boot.js, SKIP_PRISMA_GENERATE=1"
+          echo "   2. Do NOT click Run NPM Install on cPanel"
+          echo "   3. Restart backend + frontend Node.js apps"
           echo "   4. Open https://santim.lunafh.com/frontend"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

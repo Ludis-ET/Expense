@@ -83,3 +83,37 @@ cd backend
 pnpm db:deploy
 ```
 Uses your Neon `DATABASE_URL` — no server terminal needed.
+
+---
+
+## GitHub FTP deploy fails (Timeout control socket)
+
+### Required GitHub secrets
+
+| Secret | Example / where to find |
+|--------|-------------------------|
+| `CPANEL_SERVER_IP` | cPanel → **General Information** → **Shared IP Address** |
+| `CPANEL_FTP_USERNAME` | Full FTP login, e.g. `lunafhin@lunafh.com` |
+| `CPANEL_FTP_PASSWORD` | FTP account password |
+| `CPANEL_FTP_BACKEND_PATH` | `/backend/` |
+| `CPANEL_FTP_FRONTEND_PATH` | `/frontend/` |
+| `CPANEL_FTP_PROTOCOL` | `ftp` (try this first; use `ftps` if host requires TLS) |
+| `CPANEL_FTP_PORT` | `21` |
+
+`CPANEL_FTP_HOST` is optional if `CPANEL_SERVER_IP` is set. Do **not** use `santim.lunafh.com` as the FTP host — use the **shared server IP**.
+
+### Why timeout happens
+
+GitHub Actions runs on Microsoft Azure servers. Many cPanel hosts **block FTP from unknown IPs** (CSF firewall). The connection never completes → `Timeout (control socket)`.
+
+### Fixes (pick one)
+
+1. **Ask your host** (lunafh.com support) to allow FTP port **21** and passive ports **49152–65534** from external IPs.
+2. **Test with FileZilla** from your PC using the **same IP + username** as GitHub secrets. If FileZilla works but GitHub fails → firewall blocking GitHub IPs.
+3. Set secret `CPANEL_FTP_PROTOCOL` to `ftp` (plain). If that fails, try `ftps`.
+4. **Manual deploy**: run `./scripts/cpanel/prepare-backend.sh` locally, zip `deploy/backend/`, upload via cPanel **File Manager**.
+
+### node_modules must upload
+
+The workflow now **includes** `node_modules` (needed for pre-built Prisma client). First deploy may take 10–20 minutes.
+

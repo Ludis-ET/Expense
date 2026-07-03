@@ -23,6 +23,12 @@ cp -r "$ROOT/backend/dist" "$OUT/dist"
 mkdir -p "$OUT/generated"
 cp -a "$ROOT/backend/generated/client" "$OUT/generated/client"
 cp -r "$ROOT/backend/prisma" "$OUT/prisma"
+cp "$ROOT/backend/server.js" "$OUT/server.js"
+
+if [ ! -f "$OUT/dist/server.js" ]; then
+  echo "❌ deploy bundle missing dist/server.js"
+  exit 1
+fi
 
 node - "$ROOT" "$OUT" <<'NODE'
 const fs = require('fs');
@@ -36,7 +42,7 @@ delete deps.prisma;
 const deploy = {
   ...rest,
   dependencies: deps,
-  scripts: { start: 'node dist/server.js', 'db:deploy': 'prisma migrate deploy' },
+  scripts: { start: 'node server.js', 'db:deploy': 'prisma migrate deploy' },
 };
 fs.writeFileSync(path.join(out, 'package.json'), JSON.stringify(deploy, null, 2));
 NODE

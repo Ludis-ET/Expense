@@ -156,16 +156,25 @@ jobs:
           PORT="${{ secrets.CPANEL_FTP_PORT }}"
           if [ -z "$PORT" ] || [ "$PORT" = "22" ]; then PORT="21"; fi
 
-          # FTP accounts are chrooted to the site folder — use /backend not full home path.
+          # FTP remote path — use secret as-is (must match Node.js application root contents).
+          # If FTP home IS the backend folder, set CPANEL_FTP_BACKEND_PATH=/
+          # If FTP home IS santim.lunafh.com, set CPANEL_FTP_BACKEND_PATH=/backend/
           BACKEND_DIR="${{ secrets.CPANEL_FTP_BACKEND_PATH }}"
           FRONTEND_DIR="${{ secrets.CPANEL_FTP_FRONTEND_PATH }}"
-          BACKEND_DIR=$(echo "$BACKEND_DIR" | sed 's|.*/santim\.lunafh\.com/*|/|' | sed 's|/*$|/|')
-          FRONTEND_DIR=$(echo "$FRONTEND_DIR" | sed 's|.*/santim\.lunafh\.com/*|/|' | sed 's|/*$|/|')
-          [ -z "$BACKEND_DIR" ] || [ "$BACKEND_DIR" = "/" ] && BACKEND_DIR="/backend/"
-          [ -z "$FRONTEND_DIR" ] || [ "$FRONTEND_DIR" = "/" ] && FRONTEND_DIR="/frontend/"
+          normalize_ftp_dir() {
+            local d="$1"
+            [ -z "$d" ] && echo "/" && return
+            d="${d#/}"
+            echo "/${d%/}/"
+          }
+          BACKEND_DIR=$(normalize_ftp_dir "$BACKEND_DIR")
+          FRONTEND_DIR=$(normalize_ftp_dir "$FRONTEND_DIR")
+          [ "$BACKEND_DIR" = "//" ] && BACKEND_DIR="/"
+          [ "$FRONTEND_DIR" = "//" ] && FRONTEND_DIR="/"
           echo "backend_dir=$BACKEND_DIR" >> "$GITHUB_OUTPUT"
           echo "frontend_dir=$FRONTEND_DIR" >> "$GITHUB_OUTPUT"
           echo "ℹ️  FTP remote dirs: backend=$BACKEND_DIR frontend=$FRONTEND_DIR"
+          echo "   Node.js app root must contain dist/server.js after deploy"
 
           # Normalize host input.
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
@@ -288,6 +297,8 @@ jobs:
           ./scripts/cpanel/prepare-backend.sh
           echo "📊 Backend package contents:"
           ls -la deploy/backend/
+          echo "📊 Verify dist/server.js exists in bundle:"
+          ls -la deploy/backend/dist/server.js
 
       - name: 🏗️ Prepare frontend deploy package
         env:
@@ -362,7 +373,10 @@ jobs:
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
-          echo "⚠️  Post-deploy: see docs/DEPLOY-CPANEL-TERMINAL.md for terminal setup"
-          echo "   Backend startup: dist/server.js | Frontend startup: server.js"
+          echo "⚠️  Post-deploy:"
+          echo "   1. File Manager → backend/ must contain dist/server.js and server.js"
+          echo "   2. If missing, fix CPANEL_FTP_BACKEND_PATH (use / if FTP home IS backend folder)"
+          echo "   3. Run NPM Install once, startup file → server.js, Restart"
+          echo "   4. Terminal: npx prisma migrate deploy && npx prisma db seed (optional)"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

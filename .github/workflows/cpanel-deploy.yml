@@ -269,21 +269,40 @@ jobs:
           echo "📊 Frontend .next (required for Next.js):"
           ls -la deploy/frontend/.next/ | head -20
 
-      - name: 📤 Upload backend to cPanel (SCP/SFTP)
+      - name: 📤 Upload to cPanel (SFTP via lftp)
         if: steps.ftp.outputs.protocol == 'sftp'
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ steps.ftp.outputs.host }}
-          username: ${{ secrets.CPANEL_FTP_USERNAME }}
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          port: ${{ steps.ftp.outputs.port }}
-          source: "deploy/backend/"
-          target: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
-          strip_components: 2
-          overwrite: true
-          timeout: 120s
+        env:
+          FTP_USER: ${{ secrets.CPANEL_FTP_USERNAME }}
+          FTP_PASS: ${{ secrets.CPANEL_FTP_PASSWORD }}
+          FTP_HOST: ${{ steps.ftp.outputs.host }}
+          FTP_PORT: ${{ steps.ftp.outputs.port }}
+          REMOTE_BACKEND: ${{ secrets.CPANEL_FTP_BACKEND_PATH }}
+          REMOTE_FRONTEND: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
+        run: |
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq lftp
+          FTP_PASS_ESC=$(printf '%s' "$FTP_PASS" | sed "s/'/'\\\\''/g")
 
-      - name: 📤 Upload backend to cPanel (FTP)
+          upload_pkg() {
+            local pkg="$1"
+            local remote="$2"
+            remote="${remote%/}"
+            echo "━━━━━━━━ Uploading $pkg → $remote (includes hidden files like .next)"
+            lftp -e "
+              set sftp:auto-confirm yes;
+              set sftp:connect-program 'ssh -a -x -oStrictHostKeyChecking=no';
+              open -u '${FTP_USER}','${FTP_PASS_ESC}' sftp://${FTP_HOST}:${FTP_PORT};
+              lcd deploy/${pkg};
+              cd ${remote};
+              mirror --reverse --verbose --parallel=4;
+              quit
+            "
+          }
+
+          upload_pkg backend "${REMOTE_BACKEND}"
+          upload_pkg frontend "${REMOTE_FRONTEND}"
+
+      - name: 📤 Upload backend to cPanel (FTP/FTPS)
         if: steps.ftp.outputs.protocol != 'sftp'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
@@ -297,21 +316,7 @@ jobs:
           dangerous-clean-slate: false
           log-level: verbose
 
-      - name: 📤 Upload frontend to cPanel (SCP/SFTP)
-        if: steps.ftp.outputs.protocol == 'sftp'
-        uses: appleboy/scp-action@v1.0.0
-        with:
-          host: ${{ steps.ftp.outputs.host }}
-          username: ${{ secrets.CPANEL_FTP_USERNAME }}
-          password: ${{ secrets.CPANEL_FTP_PASSWORD }}
-          port: ${{ steps.ftp.outputs.port }}
-          source: "deploy/frontend/"
-          target: ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}
-          strip_components: 2
-          overwrite: true
-          timeout: 300s
-
-      - name: 📤 Upload frontend to cPanel (FTP)
+      - name: 📤 Upload frontend to cPanel (FTP/FTPS)
         if: steps.ftp.outputs.protocol != 'sftp'
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:

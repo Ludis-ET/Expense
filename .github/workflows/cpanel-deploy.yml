@@ -126,30 +126,41 @@ jobs:
           if [ -z "${{ secrets.CPANEL_FTP_PASSWORD }}" ]; then echo "❌ Missing secret: CPANEL_FTP_PASSWORD"; missing=1; else echo "✅ CPANEL_FTP_PASSWORD is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_BACKEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_BACKEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_BACKEND_PATH is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_FRONTEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_FRONTEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_FRONTEND_PATH is set"; fi
-          if [ -z "${{ vars.CPANEL_BACKEND_URL }}" ]; then
-            echo "❌ Missing repository variable: CPANEL_BACKEND_URL"
-            echo "   Example: https://santim.lunafh.com/backend"
-            echo "   Set it under Settings → Secrets and variables → Actions → Variables"
-            missing=1
-          else
-            echo "✅ CPANEL_BACKEND_URL = ${{ vars.CPANEL_BACKEND_URL }}"
-          fi
-          if [ -z "${{ vars.CPANEL_FRONTEND_BASE_PATH }}" ]; then
-            echo "⚠️  CPANEL_FRONTEND_BASE_PATH not set — defaulting to /frontend in build"
-          else
-            echo "✅ CPANEL_FRONTEND_BASE_PATH = ${{ vars.CPANEL_FRONTEND_BASE_PATH }}"
-          fi
-          if [ -z "${{ vars.CPANEL_API_BASE_PATH }}" ]; then
-            echo "⚠️  CPANEL_API_BASE_PATH not set — defaulting to /backend/api/v1 in build"
-          else
-            echo "✅ CPANEL_API_BASE_PATH = ${{ vars.CPANEL_API_BASE_PATH }}"
-          fi
           if [ "$missing" -eq 1 ]; then
             echo ""
             echo "📖 See docs/DEPLOY-CPANEL.md for setup instructions."
             exit 1
           fi
-          echo "🎉 All deployment credentials present"
+          echo "🎉 All FTP credentials present"
+
+      - name: ⚙️ Resolve deploy config
+        run: |
+          BACKEND_URL="${{ vars.CPANEL_BACKEND_URL }}"
+          FRONTEND_BASE="${{ vars.CPANEL_FRONTEND_BASE_PATH }}"
+          API_BASE="${{ vars.CPANEL_API_BASE_PATH }}"
+
+          if [ -z "$BACKEND_URL" ]; then
+            BACKEND_URL="https://santim.lunafh.com/backend"
+            echo "⚠️  CPANEL_BACKEND_URL not set — using default: $BACKEND_URL"
+          else
+            echo "✅ CPANEL_BACKEND_URL = $BACKEND_URL"
+          fi
+          if [ -z "$FRONTEND_BASE" ]; then
+            FRONTEND_BASE="/frontend"
+            echo "⚠️  CPANEL_FRONTEND_BASE_PATH not set — using default: $FRONTEND_BASE"
+          else
+            echo "✅ CPANEL_FRONTEND_BASE_PATH = $FRONTEND_BASE"
+          fi
+          if [ -z "$API_BASE" ]; then
+            API_BASE="/backend/api/v1"
+            echo "⚠️  CPANEL_API_BASE_PATH not set — using default: $API_BASE"
+          else
+            echo "✅ CPANEL_API_BASE_PATH = $API_BASE"
+          fi
+
+          echo "BACKEND_URL=$BACKEND_URL" >> "$GITHUB_ENV"
+          echo "CPANEL_FRONTEND_BASE_PATH=$FRONTEND_BASE" >> "$GITHUB_ENV"
+          echo "CPANEL_API_BASE_PATH=$API_BASE" >> "$GITHUB_ENV"
 
       - name: 🏗️ Prepare backend deploy package
         run: |
@@ -161,9 +172,9 @@ jobs:
 
       - name: 🏗️ Prepare frontend deploy package
         env:
-          BACKEND_URL: ${{ vars.CPANEL_BACKEND_URL }}
-          CPANEL_FRONTEND_BASE_PATH: ${{ vars.CPANEL_FRONTEND_BASE_PATH }}
-          CPANEL_API_BASE_PATH: ${{ vars.CPANEL_API_BASE_PATH }}
+          BACKEND_URL: ${{ env.BACKEND_URL }}
+          CPANEL_FRONTEND_BASE_PATH: ${{ env.CPANEL_FRONTEND_BASE_PATH }}
+          CPANEL_API_BASE_PATH: ${{ env.CPANEL_API_BASE_PATH }}
         run: |
           echo "🏗️  Building frontend deploy bundle..."
           echo "🔗 API proxy target: $BACKEND_URL"
@@ -208,7 +219,7 @@ jobs:
           echo ""
           echo "📦 Backend  → ${{ secrets.CPANEL_FTP_BACKEND_PATH }}  (https://santim.lunafh.com/backend)"
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
-          echo "🔗 API URL  → ${{ vars.CPANEL_BACKEND_URL }}"
+          echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
           echo "⚠️  Post-deploy checklist (first time only):"
           echo "   1. Restart both Node.js apps in cPanel (backend + frontend)"

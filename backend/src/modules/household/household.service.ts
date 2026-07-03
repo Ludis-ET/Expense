@@ -1,4 +1,4 @@
-import { InviteStatus, HouseholdRole, TxKind } from '@prisma/client';
+import { InviteStatus, HouseholdRole, TxKind } from '../../core/prisma.js';
 import { randomBytes } from 'node:crypto';
 import type { AuthUser } from '../../core/context.js';
 import { prisma } from '../../core/db.js';

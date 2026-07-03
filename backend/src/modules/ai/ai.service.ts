@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError } from '../../core/errors.js';
 import { logger } from '../../core/logger.js';

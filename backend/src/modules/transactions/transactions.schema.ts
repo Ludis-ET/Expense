@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { TxKind } from '@prisma/client';
+import { TxKind } from '../../core/prisma.js';
 
 const money = z.coerce.number().positive().max(1_000_000_000);
 

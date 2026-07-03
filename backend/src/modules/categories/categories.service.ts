@@ -1,4 +1,4 @@
-import type { CategoryKind } from '@prisma/client';
+import type { CategoryKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, ConflictError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';

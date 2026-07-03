@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { AccountType } from '@prisma/client';
+import { AccountType } from '../../core/prisma.js';
 
 const money = z.coerce.number().max(1_000_000_000);
 

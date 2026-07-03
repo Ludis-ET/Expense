@@ -1,4 +1,4 @@
-import { PrismaClient } from '@prisma/client';
+import { PrismaClient } from './prisma.js';
 import { env } from '../config/env.js';
 
 // Single shared Prisma client for the process.

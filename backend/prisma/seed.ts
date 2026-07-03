@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { AccountType, Frequency, PrismaClient, TxKind } from '@prisma/client';
+import { AccountType, Frequency, PrismaClient, TxKind } from '../generated/client/index.js';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/default-categories.js';
 
 const prisma = new PrismaClient();

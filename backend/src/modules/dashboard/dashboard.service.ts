@@ -1,4 +1,4 @@
-import { CategoryKind, TxKind } from '@prisma/client';
+import { CategoryKind, TxKind } from '../../core/prisma.js';
 import type { AuthUser } from '../../core/context.js';
 import { prisma } from '../../core/db.js';
 import * as accounts from '../accounts/accounts.service.js';

@@ -1,4 +1,4 @@
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';

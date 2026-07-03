@@ -1,4 +1,4 @@
-import { Frequency, type RecurringRule } from '@prisma/client';
+import { Frequency, type RecurringRule } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { logger } from '../../core/logger.js';
 import { notify } from '../notifications/notifications.service.js';

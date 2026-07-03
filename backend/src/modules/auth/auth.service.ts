@@ -1,5 +1,5 @@
 import bcrypt from 'bcryptjs';
-import { AccountType } from '@prisma/client';
+import { AccountType } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { ConflictError, UnauthorizedError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';

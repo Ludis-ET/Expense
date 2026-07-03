@@ -1,4 +1,4 @@
-import { CategoryKind } from '@prisma/client';
+import { CategoryKind } from '../../core/prisma.js';
 
 /**
  * Categories every new user starts with. Created inside the registration

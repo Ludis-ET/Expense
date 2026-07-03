@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { Frequency } from '@prisma/client';
+import { Frequency } from '../generated/client/index.js';
 import { advanceNextRun } from '../src/modules/recurring/recurring.engine.js';
 
 const utc = (y: number, m: number, d: number) => new Date(Date.UTC(y, m - 1, d, 9));

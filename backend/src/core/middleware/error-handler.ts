@@ -1,5 +1,5 @@
 import type { ErrorRequestHandler, RequestHandler } from 'express';
-import { Prisma } from '@prisma/client';
+import { Prisma } from '../prisma.js';
 import { AppError } from '../errors.js';
 import { logger } from '../logger.js';
 import { isProd } from '../../config/env.js';

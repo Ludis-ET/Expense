@@ -324,16 +324,8 @@ jobs:
             **/.git*
             **/.git*/**
             **/.ftp-deploy-sync-state.json
-            node_modules/**
-            vendor/node_modules/**/*.ts
-            vendor/node_modules/**/*.cts
-            vendor/node_modules/**/*.mts
-            vendor/node_modules/**/*.map
-            vendor/node_modules/**/*.md
-            vendor/node_modules/**/test/**
-            vendor/node_modules/**/tests/**
-            vendor/node_modules/**/__tests__/**
-            vendor/node_modules/**/src/**
+            **/node_modules/**
+            **/vendor/**
 
       - name: 📤 Upload frontend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -370,11 +362,7 @@ jobs:
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
-          echo "⚠️  Post-deploy checklist:"
-          echo "   1. File Manager: delete backend/node_modules if it is a file or broken link"
-          echo "   2. cPanel → Setup Node.js App → startup boot.js, SKIP_PRISMA_GENERATE=1"
-          echo "   3. Do NOT click Run NPM Install"
-          echo "   4. Restart backend + frontend Node.js apps"
-          echo "   5. Open https://santim.lunafh.com/frontend"
+          echo "⚠️  Post-deploy: see docs/DEPLOY-CPANEL-TERMINAL.md for terminal setup"
+          echo "   Backend startup: dist/server.js | Frontend startup: server.js"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CategoryKind } from '@prisma/client';
+import { CategoryKind } from '../../core/prisma.js';
 
 export const createCategorySchema = z.object({
   name: z.string().min(1).max(60),

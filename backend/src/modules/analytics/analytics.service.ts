@@ -1,4 +1,4 @@
-import { CategoryKind, Prisma, TxKind } from '@prisma/client';
+import { CategoryKind, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import type { AuthUser } from '../../core/context.js';
 import { monthRange } from '../budgets/budgets.service.js';

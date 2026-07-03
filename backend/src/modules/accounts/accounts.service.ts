@@ -1,4 +1,4 @@
-import { Prisma, TxKind } from '@prisma/client';
+import { Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { ConflictError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';

@@ -1,5 +1,5 @@
 import { z } from 'zod';
-import { CategoryKind } from '@prisma/client';
+import { CategoryKind } from '../../core/prisma.js';
 
 const monthStr = z.string().regex(/^\d{4}-\d{2}$/, 'Expected YYYY-MM');
 

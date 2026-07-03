@@ -30,11 +30,11 @@ if [ ! -f "$OUT/dist/server.js" ]; then
   exit 1
 fi
 
-node - "$ROOT" "$OUT" <<'NODE'
+ROOT="$ROOT" OUT="$OUT" node <<'NODE'
 const fs = require('fs');
 const path = require('path');
-const root = process.argv[1];
-const out = process.argv[2];
+const root = process.env.ROOT;
+const out = process.env.OUT;
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'backend/package.json'), 'utf8'));
 const { devDependencies, prisma: _p, postinstall, ...rest } = pkg;
 const deps = { ...rest.dependencies };

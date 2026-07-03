@@ -44,6 +44,9 @@ importers:
         specifier: ^3.23.8
         version: 3.25.76
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.14.0
+        version: 9.39.4
       '@types/bcryptjs':
         specifier: ^2.4.6
         version: 2.4.6

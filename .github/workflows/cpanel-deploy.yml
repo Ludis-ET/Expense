@@ -48,6 +48,12 @@ jobs:
           pnpm install --frozen-lockfile
           echo "✅ Dependencies installed"
 
+      - name: 🗄️ Generate Prisma Client
+        run: |
+          echo "🗄️  Generating Prisma client for backend..."
+          pnpm --filter @santim/backend db:generate
+          echo "✅ Prisma client ready"
+
       - name: 🔍 Lint
         run: |
           echo "🔍 Running ESLint across workspace..."
@@ -107,6 +113,9 @@ jobs:
           echo "📦 Installing dependencies for production build..."
           pnpm install --frozen-lockfile
           echo "✅ Ready to build"
+
+      - name: 🗄️ Generate Prisma Client
+        run: pnpm --filter @santim/backend db:generate
 
       - name: 🔐 Validate FTP secrets
         run: |

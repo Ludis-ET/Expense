@@ -19,18 +19,18 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
 
   if (loading || !user) {
     return (
-      <div className="flex min-h-screen items-center justify-center">
-        <Spinner className="h-8 w-8" />
+      <div className="flex min-h-screen items-center justify-center bg-mesh">
+        <Spinner className="h-8 w-8 text-primary" />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen">
+    <div className="min-h-screen bg-mesh">
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <div className="lg:pl-64">
+      <div className="lg:pl-[260px]">
         <Topbar onMenu={() => setSidebarOpen(true)} />
-        <main className="mx-auto max-w-6xl px-4 py-8 lg:px-8">{children}</main>
+        <main className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">{children}</main>
       </div>
       <CommandPalette />
     </div>

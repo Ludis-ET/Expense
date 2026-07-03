@@ -7,11 +7,11 @@ type Size = 'sm' | 'md' | 'lg' | 'icon';
 
 const variants: Record<Variant, string> = {
   primary:
-    'bg-primary text-primary-foreground hover:opacity-90 shadow-sm shadow-primary/20',
+    'bg-primary text-primary-foreground hover:brightness-110 shadow-sm shadow-primary/25',
   secondary: 'bg-surface-muted text-foreground hover:bg-border',
-  outline: 'border border-border bg-transparent hover:bg-surface-muted',
+  outline: 'border border-border bg-surface hover:bg-surface-muted',
   ghost: 'bg-transparent hover:bg-surface-muted',
-  danger: 'bg-danger text-white hover:opacity-90',
+  danger: 'bg-danger text-white hover:brightness-110',
 };
 
 const sizes: Record<Size, string> = {
@@ -33,7 +33,7 @@ export const Button = forwardRef<HTMLButtonElement, ButtonProps>(
       ref={ref}
       disabled={disabled || loading}
       className={cn(
-        'inline-flex items-center justify-center rounded-lg font-medium transition-all',
+        'inline-flex items-center justify-center rounded-xl font-medium transition-all',
         'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 focus-visible:ring-offset-background',
         'disabled:pointer-events-none disabled:opacity-50',
         variants[variant],

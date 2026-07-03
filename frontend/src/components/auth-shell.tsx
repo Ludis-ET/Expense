@@ -13,7 +13,7 @@ export function AuthShell({
   return (
     <div className="flex min-h-screen">
       {/* Left brand panel */}
-      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-primary to-accent lg:block">
+      <div className="relative hidden w-1/2 overflow-hidden bg-gradient-to-br from-emerald-600 via-primary to-teal-600 lg:block">
         <div className="absolute inset-0 bg-grid opacity-20" />
         <div className="relative flex h-full flex-col justify-between p-12 text-white">
           <Brand className="[&_span]:text-white [&_.text-primary]:text-white" />

@@ -65,7 +65,7 @@ export default function LandingPage() {
           </div>
           <h1 className="animate-in mx-auto max-w-3xl text-4xl font-bold leading-tight tracking-tight md:text-6xl">
             Know where every{' '}
-            <span className="bg-gradient-to-r from-primary to-accent bg-clip-text text-transparent">birr goes</span>
+            <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">birr goes</span>
           </h1>
           <p className="animate-in mx-auto mt-5 max-w-xl text-base text-muted md:text-lg">
             Santim brings your income, spending, budgets and savings goals together — with analytics that actually
@@ -175,7 +175,7 @@ export default function LandingPage() {
 
       {/* CTA */}
       <section id="cta" className="mx-auto max-w-6xl px-5 py-24">
-        <div className="card relative overflow-hidden bg-gradient-to-br from-primary to-accent px-8 py-16 text-center text-white">
+        <div className="card relative overflow-hidden bg-gradient-to-br from-emerald-600 via-primary to-teal-600 px-8 py-16 text-center text-white">
           <div className="pointer-events-none absolute inset-0 bg-grid opacity-20" />
           <h2 className="relative text-3xl font-bold tracking-tight md:text-4xl">Ready to take control of your money?</h2>
           <p className="relative mx-auto mt-3 max-w-md text-white/85">

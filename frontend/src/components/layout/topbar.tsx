@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { LogOut, Menu, Plus } from 'lucide-react';
+import { LogOut, Menu, Plus, Search } from 'lucide-react';
 import { Avatar } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 import { ThemeToggle } from '@/components/theme-toggle';
@@ -14,25 +14,52 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
   const router = useRouter();
   const [menuOpen, setMenuOpen] = useState(false);
 
+  const openCommandPalette = () => {
+    window.dispatchEvent(new KeyboardEvent('keydown', { key: 'k', ctrlKey: true, bubbles: true }));
+  };
+
   return (
-    <header className="sticky top-0 z-20 flex h-16 items-center justify-between gap-3 border-b border-border bg-background/80 px-4 backdrop-blur-lg lg:px-8">
-      <button onClick={onMenu} className="rounded-lg p-2 text-muted hover:bg-surface-muted lg:hidden" aria-label="Menu">
+    <header className="glass sticky top-0 z-20 flex h-16 items-center gap-3 border-b border-border px-4 lg:px-8">
+      <button
+        onClick={onMenu}
+        className="rounded-xl p-2 text-muted transition-colors hover:bg-surface-muted lg:hidden"
+        aria-label="Menu"
+      >
         <Menu className="h-5 w-5" />
       </button>
+
+      <button
+        onClick={openCommandPalette}
+        className="hidden items-center gap-2 rounded-xl border border-border bg-surface-muted/50 px-3.5 py-2 text-sm text-muted transition-colors hover:bg-surface-muted sm:flex"
+      >
+        <Search className="h-4 w-4" />
+        <span>Search or jump to…</span>
+        <kbd className="ml-4 rounded border border-border bg-surface px-1.5 py-0.5 text-[10px] font-medium">⌘K</kbd>
+      </button>
+
       <div className="flex-1" />
-      <div className="flex items-center gap-2">
-        <Button size="sm" onClick={() => router.push('/transactions?add=1')}>
-          <Plus className="h-4 w-4" /> <span className="hidden sm:inline">Add transaction</span>
+
+      <div className="flex items-center gap-1.5 sm:gap-2">
+        <Button size="sm" onClick={() => router.push('/transactions?add=1')} className="shadow-sm">
+          <Plus className="h-4 w-4" />
+          <span className="hidden sm:inline">Add</span>
         </Button>
+        <button
+          onClick={openCommandPalette}
+          className="rounded-xl p-2 text-muted transition-colors hover:bg-surface-muted sm:hidden"
+          aria-label="Search"
+        >
+          <Search className="h-5 w-5" />
+        </button>
         <ThemeToggle />
         <NotificationsMenu />
         <div className="relative">
           <button
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex items-center gap-2 rounded-lg p-1 pr-2 transition-colors hover:bg-surface-muted"
+            className="flex items-center gap-2 rounded-xl p-1 pr-2 transition-colors hover:bg-surface-muted"
           >
-            <Avatar name={user?.name ?? '?'} />
-            <span className="hidden text-sm font-medium sm:block">{user?.name}</span>
+            <Avatar name={user?.name ?? '?'} className="h-8 w-8 text-[10px]" />
+            <span className="hidden text-sm font-medium md:block">{user?.name?.split(' ')[0]}</span>
           </button>
           {menuOpen && (
             <>

@@ -51,37 +51,25 @@ GitHub Actions uploads build artifacts into these paths. You do **not** need sep
 
 | Setting | Value |
 | --- | --- |
-| **Host (`CPANEL_FTP_HOST`)** | **Server hostname from cPanel** — see below (NOT `santim.lunafh.com`) |
+| **Host** | `ftp.lunafh.com` *(does not resolve — use IP below)* |
+| **Server IP (`CPANEL_SERVER_IP`)** | **Required** — cPanel → General Information → **Shared IP Address** |
 | **Username** | `ludis@lunafh.com` |
-| **Password** | The password you generated in cPanel (never commit this) |
-| **Port** | `21` (FTP) |
+| **Password** | The password you generated in cPanel |
+| **Protocol** | `sftp` (port `22`) |
 
-#### How to find the correct FTP host
-
-**Recommended if hostname fails:** use the server **IP address**.
-
-1. cPanel home → right sidebar → **General Information**
-2. Copy **Shared IP Address** (e.g. `198.51.100.42`)
-3. GitHub → **Settings** → **Secrets** → edit `CPANEL_FTP_HOST` → paste **only the IP**
-
-**Or** use the FTP hostname:
-
-1. cPanel → **FTP Accounts**
-2. Find `ludis@lunafh.com` → **Configure FTP Client**
-3. Copy **FTP Server** (e.g. `ftp.lunafh.com` or `server123.lunafh.com`)
-4. Paste into `CPANEL_FTP_HOST` — **hostname or IP only**:
-   - ✅ `198.51.100.42`
-   - ✅ `ftp.lunafh.com`
-   - ❌ `ftp://ftp.lunafh.com`
-   - ❌ `santim.lunafh.com`
-   - ❌ `ludis@lunafh.com`
-
-Because this FTP user is rooted at `santim.lunafh.com`, GitHub secrets use **relative** paths:
+#### GitHub secrets for deploy
 
 | Secret | Value |
 | --- | --- |
+| `CPANEL_SERVER_IP` | Your cPanel **Shared IP** (e.g. `203.0.113.10`) — **required** |
+| `CPANEL_FTP_HOST` | Optional — can leave as `ftp.lunafh.com` or omit if `CPANEL_SERVER_IP` is set |
+| `CPANEL_FTP_USERNAME` | `ludis@lunafh.com` |
+| `CPANEL_FTP_PASSWORD` | Your FTP password |
+| `CPANEL_FTP_PROTOCOL` | `sftp` |
 | `CPANEL_FTP_BACKEND_PATH` | `/backend/` |
 | `CPANEL_FTP_FRONTEND_PATH` | `/frontend/` |
+
+> **Why `CPANEL_SERVER_IP`?** `ftp.lunafh.com` has no public DNS record. The workflow resolves the hostname; if that fails, it uses `CPANEL_SERVER_IP` for SFTP upload.
 
 If deploy fails with “directory not found”, open **FTP Accounts** → **Configure FTP Client** on the site folder and confirm the exact remote path your host expects.
 
@@ -230,7 +218,8 @@ GitHub repo → **Settings** → **Secrets and variables** → **Actions**.
 
 | Secret name | Value |
 | --- | --- |
-| `CPANEL_FTP_HOST` | `203.0.113.10` (**Shared IP** from cPanel — not `santim.lunafh.com`) |
+| `CPANEL_SERVER_IP` | `203.0.113.10` (**Shared IP** from cPanel — **required**) |
+| `CPANEL_FTP_HOST` | Optional (`ftp.lunafh.com` — workflow falls back to `CPANEL_SERVER_IP`) |
 | `CPANEL_FTP_USERNAME` | `ludis@lunafh.com` |
 | `CPANEL_FTP_PASSWORD` | Your generated FTP password |
 | `CPANEL_FTP_PROTOCOL` | `sftp` (default — most cPanel hosts; use `ftp` or `ftps` if needed) |
@@ -303,17 +292,15 @@ GitHub → **Actions** → **🚀 CI/CD — cPanel FTP Deploy** → **Run workfl
 
 ## Part 8 — Troubleshooting
 
-### FTP deploy fails — `ENOTFOUND` / "server doesn't seem to exist"
+### FTP deploy fails — `ENOTFOUND` / host cannot be resolved
 
-GitHub cannot resolve `CPANEL_FTP_HOST`. **Use your server IP** (most reliable):
+`ftp.lunafh.com` has **no public DNS record**. Add this secret:
 
 1. cPanel → **General Information** → **Shared IP Address**
-2. GitHub → **Secrets** → `CPANEL_FTP_HOST` → set to that IP only (e.g. `203.0.113.10`)
-3. Re-run the deploy workflow
+2. GitHub → **Secrets** → **New secret** → `CPANEL_SERVER_IP` → paste the IP
+3. Re-run deploy (you can keep `CPANEL_FTP_HOST` as `ftp.lunafh.com`)
 
-Do **not** use `santim.lunafh.com` or `ludis@lunafh.com` as the host.
-
-If FTP connects but auth fails, try secret `CPANEL_FTP_PROTOCOL` = `ftps`.
+The workflow uses `CPANEL_SERVER_IP` automatically when the hostname does not resolve.
 
 ### FTP deploy fails — "Login authentication failed"
 
@@ -415,7 +402,8 @@ The browser loads the UI at `santim.lunafh.com/frontend` and calls `santim.lunaf
 
 | Name | Type | Value |
 | --- | --- | --- |
-| `CPANEL_FTP_HOST` | Secret | cPanel **Shared IP** (e.g. `203.0.113.10`) |
+| `CPANEL_SERVER_IP` | Secret | cPanel **Shared IP** (**required**) |
+| `CPANEL_FTP_HOST` | Secret | Optional (falls back to server IP) |
 | `CPANEL_FTP_USERNAME` | Secret | `ludis@lunafh.com` |
 | `CPANEL_FTP_PASSWORD` | Secret | *(your generated password)* |
 | `CPANEL_FTP_PROTOCOL` | Secret | `sftp` (recommended) |

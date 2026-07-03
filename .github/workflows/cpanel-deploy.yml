@@ -122,11 +122,22 @@ jobs:
         run: |
           echo "🔐 Checking required GitHub secrets..."
           missing=0
-          if [ -z "${{ secrets.CPANEL_FTP_HOST }}" ]; then echo "❌ Missing secret: CPANEL_FTP_HOST"; missing=1; else echo "✅ CPANEL_FTP_HOST is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_USERNAME }}" ]; then echo "❌ Missing secret: CPANEL_FTP_USERNAME"; missing=1; else echo "✅ CPANEL_FTP_USERNAME is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_PASSWORD }}" ]; then echo "❌ Missing secret: CPANEL_FTP_PASSWORD"; missing=1; else echo "✅ CPANEL_FTP_PASSWORD is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_BACKEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_BACKEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_BACKEND_PATH is set"; fi
           if [ -z "${{ secrets.CPANEL_FTP_FRONTEND_PATH }}" ]; then echo "❌ Missing secret: CPANEL_FTP_FRONTEND_PATH"; missing=1; else echo "✅ CPANEL_FTP_FRONTEND_PATH is set"; fi
+
+          SERVER_IP="${{ secrets.CPANEL_SERVER_IP }}"
+          if [ -z "$SERVER_IP" ]; then SERVER_IP="${{ vars.CPANEL_SERVER_IP }}"; fi
+          if [ -n "$SERVER_IP" ]; then echo "✅ CPANEL_SERVER_IP is set"; else echo "ℹ️  CPANEL_SERVER_IP not set (optional if CPANEL_FTP_HOST resolves)"; fi
+
+          if [ -z "${{ secrets.CPANEL_FTP_HOST }}" ] && [ -z "$SERVER_IP" ]; then
+            echo "❌ Set CPANEL_FTP_HOST or CPANEL_SERVER_IP"
+            missing=1
+          elif [ -n "${{ secrets.CPANEL_FTP_HOST }}" ]; then
+            echo "✅ CPANEL_FTP_HOST is set"
+          fi
+
           if [ "$missing" -eq 1 ]; then
             echo ""
             echo "📖 See docs/DEPLOY-CPANEL.md for setup instructions."
@@ -135,15 +146,13 @@ jobs:
 
           PROTOCOL="${{ secrets.CPANEL_FTP_PROTOCOL }}"
           if [ -z "$PROTOCOL" ]; then PROTOCOL="sftp"; fi
-          echo "protocol=$PROTOCOL" >> "$GITHUB_OUTPUT"
 
           PORT="${{ secrets.CPANEL_FTP_PORT }}"
           if [ -z "$PORT" ]; then
             if [ "$PROTOCOL" = "sftp" ]; then PORT="22"; else PORT="21"; fi
           fi
-          echo "port=$PORT" >> "$GITHUB_OUTPUT"
 
-          # Normalize FTP/SFTP host (strip protocol, path, port, quotes, whitespace).
+          # Normalize host input.
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
           HOST="${HOST#ftp://}"
           HOST="${HOST#ftps://}"
@@ -154,36 +163,57 @@ jobs:
           HOST="${HOST#\"}"
           HOST="${HOST%\"}"
           HOST="$(echo "$HOST" | xargs)"
-          echo "host=$HOST" >> "$GITHUB_OUTPUT"
-          echo "ℹ️  Normalized host length: ${#HOST} chars, protocol: $PROTOCOL, port: $PORT"
 
-          if [ -z "$HOST" ]; then
-            echo "❌ CPANEL_FTP_HOST is empty after normalization"
-            exit 1
-          fi
-          if echo "$HOST" | grep -q '@'; then
-            echo "❌ CPANEL_FTP_HOST looks like an email — use server IP or FTP hostname from cPanel"
-            exit 1
-          fi
-          if echo "$HOST" | grep -qi 'santim\.lunafh\.com'; then
-            echo "❌ CPANEL_FTP_HOST must not be santim.lunafh.com — use cPanel Shared IP"
-            exit 1
+          resolve_ipv4() {
+            local name="$1"
+            local ip=""
+            if [[ "$name" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+              echo "$name"
+              return 0
+            fi
+            ip=$(getent ahostsv4 "$name" 2>/dev/null | awk '{print $1}' | head -1)
+            if [ -n "$ip" ]; then echo "$ip"; return 0; fi
+            if command -v dig >/dev/null 2>&1; then
+              ip=$(dig +short A "$name" @8.8.8.8 2>/dev/null | grep -E '^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$' | head -1)
+              if [ -n "$ip" ]; then echo "$ip"; return 0; fi
+            fi
+            return 1
+          }
+
+          CONNECT_HOST=""
+          if [ -n "$HOST" ]; then
+            if echo "$HOST" | grep -q '@'; then
+              echo "❌ CPANEL_FTP_HOST looks like an email — use server IP or hostname"
+              exit 1
+            fi
+            if echo "$HOST" | grep -qi 'santim\.lunafh\.com'; then
+              echo "❌ CPANEL_FTP_HOST must not be santim.lunafh.com"
+              exit 1
+            fi
+            CONNECT_HOST=$(resolve_ipv4 "$HOST" || true)
           fi
 
-          resolves=0
-          if getent hosts "$HOST" > /dev/null 2>&1; then resolves=1; fi
-          if [[ "$HOST" =~ ^[0-9]+\.[0-9]+\.[0-9]+\.[0-9]+$ ]]; then resolves=1; fi
+          # ftp.lunafh.com does not exist in public DNS — use cPanel Shared IP instead.
+          if [ -z "$CONNECT_HOST" ] && [ -n "$SERVER_IP" ]; then
+            echo "⚠️  Using CPANEL_SERVER_IP (hostname did not resolve)"
+            CONNECT_HOST="$SERVER_IP"
+          fi
 
-          if [ "$resolves" -eq 0 ]; then
-            echo "❌ CPANEL_FTP_HOST cannot be resolved"
+          if [ -z "$CONNECT_HOST" ]; then
+            echo "❌ Cannot resolve deploy host"
             echo ""
-            echo "   Fix: cPanel → General Information → Shared IP Address"
-            echo "   GitHub → Secrets → CPANEL_FTP_HOST → paste ONLY that IP"
-            echo "   Example: 203.0.113.10"
+            echo "   Add GitHub secret CPANEL_SERVER_IP with your cPanel Shared IP:"
+            echo "   cPanel home → General Information → Shared IP Address"
+            echo ""
+            echo "   Keep CPANEL_FTP_HOST as ftp.lunafh.com or delete it — IP is enough."
             exit 1
           fi
-          echo "✅ Host is valid for $PROTOCOL upload"
-          echo "🎉 All FTP credentials present"
+
+          echo "protocol=$PROTOCOL" >> "$GITHUB_OUTPUT"
+          echo "port=$PORT" >> "$GITHUB_OUTPUT"
+          echo "host=$CONNECT_HOST" >> "$GITHUB_OUTPUT"
+          echo "✅ Deploy target: $CONNECT_HOST:$PORT ($PROTOCOL)"
+          echo "🎉 All deploy credentials present"
 
       - name: ⚙️ Resolve deploy config
         run: |

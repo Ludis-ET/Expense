@@ -115,5 +115,11 @@ GitHub Actions runs on Microsoft Azure servers. Many cPanel hosts **block FTP fr
 
 ### node_modules must upload
 
-The workflow now **includes** `node_modules` (needed for pre-built Prisma client). First deploy may take 10–20 minutes.
+Deps ship as **`vendor/node_modules/`** (not `node_modules/`) to avoid cPanel symlink conflicts.
+
+After deploy, in **File Manager** → `backend/`:
+- If `node_modules` exists as a **file** or **broken link**, **delete it**
+- `boot.js` will recreate it as a link to `vendor/node_modules` on start
+
+First deploy may take 5–15 minutes.
 

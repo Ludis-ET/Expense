@@ -324,6 +324,16 @@ jobs:
             **/.git*
             **/.git*/**
             **/.ftp-deploy-sync-state.json
+            node_modules/**
+            vendor/node_modules/**/*.ts
+            vendor/node_modules/**/*.cts
+            vendor/node_modules/**/*.mts
+            vendor/node_modules/**/*.map
+            vendor/node_modules/**/*.md
+            vendor/node_modules/**/test/**
+            vendor/node_modules/**/tests/**
+            vendor/node_modules/**/__tests__/**
+            vendor/node_modules/**/src/**
 
       - name: 📤 Upload frontend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -343,6 +353,12 @@ jobs:
             **/.git*
             **/.git*/**
             **/.ftp-deploy-sync-state.json
+            **/node_modules/**/*.ts
+            **/node_modules/**/*.map
+            **/node_modules/**/*.md
+            **/node_modules/**/test/**
+            **/node_modules/**/tests/**
+            **/node_modules/**/__tests__/**
 
       - name: 🎉 Deployment summary
         run: |
@@ -355,9 +371,10 @@ jobs:
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
           echo "⚠️  Post-deploy checklist:"
-          echo "   1. cPanel → Setup Node.js App → startup file boot.js, SKIP_PRISMA_GENERATE=1"
-          echo "   2. Do NOT click Run NPM Install on cPanel"
-          echo "   3. Restart backend + frontend Node.js apps"
-          echo "   4. Open https://santim.lunafh.com/frontend"
+          echo "   1. File Manager: delete backend/node_modules if it is a file or broken link"
+          echo "   2. cPanel → Setup Node.js App → startup boot.js, SKIP_PRISMA_GENERATE=1"
+          echo "   3. Do NOT click Run NPM Install"
+          echo "   4. Restart backend + frontend Node.js apps"
+          echo "   5. Open https://santim.lunafh.com/frontend"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

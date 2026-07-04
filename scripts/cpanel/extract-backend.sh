@@ -30,6 +30,6 @@ fi
 
 echo ""
 echo "✅ Done! Next steps:"
-echo "   1. npx prisma migrate deploy"
-echo "   2. npx prisma db seed          (optional)"
+echo "   1. npm run db:deploy   (or: npx prisma@5.22.0 migrate deploy)"
+echo "   2. Seed from your PC:  cd backend && pnpm db:seed"
 echo "   3. cPanel → Node.js app → startup file: server.js → Restart"

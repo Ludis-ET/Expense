@@ -156,25 +156,44 @@ jobs:
           PORT="${{ secrets.CPANEL_FTP_PORT }}"
           if [ -z "$PORT" ] || [ "$PORT" = "22" ]; then PORT="21"; fi
 
-          # FTP remote path — use secret as-is (must match Node.js application root contents).
-          # If FTP home IS the backend folder, set CPANEL_FTP_BACKEND_PATH=/
-          # If FTP home IS santim.lunafh.com, set CPANEL_FTP_BACKEND_PATH=/backend/
+          # FTP paths must be RELATIVE to the FTP account home (usually ~/santim.lunafh.com/).
+          # Never use /home/lunafhin/... — that creates nested home/lunafhin/... folders on the server.
           BACKEND_DIR="${{ secrets.CPANEL_FTP_BACKEND_PATH }}"
           FRONTEND_DIR="${{ secrets.CPANEL_FTP_FRONTEND_PATH }}"
+
           normalize_ftp_dir() {
             local d="$1"
-            [ -z "$d" ] && echo "/" && return
+            local default="$2"
+            if [ -z "$d" ]; then
+              echo "$default"
+              return
+            fi
+            # Strip filesystem prefix: /home/cpaneluser/
+            d=$(echo "$d" | sed -E 's|^/home/[^/]+/||')
+            # Strip domain prefix if user pasted full docroot: santim.lunafh.com/backend → backend
+            d=$(echo "$d" | sed -E 's|^.*santim\.lunafh\.com/?||i')
+            # Collapse duplicate backend/frontend segments from bad pastes
+            d=$(echo "$d" | sed -E 's|^backend/backend/?|backend/|')
+            d=$(echo "$d" | sed -E 's|^frontend/frontend/?|frontend/|')
             d="${d#/}"
-            echo "/${d%/}/"
+            if [ -z "$d" ]; then
+              echo "/"
+            else
+              echo "/${d%/}/"
+            fi
           }
-          BACKEND_DIR=$(normalize_ftp_dir "$BACKEND_DIR")
-          FRONTEND_DIR=$(normalize_ftp_dir "$FRONTEND_DIR")
-          [ "$BACKEND_DIR" = "//" ] && BACKEND_DIR="/"
-          [ "$FRONTEND_DIR" = "//" ] && FRONTEND_DIR="/"
+
+          BACKEND_DIR=$(normalize_ftp_dir "$BACKEND_DIR" "/backend/")
+          FRONTEND_DIR=$(normalize_ftp_dir "$FRONTEND_DIR" "/frontend/")
+
           echo "backend_dir=$BACKEND_DIR" >> "$GITHUB_OUTPUT"
           echo "frontend_dir=$FRONTEND_DIR" >> "$GITHUB_OUTPUT"
-          echo "ℹ️  FTP remote dirs: backend=$BACKEND_DIR frontend=$FRONTEND_DIR"
-          echo "   Node.js app root must contain dist/server.js after deploy"
+          echo "ℹ️  FTP upload targets (relative to FTP home):"
+          echo "   backend  → $BACKEND_DIR   (expect: ~/santim.lunafh.com/backend/)"
+          echo "   frontend → $FRONTEND_DIR  (expect: ~/santim.lunafh.com/frontend/)"
+          echo ""
+          echo "   GitHub secrets should be:  /backend/  and  /frontend/"
+          echo "   NOT /home/lunafhin/santim.lunafh.com/backend/"
 
           # Normalize host input.
           HOST="${{ secrets.CPANEL_FTP_HOST }}"
@@ -314,7 +333,7 @@ jobs:
           ls -la deploy/santim-frontend.tgz
           tar tzf deploy/santim-frontend.tgz | grep -E 'server.js|node_modules/next' | head -10
 
-      - name: 📤 Upload backend tarball to cPanel (FTP)
+      - name: 🧹 Clear & upload backend tarball (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -326,14 +345,14 @@ jobs:
           timeout: 600000
           local-dir: ./deploy/ftp-backend/
           server-dir: ${{ steps.ftp.outputs.backend_dir }}
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true
           log-level: verbose
           exclude: |
             **/.git*
             **/.git*/**
             **/.ftp-deploy-sync-state.json
 
-      - name: 📤 Upload frontend tarball to cPanel (FTP)
+      - name: 🧹 Clear & upload frontend tarball (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -345,7 +364,7 @@ jobs:
           timeout: 600000
           local-dir: ./deploy/ftp-frontend/
           server-dir: ${{ steps.ftp.outputs.frontend_dir }}
-          dangerous-clean-slate: false
+          dangerous-clean-slate: true
           log-level: verbose
           exclude: |
             **/.git*
@@ -362,11 +381,16 @@ jobs:
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
-          echo "⚠️  Post-deploy (cPanel Terminal):"
-          echo "   cd ~/santim.lunafh.com/backend && tar xzf santim-backend.tgz && npm install --omit=dev"
-          echo "   cd ~/santim.lunafh.com/frontend && tar xzf santim-frontend.tgz"
-          echo "   Frontend startup file → frontend/server.js (not server.js at root)"
-          echo "   npx prisma migrate deploy  (in backend folder)"
-          echo "   Restart both Node.js apps"
+          echo "⚠️  Post-deploy (cPanel Terminal — required after each deploy):"
+          echo "   CI clears backend/ and frontend/ folders, then uploads fresh .tgz files."
           echo ""
-          echo "📖 Full guide: docs/DEPLOY-CPANEL.md"
+          echo "   cd ~/santim.lunafh.com/backend"
+          echo "   tar xzf santim-backend.tgz && npm install --omit=dev"
+          echo "   npm run db:deploy   (uses prisma 5 — or: npx prisma@5.22.0 migrate deploy)"
+          echo ""
+          echo "   cd ~/santim.lunafh.com/frontend"
+          echo "   tar xzf santim-frontend.tgz"
+          echo ""
+          echo "   Restart both Node.js apps (backend: server.js | frontend: frontend/server.js)"
+          echo ""
+          echo "   ⚠️  Put DATABASE_URL in cPanel Node.js env vars — .env in these folders is wiped each deploy"

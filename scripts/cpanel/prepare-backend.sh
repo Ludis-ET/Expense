@@ -40,11 +40,15 @@ const out = process.env.OUT;
 const pkg = JSON.parse(fs.readFileSync(path.join(root, 'backend/package.json'), 'utf8'));
 const { devDependencies, prisma: _p, postinstall, ...rest } = pkg;
 const deps = { ...rest.dependencies };
-delete deps.prisma;
+// Keep prisma CLI for migrate deploy on server (must stay on v5, not npx latest).
+deps.prisma = '5.22.0';
 const deploy = {
   ...rest,
   dependencies: deps,
-  scripts: { start: 'node server.js', 'db:deploy': 'prisma migrate deploy' },
+  scripts: {
+    start: 'node server.js',
+    'db:deploy': 'prisma migrate deploy',
+  },
 };
 fs.writeFileSync(path.join(out, 'package.json'), JSON.stringify(deploy, null, 2));
 NODE
@@ -57,7 +61,8 @@ Run in cPanel Terminal after FTP upload:
   cd ~/santim.lunafh.com/backend
   tar xzf santim-backend.tgz
   npm install --omit=dev
-  npx prisma migrate deploy
+  npm run db:deploy
+  # seed (optional): run from your PC with pnpm db:seed, or: npx prisma@5.22.0 db seed
 
 cPanel → Node.js app → startup file: server.js → Restart
 EOF

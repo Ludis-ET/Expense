@@ -13,6 +13,7 @@ import { SpendingStreaks } from '@/components/finance/spending-streaks';
 import { CategoryHeatAlerts } from '@/components/finance/category-heat-alerts';
 import { FamilySupportTracker } from '@/components/finance/family-support-tracker';
 import { HouseholdWidget } from '@/components/finance/household-widget';
+import { TabWidget } from '@/components/finance/tab-widget';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
@@ -91,13 +92,15 @@ export default function DashboardPage() {
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
         <SpendingStreaks data={data.spendingStreak} money={money} />
-        <HouseholdWidget household={data.household} money={money} />
+        <TabWidget tab={data.tab} money={money} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
         <FamilySupportTracker data={data.familySupport} money={money} />
         <CategoryHeatAlerts alerts={data.categoryHeatAlerts} money={money} />
       </div>
+
+      <HouseholdWidget household={data.household} money={money} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatMini label="Net this month" value={money(data.month.net)} icon={<TrendingUp className="h-4 w-4" />} positive={Number(data.month.net) >= 0} />

@@ -61,6 +61,23 @@ Automate money that repeats — salary, rent, subscriptions.
 
 Occurrences are materialized lazily whenever you open a money screen, so they're always up to date without a background job server.
 
+## Money Tab (`/tab`)
+
+Track money **between you and other people** — separate from recurring bills and day-to-day transactions.
+
+Three entry types:
+- **I lent money** — you gave cash to someone; they still owe you (partial repayments supported).
+- **I borrowed** — you owe someone; log payments as you pay back.
+- **Incoming (one-off)** — money you expect once (freelance invoice, promised gift, refund…) that is **not** on a recurring schedule.
+
+Features:
+- **Net position** summary on the dashboard — receivable + expected incoming − what you owe.
+- **Due dates** with overdue highlighting.
+- **Optional account sync** — when you lend/borrow/receive, optionally create the matching income/expense in your accounts (tagged `tab`).
+- **Partial settlements** — record repayments in chunks until the tab is cleared.
+
+New starter categories: **Loan Repayment** (income) and **Debt & Loans** (expense).
+
 ## Analytics (`/analytics`)
 
 The deep dive into your habits.

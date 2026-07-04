@@ -8,6 +8,7 @@ import * as goals from '../goals/goals.service.js';
 import { monthRange } from '../budgets/budgets.service.js';
 import { FAMILY_SUPPORT_CATEGORY_NAME } from '../categories/default-categories.js';
 import * as household from '../household/household.service.js';
+import * as ledger from '../ledger/ledger.service.js';
 
 function weekBounds(firstDayOfWeek: number) {
   const now = new Date();
@@ -182,7 +183,7 @@ async function familySupport(user: AuthUser) {
 export async function overview(user: AuthUser) {
   const in7Days = new Date(Date.now() + 7 * 86_400_000);
 
-  const [accountList, summary, budgetList, goalList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData] =
+  const [accountList, summary, budgetList, goalList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary] =
     await Promise.all([
       accounts.list(user),
       analytics.summary(user),
@@ -210,6 +211,7 @@ export async function overview(user: AuthUser) {
       categoryHeatAlerts(user),
       familySupport(user),
       household.overview(user),
+      ledger.summary(user),
     ]);
 
   const totalBalance = accountList.items
@@ -231,5 +233,6 @@ export async function overview(user: AuthUser) {
     categoryHeatAlerts: heatAlerts,
     familySupport: family,
     household: householdData,
+    tab: tabSummary,
   };
 }

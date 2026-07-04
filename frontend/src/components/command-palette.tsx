@@ -6,6 +6,7 @@ import { useTheme } from 'next-themes';
 import {
   ArrowLeftRight,
   BarChart3,
+  HandCoins,
   LayoutDashboard,
   Moon,
   PiggyBank,
@@ -47,6 +48,7 @@ export function CommandPalette() {
       { id: 'accounts', label: 'Go to Accounts', icon: Wallet, run: go('/accounts') },
       { id: 'plan', label: 'Go to Budgets & Goals', icon: PiggyBank, run: go('/budgets') },
       { id: 'goals', label: 'Go to Savings goals', icon: PiggyBank, run: go('/budgets?tab=goals') },
+      { id: 'tab', label: 'Go to Money Tab', hint: 'loans & IOUs', icon: HandCoins, run: go('/tab') },
       { id: 'analytics', label: 'Go to Analytics', icon: BarChart3, run: go('/analytics') },
       { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: go('/dashboard?assistant=1') },
       { id: 'household', label: 'Couples & shared accounts', icon: Wallet, run: go('/settings#household') },

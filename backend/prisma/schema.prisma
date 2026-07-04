@@ -51,6 +51,19 @@ enum InviteStatus {
   EXPIRED
 }
 
+// Personal IOUs: money lent/borrowed, and one-off income you're still waiting on.
+enum LedgerKind {
+  LENT         // you gave money — they owe you
+  BORROWED     // you borrowed — you owe them
+  EXPECTED_IN  // income coming (not on a recurring schedule)
+}
+
+enum LedgerStatus {
+  OPEN
+  SETTLED
+  CANCELLED
+}
+
 model User {
   id             String @id @default(cuid())
   email          String @unique
@@ -71,6 +84,7 @@ model User {
   aiSetting         AiSetting?
   householdMembers  HouseholdMember[]
   sentInvites       HouseholdInvite[] @relation("InviteSender")
+  ledgerEntries     LedgerEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -164,6 +178,7 @@ model Category {
   transactions   Transaction[]
   recurringRules RecurringRule[]
   budget         Budget?
+  ledgerEntries  LedgerEntry[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -315,4 +330,45 @@ model AiSetting {
   updatedAt DateTime @updatedAt
 
   @@map("ai_settings")
+}
+
+model LedgerEntry {
+  id           String        @id @default(cuid())
+  userId       String
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind         LedgerKind
+  counterparty String // person or org name
+  title        String? // optional label, e.g. "Freelance invoice #12"
+  totalAmount  Decimal       @db.Decimal(14, 2)
+  currency     String        @default("ETB")
+  dueDate      DateTime?
+  note         String?
+  status       LedgerStatus  @default(OPEN)
+  settledAt    DateTime?
+  categoryId   String? // income category hint for EXPECTED_IN / repayments
+  category     Category?     @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+
+  payments LedgerPayment[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, kind])
+  @@map("ledger_entries")
+}
+
+model LedgerPayment {
+  id            String      @id @default(cuid())
+  ledgerEntryId String
+  ledgerEntry   LedgerEntry @relation(fields: [ledgerEntryId], references: [id], onDelete: Cascade)
+  amount        Decimal     @db.Decimal(14, 2)
+  date          DateTime    @default(now())
+  note          String?
+  transactionId String? // linked account transaction, if recorded
+
+  createdAt DateTime @default(now())
+
+  @@index([ledgerEntryId])
+  @@map("ledger_payments")
 }

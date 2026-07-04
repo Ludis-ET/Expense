@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   ArrowLeftRight,
   BarChart3,
+  HandCoins,
   LayoutDashboard,
   PiggyBank,
   Settings,
@@ -34,7 +35,10 @@ const navGroups = [
   },
   {
     label: 'Plan',
-    items: [{ href: '/budgets', label: 'Budgets & Goals', icon: PiggyBank }],
+    items: [
+      { href: '/budgets', label: 'Budgets & Goals', icon: PiggyBank },
+      { href: '/tab', label: 'Money Tab', icon: HandCoins },
+    ],
   },
 ];
 

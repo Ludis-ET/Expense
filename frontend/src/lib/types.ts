@@ -2,6 +2,8 @@ export type TxKind = 'INCOME' | 'EXPENSE' | 'TRANSFER';
 export type CategoryKind = 'INCOME' | 'EXPENSE';
 export type AccountType = 'CASH' | 'BANK' | 'MOBILE_MONEY' | 'CARD' | 'OTHER';
 export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+export type LedgerKind = 'LENT' | 'BORROWED' | 'EXPECTED_IN';
+export type LedgerStatus = 'OPEN' | 'SETTLED' | 'CANCELLED';
 
 export interface User {
   id: string;
@@ -232,6 +234,47 @@ export interface HouseholdOverview {
   pendingInvites: number;
 }
 
+export interface LedgerPayment {
+  id: string;
+  amount: string;
+  date: string;
+  note?: string | null;
+  transactionId?: string | null;
+}
+
+export interface LedgerEntry {
+  id: string;
+  kind: LedgerKind;
+  counterparty: string;
+  title?: string | null;
+  totalAmount: string;
+  paid: string;
+  remaining: string;
+  pct: number;
+  currency: string;
+  dueDate?: string | null;
+  note?: string | null;
+  status: LedgerStatus;
+  settledAt?: string | null;
+  isOverdue: boolean;
+  category?: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  payments: LedgerPayment[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface LedgerSummary {
+  receivable: string;
+  payable: string;
+  expectedIn: string;
+  netPosition: string;
+  openCount: number;
+  overdueCount: number;
+  highlights: LedgerEntry[];
+  overdue: LedgerEntry[];
+  dueSoon: LedgerEntry[];
+}
+
 export interface DashboardData {
   totalBalance: string;
   accounts: Account[];
@@ -247,4 +290,5 @@ export interface DashboardData {
   categoryHeatAlerts: CategoryHeatAlert[];
   familySupport: FamilySupportStats;
   household: HouseholdOverview | null;
+  tab: LedgerSummary;
 }

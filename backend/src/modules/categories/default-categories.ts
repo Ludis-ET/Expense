@@ -18,6 +18,7 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: 'Freelance', kind: CategoryKind.INCOME, icon: 'laptop', color: '#14b8a6' },
   { name: 'Business', kind: CategoryKind.INCOME, icon: 'store', color: '#22c55e' },
   { name: 'Gift Received', kind: CategoryKind.INCOME, icon: 'gift', color: '#84cc16' },
+  { name: 'Loan Repayment', kind: CategoryKind.INCOME, icon: 'hand-coins', color: '#059669' },
   { name: 'Other Income', kind: CategoryKind.INCOME, icon: 'plus-circle', color: '#65a30d' },
 
   // --- Expense ---
@@ -32,6 +33,7 @@ export const DEFAULT_CATEGORIES: DefaultCategory[] = [
   { name: 'Shopping', kind: CategoryKind.EXPENSE, icon: 'shopping-bag', color: '#d946ef' },
   { name: 'Gifts', kind: CategoryKind.EXPENSE, icon: 'gift', color: '#f43f5e' },
   { name: 'Family Support', kind: CategoryKind.EXPENSE, icon: 'users', color: '#a855f7' },
+  { name: 'Debt & Loans', kind: CategoryKind.EXPENSE, icon: 'landmark', color: '#dc2626' },
   { name: 'Subscriptions', kind: CategoryKind.EXPENSE, icon: 'repeat', color: '#64748b' },
   { name: 'Unnecessary', kind: CategoryKind.EXPENSE, icon: 'flame', color: '#f97316' },
   { name: 'Other', kind: CategoryKind.EXPENSE, icon: 'circle-ellipsis', color: '#94a3b8' },

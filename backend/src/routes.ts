@@ -12,6 +12,7 @@ import { dashboardRouter } from './modules/dashboard/dashboard.router.js';
 import { aiRouter } from './modules/ai/ai.router.js';
 import { notificationsRouter } from './modules/notifications/notifications.router.js';
 import { householdRouter } from './modules/household/household.router.js';
+import { ledgerRouter } from './modules/ledger/ledger.router.js';
 
 export const apiRouter = Router();
 
@@ -28,3 +29,4 @@ apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/ai', aiRouter);
 apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/household', householdRouter);
+apiRouter.use('/ledger', ledgerRouter);

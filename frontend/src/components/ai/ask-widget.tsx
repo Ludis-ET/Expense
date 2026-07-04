@@ -9,8 +9,7 @@ import { Spinner } from '@/components/ui/misc';
 import { Donut, type DonutSlice } from '@/components/charts/donut';
 import { BarChart } from '@/components/charts/bar';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/format';
-import { useAuth } from '@/lib/auth';
+import { useMoney } from '@/lib/amount-visibility';
 
 interface AskResult {
   answer: string;
@@ -28,8 +27,7 @@ const SUGGESTIONS = [
 ];
 
 export function AskWidget({ compact = false }: { compact?: boolean }) {
-  const { user } = useAuth();
-  const currency = user?.currency ?? 'ETB';
+  const { money } = useMoney();
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<AskResult | null>(null);
@@ -120,9 +118,9 @@ export function AskWidget({ compact = false }: { compact?: boolean }) {
             <div className="rounded-xl border border-border p-4">
               <p className="mb-3 text-sm font-medium">{result.chart.title}</p>
               {result.chart.type === 'donut' ? (
-                <Donut data={slices} format={(v) => formatMoney(v, currency)} centerLabel="total" />
+                <Donut data={slices} format={money} centerLabel="total" />
               ) : (
-                <BarChart data={result.chart.data} />
+                <BarChart data={result.chart.data} format={money} />
               )}
             </div>
           )}

@@ -5,10 +5,12 @@ const CURRENCY_LOCALE: Record<string, string> = {
   GBP: 'en-GB',
 };
 
+export type MoneyFormatOpts = { compact?: boolean; decimals?: boolean };
+
 export function formatMoney(
   amount: number | string,
   currency = 'ETB',
-  opts: { compact?: boolean; decimals?: boolean } = {},
+  opts: MoneyFormatOpts = {},
 ): string {
   const value = typeof amount === 'string' ? Number(amount) : amount;
   try {
@@ -21,6 +23,25 @@ export function formatMoney(
   } catch {
     return `${currency} ${value.toLocaleString()}`;
   }
+}
+
+/** Masked balance shown when amounts are hidden (banking-app style). */
+export function formatHiddenMoney(currency = 'ETB'): string {
+  try {
+    const parts = new Intl.NumberFormat(CURRENCY_LOCALE[currency] ?? 'en-US', {
+      style: 'currency',
+      currency,
+      currencyDisplay: 'narrowSymbol',
+    }).formatToParts(1234);
+    const symbol = parts.find((p) => p.type === 'currency')?.value ?? currency;
+    return `${symbol} ••••••`;
+  } catch {
+    return '••••••';
+  }
+}
+
+export function formatHiddenNumber(): string {
+  return '••••••';
 }
 
 /** "+ETB 500" in green contexts / "−ETB 500" in red — sign carried by the caller's styling. */

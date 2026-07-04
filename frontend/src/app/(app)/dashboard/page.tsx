@@ -17,8 +17,8 @@ import { TabWidget } from '@/components/finance/tab-widget';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
-import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useMoney } from '@/lib/amount-visibility';
 import type { DashboardData } from '@/lib/types';
 
 function SmartInsight({ data, money }: { data: DashboardData; money: (v: number | string) => string }) {
@@ -74,9 +74,8 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const currency = user?.currency ?? 'ETB';
+  const { money } = useMoney();
   const { data } = useSWR<DashboardData>('/dashboard');
-  const money = (v: number | string) => formatMoney(v, currency);
   const firstName = user?.name?.split(' ')[0];
 
   if (!data) {

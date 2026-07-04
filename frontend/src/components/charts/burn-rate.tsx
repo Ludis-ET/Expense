@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
-import { formatMoney } from '@/lib/format';
+import { useMoney } from '@/lib/amount-visibility';
 
 interface Point {
   date: string;
@@ -21,6 +21,7 @@ export function BurnRateChart({
   totalPlanned: number;
   currency: string;
 }) {
+  const { money } = useMoney(currency);
   const W = 560;
   const H = 220;
   const pad = { l: 8, r: 8, t: 12, b: 22 };
@@ -76,7 +77,7 @@ export function BurnRateChart({
           strokeWidth={1.5}
         />
         <text x={pad.l} y={model.plannedY - 5} className="fill-muted text-[10px]">
-          Planned {formatMoney(totalPlanned, currency)}
+          Planned {money(totalPlanned)}
         </text>
         {/* projection to exhaustion */}
         {model.projection && (
@@ -88,7 +89,7 @@ export function BurnRateChart({
       </svg>
       <p className="mt-1 text-xs text-muted">
         {isFinite(model.daysToExhaust)
-          ? `At ~${formatMoney(Math.round(model.perDay), currency)}/day, the budget is exhausted in about ${Math.round(model.daysToExhaust)} days.`
+          ? `At ~${money(Math.round(model.perDay))}/day, the budget is exhausted in about ${Math.round(model.daysToExhaust)} days.`
           : 'Not enough spend history to forecast a burn rate yet.'}
       </p>
     </div>

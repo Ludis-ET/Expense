@@ -18,8 +18,8 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { TabEntryCard, PersonTabCard } from '@/components/finance/tab-widget';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { Account, Category, LedgerEntry, LedgerKind, LedgerPersonGroup, LedgerSummary } from '@/lib/types';
@@ -38,8 +38,7 @@ const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
 export default function TabPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
-  const currency = user?.currency ?? 'ETB';
-  const money = (v: number | string) => formatMoney(v, currency);
+  const { money } = useMoney();
   const [filter, setFilter] = useState<TabFilter>('all');
   const [view, setView] = useState<ViewMode>('entries');
   const [formOpen, setFormOpen] = useState(false);

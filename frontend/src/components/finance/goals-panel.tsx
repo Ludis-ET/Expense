@@ -12,20 +12,18 @@ import { ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney, formatDate } from '@/lib/format';
-import { useAuth } from '@/lib/auth';
+import { formatDate } from '@/lib/format';
+import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { SavingsGoal } from '@/lib/types';
 
 export function GoalsPanel() {
-  const { user } = useAuth();
   const confirm = useConfirm();
-  const currency = user?.currency ?? 'ETB';
+  const { money } = useMoney();
   const { data, mutate } = useSWR<{ items: SavingsGoal[] }>('/goals');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<SavingsGoal | null>(null);
   const [contributing, setContributing] = useState<SavingsGoal | null>(null);
-  const money = (v: number | string) => formatMoney(v, currency);
 
   async function remove(goal: SavingsGoal) {
     const ok = await confirm({

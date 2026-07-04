@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { LogOut, Menu, Plus, Search } from 'lucide-react';
 import { Avatar } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
+import { AmountVisibilityToggle } from '@/components/amount-visibility-toggle';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsMenu } from './notifications-menu';
 import { useAuth } from '@/lib/auth';
@@ -51,6 +52,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
         >
           <Search className="h-5 w-5" />
         </button>
+        <AmountVisibilityToggle />
         <ThemeToggle />
         <NotificationsMenu />
         <div className="relative">

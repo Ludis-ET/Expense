@@ -5,6 +5,7 @@ import { ThemeProvider } from 'next-themes';
 import { SWRConfig } from 'swr';
 import { Toaster } from 'sonner';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
+import { AmountVisibilityProvider } from '@/lib/amount-visibility';
 import { fetcher } from '@/lib/api';
 import { AuthProvider } from '@/lib/auth';
 
@@ -13,9 +14,11 @@ export function Providers({ children }: { children: ReactNode }) {
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
       <SWRConfig value={{ fetcher, revalidateOnFocus: false, shouldRetryOnError: false }}>
         <AuthProvider>
-          <ConfirmProvider>
-            {children}
-          </ConfirmProvider>
+          <AmountVisibilityProvider>
+            <ConfirmProvider>
+              {children}
+            </ConfirmProvider>
+          </AmountVisibilityProvider>
           <Toaster
             position="top-right"
             toastOptions={{

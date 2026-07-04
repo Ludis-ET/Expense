@@ -14,8 +14,8 @@ import { MonthNavigator, currentMonth } from '@/components/finance/month-navigat
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { GoalsPanel } from '@/components/finance/goals-panel';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { BudgetRow, BudgetsResponse, Category } from '@/lib/types';
@@ -35,14 +35,13 @@ function PlanInner() {
   const confirm = useConfirm();
   const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
   const { user } = useAuth();
-  const currency = user?.currency ?? 'ETB';
+  const { money } = useMoney();
   const [month, setMonth] = useState(currentMonth());
   const { data, mutate } = useSWR<BudgetsResponse>(`/budgets?month=${month}`);
   const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetRow | null>(null);
 
-  const money = (v: number | string) => formatMoney(v, currency);
   const budgeted = new Set((data?.items ?? []).map((b) => b.categoryId));
   const unbudgeted = (categoriesData?.items ?? []).filter((c) => !c.archived && !budgeted.has(c.id));
 

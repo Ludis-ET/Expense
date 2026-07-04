@@ -13,8 +13,8 @@ import { TransferModal } from '@/components/finance/transfer-modal';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, AccountType } from '@/lib/types';
 
@@ -24,13 +24,13 @@ const typeLabel = (t: AccountType) => t.replace('_', ' ').toLowerCase().replace(
 export default function AccountsPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { money } = useMoney();
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: Account[] }>('/accounts');
   const [formOpen, setFormOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
 
-  const money = (v: number | string) => formatMoney(v, currency);
   const accounts = data?.items ?? [];
   const total = accounts.filter((a) => !a.archived).reduce((s, a) => s + Number(a.balance), 0);
 

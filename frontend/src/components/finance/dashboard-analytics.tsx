@@ -21,7 +21,7 @@ import { IncomeExpenseLine } from '@/components/charts/line';
 import { SpendHeatmap } from '@/components/charts/heatmap';
 import { BurnRateChart } from '@/components/charts/burn-rate';
 import { DateRangePicker } from '@/components/finance/date-range-picker';
-import { formatMoney } from '@/lib/format';
+import { useMoney } from '@/lib/amount-visibility';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
 import { rangeFromPreset, toApiQuery, type DateRange } from '@/lib/date-range';
@@ -125,8 +125,7 @@ function KpiTile({
 
 export function DashboardAnalytics() {
   const { user } = useAuth();
-  const currency = user?.currency ?? 'ETB';
-  const money = (v: number | string) => formatMoney(v, currency);
+  const { money } = useMoney();
 
   const [range, setRange] = useState<DateRange>(() => rangeFromPreset('30d'));
   const [granularity, setGranularity] = useState<Granularity>('day');
@@ -287,7 +286,7 @@ export function DashboardAnalytics() {
         accent="violet"
         loading={expValidating}
       >
-        {barData.length === 0 ? <EmptyState title="No data" /> : <BarChart data={barData} />}
+        {barData.length === 0 ? <EmptyState title="No data" /> : <BarChart data={barData} format={money} />}
       </ChartCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
@@ -365,7 +364,7 @@ export function DashboardAnalytics() {
             <BurnRateChart
               points={burn.points.map((p) => ({ date: p.date, cumulative: Number(p.cumulative) }))}
               totalPlanned={Number(burn.totalPlanned)}
-              currency={currency}
+              currency={user?.currency ?? 'ETB'}
             />
           )}
         </ChartCard>

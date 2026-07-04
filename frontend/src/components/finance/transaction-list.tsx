@@ -2,7 +2,8 @@
 
 import { ArrowLeftRight, Pencil, Trash2 } from 'lucide-react';
 import { financeIcon } from './icons';
-import { formatSignedMoney } from '@/lib/format';
+import { formatHiddenNumber } from '@/lib/format';
+import { useMoney } from '@/lib/amount-visibility';
 import { cn } from '@/lib/utils';
 import type { Transaction } from '@/lib/types';
 
@@ -31,6 +32,7 @@ interface TransactionListProps {
 
 /** Day-grouped transaction rows with per-day subtotals. */
 export function TransactionList({ items, compact, onEdit, onDelete }: TransactionListProps) {
+  const { signedMoney, hidden } = useMoney();
   const groups: { day: string; items: Transaction[]; net: number }[] = [];
   for (const tx of items) {
     const day = tx.date.slice(0, 10);
@@ -59,8 +61,9 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
                   group.net >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-muted',
                 )}
               >
-                {group.net >= 0 ? '+' : '−'}
-                {Math.abs(group.net).toLocaleString()}
+                {hidden
+                  ? formatHiddenNumber()
+                  : `${group.net >= 0 ? '+' : '−'}${Math.abs(group.net).toLocaleString()}`}
               </p>
             )}
           </div>
@@ -96,7 +99,7 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
                     </p>
                   </div>
                   <span className={cn('text-sm font-semibold tabular-nums', amountColor[tx.kind])}>
-                    {formatSignedMoney(tx.amount, tx.kind, tx.currency)}
+                    {signedMoney(tx.amount, tx.kind, tx.currency)}
                   </span>
                   {(onEdit || onDelete) && (
                     <span className="hidden shrink-0 items-center gap-1 group-hover:flex">

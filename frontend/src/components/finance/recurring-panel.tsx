@@ -13,8 +13,8 @@ import { Field, Input, Select, DateInput } from '@/components/ui/input';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { api, ApiError } from '@/lib/api';
-import { formatMoney, formatDate } from '@/lib/format';
-import { useAuth } from '@/lib/auth';
+import { formatDate } from '@/lib/format';
+import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, Category, Frequency, RecurringRule, TxKind } from '@/lib/types';
 
@@ -23,13 +23,11 @@ const freqLabel = (f: Frequency, interval: number) =>
   interval === 1 ? f.toLowerCase() : `every ${interval} ${f.toLowerCase().replace('ly', 's').replace('daiy', 'days')}`;
 
 export function RecurringPanel() {
-  const { user } = useAuth();
   const confirm = useConfirm();
-  const currency = user?.currency ?? 'ETB';
+  const { money } = useMoney();
   const { data, mutate } = useSWR<{ items: RecurringRule[] }>('/recurring');
   const [formOpen, setFormOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringRule | null>(null);
-  const money = (v: number | string) => formatMoney(v, currency);
 
   const [togglingId, setTogglingId] = useState<string | null>(null);
 

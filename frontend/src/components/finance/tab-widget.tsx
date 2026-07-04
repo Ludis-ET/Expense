@@ -11,7 +11,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/misc';
-import { formatMoney, formatDate } from '@/lib/format';
+import { formatDate } from '@/lib/format';
 import type { LedgerEntry, LedgerSummary } from '@/lib/types';
 import { cn } from '@/lib/utils';
 

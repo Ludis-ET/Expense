@@ -11,8 +11,6 @@ export BACKEND_URL="${BACKEND_URL:-https://santim.lunafh.com/backend}"
 export NEXT_BASE_PATH="${NEXT_BASE_PATH:-/frontend}"
 
 echo "🚀 Santim frontend — cPanel terminal deploy"
-echo "   BACKEND_URL=$BACKEND_URL"
-echo "   NEXT_BASE_PATH=$NEXT_BASE_PATH"
 
 cd "$ROOT"
 
@@ -28,14 +26,19 @@ rm -rf "$RUN"
 mkdir -p "$RUN"
 cp -a "$STANDALONE/." "$RUN/"
 
-APP_DIR="$RUN"
-[ -d "$RUN/frontend" ] && APP_DIR="$RUN/frontend"
+if [ -f "$RUN/frontend/server.js" ]; then
+  NM_BACKUP=$(mktemp -d)
+  [ -d "$RUN/node_modules" ] && cp -a "$RUN/node_modules/." "$NM_BACKUP/"
+  cp "$RUN/frontend/server.js" "$RUN/server.js"
+  mkdir -p "$RUN/.next"
+  [ -d "$RUN/frontend/.next" ] && cp -a "$RUN/frontend/.next/." "$RUN/.next/"
+  rm -rf "$RUN/frontend"
+  mkdir -p "$RUN/node_modules"
+  [ -d "$NM_BACKUP" ] && cp -a "$NM_BACKUP/." "$RUN/node_modules/"
+  rm -rf "$NM_BACKUP"
+fi
 
-mkdir -p "$APP_DIR/.next/static"
-cp -r "$FRONTEND/.next/static/." "$APP_DIR/.next/static/"
-[ -d "$FRONTEND/public" ] && cp -r "$FRONTEND/public" "$APP_DIR/public"
+mkdir -p "$RUN/.next/static"
+cp -a "$FRONTEND/.next/static/." "$RUN/.next/static/"
 
-REL="${APP_DIR#$RUN/}/server.js"
-echo "✅ Frontend ready in frontend/run/"
-echo "   App root → frontend/run"
-echo "   Startup file → $REL"
+echo "✅ Frontend ready in frontend/run/ — startup: server.js"

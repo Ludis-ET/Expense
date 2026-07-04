@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
-# Builds Next.js standalone + santim-frontend.tgz for reliable FTP upload.
-# Keeps monorepo layout (frontend/server.js + root node_modules) — do not flatten.
+# Builds Next.js standalone + santim-frontend.tgz (flat layout — extract in place).
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
@@ -35,53 +34,63 @@ if [ ! -d "$STANDALONE" ]; then
   exit 1
 fi
 
-echo "📋 Copying standalone bundle (monorepo layout preserved)..."
+echo "📋 Copying standalone bundle..."
 cp -a "$STANDALONE/." "$OUT/"
 
-# Next.js standalone does not copy static files — required for production.
-APP_DIR="$OUT"
-if [ -d "$OUT/frontend" ]; then
-  APP_DIR="$OUT/frontend"
+# pnpm monorepo standalone: deps in root node_modules/, app in frontend/.
+# Flatten so tar extracts server.js directly into the folder (no frontend/ subfolder).
+if [ -f "$OUT/frontend/server.js" ]; then
+  echo "📁 Flattening monorepo layout → server.js at deploy root..."
+  NM_BACKUP=$(mktemp -d)
+  if [ -d "$OUT/node_modules" ]; then
+    cp -a "$OUT/node_modules/." "$NM_BACKUP/"
+  fi
+  cp "$OUT/frontend/server.js" "$OUT/server.js"
+  if [ -f "$OUT/frontend/package.json" ]; then
+    cp "$OUT/frontend/package.json" "$OUT/package.json"
+  fi
+  mkdir -p "$OUT/.next"
+  if [ -d "$OUT/frontend/.next" ]; then
+    cp -a "$OUT/frontend/.next/." "$OUT/.next/"
+  fi
+  if [ -d "$OUT/frontend/public" ]; then
+    cp -a "$OUT/frontend/public" "$OUT/public"
+  fi
+  rm -rf "$OUT/frontend"
+  mkdir -p "$OUT/node_modules"
+  if [ -d "$NM_BACKUP" ] && [ "$(ls -A "$NM_BACKUP" 2>/dev/null)" ]; then
+    cp -a "$NM_BACKUP/." "$OUT/node_modules/"
+  fi
+  rm -rf "$NM_BACKUP"
 fi
 
-mkdir -p "$APP_DIR/.next/static"
-cp -r "$ROOT/frontend/.next/static/." "$APP_DIR/.next/static/"
+mkdir -p "$OUT/.next/static"
+cp -a "$ROOT/frontend/.next/static/." "$OUT/.next/static/"
 
-if [ -d "$ROOT/frontend/public" ]; then
-  cp -r "$ROOT/frontend/public" "$APP_DIR/public"
+if [ -d "$ROOT/frontend/public" ] && [ ! -d "$OUT/public" ]; then
+  cp -a "$ROOT/frontend/public" "$OUT/public"
 fi
 
-if [ ! -f "$APP_DIR/server.js" ]; then
-  echo "❌ server.js missing at $APP_DIR/server.js"
+if [ ! -f "$OUT/server.js" ]; then
+  echo "❌ server.js missing at deploy root"
   exit 1
 fi
 
-# pnpm standalone uses node_modules/.pnpm — find next anywhere under node_modules.
 if ! find "$OUT/node_modules" -path '*/next/package.json' 2>/dev/null | grep -q .; then
   echo "❌ next not found under node_modules"
   ls -la "$OUT/node_modules/" 2>/dev/null | head -20 || true
   exit 1
 fi
 
-echo "✅ next found in standalone node_modules"
-echo "   cPanel startup file: ${APP_DIR#$OUT/}/server.js (relative to app root)"
-
-REL_START="$APP_DIR/server.js"
-REL_START="${REL_START#$OUT/}"
+echo "✅ Flat bundle ready — server.js at root"
 
 cp "$ROOT/scripts/cpanel/extract-frontend.sh" "$OUT/extract-frontend.sh"
 chmod +x "$OUT/extract-frontend.sh"
 
-cat > "$OUT/EXTRACT.txt" <<EOF
-Run in cPanel Terminal:
-
+cat > "$OUT/EXTRACT.txt" <<'EOF'
   cd ~/santim.lunafh.com/frontend
   tar xzf santim-frontend.tgz
-
-cPanel → Node.js app:
-  Application root → frontend folder (this directory after extract)
-  Startup file → $REL_START
-  Restart
+  cPanel startup file: server.js
 EOF
 
 echo "📦 Creating santim-frontend.tgz..."
@@ -90,5 +99,5 @@ tar czf "$TGZ" -C "$OUT" .
 cp "$TGZ" "$FTP/santim-frontend.tgz"
 
 echo "✅ Frontend tarball ready ($(du -h "$TGZ" | cut -f1))"
-echo "   Startup: $REL_START"
-tar tzf "$TGZ" | grep -E 'frontend/server.js|server.js' | head -3
+echo "   Extract → server.js in same folder as .tgz"
+tar tzf "$TGZ" | grep -E '^(\./)?server.js$' || tar tzf "$TGZ" | grep 'server.js' | head -3

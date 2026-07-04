@@ -9,15 +9,11 @@ if [ ! -f santim-frontend.tgz ]; then
   exit 1
 fi
 
-echo "📦 Extracting santim-frontend.tgz..."
+echo "📦 Extracting santim-frontend.tgz into $(pwd)..."
 tar xzf santim-frontend.tgz
 
-if [ -f frontend/server.js ]; then
-  STARTUP="frontend/server.js"
-elif [ -f server.js ]; then
-  STARTUP="server.js"
-else
-  echo "❌ server.js not found"
+if [ ! -f server.js ]; then
+  echo "❌ server.js not found at deploy root after extract"
   exit 1
 fi
 
@@ -26,6 +22,6 @@ if ! find node_modules -path '*/next/package.json' 2>/dev/null | grep -q .; then
   exit 1
 fi
 
-echo "✅ Frontend ready"
-echo "   cPanel startup file → $STARTUP"
+echo "✅ Frontend ready — server.js is in this folder"
+echo "   cPanel startup file → server.js"
 echo "   Restart Node.js app"

@@ -391,6 +391,6 @@ jobs:
           echo "   cd ~/santim.lunafh.com/frontend"
           echo "   tar xzf santim-frontend.tgz"
           echo ""
-          echo "   Restart both Node.js apps (backend: server.js | frontend: frontend/server.js)"
+          echo "   Restart both Node.js apps (backend: server.js | frontend: server.js)"
           echo ""
           echo "   ⚠️  Put DATABASE_URL in cPanel Node.js env vars — .env in these folders is wiped each deploy"

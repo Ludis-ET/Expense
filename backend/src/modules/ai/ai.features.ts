@@ -8,13 +8,13 @@ export interface AskResult {
   provider: string;
 }
 
-/** "Ask about your money" — grounded NL Q&A over the user's finances. */
+/** "Ask about your money" - grounded NL Q&A over the user's finances. */
 export async function ask(user: AuthUser, question: string): Promise<AskResult> {
   const snapshot = await buildFinanceSnapshot(user.id);
   const system =
     'You are a personal-finance assistant. Answer ONLY from the provided JSON data about the user\'s ' +
     'own money. Be concise, specific and friendly, citing real numbers with the currency. ' +
-    'The data includes a moneyTab section for loans, debts, and one-off expected payments between the user and other people — use it for questions about who owes whom, pending repayments, or expected incoming/outgoing money. ' +
+    'The data includes a moneyTab section for loans, debts, and one-off expected payments between the user and other people - use it for questions about who owes whom, pending repayments, or expected incoming/outgoing money. ' +
     'If the data cannot answer the question, say so. ' +
     'Return a JSON object: {"answer": string, "chart"?: {"type":"bar"|"donut","title":string,"data":[{"label":string,"value":number}]}}. ' +
     'Include a chart only when it genuinely helps visualise the answer (comparisons or breakdowns).';
@@ -31,7 +31,7 @@ export interface ReviewResult {
   provider: string;
 }
 
-/** Monthly financial review — a personalized Markdown report with suggestions. */
+/** Monthly financial review - a personalized Markdown report with suggestions. */
 export async function monthlyReview(user: AuthUser, month: string): Promise<ReviewResult> {
   const snapshot = await buildFinanceSnapshot(user.id);
   const system =

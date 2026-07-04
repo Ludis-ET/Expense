@@ -217,7 +217,7 @@ export function DashboardAnalytics() {
         />
         <KpiTile
           label="Savings rate"
-          value={savingsRate !== null ? `${savingsRate}%` : '—'}
+          value={savingsRate !== null ? `${savingsRate}%` : '-'}
           icon={<Zap className="h-4 w-4" />}
           loading={incLoading || expLoading}
         />

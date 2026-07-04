@@ -23,7 +23,7 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await register(form);
-      toast.success('Account created — welcome!');
+      toast.success('Account created - welcome!');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Something went wrong');
       setLoading(false);

@@ -2,7 +2,7 @@
   "name": "santim",
   "version": "0.1.0",
   "private": true,
-  "description": "Santim — personal income & expense tracker. Express/Prisma backend + Next.js frontend.",
+  "description": "Santim - personal income & expense tracker. Express/Prisma backend + Next.js frontend.",
   "packageManager": "pnpm@10.24.0",
   "engines": {
     "node": ">=20"

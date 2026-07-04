@@ -7,11 +7,11 @@ const geistSans = Geist({ subsets: ['latin'], variable: '--font-geist-sans' });
 
 export const metadata: Metadata = {
   title: {
-    default: 'Santim — Personal income & expense tracker',
+    default: 'Santim - Personal income & expense tracker',
     template: '%s · Santim',
   },
   description:
-    'Know where every birr goes. Track income and spending, set budgets, save towards goals, and get personalized insights — private to you.',
+    'Know where every birr goes. Track income and spending, set budgets, save towards goals, and get personalized insights - private to you.',
 };
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {

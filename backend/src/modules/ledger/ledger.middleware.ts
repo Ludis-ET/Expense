@@ -5,7 +5,7 @@ import { syncReminders } from './ledger.reminders.js';
 const DEBOUNCE_MS = 5 * 60 * 1000;
 const lastRun = new Map<string, number>();
 
-/** Lazy tab due-date reminders — same debounce pattern as recurring catch-up. */
+/** Lazy tab due-date reminders - same debounce pattern as recurring catch-up. */
 export const tabReminderCatchUp: RequestHandler = (req, _res, next) => {
   const userId = req.user?.id;
   if (userId) {

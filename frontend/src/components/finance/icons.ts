@@ -50,7 +50,7 @@ import {
   type LucideIcon,
 } from 'lucide-react';
 
-/** Curated icon set for categories/accounts/goals — keys are stored in the DB. */
+/** Curated icon set for categories/accounts/goals - keys are stored in the DB. */
 export const FINANCE_ICONS: Record<string, LucideIcon> = {
   'banknote': Banknote,
   'bike': Bike,

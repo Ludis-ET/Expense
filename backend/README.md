@@ -1,4 +1,4 @@
-# Santim — Backend API
+# Santim - Backend API
 
 The Santim REST API built as a **modular monolith** in Node.js + TypeScript.
 One deployable backend with clean internal module boundaries over a single
@@ -63,7 +63,7 @@ pnpm install
 cp .env.example .env        # then edit DATABASE_URL and JWT_SECRET
 
 # 3. Point DATABASE_URL at any PostgreSQL 16 instance
-#    (e.g. a free Neon project — see repo root README for details)
+#    (e.g. a free Neon project - see repo root README for details)
 
 # 4. Create the schema and seed demo data
 pnpm db:migrate             # creates tables (name the migration "init")
@@ -105,7 +105,7 @@ All routes are under `/api/v1`. Everything except `/auth/*` requires a
 The JWT carries the user's `id`; every service query is filtered by it
 (`assertOwnedAccount`, `assertOwnedTransaction`, …) so one user can never read or
 mutate another's data. This is the single most important invariant in the
-codebase — keep it intact when adding modules.
+codebase - keep it intact when adding modules.
 
 ## Recurring execution
 

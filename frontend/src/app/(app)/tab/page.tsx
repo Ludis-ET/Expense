@@ -74,7 +74,7 @@ export default function TabPage() {
   }
 
   const settledHint = useMemo(
-    () => (view === 'entries' && list?.items.length === 0 ? 'Nothing open — you\'re all square.' : undefined),
+    () => (view === 'entries' && list?.items.length === 0 ? 'Nothing open - you\'re all square.' : undefined),
     [list, view],
   );
 
@@ -84,7 +84,7 @@ export default function TabPage() {
     <div className="animate-in space-y-6">
       <PageHeader
         title="Money Tab"
-        description="Loans, debts, and one-off payments you're still waiting on — not recurring bills."
+        description="Loans, debts, and one-off payments you're still waiting on - not recurring bills."
         action={
           <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4" /> New entry
@@ -323,12 +323,12 @@ function EntryForm({
 
   const kindHelp =
     kind === 'LENT'
-      ? 'Money you gave someone — they still owe you.'
+      ? 'Money you gave someone - they still owe you.'
       : kind === 'BORROWED'
-        ? 'Money you borrowed — you still need to pay back.'
+        ? 'Money you borrowed - you still need to pay back.'
         : kind === 'EXPECTED_IN'
-          ? 'Payment you expect once — not on a recurring schedule.'
-          : 'One-off bill you know is coming (school fee, repair quote…) — not recurring.';
+          ? 'Payment you expect once - not on a recurring schedule.'
+          : 'One-off bill you know is coming (school fee, repair quote…) - not recurring.';
 
   return (
     <Modal open={open} onClose={onClose} title={editing ? 'Edit tab entry' : 'New tab entry'} description={kindHelp}>

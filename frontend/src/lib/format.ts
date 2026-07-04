@@ -44,7 +44,7 @@ export function formatHiddenNumber(): string {
   return '••••••';
 }
 
-/** "+ETB 500" in green contexts / "−ETB 500" in red — sign carried by the caller's styling. */
+/** "+ETB 500" in green contexts / "−ETB 500" in red - sign carried by the caller's styling. */
 export function formatSignedMoney(amount: number | string, kind: 'INCOME' | 'EXPENSE' | 'TRANSFER', currency = 'ETB'): string {
   const formatted = formatMoney(amount, currency);
   if (kind === 'INCOME') return `+${formatted}`;
@@ -59,7 +59,7 @@ export function formatMonth(yyyyMm: string): string {
 }
 
 export function formatDate(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   return new Intl.DateTimeFormat('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).format(new Date(date));
 }
 

@@ -15,7 +15,7 @@ interface DonutProps {
   centerLabel?: string;
 }
 
-/** Lightweight SVG donut chart — no charting dependency. */
+/** Lightweight SVG donut chart - no charting dependency. */
 export function Donut({ data, size = 160, thickness = 22, format, centerLabel = 'total' }: DonutProps) {
   const total = data.reduce((s, d) => s + d.value, 0);
   const radius = (size - thickness) / 2;

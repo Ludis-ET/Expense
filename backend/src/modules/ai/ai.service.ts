@@ -27,7 +27,7 @@ async function readStored(userId: string): Promise<StoredProvider[]> {
   return Array.isArray(raw) ? raw : [];
 }
 
-/** Masked settings for the UI — every catalog provider is represented, in priority order. */
+/** Masked settings for the UI - every catalog provider is represented, in priority order. */
 export async function getSettings(userId: string) {
   const stored = await readStored(userId);
   const byId = new Map(stored.map((p) => [p.id, p]));

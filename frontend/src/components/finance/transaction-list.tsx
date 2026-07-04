@@ -87,7 +87,7 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
                     <p className="truncate text-sm font-medium">
                       {isTransfer
                         ? `${tx.account?.name ?? '?'} → ${tx.transferAccount?.name ?? '?'}`
-                        : (tx.payee || tx.category?.name || '—')}
+                        : (tx.payee || tx.category?.name || '-')}
                     </p>
                     <p className="truncate text-xs text-muted">
                       {isTransfer

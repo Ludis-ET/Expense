@@ -4,7 +4,7 @@ import { prisma } from '../../core/db.js';
 const zero = new Prisma.Decimal(0);
 
 /**
- * Compact, grounded snapshot of a user's finances — compact aggregates rather
+ * Compact, grounded snapshot of a user's finances - compact aggregates rather
  * than raw rows to keep prompt size (and token cost) low.
  */
 export async function buildFinanceSnapshot(userId: string) {

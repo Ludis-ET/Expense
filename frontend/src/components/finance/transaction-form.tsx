@@ -94,7 +94,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
         toast.info('Couldn’t confidently match a category.');
       }
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Suggestion failed — is an AI provider configured?');
+      toast.error(err instanceof ApiError ? err.message : 'Suggestion failed - is an AI provider configured?');
     } finally {
       setSuggesting(false);
     }

@@ -116,7 +116,7 @@ export function AiProviders() {
         <div>
           <CardTitle>AI providers</CardTitle>
           <CardDescription>
-            Add keys for one or more providers. They&apos;re tried top-to-bottom — if the first fails, the next is used.
+            Add keys for one or more providers. They&apos;re tried top-to-bottom - if the first fails, the next is used.
           </CardDescription>
         </div>
       </CardHeader>

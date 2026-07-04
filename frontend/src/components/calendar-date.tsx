@@ -10,7 +10,7 @@ import { formatEthiopian } from '@/lib/ethiopian-calendar';
  */
 export function CalendarDate({ value, className }: { value: string | Date | null | undefined; className?: string }) {
   const { user } = useAuth();
-  if (!value) return <span className={className}>—</span>;
+  if (!value) return <span className={className}>-</span>;
 
   const gregorian = formatDate(value);
   const ethiopian = formatEthiopian(value);

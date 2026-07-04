@@ -1,4 +1,4 @@
-// Santim data model — personal finance.
+// Santim data model - personal finance.
 // Privacy model: every row is owned by exactly one User via userId (directly
 // or via its parent). Services always filter by the authenticated user's id.
 
@@ -53,8 +53,8 @@ enum InviteStatus {
 
 // Personal IOUs: money lent/borrowed, and one-off income you're still waiting on.
 enum LedgerKind {
-  LENT         // you gave money — they owe you
-  BORROWED     // you borrowed — you owe them
+  LENT         // you gave money - they owe you
+  BORROWED     // you borrowed - you owe them
   EXPECTED_IN  // income coming (not on a recurring schedule)
   EXPECTED_OUT // one-off bill/commitment coming (not recurring)
 }
@@ -71,7 +71,7 @@ model User {
   passwordHash   String
   name           String
   locale         String @default("en")
-  calendar       String @default("gregorian") // "gregorian" | "ethiopian" — display preference
+  calendar       String @default("gregorian") // "gregorian" | "ethiopian" - display preference
   currency       String @default("ETB") // default display/entry currency
   firstDayOfWeek Int    @default(1) // 1 = Monday, 0 = Sunday
 
@@ -262,7 +262,7 @@ model Budget {
   categoryId     String   @unique // one ongoing monthly budget per category
   category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
   amount         Decimal  @db.Decimal(14, 2) // monthly limit
-  alertThreshold Int      @default(80) // % — notify when crossed
+  alertThreshold Int      @default(80) // % - notify when crossed
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

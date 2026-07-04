@@ -233,7 +233,7 @@ export async function topPayees(user: AuthUser, limit: number, from?: Date, to?:
   };
 }
 
-/** Spend in the "Unnecessary" category this month vs last — the guilt meter. */
+/** Spend in the "Unnecessary" category this month vs last - the guilt meter. */
 export async function unnecessary(user: AuthUser, month?: string) {
   const category = await prisma.category.findFirst({
     where: { userId: user.id, name: UNNECESSARY_CATEGORY_NAME, kind: CategoryKind.EXPENSE },
@@ -267,7 +267,7 @@ export async function unnecessary(user: AuthUser, month?: string) {
   };
 }
 
-/** Cumulative spend this month vs total budgeted — for burn-rate chart. */
+/** Cumulative spend this month vs total budgeted - for burn-rate chart. */
 export async function burnRate(user: AuthUser) {
   const budgetList = await budgets.list(user);
   const { start, end } = monthRange();

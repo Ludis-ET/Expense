@@ -75,7 +75,7 @@ export async function remove(user: AuthUser, id: string) {
 /** Post one occurrence immediately and advance nextRun, regardless of schedule. */
 export async function runNow(user: AuthUser, id: string) {
   const rule = await assertOwnedRule(id, user.id);
-  if (!rule.active) throw new BadRequestError('This rule is paused — activate it first');
+  if (!rule.active) throw new BadRequestError('This rule is paused - activate it first');
 
   const now = new Date();
   const [tx] = await prisma.$transaction([

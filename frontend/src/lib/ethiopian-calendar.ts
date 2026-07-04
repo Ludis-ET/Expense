@@ -56,7 +56,7 @@ export function toEthiopian(date: Date): EthiopianDate {
 
 /** e.g. "15 Sene 2018" */
 export function formatEthiopian(date: string | Date | null | undefined): string {
-  if (!date) return '—';
+  if (!date) return '-';
   const e = toEthiopian(new Date(date));
   return `${e.day} ${e.monthName} ${e.year}`;
 }

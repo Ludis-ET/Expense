@@ -22,7 +22,7 @@ export function AuthShell({
               Know where every birr goes.
             </h2>
             <p className="mt-4 max-w-sm text-white/80">
-              Track income and spending, set budgets, save towards goals, and get insights — all private to you.
+              Track income and spending, set budgets, save towards goals, and get insights - all private to you.
             </p>
           </div>
           <p className="text-sm text-white/70">© {new Date().getFullYear()} Santim</p>

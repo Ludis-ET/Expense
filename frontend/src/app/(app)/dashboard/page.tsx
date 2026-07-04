@@ -27,14 +27,14 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
   const income = Number(data.month.income);
 
   if (data.budgetsAtRisk.some((b) => b.status === 'over')) {
-    insights.push('One or more budgets are over limit — review your spending categories.');
+    insights.push('One or more budgets are over limit - review your spending categories.');
   } else if (data.budgetsAtRisk.length > 0) {
     insights.push(`${data.budgetsAtRisk.length} budget${data.budgetsAtRisk.length > 1 ? 's are' : ' is'} approaching the limit.`);
   }
   if (income > 0 && net / income < 0.1) {
     insights.push('Your savings rate is below 10% this month. Consider cutting unnecessary expenses.');
   } else if (net > 0) {
-    insights.push(`You're saving ${money(net)} this month — keep it up!`);
+    insights.push(`You're saving ${money(net)} this month - keep it up!`);
   }
   if (Number(data.unnecessary.total) > 0) {
     insights.push(`${money(data.unnecessary.total)} went to "unnecessary" spending.`);
@@ -52,7 +52,7 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
       );
     } else if ((data.tab?.overdueCount ?? 0) > 0) {
       const overdue = data.tab?.overdueCount ?? 0;
-      insights.push(`${overdue} Money Tab item${overdue > 1 ? 's are' : ' is'} overdue — check /tab.`);
+      insights.push(`${overdue} Money Tab item${overdue > 1 ? 's are' : ' is'} overdue - check /tab.`);
     }
   }
   if (insights.length === 0) {

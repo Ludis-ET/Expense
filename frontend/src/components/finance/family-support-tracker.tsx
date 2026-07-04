@@ -44,7 +44,7 @@ export function FamilySupportTracker({
         <p className="mt-2 text-xs text-muted">
           Last month: {money(data.prevTotal)}
           {Number(data.total) > Number(data.prevTotal) && (
-            <span className="ml-1 text-warning">— consider budgeting remittances</span>
+            <span className="ml-1 text-warning">- consider budgeting remittances</span>
           )}
         </p>
 

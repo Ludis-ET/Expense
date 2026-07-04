@@ -334,7 +334,7 @@ export async function summary(user: AuthUser) {
 
 export async function create(user: AuthUser, input: CreateLedgerInput) {
   if ((input.kind === LedgerKind.EXPECTED_IN || input.kind === LedgerKind.EXPECTED_OUT) && input.recordMovement) {
-    throw new BadRequestError('Expected entries are recorded when money moves — not when you create them');
+    throw new BadRequestError('Expected entries are recorded when money moves - not when you create them');
   }
 
   if (input.recordMovement && !input.sourceAccountId) {

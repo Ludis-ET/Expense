@@ -48,7 +48,7 @@ export async function syncReminders(userId: string): Promise<void> {
       await notify(
         userId,
         'tab_overdue',
-        `⚠️ Overdue tab: ${label} — ${amt} ${entry.currency} was due ${entry.dueDate.toISOString().slice(0, 10)}`,
+        `⚠️ Overdue tab: ${label} - ${amt} ${entry.currency} was due ${entry.dueDate.toISOString().slice(0, 10)}`,
         link,
       );
       continue;
@@ -63,7 +63,7 @@ export async function syncReminders(userId: string): Promise<void> {
       await notify(
         userId,
         'tab_due',
-        `📅 Due ${days === 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}: ${label} — ${amt} ${entry.currency}`,
+        `📅 Due ${days === 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}: ${label} - ${amt} ${entry.currency}`,
         link,
       );
     }

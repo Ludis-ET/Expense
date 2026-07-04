@@ -94,7 +94,7 @@ async function main() {
     }
   }
 
-  // Freelance payments — one recent so the current month always shows income.
+  // Freelance payments - one recent so the current month always shows income.
   txns.push(
     { kind: TxKind.INCOME, amount: 8500, date: daysAgo(52), accountId: cbe.id, categoryId: cat('Freelance').id, payee: 'Design client', note: 'Logo project', tags: ['side-hustle'] },
     { kind: TxKind.INCOME, amount: 6200, date: daysAgo(18), accountId: telebirr.id, categoryId: cat('Freelance').id, payee: 'Web client', note: 'Landing page', tags: ['side-hustle'] },
@@ -260,7 +260,7 @@ async function main() {
     data: {
       userId: user.id,
       type: 'welcome',
-      message: 'Welcome to Santim! Your demo data is ready — explore the dashboard.',
+      message: 'Welcome to Santim! Your demo data is ready - explore the dashboard.',
       link: '/dashboard',
     },
   });

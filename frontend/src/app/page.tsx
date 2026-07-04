@@ -16,12 +16,12 @@ import { ThemeToggle } from '@/components/theme-toggle';
 import { Button } from '@/components/ui/button';
 
 const features = [
-  { icon: ArrowLeftRight, title: 'Income & expenses', desc: 'Log every birr in and out across cash, bank and mobile-money — with categories, payees and tags.' },
+  { icon: ArrowLeftRight, title: 'Income & expenses', desc: 'Log every birr in and out across cash, bank and mobile-money - with categories, payees and tags.' },
   { icon: PiggyBank, title: 'Budgets that nudge', desc: 'Set monthly limits per category and get notified before you overspend, not after.' },
   { icon: Target, title: 'Savings goals', desc: 'Save towards an emergency fund, a trip or a new laptop, and see exactly how much per month it takes.' },
-  { icon: Repeat, title: 'Recurring on autopilot', desc: 'Salary, rent and subscriptions post themselves on schedule — or just remind you.' },
+  { icon: Repeat, title: 'Recurring on autopilot', desc: 'Salary, rent and subscriptions post themselves on schedule - or just remind you.' },
   { icon: BarChart3, title: 'Personal analytics', desc: 'Daily, weekly and monthly trends, a spending heatmap, top payees and an “unnecessary spend” meter.' },
-  { icon: Sparkles, title: 'AI money assistant', desc: 'Ask questions about your spending and get a personalized monthly review — using your own AI key.' },
+  { icon: Sparkles, title: 'AI money assistant', desc: 'Ask questions about your spending and get a personalized monthly review - using your own AI key.' },
 ];
 
 const stats = [
@@ -68,7 +68,7 @@ export default function LandingPage() {
             <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">birr goes</span>
           </h1>
           <p className="animate-in mx-auto mt-5 max-w-xl text-base text-muted md:text-lg">
-            Santim brings your income, spending, budgets and savings goals together — with analytics that actually
+            Santim brings your income, spending, budgets and savings goals together - with analytics that actually
             tell you something, all private to you.
           </p>
           <div className="animate-in mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">
@@ -128,7 +128,7 @@ export default function LandingPage() {
             <h2 className="text-3xl font-bold tracking-tight">Birr-first, with an Ethiopian touch</h2>
             <p className="mt-4 text-muted">
               Track cash, bank and mobile-money wallets like Telebirr side by side, with categories that match real
-              life — from family support to airtime top-ups.
+              life - from family support to airtime top-ups.
             </p>
             <ul className="mt-6 space-y-3">
               {[

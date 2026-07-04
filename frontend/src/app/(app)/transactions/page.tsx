@@ -15,6 +15,8 @@ import { MonthNavigator, currentMonth } from '@/components/finance/month-navigat
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { Account, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
 
@@ -29,6 +31,7 @@ function TransactionsInner() {
   const params = useSearchParams();
   const confirm = useConfirm();
   const tab = params.get('tab') === 'recurring' ? 'recurring' : 'ledger';
+  const { activeCurrency } = useCurrencyView();
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [kind, setKind] = useState<TxKind | ''>('');
@@ -44,13 +47,13 @@ function TransactionsInner() {
 
   const { from, to } = monthBounds(month);
   const query = useMemo(() => {
-    const p = new URLSearchParams({ from, to, page: String(page), pageSize: '25' });
+    const p = new URLSearchParams({ from, to, page: String(page), pageSize: '25', currency: activeCurrency });
     if (kind) p.set('kind', kind);
     if (categoryId) p.set('categoryId', categoryId);
     if (accountId) p.set('accountId', accountId);
     if (q) p.set('q', q);
     return p.toString();
-  }, [from, to, page, kind, categoryId, accountId, q]);
+  }, [from, to, page, kind, categoryId, accountId, q, activeCurrency]);
 
   const { data, isLoading, mutate } = useSWR<TransactionPage>(`/transactions?${query}`);
 
@@ -76,7 +79,7 @@ function TransactionsInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => setPage(1), [month, kind, categoryId, accountId, q]);
+  useEffect(() => setPage(1), [month, kind, categoryId, accountId, q, activeCurrency]);
 
   async function remove(tx: Transaction) {
     const ok = await confirm({
@@ -129,7 +132,8 @@ function TransactionsInner() {
     <div>
       <PageHeader
         title="Transactions"
-        description={tab === 'recurring' ? 'Scheduled income and bills.' : 'Every birr in and out. Press N to add.'}
+        description={tab === 'recurring' ? currencyScopeHint(activeCurrency) : currencyScopeHint(activeCurrency)}
+        badge={<CurrencyBadge />}
         action={
           tab === 'ledger' ? (
             <div className="flex items-center gap-2">

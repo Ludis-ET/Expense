@@ -2,7 +2,6 @@
 
 import Link from 'next/link';
 import { ArrowRight, Calendar, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
-import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { formatEthiopian } from '@/lib/ethiopian-calendar';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
@@ -56,16 +55,13 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
               </span>
             </div>
           </div>
-          <div className="flex flex-col items-end gap-2">
-            <CurrencySwitcher compact className="[&_button]:text-primary-foreground [&_span]:text-primary-foreground [&_p]:text-white/70 [&>div]:border-white/20 [&>div]:bg-white/10" />
-            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-              <Wallet className="h-5 w-5" />
-            </div>
+          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
+            <Wallet className="h-5 w-5" />
           </div>
         </div>
 
         <p className="mt-1 text-xs opacity-60">
-          Total balance · {activeCurrency} accounts only
+          Total balance · {activeCurrency}
         </p>
 
         <p className="mt-3 text-4xl font-bold tracking-tight tabular-nums md:text-5xl">

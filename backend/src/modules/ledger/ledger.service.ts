@@ -208,6 +208,7 @@ export async function list(user: AuthUser, query: ListLedgerQuery) {
       : query.status === 'settled'
         ? { status: LedgerStatus.SETTLED }
         : {}),
+    ...(query.currency ? { currency: query.currency } : {}),
   };
 
   const entries = await prisma.ledgerEntry.findMany({

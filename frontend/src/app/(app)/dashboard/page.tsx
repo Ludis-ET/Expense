@@ -7,7 +7,7 @@ import { Flame, Lightbulb, PiggyBank, TrendingDown, TrendingUp, BarChart3, Arrow
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
 import { HeroBalance } from '@/components/finance/hero-balance';
-import { CurrencySwitcher } from '@/components/finance/currency-switcher';
+import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { FinancialHealth } from '@/components/finance/financial-health';
 import { SpendingPace } from '@/components/finance/spending-pace';
 import { WeeklySnapshot } from '@/components/finance/weekly-snapshot';
@@ -78,7 +78,7 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
 export default function DashboardPage() {
   const { user } = useAuth();
   const { activeCurrency, activeBreakdown, setFromDashboard } = useCurrencyView();
-  const { money } = useMoney(activeCurrency);
+  const { money } = useMoney();
   const { data } = useSWR<DashboardData>('/dashboard');
   const firstName = user?.name?.split(' ')[0];
 
@@ -106,7 +106,11 @@ export default function DashboardPage() {
   if (!data || !viewData || !month) {
     return (
       <div>
-        <PageHeader title="Dashboard" description="Your money at a glance." />
+        <PageHeader
+          title="Dashboard"
+          description={currencyScopeHint(activeCurrency)}
+          badge={<CurrencyBadge />}
+        />
         <Skeleton className="h-52 rounded-2xl" />
         <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-28" />)}
@@ -117,6 +121,11 @@ export default function DashboardPage() {
 
   return (
     <div className="animate-in space-y-6">
+      <PageHeader
+        title="Dashboard"
+        description={currencyScopeHint(activeCurrency)}
+        badge={<CurrencyBadge />}
+      />
       <div className="grid gap-6 lg:grid-cols-3">
         <div className="lg:col-span-2">
           <HeroBalance data={data} money={money} userName={firstName} />
@@ -139,11 +148,6 @@ export default function DashboardPage() {
 
       <HouseholdWidget household={data.household} money={money} />
 
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted">Monthly stats · {activeCurrency} only</p>
-        <CurrencySwitcher compact />
-      </div>
-
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatMini label="Net this month" value={money(month.net)} icon={<TrendingUp className="h-4 w-4" />} positive={Number(month.net) >= 0} />
         <StatMini label="Avg daily spend" value={money(month.avgDailySpend)} icon={<TrendingDown className="h-4 w-4" />} />
@@ -160,10 +164,10 @@ export default function DashboardPage() {
             <Link href="/transactions" className="text-xs font-medium text-primary hover:underline">View all →</Link>
           </CardHeader>
           <CardContent>
-            {data.recentTransactions.length === 0 ? (
+            {data.recentTransactions.filter((tx) => tx.currency === activeCurrency).length === 0 ? (
               <EmptyState title="No transactions yet" />
             ) : (
-              <TransactionList items={data.recentTransactions} compact />
+              <TransactionList items={data.recentTransactions.filter((tx) => tx.currency === activeCurrency)} compact />
             )}
           </CardContent>
         </Card>

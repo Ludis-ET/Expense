@@ -7,6 +7,7 @@ import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { MobileInstallBar } from '@/components/pwa/mobile-install-bar';
 import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
+import { CurrencyBootstrap } from '@/components/finance/currency-bootstrap';
 import { CommandPalette } from '@/components/command-palette';
 import { AssistantFab } from '@/components/ai/assistant-fab';
 import { Spinner } from '@/components/ui/misc';
@@ -38,6 +39,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
         Skip to main content
       </a>
       <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <CurrencyBootstrap />
       <div className="lg:pl-[260px]">
         <Topbar onMenu={() => setSidebarOpen(true)} />
         <MobileInstallBar />

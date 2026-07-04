@@ -15,6 +15,7 @@ import { CategoryBadge } from '@/components/finance/category-badge';
 import { api, ApiError } from '@/lib/api';
 import { formatDate } from '@/lib/format';
 import { useMoney } from '@/lib/amount-visibility';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, Category, Frequency, RecurringRule, TxKind } from '@/lib/types';
 
@@ -24,6 +25,7 @@ const freqLabel = (f: Frequency, interval: number) =>
 
 export function RecurringPanel() {
   const confirm = useConfirm();
+  const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
   const { data, mutate } = useSWR<{ items: RecurringRule[] }>('/recurring');
   const [formOpen, setFormOpen] = useState(false);
@@ -70,6 +72,8 @@ export function RecurringPanel() {
     }
   }
 
+  const rules = (data?.items ?? []).filter((r) => r.currency === activeCurrency);
+
   return (
     <div>
       <div className="mb-4 flex justify-end">
@@ -80,15 +84,15 @@ export function RecurringPanel() {
 
       {!data ? (
         <div className="space-y-3">{Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-16" />)}</div>
-      ) : data.items.length === 0 ? (
+      ) : rules.length === 0 ? (
         <EmptyState
           title="No recurring rules"
-          description="Automate salary, rent, and subscriptions."
+          description={`No recurring rules in ${activeCurrency}. Switch currency in the header or create one.`}
           action={<Button onClick={() => { setEditing(null); setFormOpen(true); }}>Create a rule</Button>}
         />
       ) : (
         <div className="space-y-2">
-          {data.items.map((r) => (
+          {rules.map((r) => (
             <Card key={r.id} className={r.active ? undefined : 'opacity-60'}>
               <CardContent className="flex flex-wrap items-center gap-3 p-4">
                 <div className="min-w-40 flex-1">

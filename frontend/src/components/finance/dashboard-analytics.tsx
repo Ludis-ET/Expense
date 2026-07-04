@@ -16,7 +16,6 @@ import {
 import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { ChartInsightPanel, type ChartInsight } from '@/components/analytics/chart-insight-panel';
-import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { Donut } from '@/components/charts/donut';
 import { BarChart } from '@/components/charts/bar';
 import { IncomeExpenseLine } from '@/components/charts/line';
@@ -133,7 +132,7 @@ function pct(part: number, whole: number) {
 
 export function DashboardAnalytics() {
   const { activeCurrency } = useCurrencyView();
-  const { money } = useMoney(activeCurrency);
+  const { money } = useMoney();
   const cur = encodeURIComponent(activeCurrency);
 
   const [range, setRange] = useState<DateRange>(() => rangeFromPreset('30d'));
@@ -226,14 +225,6 @@ export function DashboardAnalytics() {
 
   return (
     <div className="space-y-6">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <p className="text-sm font-medium">Viewing analytics in {activeCurrency}</p>
-          <p className="text-xs text-muted">Amounts are never merged across currencies. Use Settings to add exchange rates.</p>
-        </div>
-        <CurrencySwitcher showConvertedHint />
-      </div>
-
       <ChartInsightPanel insight={insight} onClose={() => { setInsight(null); clearSelections(); }} />
 
       <DateRangePicker value={range} onChange={(r) => { setRange(r); setInsight(null); clearSelections(); }} loading={rangeBusy} />

@@ -9,7 +9,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
-import { CurrencySwitcher } from '@/components/finance/currency-switcher';
+import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { TransferModal } from '@/components/finance/transfer-modal';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
@@ -26,8 +26,8 @@ const typeLabel = (t: AccountType) => t.replace('_', ' ').toLowerCase().replace(
 export default function AccountsPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
-  const { activeCurrency, mergeCurrencies } = useCurrencyView();
-  const { money } = useMoney(activeCurrency);
+  const { activeCurrency } = useCurrencyView();
+  const { money } = useMoney();
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: Account[] }>('/accounts');
   const [formOpen, setFormOpen] = useState(false);
@@ -36,10 +36,6 @@ export default function AccountsPage() {
 
   const accounts = data?.items ?? [];
   const activeAccounts = accounts.filter((a) => !a.archived && a.currency === activeCurrency);
-
-  useEffect(() => {
-    mergeCurrencies(accounts.filter((a) => !a.archived).map((a) => a.currency));
-  }, [accounts, mergeCurrencies]);
 
   const total = useMemo(
     () => activeAccounts.reduce((s, a) => s + Number(a.balance), 0),
@@ -67,7 +63,8 @@ export default function AccountsPage() {
     <div>
       <PageHeader
         title="Accounts"
-        description="Cash, bank and mobile-money wallets."
+        description={currencyScopeHint(activeCurrency)}
+        badge={<CurrencyBadge />}
         action={
           <div className="flex gap-2">
             <Button variant="outline" size="sm" disabled={accounts.length < 2} onClick={() => setTransferOpen(true)}>
@@ -89,12 +86,9 @@ export default function AccountsPage() {
       ) : (
         <>
           <Card className="mb-4">
-            <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
-              <div>
-                <span className="text-sm text-muted">Total balance · {activeCurrency} accounts</span>
-                <p className="mt-1 text-2xl font-bold tabular-nums">{money(total)}</p>
-              </div>
-              <CurrencySwitcher compact />
+            <CardContent className="p-5">
+              <span className="text-sm text-muted">Total balance · {activeCurrency}</span>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{money(total)}</p>
             </CardContent>
           </Card>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">

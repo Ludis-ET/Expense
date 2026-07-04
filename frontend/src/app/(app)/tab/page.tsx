@@ -21,6 +21,8 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { Account, Category, LedgerEntry, LedgerKind, LedgerPersonGroup, LedgerSummary } from '@/lib/types';
 
@@ -38,6 +40,7 @@ const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
 export default function TabPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
+  const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
   const [filter, setFilter] = useState<TabFilter>('all');
   const [view, setView] = useState<ViewMode>('entries');
@@ -45,7 +48,9 @@ export default function TabPage() {
   const [paying, setPaying] = useState<LedgerEntry | null>(null);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
 
-  const query = filter === 'all' ? '/ledger?status=open' : `/ledger?status=open&kind=${filter}`;
+  const query = filter === 'all'
+    ? `/ledger?status=open&currency=${encodeURIComponent(activeCurrency)}`
+    : `/ledger?status=open&kind=${filter}&currency=${encodeURIComponent(activeCurrency)}`;
   const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(view === 'entries' ? query : null);
   const { data: people, mutate: mutatePeople } = useSWR<{ items: LedgerPersonGroup[] }>(view === 'people' ? '/ledger/people' : null);
   const { data: summary, mutate: mutateSummary } = useSWR<LedgerSummary>('/ledger/summary');
@@ -84,7 +89,8 @@ export default function TabPage() {
     <div className="animate-in space-y-6">
       <PageHeader
         title="Money Tab"
-        description="Loans, debts, and one-off payments you're still waiting on - not recurring bills."
+        description={currencyScopeHint(activeCurrency)}
+        badge={<CurrencyBadge />}
         action={
           <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4" /> New entry

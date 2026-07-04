@@ -11,6 +11,7 @@ import {
 } from 'react';
 import { formatHiddenMoney, formatMoney, formatSignedMoney, type MoneyFormatOpts } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useOptionalActiveCurrency } from '@/lib/currency-view-context';
 
 const STORAGE_KEY = 'santim-hide-amounts';
 
@@ -73,7 +74,8 @@ export function useAmountVisibility() {
 export function useMoney(currency?: string) {
   const { user } = useAuth();
   const { hidden } = useAmountVisibility();
-  const curr = currency ?? user?.currency ?? 'ETB';
+  const activeCurrency = useOptionalActiveCurrency(user?.currency ?? 'ETB');
+  const curr = currency ?? activeCurrency;
 
   const money = useCallback(
     (v: number | string, opts?: MoneyFormatOpts) =>

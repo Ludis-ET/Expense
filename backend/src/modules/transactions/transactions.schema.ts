@@ -40,6 +40,7 @@ export const updateTransactionSchema = z.object({
 });
 
 export const listTransactionsQuery = z.object({
+  currency: z.string().length(3).toUpperCase().optional(),
   from: z.coerce.date().optional(),
   to: z.coerce.date().optional(),
   kind: z.nativeEnum(TxKind).optional(),

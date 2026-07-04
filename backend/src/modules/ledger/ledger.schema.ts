@@ -41,6 +41,7 @@ export const ledgerIdParam = z.object({ id: z.string().min(1) });
 export const listLedgerQuery = z.object({
   status: z.enum(['open', 'settled', 'all']).optional(),
   kind: ledgerKindSchema.optional(),
+  currency: z.string().length(3).toUpperCase().optional(),
 });
 
 export type CreateLedgerInput = z.infer<typeof createLedgerSchema>;

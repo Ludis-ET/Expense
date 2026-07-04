@@ -52,6 +52,7 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
     ...(query.accountId
       ? { OR: [{ accountId: query.accountId }, { transferAccountId: query.accountId }] }
       : {}),
+    ...(query.currency ? { currency: query.currency } : {}),
     ...(query.tag ? { tags: { has: query.tag } } : {}),
     ...(query.q
       ? {

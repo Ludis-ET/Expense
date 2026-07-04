@@ -10,6 +10,8 @@ import {
   type ReactNode,
 } from 'react';
 
+const STORAGE_KEY = 'santim-active-currency';
+
 export interface CurrencyBreakdown {
   currency: string;
   totalBalance: string;
@@ -35,15 +37,12 @@ export interface ConvertedTotal {
 
 interface CurrencyViewContextValue {
   currencies: string[];
-  activeIndex: number;
   activeCurrency: string;
   breakdown: CurrencyBreakdown[];
   convertedTotal: ConvertedTotal | null;
   setFromDashboard: (currencies: string[], breakdown: CurrencyBreakdown[], converted?: ConvertedTotal | null) => void;
   mergeCurrencies: (list: string[]) => void;
   setActiveCurrency: (currency: string) => void;
-  nextCurrency: () => void;
-  prevCurrency: () => void;
   hasMultiple: boolean;
   activeBreakdown: CurrencyBreakdown | null;
 }
@@ -54,9 +53,24 @@ export function CurrencyViewProvider({ children, defaultCurrency = 'ETB' }: { ch
   const [currencies, setCurrencies] = useState<string[]>([defaultCurrency]);
   const [breakdown, setBreakdown] = useState<CurrencyBreakdown[]>([]);
   const [convertedTotal, setConvertedTotal] = useState<ConvertedTotal | null>(null);
-  const [activeIndex, setActiveIndex] = useState(0);
+  const [activeCurrency, setActiveCurrencyState] = useState(defaultCurrency);
 
-  const activeCurrency = currencies[activeIndex] ?? defaultCurrency;
+  useEffect(() => {
+    try {
+      const saved = localStorage.getItem(STORAGE_KEY);
+      if (saved) setActiveCurrencyState(saved.toUpperCase());
+    } catch {
+      /* ignore */
+    }
+  }, []);
+
+  const persistCurrency = useCallback((currency: string) => {
+    try {
+      localStorage.setItem(STORAGE_KEY, currency);
+    } catch {
+      /* ignore */
+    }
+  }, []);
 
   const setFromDashboard = useCallback(
     (list: string[], items: CurrencyBreakdown[], converted?: ConvertedTotal | null) => {
@@ -64,7 +78,11 @@ export function CurrencyViewProvider({ children, defaultCurrency = 'ETB' }: { ch
       setCurrencies(next);
       setBreakdown(items);
       setConvertedTotal(converted ?? null);
-      setActiveIndex((i) => Math.min(i, next.length - 1));
+      setActiveCurrencyState((prev) => {
+        if (next.includes(prev)) return prev;
+        if (next.includes(defaultCurrency)) return defaultCurrency;
+        return next[0]!;
+      });
     },
     [defaultCurrency],
   );
@@ -73,7 +91,7 @@ export function CurrencyViewProvider({ children, defaultCurrency = 'ETB' }: { ch
     (list: string[]) => {
       if (list.length === 0) return;
       setCurrencies((prev) => {
-        const merged = [...new Set([...prev, ...list.map((c) => c.toUpperCase())])];
+        const merged = [...new Set([...prev, ...list.map((c) => c.toUpperCase())])].sort();
         return merged.length > 0 ? merged : [defaultCurrency];
       });
     },
@@ -82,52 +100,36 @@ export function CurrencyViewProvider({ children, defaultCurrency = 'ETB' }: { ch
 
   const setActiveCurrency = useCallback(
     (currency: string) => {
-      const idx = currencies.indexOf(currency.toUpperCase());
-      if (idx >= 0) setActiveIndex(idx);
+      const c = currency.toUpperCase();
+      setCurrencies((prev) => (prev.includes(c) ? prev : [...prev, c].sort()));
+      setActiveCurrencyState(c);
+      persistCurrency(c);
     },
-    [currencies],
+    [persistCurrency],
   );
 
-  const nextCurrency = useCallback(() => {
-    setActiveIndex((i) => (currencies.length <= 1 ? i : (i + 1) % currencies.length));
-  }, [currencies.length]);
-
-  const prevCurrency = useCallback(() => {
-    setActiveIndex((i) => (currencies.length <= 1 ? i : (i - 1 + currencies.length) % currencies.length));
-  }, [currencies.length]);
-
-  useEffect(() => {
-    if (activeIndex >= currencies.length) setActiveIndex(0);
-  }, [activeIndex, currencies.length]);
-
-  const activeBreakdown = breakdown.find((b) => b.currency === activeCurrency) ?? breakdown[activeIndex] ?? null;
+  const activeBreakdown = breakdown.find((b) => b.currency === activeCurrency) ?? null;
 
   const value = useMemo(
     (): CurrencyViewContextValue => ({
       currencies,
-      activeIndex,
       activeCurrency,
       breakdown,
       convertedTotal,
       setFromDashboard,
       mergeCurrencies,
       setActiveCurrency,
-      nextCurrency,
-      prevCurrency,
       hasMultiple: currencies.length > 1,
       activeBreakdown,
     }),
     [
       currencies,
-      activeIndex,
       activeCurrency,
       breakdown,
       convertedTotal,
       setFromDashboard,
       mergeCurrencies,
       setActiveCurrency,
-      nextCurrency,
-      prevCurrency,
       activeBreakdown,
     ],
   );
@@ -139,4 +141,10 @@ export function useCurrencyView() {
   const ctx = useContext(CurrencyViewContext);
   if (!ctx) throw new Error('useCurrencyView must be used within CurrencyViewProvider');
   return ctx;
+}
+
+/** Safe read when provider may be absent (auth pages). */
+export function useOptionalActiveCurrency(fallback = 'ETB') {
+  const ctx = useContext(CurrencyViewContext);
+  return ctx?.activeCurrency ?? fallback;
 }

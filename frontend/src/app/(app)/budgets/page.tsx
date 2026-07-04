@@ -17,6 +17,8 @@ import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
+import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { BudgetRow, BudgetsResponse, Category } from '@/lib/types';
 
@@ -34,6 +36,7 @@ function PlanInner() {
   const params = useSearchParams();
   const confirm = useConfirm();
   const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
+  const { activeCurrency } = useCurrencyView();
   const { user } = useAuth();
   const { money } = useMoney();
   const [month, setMonth] = useState(currentMonth());
@@ -66,7 +69,8 @@ function PlanInner() {
     <div>
       <PageHeader
         title="Plan"
-        description={tab === 'goals' ? 'Savings goals for what matters.' : 'Monthly budgets and spending limits.'}
+        description={currencyScopeHint(activeCurrency)}
+        badge={<CurrencyBadge />}
         action={
           tab === 'budgets' ? (
             <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }} disabled={unbudgeted.length === 0}>

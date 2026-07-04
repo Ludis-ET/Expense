@@ -16,6 +16,7 @@ import { GoalsPanel } from '@/components/finance/goals-panel';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { BudgetRow, BudgetsResponse, Category } from '@/lib/types';
 
@@ -31,6 +32,7 @@ export default function BudgetsPage() {
 
 function PlanInner() {
   const params = useSearchParams();
+  const confirm = useConfirm();
   const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
   const { user } = useAuth();
   const currency = user?.currency ?? 'ETB';
@@ -45,7 +47,13 @@ function PlanInner() {
   const unbudgeted = (categoriesData?.items ?? []).filter((c) => !c.archived && !budgeted.has(c.id));
 
   async function remove(row: BudgetRow) {
-    if (!confirm(`Remove the budget for ${row.category.name}?`)) return;
+    const ok = await confirm({
+      title: 'Remove budget?',
+      description: `Remove the budget for ${row.category.name}?`,
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/budgets/${row.categoryId}`);
       toast.success('Budget removed');

@@ -20,6 +20,7 @@ import { TabEntryCard, PersonTabCard } from '@/components/finance/tab-widget';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { Account, Category, LedgerEntry, LedgerKind, LedgerPersonGroup, LedgerSummary } from '@/lib/types';
 
@@ -36,6 +37,7 @@ const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
 
 export default function TabPage() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const currency = user?.currency ?? 'ETB';
   const money = (v: number | string) => formatMoney(v, currency);
   const [filter, setFilter] = useState<TabFilter>('all');
@@ -56,7 +58,13 @@ export default function TabPage() {
   };
 
   async function removeEntry(entry: LedgerEntry) {
-    if (!confirm(`Remove tab with ${entry.counterparty}?`)) return;
+    const ok = await confirm({
+      title: 'Remove tab entry?',
+      description: `Remove the tab with ${entry.counterparty}? This cannot be undone.`,
+      confirmLabel: 'Remove',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/ledger/${entry.id}`);
       toast.success('Removed');

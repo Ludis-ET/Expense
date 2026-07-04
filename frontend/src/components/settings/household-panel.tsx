@@ -10,6 +10,7 @@ import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { Avatar } from '@/components/ui/misc';
 import { api, ApiError } from '@/lib/api';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, HouseholdOverview } from '@/lib/types';
 
 interface InviteItem {
@@ -21,6 +22,7 @@ interface InviteItem {
 }
 
 export function HouseholdPanel() {
+  const confirm = useConfirm();
   const { data: household, mutate } = useSWR<HouseholdOverview | null>('/household');
   const { data: invites, mutate: mutateInvites } = useSWR<{ items: InviteItem[] }>('/household/invites');
   const { data: accountsData, mutate: mutateAccounts } = useSWR<{ items: Account[] }>('/accounts');
@@ -69,7 +71,13 @@ export function HouseholdPanel() {
   }
 
   async function leaveHousehold() {
-    if (!confirm('Leave this household? Shared accounts will be unshared.')) return;
+    const ok = await confirm({
+      title: 'Leave household?',
+      description: 'Shared accounts will be unshared. You can rejoin with a new invite.',
+      confirmLabel: 'Leave',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.post('/household/leave');
       toast.success('Left household');

@@ -14,10 +14,12 @@ import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney, formatDate } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { SavingsGoal } from '@/lib/types';
 
 export function GoalsPanel() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: SavingsGoal[] }>('/goals');
   const [formOpen, setFormOpen] = useState(false);
@@ -26,7 +28,13 @@ export function GoalsPanel() {
   const money = (v: number | string) => formatMoney(v, currency);
 
   async function remove(goal: SavingsGoal) {
-    if (!confirm(`Delete "${goal.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete goal?',
+      description: `Delete "${goal.name}" and its progress?`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/goals/${goal.id}`);
       toast.success('Goal deleted');

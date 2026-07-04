@@ -14,6 +14,7 @@ import { RecurringPanel } from '@/components/finance/recurring-panel';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type { Account, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
 
@@ -26,6 +27,7 @@ function monthBounds(month: string) {
 
 function TransactionsInner() {
   const params = useSearchParams();
+  const confirm = useConfirm();
   const tab = params.get('tab') === 'recurring' ? 'recurring' : 'ledger';
   const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
@@ -77,7 +79,13 @@ function TransactionsInner() {
   useEffect(() => setPage(1), [month, kind, categoryId, accountId, q]);
 
   async function remove(tx: Transaction) {
-    if (!confirm('Delete this transaction?')) return;
+    const ok = await confirm({
+      title: 'Delete transaction?',
+      description: 'This transaction will be removed permanently.',
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/transactions/${tx.id}`);
       toast.success('Deleted');

@@ -15,6 +15,7 @@ import { CategoryBadge } from '@/components/finance/category-badge';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney, formatDate } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, Category, Frequency, RecurringRule, TxKind } from '@/lib/types';
 
 const FREQUENCIES: Frequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
@@ -23,6 +24,7 @@ const freqLabel = (f: Frequency, interval: number) =>
 
 export function RecurringPanel() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: RecurringRule[] }>('/recurring');
   const [formOpen, setFormOpen] = useState(false);
@@ -54,7 +56,13 @@ export function RecurringPanel() {
   }
 
   async function remove(rule: RecurringRule) {
-    if (!confirm(`Delete "${rule.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete recurring rule?',
+      description: `Delete "${rule.name}"? Future scheduled posts will stop.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/recurring/${rule.id}`);
       toast.success('Deleted');

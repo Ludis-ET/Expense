@@ -15,6 +15,7 @@ import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, AccountType } from '@/lib/types';
 
 const TYPES: AccountType[] = ['CASH', 'BANK', 'MOBILE_MONEY', 'CARD', 'OTHER'];
@@ -22,6 +23,7 @@ const typeLabel = (t: AccountType) => t.replace('_', ' ').toLowerCase().replace(
 
 export default function AccountsPage() {
   const { user } = useAuth();
+  const confirm = useConfirm();
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: Account[] }>('/accounts');
   const [formOpen, setFormOpen] = useState(false);
@@ -33,7 +35,13 @@ export default function AccountsPage() {
   const total = accounts.filter((a) => !a.archived).reduce((s, a) => s + Number(a.balance), 0);
 
   async function remove(account: Account) {
-    if (!confirm(`Delete "${account.name}"?`)) return;
+    const ok = await confirm({
+      title: 'Delete account?',
+      description: `"${account.name}" will be removed permanently.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
     try {
       await api.del(`/accounts/${account.id}`);
       toast.success('Account deleted');

@@ -12,39 +12,54 @@ import { Spinner } from '@/components/ui/misc';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
+import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Category, CategoryKind } from '@/lib/types';
 
 export function CategoryManager() {
+  const confirm = useConfirm();
   const { data, mutate } = useSWR<{ items: Category[] }>('/categories');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Category | null>(null);
+  const [reassignOpen, setReassignOpen] = useState(false);
+  const [pendingDelete, setPendingDelete] = useState<Category | null>(null);
+  const [reassignTargetId, setReassignTargetId] = useState('');
 
   const income = (data?.items ?? []).filter((c) => c.kind === 'INCOME' && !c.archived);
   const expense = (data?.items ?? []).filter((c) => c.kind === 'EXPENSE' && !c.archived);
 
-  async function remove(category: Category) {
-    const used = category.transactionCount ?? 0;
-    let reassignTo: string | undefined;
-    if (used > 0) {
-      const sameKind = (data?.items ?? []).filter((c) => c.kind === category.kind && c.id !== category.id && !c.archived);
-      if (sameKind.length === 0) return toast.error('Add another category first to move its transactions.');
-      const target = prompt(
-        `"${category.name}" has ${used} transactions. Type the name of a category to move them to:\n${sameKind.map((c) => c.name).join(', ')}`,
-      );
-      const match = sameKind.find((c) => c.name.toLowerCase() === target?.toLowerCase().trim());
-      if (!match) return toast.error('No matching category — cancelled.');
-      reassignTo = match.id;
-    } else if (!confirm(`Delete "${category.name}"?`)) {
-      return;
-    }
+  async function performDelete(categoryId: string, reassignTo?: string) {
     try {
-      await api.del(`/categories/${category.id}${reassignTo ? `?reassignTo=${reassignTo}` : ''}`);
+      await api.del(`/categories/${categoryId}${reassignTo ? `?reassignTo=${reassignTo}` : ''}`);
       toast.success('Category deleted');
       void mutate();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed');
     }
   }
+
+  async function remove(category: Category) {
+    const used = category.transactionCount ?? 0;
+    if (used > 0) {
+      const sameKind = (data?.items ?? []).filter((c) => c.kind === category.kind && c.id !== category.id && !c.archived);
+      if (sameKind.length === 0) return toast.error('Add another category first to move its transactions.');
+      setPendingDelete(category);
+      setReassignTargetId(sameKind[0]!.id);
+      setReassignOpen(true);
+      return;
+    }
+    const ok = await confirm({
+      title: 'Delete category?',
+      description: `Delete "${category.name}"? This cannot be undone.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    await performDelete(category.id);
+  }
+
+  const reassignOptions = pendingDelete
+    ? (data?.items ?? []).filter((c) => c.kind === pendingDelete.kind && c.id !== pendingDelete.id && !c.archived)
+    : [];
 
   function renderGroup(title: string, items: Category[]) {
     return (
@@ -96,6 +111,44 @@ export function CategoryManager() {
       </CardContent>
 
       <CategoryModal open={modalOpen} editing={editing} onClose={() => setModalOpen(false)} onSaved={() => void mutate()} />
+
+      <Modal
+        open={reassignOpen}
+        onClose={() => { setReassignOpen(false); setPendingDelete(null); }}
+        title="Move transactions first"
+      >
+        {pendingDelete && (
+          <div className="space-y-4">
+            <p className="text-sm leading-relaxed text-muted">
+              <span className="font-medium text-foreground">&quot;{pendingDelete.name}&quot;</span> has{' '}
+              {pendingDelete.transactionCount} transaction{(pendingDelete.transactionCount ?? 0) === 1 ? '' : 's'}.
+              Choose a category to move them to before deleting.
+            </p>
+            <Field label="Move transactions to">
+              <Select value={reassignTargetId} onChange={(e) => setReassignTargetId(e.target.value)}>
+                {reassignOptions.map((c) => (
+                  <option key={c.id} value={c.id}>{c.name}</option>
+                ))}
+              </Select>
+            </Field>
+            <div className="flex justify-end gap-2">
+              <Button variant="outline" onClick={() => { setReassignOpen(false); setPendingDelete(null); }}>
+                Cancel
+              </Button>
+              <Button
+                variant="danger"
+                onClick={async () => {
+                  await performDelete(pendingDelete.id, reassignTargetId);
+                  setReassignOpen(false);
+                  setPendingDelete(null);
+                }}
+              >
+                Delete category
+              </Button>
+            </div>
+          </div>
+        )}
+      </Modal>
     </Card>
   );
 }

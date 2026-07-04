@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { AmountVisibilityProvider } from '@/lib/amount-visibility';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
+import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { CurrencyViewProvider } from '@/lib/currency-view-context';
 import { fetcher } from '@/lib/api';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -33,6 +34,7 @@ export function Providers({ children }: { children: ReactNode }) {
                 </ConfirmProvider>
               </AmountVisibilityProvider>
             </CurrencyViewBridge>
+            <InstallPrompt />
           </PwaInstallProvider>
           <Toaster
             position="top-right"

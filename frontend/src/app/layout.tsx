@@ -1,7 +1,6 @@
 import type { Metadata, Viewport } from 'next';
 import { Geist } from 'next/font/google';
 import { Providers } from '@/components/providers';
-import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { withBase } from '@/lib/base-path';
 import './globals.css';
 
@@ -53,7 +52,6 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
     <html lang="en" suppressHydrationWarning>
       <body className={`${geistSans.variable} antialiased`}>
         <Providers>{children}</Providers>
-        <InstallPrompt />
       </body>
     </html>
   );

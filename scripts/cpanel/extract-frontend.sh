@@ -18,8 +18,8 @@ if [ ! -f server.js ]; then
   exit 1
 fi
 
-if [ ! -d node_modules/next ]; then
-  echo "❌ node_modules/next missing — tarball incomplete"
+if [ ! -d node_modules/next ] && ! node -e "require.resolve('next/package.json')" >/dev/null 2>&1; then
+  echo "❌ next not found after extract"
   exit 1
 fi
 

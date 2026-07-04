@@ -13,6 +13,8 @@ import {
 } from 'lucide-react';
 import { Brand } from '@/components/brand';
 import { ThemeToggle } from '@/components/theme-toggle';
+import { DownloadAppButton } from '@/components/pwa/download-app-button';
+import { LandingMobileInstall } from '@/components/pwa/landing-mobile-install';
 import { Button } from '@/components/ui/button';
 
 const features = [
@@ -34,6 +36,7 @@ const stats = [
 export default function LandingPage() {
   return (
     <div className="min-h-screen">
+      <LandingMobileInstall />
       {/* Nav */}
       <header className="sticky top-0 z-40 border-b border-border/70 bg-background/80 backdrop-blur-lg">
         <div className="mx-auto flex max-w-6xl items-center justify-between px-5 py-3.5">
@@ -44,6 +47,7 @@ export default function LandingPage() {
             <a href="#cta" className="transition-colors hover:text-foreground">Get started</a>
           </nav>
           <div className="flex items-center gap-2">
+            <DownloadAppButton size="sm" variant="outline" className="md:hidden" label="App" />
             <ThemeToggle />
             <Link href="/login" className="hidden sm:block">
               <Button variant="ghost" size="sm">Sign in</Button>

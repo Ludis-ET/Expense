@@ -6,6 +6,7 @@ import { LogOut, Menu, Plus, Search } from 'lucide-react';
 import { Avatar } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 import { AmountVisibilityToggle } from '@/components/amount-visibility-toggle';
+import { DownloadAppButton } from '@/components/pwa/download-app-button';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsMenu } from './notifications-menu';
 import { useAuth } from '@/lib/auth';
@@ -41,6 +42,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
       <div className="flex-1" />
 
       <div className="flex items-center gap-1.5 sm:gap-2">
+        <DownloadAppButton size="sm" variant="primary" className="lg:hidden" label="App" />
         <Button size="sm" onClick={() => router.push('/transactions?add=1')} className="shadow-sm">
           <Plus className="h-4 w-4" />
           <span className="hidden sm:inline">Add</span>

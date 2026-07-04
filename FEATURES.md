@@ -126,4 +126,4 @@ New accounts (and the demo) begin with a rich default set you can fully customiz
 
 ## Not built (by design)
 
-Deliberately out of scope for now: multi-currency conversion (currencies are stored but analytics sum your default currency), shared/household accounts, bank-sync/import, mobile app, and receipt-image OCR. The data model leaves room for these later.
+Deliberately out of scope for now: multi-currency conversion (currencies are stored but analytics sum your default currency), bank-sync/import, and receipt-image OCR. **Installable PWA** (Add to Home screen on Android and iOS) is supported; native App Store / Play Store builds are not.

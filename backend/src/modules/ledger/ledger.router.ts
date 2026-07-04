@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
+import { tabReminderCatchUp } from './ledger.middleware.js';
 import {
   createLedgerSchema,
   ledgerIdParam,
@@ -13,12 +14,19 @@ import * as ledger from './ledger.service.js';
 
 export const ledgerRouter = Router();
 
-ledgerRouter.use(requireAuth);
+ledgerRouter.use(requireAuth, tabReminderCatchUp);
 
 ledgerRouter.get(
   '/summary',
   asyncHandler(async (req, res) => {
     res.json(await ledger.summary(req.user!));
+  }),
+);
+
+ledgerRouter.get(
+  '/people',
+  asyncHandler(async (req, res) => {
+    res.json(await ledger.people(req.user!));
   }),
 );
 

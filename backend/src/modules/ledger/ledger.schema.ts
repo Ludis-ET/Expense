@@ -2,7 +2,7 @@ import { z } from 'zod';
 
 const money = z.coerce.number().positive().max(1_000_000_000);
 
-export const ledgerKindSchema = z.enum(['LENT', 'BORROWED', 'EXPECTED_IN']);
+export const ledgerKindSchema = z.enum(['LENT', 'BORROWED', 'EXPECTED_IN', 'EXPECTED_OUT']);
 
 export const createLedgerSchema = z.object({
   kind: ledgerKindSchema,

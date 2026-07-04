@@ -6,28 +6,32 @@ import { toast } from 'sonner';
 import {
   ArrowDownLeft,
   ArrowUpRight,
+  CalendarClock,
   HandCoins,
   Plus,
   Sparkles,
+  Users,
 } from 'lucide-react';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
-import { TabEntryCard } from '@/components/finance/tab-widget';
+import { TabEntryCard, PersonTabCard } from '@/components/finance/tab-widget';
 import { api, ApiError } from '@/lib/api';
 import { formatMoney } from '@/lib/format';
 import { useAuth } from '@/lib/auth';
 import { cn } from '@/lib/utils';
-import type { Account, Category, LedgerEntry, LedgerKind, LedgerSummary } from '@/lib/types';
+import type { Account, Category, LedgerEntry, LedgerKind, LedgerPersonGroup, LedgerSummary } from '@/lib/types';
 
 type TabFilter = 'all' | LedgerKind;
+type ViewMode = 'entries' | 'people';
 
 const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
   { id: 'all', label: 'All open', icon: HandCoins },
   { id: 'LENT', label: 'They owe me', icon: ArrowDownLeft },
   { id: 'BORROWED', label: 'I owe', icon: ArrowUpRight },
   { id: 'EXPECTED_IN', label: 'Incoming', icon: Sparkles },
+  { id: 'EXPECTED_OUT', label: 'Outgoing', icon: CalendarClock },
 ];
 
 export default function TabPage() {
@@ -35,16 +39,19 @@ export default function TabPage() {
   const currency = user?.currency ?? 'ETB';
   const money = (v: number | string) => formatMoney(v, currency);
   const [filter, setFilter] = useState<TabFilter>('all');
+  const [view, setView] = useState<ViewMode>('entries');
   const [formOpen, setFormOpen] = useState(false);
   const [paying, setPaying] = useState<LedgerEntry | null>(null);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
 
   const query = filter === 'all' ? '/ledger?status=open' : `/ledger?status=open&kind=${filter}`;
-  const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(query);
+  const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(view === 'entries' ? query : null);
+  const { data: people, mutate: mutatePeople } = useSWR<{ items: LedgerPersonGroup[] }>(view === 'people' ? '/ledger/people' : null);
   const { data: summary, mutate: mutateSummary } = useSWR<LedgerSummary>('/ledger/summary');
 
   const refresh = () => {
     void mutateList();
+    void mutatePeople();
     void mutateSummary();
   };
 
@@ -60,9 +67,11 @@ export default function TabPage() {
   }
 
   const settledHint = useMemo(
-    () => (list?.items.length === 0 ? 'Nothing open — you\'re all square.' : undefined),
-    [list],
+    () => (view === 'entries' && list?.items.length === 0 ? 'Nothing open — you\'re all square.' : undefined),
+    [list, view],
   );
+
+  const forecastNet = summary?.forecast ? Number(summary.forecast.netIfOnTime) : 0;
 
   return (
     <div className="animate-in space-y-6">
@@ -79,32 +88,85 @@ export default function TabPage() {
       {!summary ? (
         <Skeleton className="h-28 rounded-2xl" />
       ) : (
-        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-          <StatTile label="Net position" value={money(summary.netPosition)} hint="receivable + incoming − payable" />
-          <StatTile label="Owed to you" value={money(summary.receivable)} tone="emerald" />
-          <StatTile label="Incoming" value={money(summary.expectedIn)} tone="sky" />
-          <StatTile label="You owe" value={money(summary.payable)} tone="amber" />
-        </div>
+        <>
+          {summary.forecast && (
+            <div className="card flex flex-wrap items-center justify-between gap-3 border-primary/20 bg-primary/5 px-5 py-4">
+              <div>
+                <p className="text-xs font-medium uppercase tracking-wide text-muted">Cash-flow forecast · {summary.forecast.month}</p>
+                <p className="mt-1 text-sm text-muted">If everything due this month settles on time</p>
+              </div>
+              <p className={cn('text-2xl font-bold tabular-nums', forecastNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
+                {forecastNet >= 0 ? '+' : ''}{money(forecastNet)}
+              </p>
+            </div>
+          )}
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
+            <StatTile label="Net position" value={money(summary.netPosition)} hint="all open tabs" />
+            <StatTile label="Owed to you" value={money(summary.receivable)} tone="emerald" />
+            <StatTile label="Incoming" value={money(summary.expectedIn)} tone="sky" />
+            <StatTile label="You owe" value={money(summary.payable)} tone="amber" />
+            <StatTile label="Outgoing" value={money(summary.expectedOut)} tone="violet" />
+          </div>
+        </>
       )}
 
-      <div className="flex flex-wrap gap-1 rounded-xl border border-border p-1 w-fit">
-        {filters.map((f) => (
-          <button
-            key={f.id}
-            type="button"
-            onClick={() => setFilter(f.id)}
-            className={cn(
-              'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all',
-              filter === f.id ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:text-foreground',
-            )}
-          >
-            <f.icon className="h-3.5 w-3.5" />
-            {f.label}
-          </button>
-        ))}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="flex gap-1 rounded-xl border border-border p-1">
+          {(['entries', 'people'] as ViewMode[]).map((v) => (
+            <button
+              key={v}
+              type="button"
+              onClick={() => setView(v)}
+              className={cn(
+                'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium capitalize',
+                view === v ? 'bg-primary text-primary-foreground' : 'text-muted hover:text-foreground',
+              )}
+            >
+              {v === 'people' && <Users className="h-3.5 w-3.5" />}
+              {v === 'entries' ? 'By entry' : 'By person'}
+            </button>
+          ))}
+        </div>
+        {view === 'entries' && (
+          <div className="flex flex-wrap gap-1 rounded-xl border border-border p-1">
+            {filters.map((f) => (
+              <button
+                key={f.id}
+                type="button"
+                onClick={() => setFilter(f.id)}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all',
+                  filter === f.id ? 'bg-surface-muted text-foreground shadow-sm' : 'text-muted hover:text-foreground',
+                )}
+              >
+                <f.icon className="h-3.5 w-3.5" />
+                {f.label}
+              </button>
+            ))}
+          </div>
+        )}
       </div>
 
-      {!list ? (
+      {view === 'people' ? (
+        !people ? (
+          <div className="grid gap-4">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-44" />)}</div>
+        ) : people.items.length === 0 ? (
+          <EmptyState icon={<Users className="h-5 w-5" />} title="No open tabs with anyone" action={<Button onClick={() => setFormOpen(true)}>Add entry</Button>} />
+        ) : (
+          <div className="grid gap-4">
+            {people.items.map((group) => (
+              <PersonTabCard
+                key={group.counterparty}
+                group={group}
+                money={money}
+                onRecord={setPaying}
+                onEdit={(e) => { setEditing(e); setFormOpen(true); }}
+                onRemove={removeEntry}
+              />
+            ))}
+          </div>
+        )
+      ) : !list ? (
         <div className="grid gap-4 sm:grid-cols-2">{Array.from({ length: 2 }).map((_, i) => <Skeleton key={i} className="h-44" />)}</div>
       ) : list.items.length === 0 ? (
         <EmptyState
@@ -148,7 +210,7 @@ function StatTile({
   label: string;
   value: string;
   hint?: string;
-  tone?: 'emerald' | 'sky' | 'amber';
+  tone?: 'emerald' | 'sky' | 'amber' | 'violet';
 }) {
   const toneClass =
     tone === 'emerald'
@@ -157,7 +219,9 @@ function StatTile({
         ? 'text-sky-600 dark:text-sky-400'
         : tone === 'amber'
           ? 'text-amber-600 dark:text-amber-400'
-          : '';
+          : tone === 'violet'
+            ? 'text-violet-600 dark:text-violet-400'
+            : '';
   return (
     <div className="card p-4">
       <p className="text-xs font-medium text-muted">{label}</p>
@@ -191,6 +255,7 @@ function EntryForm({
 
   const { data: accounts } = useSWR<{ items: Account[] }>('/accounts');
   const { data: incomeCats } = useSWR<{ items: Category[] }>('/categories?kind=INCOME');
+  const { data: expenseCats } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
 
   useEffect(() => {
     if (!open) return;
@@ -221,15 +286,20 @@ function EntryForm({
     e.preventDefault();
     setSaving(true);
     const payload = {
-      kind,
       counterparty,
       title: title || undefined,
       totalAmount: Number(totalAmount),
       dueDate: dueDate || undefined,
       note: note || undefined,
-      categoryId: kind === 'EXPECTED_IN' ? categoryId || undefined : undefined,
-      recordMovement: !editing && recordMovement,
-      sourceAccountId: !editing && recordMovement ? sourceAccountId : undefined,
+      categoryId:
+        kind === 'EXPECTED_IN' || kind === 'EXPECTED_OUT' ? categoryId || undefined : undefined,
+      ...(editing
+        ? {}
+        : {
+            kind,
+            recordMovement,
+            sourceAccountId: recordMovement ? sourceAccountId : undefined,
+          }),
     };
     try {
       if (editing) await api.put(`/ledger/${editing.id}`, payload);
@@ -249,7 +319,9 @@ function EntryForm({
       ? 'Money you gave someone — they still owe you.'
       : kind === 'BORROWED'
         ? 'Money you borrowed — you still need to pay back.'
-        : 'Payment you expect once (freelance invoice, gift, refund…) — not on a recurring schedule.';
+        : kind === 'EXPECTED_IN'
+          ? 'Payment you expect once — not on a recurring schedule.'
+          : 'One-off bill you know is coming (school fee, repair quote…) — not recurring.';
 
   return (
     <Modal open={open} onClose={onClose} title={editing ? 'Edit tab entry' : 'New tab entry'} description={kindHelp}>
@@ -260,6 +332,7 @@ function EntryForm({
               <option value="LENT">I lent money (they owe me)</option>
               <option value="BORROWED">I borrowed (I owe them)</option>
               <option value="EXPECTED_IN">Incoming payment (one-off)</option>
+              <option value="EXPECTED_OUT">Outgoing bill (one-off)</option>
             </Select>
           </Field>
         )}
@@ -277,17 +350,17 @@ function EntryForm({
             <DateInput value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
           </Field>
         </div>
-        {kind === 'EXPECTED_IN' && (
-          <Field label="Income category">
+        {(kind === 'EXPECTED_IN' || kind === 'EXPECTED_OUT') && (
+          <Field label={kind === 'EXPECTED_IN' ? 'Income category' : 'Expense category'}>
             <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-              <option value="">Pick when received…</option>
-              {(incomeCats?.items ?? []).filter((c) => !c.archived).map((c) => (
+              <option value="">Pick when {kind === 'EXPECTED_IN' ? 'received' : 'paid'}…</option>
+              {(kind === 'EXPECTED_IN' ? incomeCats : expenseCats)?.items.filter((c) => !c.archived).map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
               ))}
             </Select>
           </Field>
         )}
-        {!editing && kind !== 'EXPECTED_IN' && (
+        {!editing && kind !== 'EXPECTED_IN' && kind !== 'EXPECTED_OUT' && (
           <>
             <label className="flex items-start gap-2 text-sm">
               <input
@@ -345,9 +418,10 @@ function PaymentModal({
   const [saving, setSaving] = useState(false);
 
   const { data: accounts } = useSWR<{ items: Account[] }>('/accounts');
-  const incomeCats = useSWR<{ items: Category[] }>(entry?.kind !== 'BORROWED' ? '/categories?kind=INCOME' : null);
-  const expenseCats = useSWR<{ items: Category[] }>(entry?.kind === 'BORROWED' ? '/categories?kind=EXPENSE' : null);
-  const categories = entry?.kind === 'BORROWED' ? expenseCats.data : incomeCats.data;
+  const isExpense = entry?.kind === 'BORROWED' || entry?.kind === 'EXPECTED_OUT';
+  const incomeCats = useSWR<{ items: Category[] }>(!isExpense && entry ? '/categories?kind=INCOME' : null);
+  const expenseCats = useSWR<{ items: Category[] }>(isExpense && entry ? '/categories?kind=EXPENSE' : null);
+  const categories = isExpense ? expenseCats.data : incomeCats.data;
 
   useEffect(() => {
     if (!entry) return;
@@ -372,7 +446,13 @@ function PaymentModal({
         categoryId: categoryId || undefined,
         recordTransaction,
       });
-      toast.success(entry.kind === 'EXPECTED_IN' ? 'Marked as received' : 'Payment recorded');
+      toast.success(
+        entry.kind === 'EXPECTED_IN'
+          ? 'Marked as received'
+          : entry.kind === 'EXPECTED_OUT'
+            ? 'Marked as paid'
+            : 'Payment recorded',
+      );
       onSaved();
       onClose();
     } catch (err) {
@@ -385,9 +465,11 @@ function PaymentModal({
   const title =
     entry?.kind === 'EXPECTED_IN'
       ? `Received from ${entry.counterparty}`
-      : entry?.kind === 'LENT'
-        ? `Repayment from ${entry?.counterparty}`
-        : `Pay ${entry?.counterparty}`;
+      : entry?.kind === 'EXPECTED_OUT'
+        ? `Pay ${entry.counterparty}`
+        : entry?.kind === 'LENT'
+          ? `Repayment from ${entry?.counterparty}`
+          : `Pay ${entry?.counterparty}`;
 
   return (
     <Modal open={!!entry} onClose={onClose} title={title ?? ''}>

@@ -69,11 +69,15 @@ Three entry types:
 - **I lent money** — you gave cash to someone; they still owe you (partial repayments supported).
 - **I borrowed** — you owe someone; log payments as you pay back.
 - **Incoming (one-off)** — money you expect once (freelance invoice, promised gift, refund…) that is **not** on a recurring schedule.
+- **Outgoing (one-off)** — a bill you know is coming once (school fee, repair) — not recurring.
 
 Features:
-- **Net position** summary on the dashboard — receivable + expected incoming − what you owe.
-- **Due dates** with overdue highlighting.
-- **Optional account sync** — when you lend/borrow/receive, optionally create the matching income/expense in your accounts (tagged `tab`).
+- **By person view** — all open tabs grouped by person with net balance.
+- **Net position** on the dashboard — receivable + incoming − payables − outgoing.
+- **Cash-flow forecast** — net if due tabs settle this month.
+- **Due-date reminders** — bell notifications 3 days before due or when overdue.
+- **AI assistant** — ask who owes you, what's incoming, etc. (uses Tab data).
+- **Optional account sync** — matching income/expense in accounts (tagged `tab`).
 - **Partial settlements** — record repayments in chunks until the tab is cleared.
 
 New starter categories: **Loan Repayment** (income) and **Debt & Loans** (expense).
@@ -91,7 +95,7 @@ The deep dive into your habits.
 ## Assistant (`/assistant`)
 
 AI features powered by **your own** provider key (Anthropic / OpenAI / Google — set under Settings):
-- **Ask about your money** — natural-language questions ("How much did I spend on transport this month?", "Where is my money leaking?"), answered from your real data, sometimes with a chart.
+- **Ask about your money** — natural-language questions ("How much did I spend on transport this month?", "Where is my money leaking?", "Who still owes me money?", "What incoming payments am I waiting on?"), answered from your real data, sometimes with a chart.
 - **Monthly review** — generate a personalized written review of any month: income vs spending, category shifts, budget adherence, goal progress, and three concrete suggestions.
 
 Without an AI key everything else in the app works normally; these features simply prompt you to add one.

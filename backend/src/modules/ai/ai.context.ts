@@ -1,4 +1,4 @@
-import { Prisma, TxKind } from '../../core/prisma.js';
+import { LedgerStatus, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 
 const zero = new Prisma.Decimal(0);
@@ -11,7 +11,7 @@ export async function buildFinanceSnapshot(userId: string) {
   const now = new Date();
   const threeMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
 
-  const [user, accounts, categories, transactions, budgets, goals, payees] = await Promise.all([
+  const [user, accounts, categories, transactions, budgets, goals, payees, tabEntries] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, currency: true } }),
     prisma.account.findMany({
       where: { userId, archived: false },
@@ -46,6 +46,14 @@ export async function buildFinanceSnapshot(userId: string) {
       orderBy: { _sum: { amount: 'desc' } },
       take: 10,
     }),
+    prisma.ledgerEntry.findMany({
+      where: { userId, status: LedgerStatus.OPEN },
+      include: {
+        payments: { select: { amount: true } },
+        category: { select: { name: true } },
+      },
+      orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
+    }),
   ]);
 
   const categoryById = new Map(categories.map((c) => [c.id, c]));
@@ -73,6 +81,28 @@ export async function buildFinanceSnapshot(userId: string) {
     currentSpend[name] = (currentSpend[name] ?? 0) + Number(tx.amount);
   }
 
+  const moneyTab = tabEntries.map((e) => {
+    const paid = e.payments.reduce((s, p) => s.add(p.amount), zero);
+    const remaining = e.totalAmount.sub(paid);
+    return {
+      kind: e.kind,
+      counterparty: e.counterparty,
+      title: e.title,
+      total: Number(e.totalAmount),
+      remaining: Number(remaining),
+      dueDate: e.dueDate?.toISOString().slice(0, 10) ?? null,
+      overdue: e.dueDate ? e.dueDate < now && remaining.gt(0) : false,
+      category: e.category?.name ?? null,
+    };
+  });
+
+  const tabOwedToUser = moneyTab
+    .filter((e) => e.kind === 'LENT' || e.kind === 'EXPECTED_IN')
+    .reduce((s, e) => s + e.remaining, 0);
+  const tabUserOwes = moneyTab
+    .filter((e) => e.kind === 'BORROWED' || e.kind === 'EXPECTED_OUT')
+    .reduce((s, e) => s + e.remaining, 0);
+
   return {
     user: user?.name,
     defaultCurrency: user?.currency ?? 'ETB',
@@ -94,6 +124,32 @@ export async function buildFinanceSnapshot(userId: string) {
       achieved: Boolean(g.achievedAt),
     })),
     topPayees: payees.map((p) => ({ payee: p.payee, total: Number(p._sum.amount ?? zero) })),
+    moneyTab: {
+      summary: {
+        owedToUser: Math.round(tabOwedToUser * 100) / 100,
+        userOwes: Math.round(tabUserOwes * 100) / 100,
+        net: Math.round((tabOwedToUser - tabUserOwes) * 100) / 100,
+        openEntries: moneyTab.length,
+      },
+      openEntries: moneyTab,
+      byPerson: Object.values(
+        moneyTab.reduce<Record<string, { counterparty: string; netRemaining: number; entries: typeof moneyTab }>>(
+          (acc, e) => {
+            const key = e.counterparty.trim().toLowerCase();
+            acc[key] ??= { counterparty: e.counterparty, netRemaining: 0, entries: [] };
+            acc[key].entries.push(e);
+            const sign = e.kind === 'LENT' || e.kind === 'EXPECTED_IN' ? 1 : -1;
+            acc[key].netRemaining += e.remaining * sign;
+            return acc;
+          },
+          {},
+        ),
+      ).map((g) => ({
+        counterparty: g.counterparty,
+        netRemaining: Math.round(g.netRemaining * 100) / 100,
+        entries: g.entries.length,
+      })),
+    },
   };
 }
 

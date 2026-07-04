@@ -56,6 +56,7 @@ enum LedgerKind {
   LENT         // you gave money — they owe you
   BORROWED     // you borrowed — you owe them
   EXPECTED_IN  // income coming (not on a recurring schedule)
+  EXPECTED_OUT // one-off bill/commitment coming (not recurring)
 }
 
 enum LedgerStatus {

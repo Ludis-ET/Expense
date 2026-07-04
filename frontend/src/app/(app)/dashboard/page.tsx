@@ -42,6 +42,19 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
   if (data.categoryHeatAlerts.length > 0) {
     insights.push(`${data.categoryHeatAlerts[0]!.category?.name} spending is up ${data.categoryHeatAlerts[0]!.deltaPct}% vs last month.`);
   }
+  if (data.tab?.openCount && data.tab.openCount > 0 && data.tab.forecast) {
+    const forecast = Number(data.tab.forecast.netIfOnTime);
+    if (forecast !== 0) {
+      insights.push(
+        forecast > 0
+          ? `Your Money Tab forecast: +${money(forecast)} if due items settle this month.`
+          : `Your Money Tab forecast: ${money(forecast)} outflow if due tabs settle this month.`,
+      );
+    } else if ((data.tab?.overdueCount ?? 0) > 0) {
+      const overdue = data.tab?.overdueCount ?? 0;
+      insights.push(`${overdue} Money Tab item${overdue > 1 ? 's are' : ' is'} overdue — check /tab.`);
+    }
+  }
   if (insights.length === 0) {
     insights.push('Add transactions and set budgets to unlock personalized insights.');
   }

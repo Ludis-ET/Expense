@@ -2,7 +2,7 @@ export type TxKind = 'INCOME' | 'EXPENSE' | 'TRANSFER';
 export type CategoryKind = 'INCOME' | 'EXPENSE';
 export type AccountType = 'CASH' | 'BANK' | 'MOBILE_MONEY' | 'CARD' | 'OTHER';
 export type Frequency = 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
-export type LedgerKind = 'LENT' | 'BORROWED' | 'EXPECTED_IN';
+export type LedgerKind = 'LENT' | 'BORROWED' | 'EXPECTED_IN' | 'EXPECTED_OUT';
 export type LedgerStatus = 'OPEN' | 'SETTLED' | 'CANCELLED';
 
 export interface User {
@@ -267,12 +267,32 @@ export interface LedgerSummary {
   receivable: string;
   payable: string;
   expectedIn: string;
+  expectedOut: string;
   netPosition: string;
   openCount: number;
   overdueCount: number;
   highlights: LedgerEntry[];
   overdue: LedgerEntry[];
   dueSoon: LedgerEntry[];
+  forecast: {
+    month: string;
+    expectedIn: string;
+    expectedOut: string;
+    netIfOnTime: string;
+    allOpenNet: string;
+  };
+}
+
+export interface LedgerPersonGroup {
+  counterparty: string;
+  openCount: number;
+  receivable: string;
+  expectedIn: string;
+  payable: string;
+  expectedOut: string;
+  netRemaining: string;
+  netDirection: 'in' | 'out';
+  entries: LedgerEntry[];
 }
 
 export interface DashboardData {

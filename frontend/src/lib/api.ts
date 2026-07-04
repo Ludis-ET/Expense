@@ -1,4 +1,15 @@
-const API_BASE = process.env.NEXT_PUBLIC_API_BASE ?? '/api/v1';
+function apiBase(): string {
+  if (process.env.NEXT_PUBLIC_API_BASE) return process.env.NEXT_PUBLIC_API_BASE;
+  if (typeof window !== 'undefined') {
+    const { hostname, pathname } = window.location;
+    if (hostname !== 'localhost' && hostname !== '127.0.0.1') {
+      if (pathname.startsWith('/frontend')) return '/backend/api/v1';
+      return '/backend/api/v1';
+    }
+  }
+  return '/api/v1';
+}
+
 const TOKEN_KEY = 'rt.accessToken';
 const REFRESH_KEY = 'rt.refreshToken';
 
@@ -44,7 +55,7 @@ async function request<T>(path: string, opts: RequestOptions = {}, isRetry = fal
   const token = tokens.access;
   if (token && !opts.skipAuth) headers.Authorization = `Bearer ${token}`;
 
-  const res = await fetch(`${API_BASE}${path}`, {
+  const res = await fetch(`${apiBase()}${path}`, {
     method: opts.method ?? 'GET',
     headers,
     body: opts.body !== undefined ? JSON.stringify(opts.body) : undefined,
@@ -69,7 +80,7 @@ async function request<T>(path: string, opts: RequestOptions = {}, isRetry = fal
 
 async function tryRefresh(): Promise<boolean> {
   try {
-    const res = await fetch(`${API_BASE}/auth/refresh`, {
+    const res = await fetch(`${apiBase()}/auth/refresh`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ refreshToken: tokens.refresh }),

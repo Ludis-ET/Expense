@@ -8,6 +8,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { Avatar, PageHeader } from '@/components/ui/misc';
+import { ExchangeRatesPanel } from '@/components/settings/exchange-rates-panel';
 import { AiProviders } from '@/components/settings/ai-providers';
 import { CategoryManager } from '@/components/settings/category-manager';
 import { HouseholdPanel } from '@/components/settings/household-panel';
@@ -151,6 +152,10 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mb-6">
+        <ExchangeRatesPanel />
+      </div>
 
       <div className="mb-6">
         <HouseholdPanel />

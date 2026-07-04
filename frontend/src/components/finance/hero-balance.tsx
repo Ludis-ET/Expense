@@ -2,7 +2,9 @@
 
 import Link from 'next/link';
 import { ArrowRight, Calendar, TrendingDown, TrendingUp, Wallet } from 'lucide-react';
+import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { formatEthiopian } from '@/lib/ethiopian-calendar';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { DashboardData } from '@/lib/types';
 
@@ -13,9 +15,15 @@ interface HeroBalanceProps {
 }
 
 export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
-  const net = Number(data.month.net);
-  const income = Number(data.month.income);
-  const expense = Number(data.month.expense);
+  const { activeCurrency, activeBreakdown, convertedTotal } = useCurrencyView();
+
+  const month = activeBreakdown?.month ?? data.month;
+  const balance = activeBreakdown?.totalBalance ?? data.totalBalance;
+  const accounts = data.accounts.filter((a) => a.currency === activeCurrency);
+
+  const net = Number(month.net);
+  const income = Number(month.income);
+  const expense = Number(month.expense);
   const savingsRate = income > 0 ? Math.round((net / income) * 100) : null;
 
   const now = new Date();
@@ -48,16 +56,27 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
               </span>
             </div>
           </div>
-          <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
-            <Wallet className="h-5 w-5" />
+          <div className="flex flex-col items-end gap-2">
+            <CurrencySwitcher compact className="[&_button]:text-primary-foreground [&_span]:text-primary-foreground [&_p]:text-white/70 [&>div]:border-white/20 [&>div]:bg-white/10" />
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-white/15 backdrop-blur-sm">
+              <Wallet className="h-5 w-5" />
+            </div>
           </div>
         </div>
 
-        <p className="mt-1 text-xs opacity-60">Total balance across all accounts</p>
+        <p className="mt-1 text-xs opacity-60">
+          Total balance · {activeCurrency} accounts only
+        </p>
 
         <p className="mt-3 text-4xl font-bold tracking-tight tabular-nums md:text-5xl">
-          {money(data.totalBalance)}
+          {money(balance)}
         </p>
+
+        {convertedTotal && !convertedTotal.complete && convertedTotal.missingRates.length > 0 && (
+          <p className="mt-2 text-xs opacity-75">
+            Other currencies are not included. Add exchange rates in Settings to see a combined total.
+          </p>
+        )}
 
         <div className="mt-6 flex flex-wrap gap-3">
           <div className="flex items-center gap-2 rounded-xl bg-white/15 px-3.5 py-2 backdrop-blur-sm">
@@ -66,9 +85,9 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
               <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">Income</p>
               <p className="text-sm font-semibold tabular-nums">{money(income)}</p>
             </div>
-            {data.month.incomeDeltaPct !== null && (
+            {month.incomeDeltaPct !== null && (
               <span className="ml-1 text-xs font-medium opacity-80">
-                {data.month.incomeDeltaPct >= 0 ? '+' : ''}{data.month.incomeDeltaPct}%
+                {month.incomeDeltaPct >= 0 ? '+' : ''}{month.incomeDeltaPct}%
               </span>
             )}
           </div>
@@ -78,9 +97,9 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
               <p className="text-[10px] font-medium uppercase tracking-wide opacity-70">Spent</p>
               <p className="text-sm font-semibold tabular-nums">{money(expense)}</p>
             </div>
-            {data.month.expenseDeltaPct !== null && (
-              <span className={cn('ml-1 text-xs font-medium', (data.month.expenseDeltaPct ?? 0) > 0 ? 'opacity-90' : 'opacity-80')}>
-                {data.month.expenseDeltaPct >= 0 ? '+' : ''}{data.month.expenseDeltaPct}%
+            {month.expenseDeltaPct !== null && (
+              <span className={cn('ml-1 text-xs font-medium', (month.expenseDeltaPct ?? 0) > 0 ? 'opacity-90' : 'opacity-80')}>
+                {month.expenseDeltaPct >= 0 ? '+' : ''}{month.expenseDeltaPct}%
               </span>
             )}
           </div>
@@ -94,9 +113,9 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
           )}
         </div>
 
-        {data.accounts.length > 0 && (
+        {accounts.length > 0 && (
           <div className="mt-5 flex flex-wrap gap-2">
-            {data.accounts.slice(0, 4).map((a) => (
+            {accounts.slice(0, 4).map((a) => (
               <span
                 key={a.id}
                 className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium backdrop-blur-sm border-l-[3px]"
@@ -105,9 +124,9 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
                 {a.name}{a.isShared ? ' · shared' : ''}: {money(a.balance)}
               </span>
             ))}
-            {data.accounts.length > 4 && (
+            {data.accounts.filter((a) => a.currency === activeCurrency).length > 4 && (
               <Link href="/accounts" className="rounded-lg bg-white/10 px-2.5 py-1 text-xs font-medium backdrop-blur-sm hover:bg-white/20">
-                +{data.accounts.length - 4} more
+                +{data.accounts.filter((a) => a.currency === activeCurrency).length - 4} more
               </Link>
             )}
           </div>

@@ -6,6 +6,7 @@ import { Suspense } from 'react';
 import { Sidebar } from '@/components/layout/sidebar';
 import { Topbar } from '@/components/layout/topbar';
 import { MobileInstallBar } from '@/components/pwa/mobile-install-bar';
+import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { CommandPalette } from '@/components/command-palette';
 import { AssistantFab } from '@/components/ai/assistant-fab';
 import { Spinner } from '@/components/ui/misc';
@@ -40,8 +41,9 @@ function AppShell({ children }: { children: React.ReactNode }) {
       <div className="lg:pl-[260px]">
         <Topbar onMenu={() => setSidebarOpen(true)} />
         <MobileInstallBar />
-        <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 lg:px-8 lg:py-8">{children}</main>
+        <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-8">{children}</main>
       </div>
+      <MobileBottomNav />
       <CommandPalette />
       <Suspense fallback={null}>
         <AssistantFab />

@@ -7,8 +7,18 @@ import { Toaster } from 'sonner';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { AmountVisibilityProvider } from '@/lib/amount-visibility';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
+import { CurrencyViewProvider } from '@/lib/currency-view-context';
 import { fetcher } from '@/lib/api';
-import { AuthProvider } from '@/lib/auth';
+import { AuthProvider, useAuth } from '@/lib/auth';
+
+function CurrencyViewBridge({ children }: { children: ReactNode }) {
+  const { user } = useAuth();
+  return (
+    <CurrencyViewProvider defaultCurrency={user?.currency ?? 'ETB'}>
+      {children}
+    </CurrencyViewProvider>
+  );
+}
 
 export function Providers({ children }: { children: ReactNode }) {
   return (
@@ -16,11 +26,13 @@ export function Providers({ children }: { children: ReactNode }) {
       <SWRConfig value={{ fetcher, revalidateOnFocus: false, shouldRetryOnError: false }}>
         <AuthProvider>
           <PwaInstallProvider>
-            <AmountVisibilityProvider>
-              <ConfirmProvider>
-                {children}
-              </ConfirmProvider>
-            </AmountVisibilityProvider>
+            <CurrencyViewBridge>
+              <AmountVisibilityProvider>
+                <ConfirmProvider>
+                  {children}
+                </ConfirmProvider>
+              </AmountVisibilityProvider>
+            </CurrencyViewBridge>
           </PwaInstallProvider>
           <Toaster
             position="top-right"

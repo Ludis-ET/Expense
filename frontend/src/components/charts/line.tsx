@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo } from 'react';
+import { cn } from '@/lib/utils';
 
 export interface LinePoint {
   label: string;
@@ -12,13 +13,17 @@ const W = 560;
 const H = 220;
 const pad = { l: 8, r: 8, t: 12, b: 24 };
 
-/** Dual-series income/expense line chart (SVG, no dependency). */
+/** Dual-series income/expense line chart with clickable points. */
 export function IncomeExpenseLine({
   points,
   format,
+  selectedIndex = null,
+  onSelect,
 }: {
   points: LinePoint[];
   format?: (v: number) => string;
+  selectedIndex?: number | null;
+  onSelect?: (point: LinePoint, index: number) => void;
 }) {
   const model = useMemo(() => {
     if (points.length === 0) return null;
@@ -30,13 +35,12 @@ export function IncomeExpenseLine({
     const line = (key: 'income' | 'expense') =>
       points.map((p, i) => `${x(i)},${y(p[key])}`).join(' ');
 
-    // Show at most ~8 x-axis labels.
     const step = Math.max(1, Math.ceil(points.length / 8));
     const labels = points
       .map((p, i) => ({ label: p.label, i }))
       .filter(({ i }) => i % step === 0 || i === points.length - 1);
 
-    return { incomeLine: line('income'), expenseLine: line('expense'), x, labels };
+    return { incomeLine: line('income'), expenseLine: line('expense'), x, y, labels, maxY };
   }, [points]);
 
   if (!model) return <p className="py-10 text-center text-sm text-muted">No data yet.</p>;
@@ -44,7 +48,7 @@ export function IncomeExpenseLine({
 
   return (
     <div>
-      <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
+      <svg viewBox={`0 0 ${W} ${H}`} className="w-full" role="img" aria-label="Income and expense line chart">
         <polyline
           points={model.expenseLine}
           fill="none"
@@ -59,6 +63,23 @@ export function IncomeExpenseLine({
           strokeWidth={2.5}
           strokeLinejoin="round"
         />
+        {points.map((p, i) => (
+          <g key={i}>
+            <circle
+              cx={model.x(i)}
+              cy={model.y(Math.max(p.income, p.expense))}
+              r={selectedIndex === i ? 8 : 5}
+              className={cn(
+                'cursor-pointer fill-primary stroke-surface stroke-2 transition-all',
+                selectedIndex !== null && selectedIndex !== i && 'opacity-40',
+              )}
+              onClick={() => onSelect?.(p, i)}
+              role="button"
+              tabIndex={0}
+              aria-label={`${p.label}: income ${fmt(p.income)}, expense ${fmt(p.expense)}`}
+            />
+          </g>
+        ))}
         {model.labels.map(({ label, i }) => (
           <text
             key={i}

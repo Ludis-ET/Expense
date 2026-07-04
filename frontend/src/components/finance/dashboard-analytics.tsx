@@ -13,8 +13,10 @@ import {
   Wallet,
   Zap,
 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Card, CardContent } from '@/components/ui/card';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
+import { ChartInsightPanel, type ChartInsight } from '@/components/analytics/chart-insight-panel';
+import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { Donut } from '@/components/charts/donut';
 import { BarChart } from '@/components/charts/bar';
 import { IncomeExpenseLine } from '@/components/charts/line';
@@ -22,21 +24,22 @@ import { SpendHeatmap } from '@/components/charts/heatmap';
 import { BurnRateChart } from '@/components/charts/burn-rate';
 import { DateRangePicker } from '@/components/finance/date-range-picker';
 import { useMoney } from '@/lib/amount-visibility';
-import { useAuth } from '@/lib/auth';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import { rangeFromPreset, toApiQuery, type DateRange } from '@/lib/date-range';
 import type { CategoryBreakdownItem, SeriesPoint, UnnecessaryStats } from '@/lib/types';
 
 type Granularity = 'day' | 'week' | 'month';
 
-interface SeriesResp { granularity: Granularity; points: SeriesPoint[] }
-interface CategoriesResp { total: string; items: CategoryBreakdownItem[] }
+interface SeriesResp { granularity: Granularity; points: SeriesPoint[]; currency?: string }
+interface CategoriesResp { total: string; items: CategoryBreakdownItem[]; currency?: string }
 interface IncomeVsExpenseResp {
+  currency?: string;
   points: { month: string; income: string; expense: string; savingsRate: number | null }[];
 }
-interface HeatmapResp { year: number; days: { date: string; total: string }[] }
-interface PayeesResp { items: { payee: string | null; total: string; count: number }[] }
-interface BurnResp { points: { date: string; cumulative: string }[]; totalPlanned: string }
+interface HeatmapResp { year: number; currency?: string; days: { date: string; total: string }[] }
+interface PayeesResp { currency?: string; items: { payee: string | null; total: string; count: number }[] }
+interface BurnResp { currency?: string; points: { date: string; cumulative: string }[]; totalPlanned: string }
 
 function ChartCard({
   title,
@@ -123,30 +126,48 @@ function KpiTile({
   );
 }
 
+function pct(part: number, whole: number) {
+  if (whole <= 0) return 0;
+  return Math.round((part / whole) * 100);
+}
+
 export function DashboardAnalytics() {
-  const { user } = useAuth();
-  const { money } = useMoney();
+  const { activeCurrency } = useCurrencyView();
+  const { money } = useMoney(activeCurrency);
+  const cur = encodeURIComponent(activeCurrency);
 
   const [range, setRange] = useState<DateRange>(() => rangeFromPreset('30d'));
   const [granularity, setGranularity] = useState<Granularity>('day');
-  const heatYear = range.to.getFullYear();
+  const [insight, setInsight] = useState<ChartInsight | null>(null);
+  const [selectedSeries, setSelectedSeries] = useState<number | null>(null);
+  const [selectedExpenseDonut, setSelectedExpenseDonut] = useState<number | null>(null);
+  const [selectedIncomeDonut, setSelectedIncomeDonut] = useState<number | null>(null);
+  const [selectedBar, setSelectedBar] = useState<number | null>(null);
+  const [selectedIve, setSelectedIve] = useState<number | null>(null);
+  const [selectedPayee, setSelectedPayee] = useState<number | null>(null);
+  const [selectedHeatDate, setSelectedHeatDate] = useState<string | null>(null);
 
+  const heatYear = range.to.getFullYear();
   const q = toApiQuery(range);
 
   const { data: series, isLoading: seriesLoading, isValidating: seriesValidating } = useSWR<SeriesResp>(
-    `/analytics/series?granularity=${granularity}&${q}`,
+    `/analytics/series?granularity=${granularity}&currency=${cur}&${q}`,
   );
   const { data: expenses, isLoading: expLoading, isValidating: expValidating } = useSWR<CategoriesResp>(
-    `/analytics/categories?kind=EXPENSE&${q}`,
+    `/analytics/categories?kind=EXPENSE&currency=${cur}&${q}`,
   );
   const { data: income, isLoading: incLoading, isValidating: incValidating } = useSWR<CategoriesResp>(
-    `/analytics/categories?kind=INCOME&${q}`,
+    `/analytics/categories?kind=INCOME&currency=${cur}&${q}`,
   );
-  const { data: ive } = useSWR<IncomeVsExpenseResp>('/analytics/income-vs-expense?months=12');
-  const { data: heat, isValidating: heatValidating } = useSWR<HeatmapResp>(`/analytics/heatmap?year=${heatYear}`);
-  const { data: payees, isValidating: payeesValidating } = useSWR<PayeesResp>(`/analytics/payees?limit=10&${q}`);
-  const { data: unnecessary } = useSWR<UnnecessaryStats>('/analytics/unnecessary');
-  const { data: burn, isValidating: burnValidating } = useSWR<BurnResp>('/analytics/burn-rate');
+  const { data: ive } = useSWR<IncomeVsExpenseResp>(`/analytics/income-vs-expense?months=12&currency=${cur}`);
+  const { data: heat, isValidating: heatValidating } = useSWR<HeatmapResp>(
+    `/analytics/heatmap?year=${heatYear}&currency=${cur}`,
+  );
+  const { data: payees, isValidating: payeesValidating } = useSWR<PayeesResp>(
+    `/analytics/payees?limit=10&currency=${cur}&${q}`,
+  );
+  const { data: unnecessary } = useSWR<UnnecessaryStats>(`/analytics/unnecessary?currency=${cur}`);
+  const { data: burn, isValidating: burnValidating } = useSWR<BurnResp>(`/analytics/burn-rate?currency=${cur}`);
 
   const rangeBusy = seriesValidating || expValidating || incValidating;
 
@@ -165,6 +186,7 @@ export function DashboardAnalytics() {
     label: p.month.slice(5),
     income: Number(p.income),
     expense: Number(p.expense),
+    savingsRate: p.savingsRate,
   }));
 
   const avgSavings = useMemo(() => {
@@ -187,202 +209,156 @@ export function DashboardAnalytics() {
   const barData = (expenses?.items ?? []).slice(0, 8).map((c) => ({
     label: c.category?.name?.slice(0, 12) ?? '?',
     value: Number(c.amount),
+    fullLabel: c.category?.name ?? '?',
   }));
+
+  const heatMax = Math.max(1, ...(heat?.days.map((d) => Number(d.total)) ?? [1]));
+
+  function clearSelections() {
+    setSelectedSeries(null);
+    setSelectedExpenseDonut(null);
+    setSelectedIncomeDonut(null);
+    setSelectedBar(null);
+    setSelectedIve(null);
+    setSelectedPayee(null);
+    setSelectedHeatDate(null);
+  }
 
   return (
     <div className="space-y-6">
-      <DateRangePicker value={range} onChange={setRange} loading={rangeBusy} />
-
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <KpiTile
-          label="Income"
-          value={money(totalIncome)}
-          icon={<TrendingUp className="h-4 w-4" />}
-          tone="up"
-          loading={incLoading}
-        />
-        <KpiTile
-          label="Expenses"
-          value={money(totalExpense)}
-          icon={<TrendingDown className="h-4 w-4" />}
-          tone="down"
-          loading={expLoading}
-        />
-        <KpiTile
-          label="Net"
-          value={money(net)}
-          icon={<Wallet className="h-4 w-4" />}
-          tone={net >= 0 ? 'up' : 'down'}
-          loading={incLoading || expLoading}
-        />
-        <KpiTile
-          label="Savings rate"
-          value={savingsRate !== null ? `${savingsRate}%` : '-'}
-          icon={<Zap className="h-4 w-4" />}
-          loading={incLoading || expLoading}
-        />
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <p className="text-sm font-medium">Viewing analytics in {activeCurrency}</p>
+          <p className="text-xs text-muted">Amounts are never merged across currencies. Use Settings to add exchange rates.</p>
+        </div>
+        <CurrencySwitcher showConvertedHint />
       </div>
 
-      <ChartCard
-        title="Cash flow"
-        subtitle="Income vs expenses over your selected range"
-        icon={<BarChart3 className="h-4.5 w-4.5" />}
-        loading={seriesLoading || seriesValidating}
-      >
+      <ChartInsightPanel insight={insight} onClose={() => { setInsight(null); clearSelections(); }} />
+
+      <DateRangePicker value={range} onChange={(r) => { setRange(r); setInsight(null); clearSelections(); }} loading={rangeBusy} />
+
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+        <KpiTile label={`Income · ${activeCurrency}`} value={money(totalIncome)} icon={<TrendingUp className="h-4 w-4" />} tone="up" loading={incLoading} />
+        <KpiTile label={`Expenses · ${activeCurrency}`} value={money(totalExpense)} icon={<TrendingDown className="h-4 w-4" />} tone="down" loading={expLoading} />
+        <KpiTile label="Net" value={money(net)} icon={<Wallet className="h-4 w-4" />} tone={net >= 0 ? 'up' : 'down'} loading={incLoading || expLoading} />
+        <KpiTile label="Savings rate" value={savingsRate !== null ? `${savingsRate}%` : '-'} icon={<Zap className="h-4 w-4" />} loading={incLoading || expLoading} />
+      </div>
+
+      <ChartCard title="Cash flow" subtitle={`Income vs expenses · ${activeCurrency} · tap a point`} icon={<BarChart3 className="h-4.5 w-4.5" />} loading={seriesLoading || seriesValidating}>
         <div className="mb-4 flex gap-1 rounded-xl border border-border bg-surface-muted/50 p-1 w-fit">
           {(['day', 'week', 'month'] as Granularity[]).map((g) => (
-            <button
-              key={g}
-              type="button"
-              onClick={() => setGranularity(g)}
-              className={cn(
-                'rounded-lg px-3.5 py-1.5 text-xs font-medium capitalize transition-all active:scale-95',
-                granularity === g
-                  ? 'bg-primary text-primary-foreground shadow-sm'
-                  : 'text-muted hover:text-foreground',
-              )}
-            >
+            <button key={g} type="button" onClick={() => setGranularity(g)} className={cn('rounded-lg px-3.5 py-1.5 text-xs font-medium capitalize transition-all active:scale-95 min-h-[36px]', granularity === g ? 'bg-primary text-primary-foreground shadow-sm' : 'text-muted hover:text-foreground')}>
               {g}
             </button>
           ))}
         </div>
-        {seriesLoading ? <Skeleton className="h-56" /> : <IncomeExpenseLine points={linePoints} format={money} />}
+        {seriesLoading ? <Skeleton className="h-56" /> : (
+          <IncomeExpenseLine points={linePoints} format={money} selectedIndex={selectedSeries} onSelect={(point, i) => {
+            const next = selectedSeries === i ? null : i;
+            setSelectedSeries(next);
+            if (next === null) { setInsight(null); return; }
+            const pNet = point.income - point.expense;
+            setInsight({ title: point.label, subtitle: `${granularity} · ${activeCurrency}`, value: money(pNet), detail: `Income ${money(point.income)} · Expenses ${money(point.expense)} · Net ${money(pNet)}.`, tone: pNet >= 0 ? 'income' : 'expense' });
+          }} />
+        )}
       </ChartCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Where it went"
-          subtitle="Expense breakdown"
-          icon={<PieChart className="h-4.5 w-4.5" />}
-          accent="amber"
-          loading={expValidating}
-        >
-          {expenseDonut.length === 0 ? (
-            <EmptyState title="No spending in this range" />
-          ) : (
-            <Donut data={expenseDonut} format={money} centerLabel="spent" />
+        <ChartCard title="Where it went" subtitle="Tap a slice" icon={<PieChart className="h-4.5 w-4.5" />} accent="amber" loading={expValidating}>
+          {expenseDonut.length === 0 ? <EmptyState title="No spending in this range" /> : (
+            <Donut data={expenseDonut} format={money} centerLabel="spent" selectedIndex={selectedExpenseDonut} onSelect={(slice, i) => {
+              const next = selectedExpenseDonut === i ? null : i;
+              setSelectedExpenseDonut(next);
+              if (next === null) { setInsight(null); return; }
+              setInsight({ title: slice.label, subtitle: 'Expense', value: money(slice.value), detail: `${pct(slice.value, totalExpense)}% of ${money(totalExpense)} in range.`, tone: 'expense', action: { label: 'Browse transactions', href: '/transactions' } });
+            }} />
           )}
         </ChartCard>
-
-        <ChartCard
-          title="Where it came from"
-          subtitle="Income sources"
-          icon={<Wallet className="h-4.5 w-4.5" />}
-          accent="emerald"
-          loading={incValidating}
-        >
-          {incomeDonut.length === 0 ? (
-            <EmptyState title="No income in this range" />
-          ) : (
-            <Donut data={incomeDonut} format={money} centerLabel="earned" />
+        <ChartCard title="Where it came from" subtitle="Tap a slice" icon={<Wallet className="h-4.5 w-4.5" />} accent="emerald" loading={incValidating}>
+          {incomeDonut.length === 0 ? <EmptyState title="No income in this range" /> : (
+            <Donut data={incomeDonut} format={money} centerLabel="earned" selectedIndex={selectedIncomeDonut} onSelect={(slice, i) => {
+              const next = selectedIncomeDonut === i ? null : i;
+              setSelectedIncomeDonut(next);
+              if (next === null) { setInsight(null); return; }
+              setInsight({ title: slice.label, subtitle: 'Income', value: money(slice.value), detail: `${pct(slice.value, totalIncome)}% of ${money(totalIncome)} in range.`, tone: 'income', action: { label: 'Browse transactions', href: '/transactions' } });
+            }} />
           )}
         </ChartCard>
       </div>
 
-      <ChartCard
-        title="Category comparison"
-        subtitle="Top spending categories"
-        icon={<Layers className="h-4.5 w-4.5" />}
-        accent="violet"
-        loading={expValidating}
-      >
-        {barData.length === 0 ? <EmptyState title="No data" /> : <BarChart data={barData} format={money} />}
+      <ChartCard title="Category comparison" subtitle="Tap a bar" icon={<Layers className="h-4.5 w-4.5" />} accent="violet" loading={expValidating}>
+        {barData.length === 0 ? <EmptyState title="No data" /> : (
+          <BarChart data={barData} format={money} selectedIndex={selectedBar} onSelect={(item, i) => {
+            const next = selectedBar === i ? null : i;
+            setSelectedBar(next);
+            if (next === null) { setInsight(null); return; }
+            const top = barData[0]?.value ?? 0;
+            setInsight({ title: barData[i]?.fullLabel ?? item.label, subtitle: `Rank #${i + 1}`, value: money(item.value), detail: `${top > 0 ? Math.round((item.value / top) * 100) : 0}% of top category · ${pct(item.value, totalExpense)}% of all spending.`, tone: 'expense' });
+          }} />
+        )}
       </ChartCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Top payees"
-          subtitle="Who you paid most"
-          icon={<Users className="h-4.5 w-4.5" />}
-          loading={payeesValidating}
-        >
-          {!payees?.items.length ? (
-            <EmptyState title="No payees in this range" />
-          ) : (
-            <ul className="space-y-3">
+        <ChartCard title="Top payees" subtitle="Tap a row" icon={<Users className="h-4.5 w-4.5" />} loading={payeesValidating}>
+          {!payees?.items.length ? <EmptyState title="No payees in this range" /> : (
+            <ul className="space-y-2">
               {payees.items.map((p, i) => (
-                <li key={p.payee ?? i} className="flex items-center gap-3">
-                  <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-xs font-bold text-muted">
-                    {i + 1}
-                  </span>
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.payee}</span>
-                  <span className="shrink-0 text-sm tabular-nums text-muted">
-                    {money(p.total)} <span className="text-xs">· {p.count}×</span>
-                  </span>
+                <li key={p.payee ?? i}>
+                  <button type="button" onClick={() => {
+                    const next = selectedPayee === i ? null : i;
+                    setSelectedPayee(next);
+                    if (next === null) { setInsight(null); return; }
+                    const avg = p.count > 0 ? Number(p.total) / p.count : 0;
+                    setInsight({ title: p.payee ?? 'Unknown', subtitle: `${p.count} payments`, value: money(p.total), detail: `Average ${money(avg)} per payment · rank #${i + 1}.`, tone: 'expense' });
+                  }} className={cn('flex w-full items-center gap-3 rounded-xl px-2 py-2 text-left transition-colors hover:bg-surface-muted min-h-[44px]', selectedPayee === i && 'bg-surface-muted ring-1 ring-primary/30')}>
+                    <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-xs font-bold text-muted">{i + 1}</span>
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium">{p.payee}</span>
+                    <span className="shrink-0 text-sm tabular-nums text-muted">{money(p.total)} <span className="text-xs">· {p.count}×</span></span>
+                  </button>
                 </li>
               ))}
             </ul>
           )}
         </ChartCard>
-
-        <ChartCard
-          title="Impulse spend"
-          subtitle="Unnecessary category · this month"
-          icon={<Flame className="h-4.5 w-4.5" />}
-          accent="rose"
-        >
-          {!unnecessary ? (
-            <Skeleton className="h-24" />
-          ) : (
-            <div className="flex items-center gap-5">
-              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/10">
-                <Flame className="h-8 w-8 text-orange-500" />
-              </div>
+        <ChartCard title="Impulse spend" subtitle={`${activeCurrency} · this month`} icon={<Flame className="h-4.5 w-4.5" />} accent="rose">
+          {!unnecessary ? <Skeleton className="h-24" /> : (
+            <button type="button" className="flex w-full items-center gap-5 rounded-xl p-1 text-left min-h-[44px] hover:bg-surface-muted/50" onClick={() => setInsight({ title: 'Impulse spending', subtitle: unnecessary.category?.name ?? 'Unnecessary', value: money(unnecessary.total), detail: `${unnecessary.count} purchases in ${activeCurrency}.`, tone: 'warning', action: { label: 'Review transactions', href: '/transactions' } })}>
+              <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-orange-500/10"><Flame className="h-8 w-8 text-orange-500" /></div>
               <div>
                 <p className="text-3xl font-bold tabular-nums">{money(unnecessary.total)}</p>
-                <p className="text-sm text-muted">{unnecessary.count} purchases</p>
-                {unnecessary.deltaPct !== null && (
-                  <p className={cn('mt-1 text-sm font-medium', unnecessary.deltaPct <= 0 ? 'text-emerald-500' : 'text-red-500')}>
-                    {unnecessary.deltaPct <= 0 ? '↓' : '↑'} {Math.abs(unnecessary.deltaPct)}% vs last month
-                  </p>
-                )}
+                <p className="text-sm text-muted">{unnecessary.count} purchases · tap for details</p>
               </div>
-            </div>
+            </button>
           )}
         </ChartCard>
       </div>
 
-      <ChartCard
-        title="12-month trajectory"
-        subtitle={avgSavings !== null ? `${avgSavings}% average savings rate` : 'Long-term income vs expense'}
-        icon={<TrendingUp className="h-4.5 w-4.5" />}
-        accent="emerald"
-      >
-        {!ive ? <Skeleton className="h-52" /> : <IncomeExpenseLine points={iveLine} format={money} />}
+      <ChartCard title="12-month trajectory" subtitle={avgSavings !== null ? `${avgSavings}% avg savings · tap a month` : 'Tap a month'} icon={<TrendingUp className="h-4.5 w-4.5" />} accent="emerald">
+        {!ive ? <Skeleton className="h-52" /> : (
+          <IncomeExpenseLine points={iveLine} format={money} selectedIndex={selectedIve} onSelect={(point, i) => {
+            const next = selectedIve === i ? null : i;
+            setSelectedIve(next);
+            if (next === null) { setInsight(null); return; }
+            const pNet = point.income - point.expense;
+            const sr = iveLine[i]?.savingsRate;
+            setInsight({ title: `Month ${point.label}`, subtitle: activeCurrency, value: sr !== null && sr !== undefined ? `${sr}% saved` : money(pNet), detail: `Income ${money(point.income)} · Expenses ${money(point.expense)}.`, tone: pNet >= 0 ? 'income' : 'expense' });
+          }} />
+        )}
       </ChartCard>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <ChartCard
-          title="Budget burn rate"
-          subtitle="Cumulative spend vs monthly budget"
-          icon={<Zap className="h-4.5 w-4.5" />}
-          loading={burnValidating}
-        >
-          {!burn ? (
-            <Skeleton className="h-48" />
-          ) : (
-            <BurnRateChart
-              points={burn.points.map((p) => ({ date: p.date, cumulative: Number(p.cumulative) }))}
-              totalPlanned={Number(burn.totalPlanned)}
-              currency={user?.currency ?? 'ETB'}
-            />
-          )}
+        <ChartCard title="Budget burn rate" subtitle={activeCurrency} icon={<Zap className="h-4.5 w-4.5" />} loading={burnValidating}>
+          {!burn ? <Skeleton className="h-48" /> : <BurnRateChart points={burn.points.map((p) => ({ date: p.date, cumulative: Number(p.cumulative) }))} totalPlanned={Number(burn.totalPlanned)} currency={activeCurrency} />}
         </ChartCard>
-
-        <ChartCard
-          title={`Spending heatmap · ${heatYear}`}
-          subtitle="Daily intensity"
-          icon={<BarChart3 className="h-4.5 w-4.5" />}
-          loading={heatValidating}
-        >
-          {!heat ? (
-            <Skeleton className="h-32" />
-          ) : (
-            <SpendHeatmap
-              year={heat.year}
-              days={heat.days.map((d) => ({ date: d.date, total: Number(d.total) }))}
-              format={money}
-            />
+        <ChartCard title={`Spending heatmap · ${heatYear}`} subtitle="Tap a day" icon={<BarChart3 className="h-4.5 w-4.5" />} loading={heatValidating}>
+          {!heat ? <Skeleton className="h-32" /> : (
+            <SpendHeatmap year={heat.year} days={heat.days.map((d) => ({ date: d.date, total: Number(d.total) }))} format={money} selectedDate={selectedHeatDate} onSelect={(day) => {
+              const next = selectedHeatDate === day.date ? null : day.date;
+              setSelectedHeatDate(next);
+              if (!next) { setInsight(null); return; }
+              setInsight({ title: new Date(day.date + 'T12:00:00').toLocaleDateString(undefined, { weekday: 'long', month: 'short', day: 'numeric' }), subtitle: activeCurrency, value: money(day.total), detail: day.total > 0 ? `${pct(day.total, heatMax)}% of your busiest day.` : 'No expenses recorded.', tone: day.total > heatMax * 0.6 ? 'expense' : 'default' });
+            }} />
           )}
         </ChartCard>
       </div>

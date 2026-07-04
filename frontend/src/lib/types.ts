@@ -144,6 +144,7 @@ export interface Notification {
 
 export interface MonthSummary {
   month: string;
+  currency?: string;
   income: string;
   expense: string;
   net: string;
@@ -297,6 +298,20 @@ export interface LedgerPersonGroup {
 
 export interface DashboardData {
   totalBalance: string;
+  displayCurrency?: string;
+  currencies?: string[];
+  currencyBreakdown?: {
+    currency: string;
+    totalBalance: string;
+    accountCount: number;
+    month: MonthSummary;
+  }[];
+  convertedTotal?: {
+    amount: string;
+    baseCurrency: string;
+    complete: boolean;
+    missingRates: string[];
+  };
   accounts: Account[];
   month: MonthSummary;
   budgetsAtRisk: BudgetRow[];

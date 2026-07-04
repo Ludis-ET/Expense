@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
@@ -9,12 +9,14 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
+import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { TransferModal } from '@/components/finance/transfer-modal';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, AccountType } from '@/lib/types';
 
@@ -24,7 +26,8 @@ const typeLabel = (t: AccountType) => t.replace('_', ' ').toLowerCase().replace(
 export default function AccountsPage() {
   const { user } = useAuth();
   const confirm = useConfirm();
-  const { money } = useMoney();
+  const { activeCurrency, mergeCurrencies } = useCurrencyView();
+  const { money } = useMoney(activeCurrency);
   const currency = user?.currency ?? 'ETB';
   const { data, mutate } = useSWR<{ items: Account[] }>('/accounts');
   const [formOpen, setFormOpen] = useState(false);
@@ -32,7 +35,16 @@ export default function AccountsPage() {
   const [editing, setEditing] = useState<Account | null>(null);
 
   const accounts = data?.items ?? [];
-  const total = accounts.filter((a) => !a.archived).reduce((s, a) => s + Number(a.balance), 0);
+  const activeAccounts = accounts.filter((a) => !a.archived && a.currency === activeCurrency);
+
+  useEffect(() => {
+    mergeCurrencies(accounts.filter((a) => !a.archived).map((a) => a.currency));
+  }, [accounts, mergeCurrencies]);
+
+  const total = useMemo(
+    () => activeAccounts.reduce((s, a) => s + Number(a.balance), 0),
+    [activeAccounts],
+  );
 
   async function remove(account: Account) {
     const ok = await confirm({
@@ -77,13 +89,16 @@ export default function AccountsPage() {
       ) : (
         <>
           <Card className="mb-4">
-            <CardContent className="flex items-center justify-between p-5">
-              <span className="text-sm text-muted">Total balance across accounts</span>
-              <span className="text-2xl font-bold tabular-nums">{money(total)}</span>
+            <CardContent className="flex flex-col gap-3 p-5 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <span className="text-sm text-muted">Total balance · {activeCurrency} accounts</span>
+                <p className="mt-1 text-2xl font-bold tabular-nums">{money(total)}</p>
+              </div>
+              <CurrencySwitcher compact />
             </CardContent>
           </Card>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {accounts.map((a) => {
+            {accounts.filter((a) => a.currency === activeCurrency).map((a) => {
               const Icon = financeIcon(a.icon);
               const color = a.color ?? '#64748b';
               return (
@@ -118,7 +133,7 @@ export default function AccountsPage() {
                       {a.archived && <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-muted">archived</span>}
                     </p>
                     <p className="text-xs text-muted">{typeLabel(a.type)} · {a.currency}</p>
-                    <p className="mt-2 text-xl font-bold tabular-nums">{money(a.balance)}</p>
+                    <AccountBalance balance={a.balance} currency={a.currency} />
                   </CardContent>
                 </Card>
               );
@@ -137,6 +152,11 @@ export default function AccountsPage() {
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} onSaved={() => void mutate()} />
     </div>
   );
+}
+
+function AccountBalance({ balance, currency }: { balance: string; currency: string }) {
+  const { money } = useMoney(currency);
+  return <p className="mt-2 text-xl font-bold tabular-nums">{money(balance)}</p>;
 }
 
 function AccountForm({

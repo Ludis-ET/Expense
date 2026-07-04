@@ -103,6 +103,7 @@ Without an AI key everything else in the app works normally; these features simp
 ## Settings (`/settings`)
 
 - **Profile** - name, **default currency**, language (English/Amharic/Oromo/Tigrinya), first day of week, and an optional **Ethiopian (Geʿez) calendar** display.
+- **Exchange rates** - set your own conversion rates between currencies (e.g. USD → ETB). Combined totals only appear when every rate is defined; otherwise each currency is shown separately.
 - **Appearance** - light / dark / system theme.
 - **Category manager** - rename, recolor, re-icon, add or delete your income and expense categories (deleting a used category asks where to move its transactions).
 - **AI providers** - add/test/prioritize your Anthropic, OpenAI or Google keys. Keys are encrypted at rest and never sent back to the browser.
@@ -126,4 +127,4 @@ New accounts (and the demo) begin with a rich default set you can fully customiz
 
 ## Not built (by design)
 
-Deliberately out of scope for now: multi-currency conversion (currencies are stored but analytics sum your default currency), bank-sync/import, and receipt-image OCR. **Installable PWA** (Add to Home screen on Android and iOS) is supported; native App Store / Play Store builds are not.
+Deliberately out of scope for now: automatic bank-sync/import and receipt-image OCR. **Multi-currency** is supported per wallet with manual exchange rates and per-currency dashboard/analytics views (amounts are never naively merged). **Installable PWA** (Add to Home screen on Android and iOS) is supported; native App Store / Play Store builds are not.

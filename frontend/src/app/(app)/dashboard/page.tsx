@@ -1,11 +1,13 @@
 'use client';
 
+import { useEffect, useMemo } from 'react';
 import useSWR from 'swr';
 import Link from 'next/link';
 import { Flame, Lightbulb, PiggyBank, TrendingDown, TrendingUp, BarChart3, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
 import { HeroBalance } from '@/components/finance/hero-balance';
+import { CurrencySwitcher } from '@/components/finance/currency-switcher';
 import { FinancialHealth } from '@/components/finance/financial-health';
 import { SpendingPace } from '@/components/finance/spending-pace';
 import { WeeklySnapshot } from '@/components/finance/weekly-snapshot';
@@ -19,6 +21,7 @@ import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
+import { useCurrencyView } from '@/lib/currency-view-context';
 import type { DashboardData } from '@/lib/types';
 
 function SmartInsight({ data, money }: { data: DashboardData; money: (v: number | string) => string }) {
@@ -74,11 +77,33 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
 
 export default function DashboardPage() {
   const { user } = useAuth();
-  const { money } = useMoney();
+  const { activeCurrency, activeBreakdown, setFromDashboard } = useCurrencyView();
+  const { money } = useMoney(activeCurrency);
   const { data } = useSWR<DashboardData>('/dashboard');
   const firstName = user?.name?.split(' ')[0];
 
-  if (!data) {
+  useEffect(() => {
+    if (!data) return;
+    setFromDashboard(
+      data.currencies ?? [data.displayCurrency ?? user?.currency ?? 'ETB'],
+      (data.currencyBreakdown ?? []) as Parameters<typeof setFromDashboard>[1],
+      data.convertedTotal ?? null,
+    );
+  }, [data, setFromDashboard, user?.currency]);
+
+  const viewData = useMemo(() => {
+    if (!data) return null;
+    if (!activeBreakdown) return data;
+    return {
+      ...data,
+      totalBalance: activeBreakdown.totalBalance,
+      month: { ...data.month, ...activeBreakdown.month },
+    };
+  }, [data, activeBreakdown]);
+
+  const month = viewData?.month;
+
+  if (!data || !viewData || !month) {
     return (
       <div>
         <PageHeader title="Dashboard" description="Your money at a glance." />
@@ -96,10 +121,10 @@ export default function DashboardPage() {
         <div className="lg:col-span-2">
           <HeroBalance data={data} money={money} userName={firstName} />
         </div>
-        <FinancialHealth data={data} />
+        <FinancialHealth data={viewData} />
       </div>
 
-      <SmartInsight data={data} money={money} />
+      <SmartInsight data={viewData} money={money} />
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
@@ -114,14 +139,19 @@ export default function DashboardPage() {
 
       <HouseholdWidget household={data.household} money={money} />
 
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted">Monthly stats · {activeCurrency} only</p>
+        <CurrencySwitcher compact />
+      </div>
+
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatMini label="Net this month" value={money(data.month.net)} icon={<TrendingUp className="h-4 w-4" />} positive={Number(data.month.net) >= 0} />
-        <StatMini label="Avg daily spend" value={money(data.month.avgDailySpend)} icon={<TrendingDown className="h-4 w-4" />} />
+        <StatMini label="Net this month" value={money(month.net)} icon={<TrendingUp className="h-4 w-4" />} positive={Number(month.net) >= 0} />
+        <StatMini label="Avg daily spend" value={money(month.avgDailySpend)} icon={<TrendingDown className="h-4 w-4" />} />
         <StatMini label="Unnecessary" value={money(data.unnecessary.total)} icon={<Flame className="h-4 w-4" />} warning={Number(data.unnecessary.total) > 0} />
         <StatMini label="Upcoming bills" value={String(data.upcomingRecurring.length)} icon={<PiggyBank className="h-4 w-4" />} hint="next 7 days" />
       </div>
 
-      <SpendingPace month={data.month} money={money} />
+      <SpendingPace month={month} money={money} />
 
       <div className="grid gap-6 lg:grid-cols-5">
         <Card className="lg:col-span-3">

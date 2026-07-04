@@ -9,6 +9,7 @@ import { monthRange } from '../budgets/budgets.service.js';
 import { FAMILY_SUPPORT_CATEGORY_NAME } from '../categories/default-categories.js';
 import * as household from '../household/household.service.js';
 import * as ledger from '../ledger/ledger.service.js';
+import * as currency from '../../core/currency.service.js';
 
 function weekBounds(firstDayOfWeek: number) {
   const now = new Date();
@@ -182,11 +183,12 @@ async function familySupport(user: AuthUser) {
 /** Everything the dashboard needs in one round trip. */
 export async function overview(user: AuthUser) {
   const in7Days = new Date(Date.now() + 7 * 86_400_000);
+  const defaultCur = await currency.resolveCurrency(user.id);
 
   const [accountList, summary, budgetList, goalList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary] =
     await Promise.all([
       accounts.list(user),
-      analytics.summary(user),
+      analytics.summary(user, undefined, defaultCur),
       budgets.list(user),
       goals.list(user),
       prisma.transaction.findMany({
@@ -199,7 +201,7 @@ export async function overview(user: AuthUser) {
           transferAccount: { select: { id: true, name: true } },
         },
       }),
-      analytics.byCategory(user, CategoryKind.EXPENSE),
+      analytics.byCategory(user, CategoryKind.EXPENSE, undefined, undefined, defaultCur),
       prisma.recurringRule.findMany({
         where: { userId: user.id, active: true, nextRun: { lte: in7Days } },
         orderBy: { nextRun: 'asc' },
@@ -218,16 +220,43 @@ export async function overview(user: AuthUser) {
     .filter((a) => !a.archived)
     .reduce((s, a) => s + Number(a.balance), 0);
 
+  const currencies = await currency.listUserCurrencies(user.id);
+  const currencyBreakdown = await Promise.all(
+    currencies.map(async (cur) => {
+      const accountsInCur = accountList.items.filter((a) => a.currency === cur && !a.archived);
+      const bal = accountsInCur.reduce((s, a) => s + Number(a.balance), 0);
+      const month = await analytics.summary(user, undefined, cur);
+      return {
+        currency: cur,
+        totalBalance: bal.toFixed(2),
+        accountCount: accountsInCur.length,
+        month,
+      };
+    }),
+  );
+
+  const convertedTotal = await currency.convertedTotal(
+    user,
+    currencyBreakdown.map((b) => ({ currency: b.currency, amount: Number(b.totalBalance) })),
+  );
+
+  const primaryCurrency = currencies[0] ?? (await currency.resolveCurrency(user.id));
+  const primaryBreakdown = currencyBreakdown.find((b) => b.currency === primaryCurrency) ?? currencyBreakdown[0];
+
   return {
-    totalBalance: totalBalance.toFixed(2),
+    totalBalance: primaryBreakdown?.totalBalance ?? totalBalance.toFixed(2),
+    displayCurrency: primaryBreakdown?.currency ?? primaryCurrency,
+    currencies,
+    currencyBreakdown,
+    convertedTotal,
     accounts: accountList.items,
-    month: summary,
+    month: primaryBreakdown?.month ?? summary,
     budgetsAtRisk: budgetList.items.filter((b) => b.status !== 'ok').slice(0, 4),
     goals: goalList.items.slice(0, 3),
     recentTransactions: recent.map((t) => ({ ...t, amount: t.amount.toFixed(2) })),
     topCategories: topCategories.items.slice(0, 5),
     upcomingRecurring: upcoming.map((r) => ({ ...r, amount: r.amount.toFixed(2) })),
-    unnecessary: await analytics.unnecessary(user),
+    unnecessary: await analytics.unnecessary(user, undefined, defaultCur),
     weeklySnapshot: weekly,
     spendingStreak: streak,
     categoryHeatAlerts: heatAlerts,

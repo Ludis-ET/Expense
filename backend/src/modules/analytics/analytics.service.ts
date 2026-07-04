@@ -1,6 +1,7 @@
 import { CategoryKind, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import type { AuthUser } from '../../core/context.js';
+import { resolveCurrency } from '../../core/currency.service.js';
 import { monthRange } from '../budgets/budgets.service.js';
 import * as budgets from '../budgets/budgets.service.js';
 import { UNNECESSARY_CATEGORY_NAME } from '../categories/default-categories.js';
@@ -13,24 +14,26 @@ async function getFirstDayOfWeek(userId: string): Promise<number> {
   return user?.firstDayOfWeek ?? 1;
 }
 
-/** Month at a glance: income, expense, net, deltas vs the previous month. */
-export async function summary(user: AuthUser, month?: string) {
+/** Month at a glance: income, expense, net, deltas vs the previous month (single currency only). */
+export async function summary(user: AuthUser, month?: string, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const { start, end } = monthRange(month);
   const prevStart = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 1));
+  const currencyWhere = { currency: cur };
 
   const [current, previous, biggest] = await Promise.all([
     prisma.transaction.groupBy({
       by: ['kind'],
-      where: { userId: user.id, date: { gte: start, lt: end }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
+      where: { userId: user.id, ...currencyWhere, date: { gte: start, lt: end }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
       _sum: { amount: true },
     }),
     prisma.transaction.groupBy({
       by: ['kind'],
-      where: { userId: user.id, date: { gte: prevStart, lt: start }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
+      where: { userId: user.id, ...currencyWhere, date: { gte: prevStart, lt: start }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
       _sum: { amount: true },
     }),
     prisma.transaction.findFirst({
-      where: { userId: user.id, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
+      where: { userId: user.id, ...currencyWhere, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
       orderBy: { amount: 'desc' },
       include: { category: { select: { name: true, icon: true, color: true } } },
     }),
@@ -55,6 +58,7 @@ export async function summary(user: AuthUser, month?: string) {
       : Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86_400_000));
 
   return {
+    currency: cur,
     month: start.toISOString().slice(0, 7),
     income: income.toFixed(2),
     expense: expense.toFixed(2),
@@ -75,8 +79,9 @@ export async function summary(user: AuthUser, month?: string) {
   };
 }
 
-/** Income + expense per day/week/month bucket, gap-filled for charting. */
-export async function series(user: AuthUser, granularity: Granularity, from?: Date, to?: Date) {
+/** Income + expense per day/week/month bucket, gap-filled for charting (single currency). */
+export async function series(user: AuthUser, granularity: Granularity, from?: Date, to?: Date, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const end = to ?? new Date();
   const defaultSpan = granularity === 'day' ? 30 : granularity === 'week' ? 7 * 12 : 365;
   const start = from ?? new Date(end.getTime() - defaultSpan * 86_400_000);
@@ -85,6 +90,7 @@ export async function series(user: AuthUser, granularity: Granularity, from?: Da
   const rows = await prisma.transaction.findMany({
     where: {
       userId: user.id,
+      currency: cur,
       kind: { in: [TxKind.INCOME, TxKind.EXPENSE] },
       date: { gte: start, lte: end },
     },
@@ -104,6 +110,7 @@ export async function series(user: AuthUser, granularity: Granularity, from?: Da
   }
 
   return {
+    currency: cur,
     granularity,
     points: [...buckets.entries()].map(([key, v]) => ({
       bucket: key,
@@ -113,15 +120,16 @@ export async function series(user: AuthUser, granularity: Granularity, from?: Da
   };
 }
 
-/** Per-category totals within a range (donut/bar payload). */
-export async function byCategory(user: AuthUser, kind: CategoryKind, from?: Date, to?: Date) {
+/** Per-category totals within a range (donut/bar payload, single currency). */
+export async function byCategory(user: AuthUser, kind: CategoryKind, from?: Date, to?: Date, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const end = to ?? new Date();
   const start = from ?? monthRange().start;
   const txKind = kind === CategoryKind.INCOME ? TxKind.INCOME : TxKind.EXPENSE;
 
   const grouped = await prisma.transaction.groupBy({
     by: ['categoryId'],
-    where: { userId: user.id, kind: txKind, date: { gte: start, lte: end } },
+    where: { userId: user.id, currency: cur, kind: txKind, date: { gte: start, lte: end } },
     _sum: { amount: true },
     _count: true,
   });
@@ -145,16 +153,17 @@ export async function byCategory(user: AuthUser, kind: CategoryKind, from?: Date
     })
     .sort((a, b) => Number(b.amount) - Number(a.amount));
 
-  return { total: total.toFixed(2), items };
+  return { currency: cur, total: total.toFixed(2), items };
 }
 
-/** Monthly income/expense pairs + savings rate for the last N months. */
-export async function incomeVsExpense(user: AuthUser, months: number) {
+/** Monthly income/expense pairs + savings rate for the last N months (single currency). */
+export async function incomeVsExpense(user: AuthUser, months: number, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const now = new Date();
   const start = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - (months - 1), 1));
 
   const rows = await prisma.transaction.findMany({
-    where: { userId: user.id, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] }, date: { gte: start } },
+    where: { userId: user.id, currency: cur, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] }, date: { gte: start } },
     select: { kind: true, amount: true, date: true },
   });
 
@@ -179,17 +188,18 @@ export async function incomeVsExpense(user: AuthUser, months: number) {
       : null,
   }));
 
-  return { points };
+  return { currency: cur, points };
 }
 
-/** Daily spend totals for a calendar-heatmap year. */
-export async function heatmap(user: AuthUser, year?: number) {
+/** Daily spend totals for a calendar-heatmap year (single currency). */
+export async function heatmap(user: AuthUser, year?: number, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const y = year ?? new Date().getUTCFullYear();
   const start = new Date(Date.UTC(y, 0, 1));
   const end = new Date(Date.UTC(y + 1, 0, 1));
 
   const rows = await prisma.transaction.findMany({
-    where: { userId: user.id, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
+    where: { userId: user.id, currency: cur, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
     select: { amount: true, date: true },
   });
 
@@ -200,13 +210,15 @@ export async function heatmap(user: AuthUser, year?: number) {
   }
 
   return {
+    currency: cur,
     year: y,
     days: [...days.entries()].map(([date, total]) => ({ date, total: total.toFixed(2) })),
   };
 }
 
-/** Top payees by total spend in a range. */
-export async function topPayees(user: AuthUser, limit: number, from?: Date, to?: Date) {
+/** Top payees by total spend in a range (single currency). */
+export async function topPayees(user: AuthUser, limit: number, from?: Date, to?: Date, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const end = to ?? new Date();
   const start = from ?? new Date(end.getTime() - 90 * 86_400_000);
 
@@ -214,6 +226,7 @@ export async function topPayees(user: AuthUser, limit: number, from?: Date, to?:
     by: ['payee'],
     where: {
       userId: user.id,
+      currency: cur,
       kind: TxKind.EXPENSE,
       payee: { not: null },
       date: { gte: start, lte: end },
@@ -225,6 +238,7 @@ export async function topPayees(user: AuthUser, limit: number, from?: Date, to?:
   });
 
   return {
+    currency: cur,
     items: grouped.map((g) => ({
       payee: g.payee,
       total: (g._sum.amount ?? zero).toFixed(2),
@@ -233,24 +247,25 @@ export async function topPayees(user: AuthUser, limit: number, from?: Date, to?:
   };
 }
 
-/** Spend in the "Unnecessary" category this month vs last - the guilt meter. */
-export async function unnecessary(user: AuthUser, month?: string) {
+/** Spend in the "Unnecessary" category this month vs last (single currency). */
+export async function unnecessary(user: AuthUser, month?: string, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const category = await prisma.category.findFirst({
     where: { userId: user.id, name: UNNECESSARY_CATEGORY_NAME, kind: CategoryKind.EXPENSE },
   });
-  if (!category) return { category: null, total: '0.00', prevTotal: '0.00', deltaPct: null, count: 0 };
+  if (!category) return { currency: cur, category: null, total: '0.00', prevTotal: '0.00', deltaPct: null, count: 0 };
 
   const { start, end } = monthRange(month);
   const prevStart = new Date(Date.UTC(start.getUTCFullYear(), start.getUTCMonth() - 1, 1));
 
   const [current, previous] = await Promise.all([
     prisma.transaction.aggregate({
-      where: { userId: user.id, categoryId: category.id, date: { gte: start, lt: end } },
+      where: { userId: user.id, currency: cur, categoryId: category.id, date: { gte: start, lt: end } },
       _sum: { amount: true },
       _count: true,
     }),
     prisma.transaction.aggregate({
-      where: { userId: user.id, categoryId: category.id, date: { gte: prevStart, lt: start } },
+      where: { userId: user.id, currency: cur, categoryId: category.id, date: { gte: prevStart, lt: start } },
       _sum: { amount: true },
     }),
   ]);
@@ -259,6 +274,7 @@ export async function unnecessary(user: AuthUser, month?: string) {
   const prevTotal = previous._sum.amount ?? zero;
 
   return {
+    currency: cur,
     category: { id: category.id, name: category.name, icon: category.icon, color: category.color },
     total: total.toFixed(2),
     prevTotal: prevTotal.toFixed(2),
@@ -267,12 +283,13 @@ export async function unnecessary(user: AuthUser, month?: string) {
   };
 }
 
-/** Cumulative spend this month vs total budgeted - for burn-rate chart. */
-export async function burnRate(user: AuthUser) {
+/** Cumulative spend this month vs total budgeted (single currency). */
+export async function burnRate(user: AuthUser, currency?: string) {
+  const cur = await resolveCurrency(user.id, currency);
   const budgetList = await budgets.list(user);
   const { start, end } = monthRange();
   const rows = await prisma.transaction.findMany({
-    where: { userId: user.id, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
+    where: { userId: user.id, currency: cur, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
     orderBy: { date: 'asc' },
     select: { amount: true, date: true },
   });
@@ -281,5 +298,5 @@ export async function burnRate(user: AuthUser) {
     cumulative += Number(r.amount);
     return { date: r.date.toISOString().slice(0, 10), cumulative: cumulative.toFixed(2) };
   });
-  return { points, totalPlanned: budgetList.totals.budgeted };
+  return { currency: cur, points, totalPlanned: budgetList.totals.budgeted };
 }

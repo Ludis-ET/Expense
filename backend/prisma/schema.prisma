@@ -86,6 +86,7 @@ model User {
   householdMembers  HouseholdMember[]
   sentInvites       HouseholdInvite[] @relation("InviteSender")
   ledgerEntries     LedgerEntry[]
+  exchangeRates     ExchangeRate[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -372,4 +373,21 @@ model LedgerPayment {
 
   @@index([ledgerEntryId])
   @@map("ledger_payments")
+}
+
+// User-defined conversion rates (e.g. 1 USD = 56.5 ETB). Never merge currencies without these.
+model ExchangeRate {
+  id           String @id @default(cuid())
+  userId       String
+  user         User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  fromCurrency String // ISO 4217
+  toCurrency   String
+  rate         Decimal @db.Decimal(18, 8) // multiply: amount * rate = converted
+
+  updatedAt DateTime @updatedAt
+  createdAt DateTime @default(now())
+
+  @@unique([userId, fromCurrency, toCurrency])
+  @@index([userId])
+  @@map("exchange_rates")
 }

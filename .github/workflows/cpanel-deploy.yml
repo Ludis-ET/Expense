@@ -295,10 +295,8 @@ jobs:
           echo "🏗️  Building backend deploy bundle..."
           chmod +x scripts/cpanel/prepare-backend.sh
           ./scripts/cpanel/prepare-backend.sh
-          echo "📊 Backend package contents:"
-          ls -la deploy/backend/
-          echo "📊 Verify dist/server.js exists in bundle:"
-          ls -la deploy/backend/dist/server.js
+          echo "📊 Tarball contents (dist must be listed):"
+          tar tzf deploy/santim-backend.tgz | head -30
 
       - name: 🏗️ Prepare frontend deploy package
         env:
@@ -317,7 +315,7 @@ jobs:
           echo "📊 Frontend .next (required for Next.js):"
           ls -la deploy/frontend/.next/ | head -20
 
-      - name: 📤 Upload backend to cPanel (FTP)
+      - name: 📤 Upload backend tarball to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
         with:
           server: ${{ steps.ftp.outputs.host }}
@@ -327,7 +325,7 @@ jobs:
           protocol: ${{ steps.ftp.outputs.protocol }}
           security: loose
           timeout: 600000
-          local-dir: ./deploy/backend/
+          local-dir: ./deploy/ftp-backend/
           server-dir: ${{ steps.ftp.outputs.backend_dir }}
           dangerous-clean-slate: false
           log-level: verbose
@@ -335,8 +333,6 @@ jobs:
             **/.git*
             **/.git*/**
             **/.ftp-deploy-sync-state.json
-            **/node_modules/**
-            **/vendor/**
 
       - name: 📤 Upload frontend to cPanel (FTP)
         uses: SamKirkland/FTP-Deploy-Action@v4.3.6
@@ -373,10 +369,10 @@ jobs:
           echo "🌐 Frontend → ${{ secrets.CPANEL_FTP_FRONTEND_PATH }}  (https://santim.lunafh.com/frontend)"
           echo "🔗 API URL  → ${{ env.BACKEND_URL }}"
           echo ""
-          echo "⚠️  Post-deploy:"
-          echo "   1. File Manager → backend/ must contain dist/server.js and server.js"
-          echo "   2. If missing, fix CPANEL_FTP_BACKEND_PATH (use / if FTP home IS backend folder)"
-          echo "   3. Run NPM Install once, startup file → server.js, Restart"
-          echo "   4. Terminal: npx prisma migrate deploy && npx prisma db seed (optional)"
+          echo "⚠️  Post-deploy (cPanel Terminal — required once per deploy):"
+          echo "   cd ~/santim.lunafh.com/backend"
+          echo "   bash extract-backend.sh"
+          echo "   npx prisma migrate deploy"
+          echo "   Restart Node.js app (startup file: server.js)"
           echo ""
           echo "📖 Full guide: docs/DEPLOY-CPANEL.md"

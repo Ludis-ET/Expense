@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Optional: slim FTP bundle (no node_modules). Prefer terminal deploy — see docs/DEPLOY-CPANEL-TERMINAL.md
+# Builds backend + single santim-backend.tgz for reliable FTP upload.
 set -euo pipefail
 
 ROOT="$(cd "$(dirname "$0")/../.." && pwd)"
 OUT="$ROOT/deploy/backend"
+TGZ="$ROOT/deploy/santim-backend.tgz"
+FTP="$ROOT/deploy/ftp-backend"
 
 echo "🧹 Cleaning previous backend deploy folder..."
-rm -rf "$OUT"
+rm -rf "$OUT" "$FTP" "$TGZ"
 mkdir -p "$OUT"
 
 echo "🔨 Compiling TypeScript + generating Prisma client..."
@@ -49,5 +51,26 @@ NODE
 
 find "$OUT/generated/client" -type f \( -name '*.ts' -o -name '*.map' \) -delete 2>/dev/null || true
 
-echo "✅ Slim backend bundle → deploy/backend/"
-du -sh "$OUT"
+cat > "$OUT/EXTRACT.txt" <<'EOF'
+Run in cPanel Terminal after FTP upload:
+
+  cd ~/santim.lunafh.com/backend
+  tar xzf santim-backend.tgz
+  npm install --omit=dev
+  npx prisma migrate deploy
+
+cPanel → Node.js app → startup file: server.js → Restart
+EOF
+
+cp "$ROOT/scripts/cpanel/extract-backend.sh" "$OUT/extract-backend.sh"
+chmod +x "$OUT/extract-backend.sh"
+
+echo "📦 Creating santim-backend.tgz..."
+mkdir -p "$FTP"
+tar czf "$TGZ" -C "$OUT" .
+cp "$TGZ" "$FTP/santim-backend.tgz"
+
+echo "✅ Backend tarball ready"
+echo "   deploy/santim-backend.tgz ($(du -h "$TGZ" | cut -f1))"
+echo "   Contains dist/server.js:"
+tar tzf "$TGZ" | grep 'dist/server.js' || exit 1

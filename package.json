@@ -16,8 +16,6 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @santim/backend db:migrate",
-    "db:seed": "pnpm --filter @santim/backend db:seed",
-    "deploy:cpanel": "bash scripts/cpanel/deploy-on-server.sh",
-    "deploy:cpanel:frontend": "bash scripts/cpanel/deploy-frontend-on-server.sh"
+    "db:seed": "pnpm --filter @santim/backend db:seed"
   }
 }

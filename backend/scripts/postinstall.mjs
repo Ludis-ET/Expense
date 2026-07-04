@@ -1,6 +1,4 @@
-/**
- * Generates Prisma client locally/CI. Skipped on cPanel (SKIP_PRISMA_GENERATE=1).
- */
+/** Generates Prisma client after install when the generated output is missing. */
 import { execSync } from 'node:child_process';
 import { existsSync } from 'node:fs';
 import { dirname, join } from 'node:path';

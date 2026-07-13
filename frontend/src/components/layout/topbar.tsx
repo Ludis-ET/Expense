@@ -69,7 +69,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           <Search className="h-5 w-5" />
         </button>
         <AmountVisibilityToggle />
-        {appLock?.enabled && (
+        {/* {appLock?.enabled && (
           <button
             type="button"
             onClick={() => appLock.lock()}
@@ -79,7 +79,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
           >
             <Lock className="h-5 w-5" />
           </button>
-        )}
+        )} */}
         <ThemeToggle />
         <NotificationsMenu />
         <div className="relative">

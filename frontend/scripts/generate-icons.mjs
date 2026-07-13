@@ -5,17 +5,10 @@ import sharp from 'sharp';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const outDir = path.join(__dirname, '..', 'public', 'icons');
-const svgPath = path.join(outDir, 'icon.svg');
-const masterPath = path.join(outDir, 'santim-icon-master.png');
 
-async function writePng(input, size, filename) {
-  const dest = path.join(outDir, filename);
-  await sharp(input).resize(size, size, { fit: 'cover' }).png({ compressionLevel: 9 }).toFile(dest);
-  console.log(`✓ ${filename} (${size}×${size})`);
-}
-
-/** Full-bleed square mark for Android maskable icons (no baked corner radius). */
-function maskableSvg() {
+/** Full-bleed square mark — required for reliable Chrome / Android install. */
+function appIconSvg(rounded = false) {
+  const radius = rounded ? '114' : '0';
   return Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
   <defs>
     <linearGradient id="bg" x1="12%" y1="0%" x2="88%" y2="100%">
@@ -24,7 +17,7 @@ function maskableSvg() {
       <stop offset="100%" stop-color="#115e59"/>
     </linearGradient>
   </defs>
-  <rect width="512" height="512" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="${radius}" fill="url(#bg)"/>
   <path fill="none" stroke="#ffffff" stroke-width="22" stroke-linecap="round"
     d="M256 108a148 148 0 0 1 0 296a148 148 0 0 1 0-296"
     stroke-dasharray="412 54" stroke-dashoffset="27"/>
@@ -33,17 +26,31 @@ function maskableSvg() {
 </svg>`);
 }
 
+async function writePng(input, size, filename) {
+  const dest = path.join(outDir, filename);
+  await sharp(input)
+    .resize(size, size, { fit: 'fill' })
+    .flatten({ background: { r: 5, g: 150, b: 105 } })
+    .png({ compressionLevel: 9, force: true })
+    .toFile(dest);
+  const meta = await sharp(dest).metadata();
+  console.log(`✓ ${filename} ${meta.width}×${meta.height}`);
+}
+
 async function main() {
-  const svg = fs.readFileSync(svgPath);
-  const hasMaster = fs.existsSync(masterPath);
-  const anySource = hasMaster ? masterPath : svg;
+  fs.mkdirSync(outDir, { recursive: true });
 
-  await writePng(anySource, 512, 'icon-512.png');
-  await writePng(anySource, 192, 'icon-192.png');
-  await writePng(anySource, 180, 'apple-touch-icon.png');
-  await writePng(maskableSvg(), 512, 'icon-512-maskable.png');
+  const fullBleed = appIconSvg(false);
+  const rounded = appIconSvg(true);
 
-  // Tiny tab favicons — thicker strokes for readability at 16/32px
+  // Install / PWA — full-bleed opaque squares (Chrome is strict about this)
+  await writePng(fullBleed, 512, 'icon-512.png');
+  await writePng(fullBleed, 192, 'icon-192.png');
+  await writePng(fullBleed, 512, 'icon-512-maskable.png');
+
+  // Home-screen / apple / brand — rounded ok
+  await writePng(rounded, 180, 'apple-touch-icon.png');
+
   const tiny = Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32">
   <defs><linearGradient id="g" x1="0" y1="0" x2="1" y2="1"><stop offset="0%" stop-color="#34d399"/><stop offset="100%" stop-color="#115e59"/></linearGradient></defs>
   <rect width="32" height="32" rx="8" fill="url(#g)"/>
@@ -53,7 +60,9 @@ async function main() {
   await writePng(tiny, 32, 'favicon-32.png');
   await writePng(tiny, 16, 'favicon-16.png');
 
-  console.log(hasMaster ? 'Used brand master for app icons.' : 'Used SVG for all icons.');
+  // Keep SVG source in sync (full-bleed for favicon.svg crispness at any size)
+  fs.writeFileSync(path.join(outDir, 'icon.svg'), appIconSvg(true).toString('utf8'));
+  console.log('Done — install icons are full-bleed opaque squares.');
 }
 
 main().catch((err) => {

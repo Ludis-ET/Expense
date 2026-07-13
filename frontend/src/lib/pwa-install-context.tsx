@@ -122,7 +122,7 @@ export function PwaInstallProvider({ children }: { children: ReactNode }) {
       installed: ready ? installed : false,
       isMobile: ready ? isMobile : false,
       platform,
-      canInstall: ready && isMobile && !installed,
+      canInstall: ready && !installed && (isMobile || !!prompt),
       hasNativePrompt: !!prompt,
       instructionsOpen,
       openInstructions: () => setInstructionsOpen(true),

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Play, Plus, Trash2 } from 'lucide-react';
@@ -151,7 +151,10 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   const [nextRun, setNextRun] = useState(new Date().toISOString().slice(0, 10));
   const [autoPost, setAutoPost] = useState(true);
   const [saving, setSaving] = useState(false);
-  const accounts = accountsData?.items.filter((a) => !a.archived) ?? [];
+  const accounts = useMemo(
+    () => accountsData?.items.filter((a) => !a.archived) ?? [],
+    [accountsData?.items],
+  );
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
 
   useEffect(() => {

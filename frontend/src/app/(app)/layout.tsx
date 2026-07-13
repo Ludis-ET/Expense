@@ -11,7 +11,7 @@ import { CurrencyBootstrap } from '@/components/finance/currency-bootstrap';
 import { CommandPalette } from '@/components/command-palette';
 import { AssistantFab } from '@/components/ai/assistant-fab';
 import { LockScreen } from '@/components/lock/lock-screen';
-import { Spinner } from '@/components/ui/misc';
+import { AppLoader } from '@/components/ui/misc';
 import { useAuth } from '@/lib/auth';
 import { useAppLock } from '@/lib/app-lock-context';
 
@@ -26,11 +26,7 @@ function AppShell({ children }: { children: React.ReactNode }) {
   }, [loading, user, router]);
 
   if (loading || !user) {
-    return (
-      <div className="flex min-h-screen items-center justify-center bg-mesh">
-        <Spinner className="h-8 w-8 text-primary" />
-      </div>
-    );
+    return <AppLoader />;
   }
 
   return (

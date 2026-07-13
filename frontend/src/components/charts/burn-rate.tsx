@@ -8,6 +8,10 @@ interface Point {
   cumulative: number;
 }
 
+const W = 560;
+const H = 220;
+const PAD = { l: 8, r: 8, t: 12, b: 22 };
+
 /**
  * Cumulative spend (solid) vs. planned budget (dashed line), with a dotted
  * projection of when the budget runs out at the current burn rate.
@@ -22,9 +26,6 @@ export function BurnRateChart({
   currency: string;
 }) {
   const { money } = useMoney(currency);
-  const W = 560;
-  const H = 220;
-  const pad = { l: 8, r: 8, t: 12, b: 22 };
 
   const model = useMemo(() => {
     if (points.length === 0) return null;
@@ -42,8 +43,8 @@ export function BurnRateChart({
     const maxY = Math.max(totalPlanned, spent) * 1.1 || 1;
     const minX = first;
     const maxX = Math.max(last, projEnd);
-    const x = (t: number) => pad.l + ((t - minX) / Math.max(1, maxX - minX)) * (W - pad.l - pad.r);
-    const y = (v: number) => H - pad.b - (v / maxY) * (H - pad.t - pad.b);
+    const x = (t: number) => PAD.l + ((t - minX) / Math.max(1, maxX - minX)) * (W - PAD.l - PAD.r);
+    const y = (v: number) => H - PAD.b - (v / maxY) * (H - PAD.t - PAD.b);
 
     const line = points.map((p) => `${x(new Date(p.date).getTime())},${y(p.cumulative)}`).join(' ');
     return {
@@ -68,15 +69,15 @@ export function BurnRateChart({
       <svg viewBox={`0 0 ${W} ${H}`} className="w-full">
         {/* planned budget line */}
         <line
-          x1={pad.l}
-          x2={W - pad.r}
+          x1={PAD.l}
+          x2={W - PAD.r}
           y1={model.plannedY}
           y2={model.plannedY}
           stroke="var(--muted)"
           strokeDasharray="5 5"
           strokeWidth={1.5}
         />
-        <text x={pad.l} y={model.plannedY - 5} className="fill-muted text-[10px]">
+        <text x={PAD.l} y={model.plannedY - 5} className="fill-muted text-[10px]">
           Planned {money(totalPlanned)}
         </text>
         {/* projection to exhaustion */}

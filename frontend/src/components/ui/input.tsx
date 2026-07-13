@@ -1,6 +1,9 @@
-import { forwardRef, type InputHTMLAttributes, type SelectHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Calendar, ChevronDown } from 'lucide-react';
+import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
+
+export { Select } from '@/components/ui/select';
+export type { SelectOption } from '@/components/ui/select';
 
 const base =
   'w-full rounded-xl border border-border bg-surface px-3.5 text-sm text-foreground shadow-sm ' +
@@ -33,26 +36,6 @@ export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<H
   ),
 );
 Textarea.displayName = 'Textarea';
-
-export const Select = forwardRef<HTMLSelectElement, SelectHTMLAttributes<HTMLSelectElement>>(
-  ({ className, children, ...props }, ref) => (
-    <div className="relative">
-      <select
-        ref={ref}
-        className={cn(
-          base,
-          'h-10 cursor-pointer appearance-none pr-10',
-          className,
-        )}
-        {...props}
-      >
-        {children}
-      </select>
-      <ChevronDown className="pointer-events-none absolute right-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-    </div>
-  ),
-);
-Select.displayName = 'Select';
 
 export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLabelElement>) {
   return <label className={cn('mb-1.5 block text-sm font-medium text-foreground', className)} {...props} />;

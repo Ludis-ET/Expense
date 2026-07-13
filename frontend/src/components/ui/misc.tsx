@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
+import { Brand } from '@/components/brand';
 import { cn } from '@/lib/utils';
 import { initials } from '@/lib/format';
 
@@ -19,11 +20,81 @@ export function Avatar({ name, className }: { name: string; className?: string }
 }
 
 export function Skeleton({ className }: { className?: string }) {
-  return <div className={cn('animate-pulse rounded-xl bg-surface-muted', className)} />;
+  return (
+    <div
+      className={cn(
+        'relative overflow-hidden rounded-xl bg-surface-muted/80',
+        'before:absolute before:inset-0 before:-translate-x-full before:animate-shimmer',
+        'before:bg-gradient-to-r before:from-transparent before:via-white/40 before:to-transparent',
+        'dark:before:via-white/10',
+        className,
+      )}
+    />
+  );
 }
 
 export function Spinner({ className }: { className?: string }) {
   return <Loader2 className={cn('h-5 w-5 animate-spin text-muted', className)} />;
+}
+
+/** Full-screen branded loader used while auth/shell bootstraps. */
+export function AppLoader({ label = 'Loading your workspace…' }: { label?: string }) {
+  return (
+    <div className="relative flex min-h-screen flex-col items-center justify-center overflow-hidden bg-mesh px-6">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-grid opacity-40 [mask-image:radial-gradient(ellipse_at_center,black_20%,transparent_70%)]"
+      />
+      <div className="relative flex flex-col items-center gap-6 animate-in">
+        <div className="relative">
+          <div
+            aria-hidden
+            className="absolute -inset-4 rounded-[1.75rem] bg-gradient-to-br from-primary/25 to-accent/20 blur-xl"
+          />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-border/60 bg-surface shadow-[var(--shadow-elevated)]">
+            <Brand compact className="[&>div]:h-11 [&>div]:w-11 [&>div]:rounded-xl [&>div>svg]:h-6 [&>div>svg]:w-6" />
+            <span
+              aria-hidden
+              className="absolute inset-0 rounded-2xl border-2 border-transparent border-t-primary/80 animate-spin-slow"
+            />
+          </div>
+        </div>
+        <div className="text-center">
+          <p className="text-sm font-medium text-foreground">{label}</p>
+          <div className="mx-auto mt-4 flex items-center justify-center gap-1.5" aria-hidden>
+            <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-primary [animation-delay:0ms]" />
+            <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-primary [animation-delay:120ms]" />
+            <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-primary [animation-delay:240ms]" />
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/** Compact in-page loading block with shimmer cards. */
+export function PageLoader({ rows = 4 }: { rows?: number }) {
+  return (
+    <div className="animate-in space-y-4" role="status" aria-label="Loading">
+      <div className="flex items-end justify-between gap-3">
+        <div className="space-y-2">
+          <Skeleton className="h-8 w-48" />
+          <Skeleton className="h-4 w-64 max-w-full" />
+        </div>
+        <Skeleton className="h-10 w-28" />
+      </div>
+      <div className="grid gap-3 sm:grid-cols-3">
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+        <Skeleton className="h-24" />
+      </div>
+      <div className="space-y-3">
+        {Array.from({ length: rows }).map((_, i) => (
+          <Skeleton key={i} className="h-14" />
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function ProgressBar({ value, tone = 'primary' }: { value: number; tone?: 'primary' | 'success' | 'warning' | 'danger' }) {

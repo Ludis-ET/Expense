@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Sparkles } from 'lucide-react';
@@ -40,7 +40,10 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
   const [saving, setSaving] = useState(false);
   const [suggesting, setSuggesting] = useState(false);
 
-  const accounts = accountsData?.items.filter((a) => !a.archived) ?? [];
+  const accounts = useMemo(
+    () => accountsData?.items.filter((a) => !a.archived) ?? [],
+    [accountsData?.items],
+  );
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
 
   // Seed the form when opening (either blank or from the editing target).

@@ -31,6 +31,26 @@ async function assertOwnedAccount(id: string, userId: string) {
   return account;
 }
 
+/**
+ * Money leaving an account (expense or transfer-out) may not overdraw it.
+ * `excludeTxId` lets an edit ignore its own prior effect on the balance.
+ */
+async function assertSufficientBalance(
+  userId: string,
+  accountId: string,
+  accountName: string,
+  outflow: number,
+  excludeTxId?: string,
+) {
+  const { accountBalance } = await import('../accounts/accounts.service.js');
+  const available = await accountBalance(userId, accountId, excludeTxId);
+  if (new Prisma.Decimal(outflow).gt(available)) {
+    throw new BadRequestError(
+      `Not enough balance in "${accountName}": available ${available.toFixed(2)}, needed ${outflow.toFixed(2)}. This would overdraw the account.`,
+    );
+  }
+}
+
 async function assertCategoryMatches(categoryId: string, userId: string, kind: TxKind) {
   const category = await prisma.category.findFirst({ where: { id: categoryId, userId } });
   if (!category) throw new NotFoundError('Category not found');
@@ -113,7 +133,7 @@ export async function listTags(user: AuthUser) {
 }
 
 export async function create(user: AuthUser, input: CreateTransactionInput) {
-  await assertOwnedAccount(input.accountId, user.id);
+  const account = await assertOwnedAccount(input.accountId, user.id);
 
   let categoryId: string | null = null;
   if (input.kind === TxKind.TRANSFER) {
@@ -121,6 +141,11 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
   } else {
     await assertCategoryMatches(input.categoryId, user.id, input.kind);
     categoryId = input.categoryId;
+  }
+
+  // Money leaving an account may not push it negative.
+  if (input.kind === TxKind.EXPENSE || input.kind === TxKind.TRANSFER) {
+    await assertSufficientBalance(user.id, account.id, account.name, input.amount);
   }
 
   if (input.kind === TxKind.EXPENSE) {
@@ -170,6 +195,15 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
       throw new BadRequestError('Transfers do not have a category');
     }
     await assertCategoryMatches(input.categoryId, user.id, existing.kind);
+  }
+
+  // Re-check the balance guard for outflows, ignoring this transaction's own
+  // prior effect so an unchanged edit can't falsely trip.
+  if (existing.kind === TxKind.EXPENSE || existing.kind === TxKind.TRANSFER) {
+    const sourceId = input.accountId ?? existing.accountId;
+    const outflow = Number(input.amount ?? existing.amount);
+    const source = await assertOwnedAccount(sourceId, user.id);
+    await assertSufficientBalance(user.id, sourceId, source.name, outflow, id);
   }
 
   const tx = await prisma.transaction.update({ where: { id }, data: input, include: txInclude });

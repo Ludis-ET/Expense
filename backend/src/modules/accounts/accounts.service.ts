@@ -51,6 +51,43 @@ export async function list(user: AuthUser) {
   return { items: rows };
 }
 
+/**
+ * Current computed balance for a single account. Pass `excludeTxId` to compute
+ * the balance as if a given transaction didn't exist (used when editing it).
+ */
+export async function accountBalance(
+  userId: string,
+  accountId: string,
+  excludeTxId?: string,
+): Promise<Prisma.Decimal> {
+  const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+  if (!account) throw new NotFoundError('Account not found');
+
+  const exclude = excludeTxId ? { id: { not: excludeTxId } } : {};
+  const zero = new Prisma.Decimal(0);
+  const [sums, transfersIn] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['kind'],
+      where: { userId, accountId, ...exclude },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ['transferAccountId'],
+      where: { userId, kind: TxKind.TRANSFER, transferAccountId: accountId, ...exclude },
+      _sum: { amount: true },
+    }),
+  ]);
+
+  let balance = new Prisma.Decimal(account.openingBalance);
+  for (const s of sums) {
+    const amt = s._sum.amount ?? zero;
+    if (s.kind === TxKind.INCOME) balance = balance.add(amt);
+    else balance = balance.sub(amt); // EXPENSE and TRANSFER both leave the source
+  }
+  for (const t of transfersIn) balance = balance.add(t._sum.amount ?? zero);
+  return balance;
+}
+
 export async function create(user: AuthUser, input: CreateAccountInput) {
   if (input.isDefault) {
     await prisma.account.updateMany({ where: { userId: user.id }, data: { isDefault: false } });

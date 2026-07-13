@@ -2,18 +2,28 @@ import { CategoryKind, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
-import { advanceNextRun } from './recurring.engine.js';
+import { advanceNextRun, applyOccurrence } from './recurring.engine.js';
 import type { CreateRecurringInput, UpdateRecurringInput } from './recurring.schema.js';
 
 const ruleInclude = {
   category: { select: { id: true, name: true, icon: true, color: true } },
   account: { select: { id: true, name: true, type: true } },
+  goal: { select: { id: true, name: true, icon: true, color: true } },
+  wishlistItem: { select: { id: true, name: true, emoji: true } },
   _count: { select: { transactions: true } },
 } as const;
 
-function serialize(rule: { amount: { toFixed(n: number): string }; _count: { transactions: number } } & Record<string, unknown>) {
+function serialize(
+  rule: {
+    amount: { toFixed(n: number): string };
+    goalId: string | null;
+    wishlistItemId: string | null;
+    _count: { transactions: number };
+  } & Record<string, unknown>,
+) {
   const { _count, ...rest } = rule;
-  return { ...rest, amount: rule.amount.toFixed(2), postedCount: _count.transactions };
+  const planType = rule.goalId ? 'goal' : rule.wishlistItemId ? 'wishlist' : 'transaction';
+  return { ...rest, amount: rule.amount.toFixed(2), postedCount: _count.transactions, planType };
 }
 
 async function assertOwnedRule(id: string, userId: string) {
@@ -25,20 +35,27 @@ async function assertOwnedRule(id: string, userId: string) {
 async function assertRefsOwned(
   userId: string,
   kind: TxKind,
-  accountId?: string,
-  categoryId?: string,
+  input: { accountId?: string; categoryId?: string | null; goalId?: string | null; wishlistItemId?: string | null },
 ) {
-  if (accountId) {
-    const account = await prisma.account.findFirst({ where: { id: accountId, userId } });
+  if (input.accountId) {
+    const account = await prisma.account.findFirst({ where: { id: input.accountId, userId } });
     if (!account) throw new NotFoundError('Account not found');
   }
-  if (categoryId) {
-    const category = await prisma.category.findFirst({ where: { id: categoryId, userId } });
+  if (input.categoryId) {
+    const category = await prisma.category.findFirst({ where: { id: input.categoryId, userId } });
     if (!category) throw new NotFoundError('Category not found');
     const expected = kind === TxKind.INCOME ? CategoryKind.INCOME : CategoryKind.EXPENSE;
     if (category.kind !== expected) {
       throw new BadRequestError(`"${category.name}" is a ${category.kind.toLowerCase()} category`);
     }
+  }
+  if (input.goalId) {
+    const goal = await prisma.savingsGoal.findFirst({ where: { id: input.goalId, userId } });
+    if (!goal) throw new NotFoundError('Goal not found');
+  }
+  if (input.wishlistItemId) {
+    const item = await prisma.wishlistItem.findFirst({ where: { id: input.wishlistItemId, userId } });
+    if (!item) throw new NotFoundError('Wishlist item not found');
   }
 }
 
@@ -52,9 +69,12 @@ export async function list(user: AuthUser) {
 }
 
 export async function create(user: AuthUser, input: CreateRecurringInput) {
-  await assertRefsOwned(user.id, input.kind, input.accountId, input.categoryId);
+  // Savings plans clear the category; goal/wishlist funding doesn't use one.
+  const isSavings = !!input.goalId || !!input.wishlistItemId;
+  const data = { ...input, categoryId: isSavings ? null : (input.categoryId ?? null) };
+  await assertRefsOwned(user.id, input.kind, data);
   const rule = await prisma.recurringRule.create({
-    data: { ...input, userId: user.id },
+    data: { ...data, userId: user.id },
     include: ruleInclude,
   });
   return serialize(rule);
@@ -62,7 +82,7 @@ export async function create(user: AuthUser, input: CreateRecurringInput) {
 
 export async function update(user: AuthUser, id: string, input: UpdateRecurringInput) {
   const existing = await assertOwnedRule(id, user.id);
-  await assertRefsOwned(user.id, (input.kind ?? existing.kind) as TxKind, input.accountId, input.categoryId);
+  await assertRefsOwned(user.id, (input.kind ?? existing.kind) as TxKind, input);
   const rule = await prisma.recurringRule.update({ where: { id }, data: input, include: ruleInclude });
   return serialize(rule);
 }
@@ -78,26 +98,14 @@ export async function runNow(user: AuthUser, id: string) {
   if (!rule.active) throw new BadRequestError('This rule is paused - activate it first');
 
   const now = new Date();
-  const [tx] = await prisma.$transaction([
-    prisma.transaction.create({
-      data: {
-        userId: user.id,
-        kind: rule.kind,
-        amount: rule.amount,
-        currency: rule.currency,
-        date: now,
-        accountId: rule.accountId,
-        categoryId: rule.categoryId,
-        payee: rule.payee,
-        note: rule.note,
-        recurringRuleId: rule.id,
-      },
-    }),
-    prisma.recurringRule.update({
+  const applied = await prisma.$transaction(async (dbTx) => {
+    const kind = await applyOccurrence(dbTx, user.id, rule, now);
+    await dbTx.recurringRule.update({
       where: { id },
       data: { nextRun: advanceNextRun(rule, rule.nextRun > now ? rule.nextRun : now), lastRunAt: now },
-    }),
-  ]);
+    });
+    return kind;
+  });
 
-  return { ...tx, amount: tx.amount.toFixed(2) };
+  return { applied, name: rule.name, amount: rule.amount.toFixed(2), currency: rule.currency };
 }

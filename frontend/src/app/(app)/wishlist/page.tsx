@@ -81,6 +81,7 @@ export default function WishlistPage() {
         (key.startsWith("/dashboard") ||
           key.startsWith("/goals") ||
           key.startsWith("/accounts") ||
+          key.startsWith("/recurring") ||
           key.startsWith("/spend-locks")),
     );
 
@@ -477,14 +478,31 @@ function PromoteModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { data: accountsData } = useSWR<{ items: Account[] }>(
+    item ? "/accounts" : null,
+  );
   const [deadline, setDeadline] = useState("");
   const [createLock, setCreateLock] = useState(true);
+  const [autoSave, setAutoSave] = useState(false);
+  const [saveAmount, setSaveAmount] = useState("");
+  const [saveFreq, setSaveFreq] = useState<"WEEKLY" | "MONTHLY">("MONTHLY");
   const [saving, setSaving] = useState(false);
+
+  const accounts = useMemo(
+    () =>
+      (accountsData?.items ?? []).filter(
+        (a) => !a.archived && (!item || a.currency === item.currency),
+      ),
+    [accountsData, item],
+  );
 
   useEffect(() => {
     if (item) {
       setDeadline("");
       setCreateLock(true);
+      setAutoSave(false);
+      setSaveAmount(item.remaining && Number(item.remaining) > 0 ? "" : "");
+      setSaveFreq("MONTHLY");
     }
   }, [item]);
 
@@ -493,13 +511,34 @@ function PromoteModal({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!item) return;
+    if (autoSave && !(Number(saveAmount) > 0)) {
+      toast.error("Enter an auto-save amount");
+      return;
+    }
     setSaving(true);
     try {
-      await api.post(`/wishlist/${item.id}/promote`, {
-        createLock,
-        deadline: deadline || undefined,
-      });
-      toast.success("Promoted to a savings goal");
+      const res = await api.post<{ goalId: string }>(
+        `/wishlist/${item.id}/promote`,
+        { createLock, deadline: deadline || undefined },
+      );
+      if (autoSave && res?.goalId) {
+        const account = accounts.find((a) => a.isDefault) ?? accounts[0];
+        await api.post("/recurring", {
+          name: `Save: ${item.name}`,
+          kind: "EXPENSE",
+          amount: Number(saveAmount),
+          currency: item.currency,
+          accountId: account?.id,
+          goalId: res.goalId,
+          frequency: saveFreq,
+          interval: 1,
+          nextRun: new Date().toISOString().slice(0, 10),
+          autoPost: true,
+        });
+      }
+      toast.success(
+        autoSave ? "Goal + auto-save plan created" : "Promoted to a savings goal",
+      );
       onSaved();
       onClose();
     } catch (err) {
@@ -538,6 +577,42 @@ function PromoteModal({
             </span>
           </span>
         </label>
+        <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-border p-3">
+          <input
+            type="checkbox"
+            checked={autoSave}
+            onChange={(e) => setAutoSave(e.target.checked)}
+            className="mt-0.5 h-4 w-4 accent-primary"
+          />
+          <span className="text-sm">
+            <span className="font-medium">Auto-save on a schedule</span>
+            <span className="block text-xs text-muted">
+              Creates a recurring plan that sets money aside for you every period.
+            </span>
+          </span>
+        </label>
+        {autoSave && (
+          <div className="grid grid-cols-2 gap-3 rounded-xl bg-surface-muted/50 p-3">
+            <Field label={`Amount (${item.currency})`}>
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                value={saveAmount}
+                onChange={(e) => setSaveAmount(e.target.value)}
+              />
+            </Field>
+            <Field label="Every">
+              <Select
+                value={saveFreq}
+                onChange={(e) => setSaveFreq(e.target.value as "WEEKLY" | "MONTHLY")}
+              >
+                <option value="WEEKLY">Week</option>
+                <option value="MONTHLY">Month</option>
+              </Select>
+            </Field>
+          </div>
+        )}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>
             Cancel

@@ -263,12 +263,22 @@ model RecurringRule {
   active     Boolean   @default(true)
   lastRunAt  DateTime?
 
+  // Savings-plan targets. When either is set the rule is an auto-save plan:
+  // firing it contributes to the goal / funds the want instead of posting a
+  // transaction (goals are virtual; a linked GOAL spend-lock reserves it).
+  goalId         String?
+  goal           SavingsGoal?  @relation("GoalPlans", fields: [goalId], references: [id], onDelete: SetNull)
+  wishlistItemId String?
+  wishlistItem   WishlistItem? @relation("WishlistPlans", fields: [wishlistItemId], references: [id], onDelete: SetNull)
+
   transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, active, nextRun])
+  @@index([goalId])
+  @@index([wishlistItemId])
   @@map("recurring_rules")
 }
 
@@ -300,9 +310,10 @@ model SavingsGoal {
   note         String?
   achievedAt   DateTime?
 
-  contributions GoalContribution[]
-  spendLocks    SpendLock[]
-  wishlistItems WishlistItem[]
+  contributions  GoalContribution[]
+  spendLocks     SpendLock[]
+  wishlistItems  WishlistItem[]
+  recurringRules RecurringRule[]    @relation("GoalPlans")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -431,6 +442,7 @@ model WishlistItem {
   savedAmount   Decimal        @default(0) @db.Decimal(14, 2)
   goalId        String?
   goal          SavingsGoal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+  recurringRules RecurringRule[] @relation("WishlistPlans")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

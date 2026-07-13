@@ -11,36 +11,96 @@ async function assertOwnedGoal(id: string, userId: string) {
   return goal;
 }
 
+const MS_PER_MONTH = 30.44 * 24 * 60 * 60 * 1000;
+
+type PlanRow = {
+  id: string;
+  name: string;
+  amount: Prisma.Decimal;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval: number;
+  nextRun: Date;
+};
+
+/** Normalize a recurring plan's amount to an equivalent monthly figure. */
+function monthlyEquivalent(plan: PlanRow): number {
+  const amt = Number(plan.amount);
+  const per = Math.max(1, plan.interval);
+  switch (plan.frequency) {
+    case 'DAILY':
+      return (amt * 30.44) / per;
+    case 'WEEKLY':
+      return (amt * (30.44 / 7)) / per;
+    case 'MONTHLY':
+      return amt / per;
+    case 'YEARLY':
+      return amt / (12 * per);
+  }
+}
+
 function serializeGoal(goal: {
   targetAmount: Prisma.Decimal;
   deadline: Date | null;
+  achievedAt?: Date | null;
   contributions: { amount: Prisma.Decimal }[];
+  recurringRules?: PlanRow[];
 } & Record<string, unknown>) {
   const zero = new Prisma.Decimal(0);
   const saved = goal.contributions.reduce((s, c) => s.add(c.amount), zero);
   const pct = goal.targetAmount.gt(0) ? Number(saved.div(goal.targetAmount).mul(100).toFixed(1)) : 0;
+  const remaining = goal.targetAmount.sub(saved);
 
   // How much per month is needed to reach the target by the deadline.
   let monthlyNeeded: string | null = null;
   if (goal.deadline && saved.lt(goal.targetAmount)) {
-    const monthsLeft = Math.max(
-      1,
-      (goal.deadline.getTime() - Date.now()) / (30.44 * 24 * 60 * 60 * 1000),
-    );
-    monthlyNeeded = goal.targetAmount.sub(saved).div(monthsLeft).toFixed(2);
+    const monthsLeft = Math.max(1, (goal.deadline.getTime() - Date.now()) / MS_PER_MONTH);
+    monthlyNeeded = remaining.div(monthsLeft).toFixed(2);
   }
 
+  // Auto-save: what recurring plans feed this goal, and when they'll finish it.
+  const plans = goal.recurringRules ?? [];
+  const monthlyAutoSave = plans.reduce((s, p) => s + monthlyEquivalent(p), 0);
+  const nextRun = plans.length
+    ? plans.reduce<Date | null>((min, p) => (!min || p.nextRun < min ? p.nextRun : min), null)
+    : null;
+
+  let projectedDate: string | null = null;
+  let onTrack: boolean | null = null;
+  if (!goal.achievedAt && remaining.gt(0) && monthlyAutoSave > 0) {
+    const monthsToFinish = Number(remaining) / monthlyAutoSave;
+    const projected = new Date(Date.now() + monthsToFinish * MS_PER_MONTH);
+    projectedDate = projected.toISOString();
+    if (goal.deadline) onTrack = projected <= goal.deadline;
+  }
+
+  const { recurringRules, ...rest } = goal;
+  void recurringRules;
+
   return {
-    ...goal,
+    ...rest,
     targetAmount: goal.targetAmount.toFixed(2),
     saved: saved.toFixed(2),
+    remaining: Prisma.Decimal.max(zero, remaining).toFixed(2),
     pct: Math.min(100, pct),
     monthlyNeeded,
+    autoSave: {
+      monthly: monthlyAutoSave.toFixed(2),
+      planCount: plans.length,
+      nextRun: nextRun ? nextRun.toISOString() : null,
+      projectedDate,
+      onTrack,
+    },
     contributions: goal.contributions.map((c) => ({ ...c, amount: c.amount.toFixed(2) })),
   };
 }
 
-const goalInclude = { contributions: { orderBy: { date: 'desc' as const } } };
+const goalInclude = {
+  contributions: { orderBy: { date: 'desc' as const } },
+  recurringRules: {
+    where: { active: true },
+    select: { id: true, name: true, amount: true, frequency: true, interval: true, nextRun: true },
+  },
+};
 
 export async function list(user: AuthUser) {
   const goals = await prisma.savingsGoal.findMany({

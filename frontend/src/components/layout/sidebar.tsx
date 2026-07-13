@@ -5,6 +5,7 @@ import { usePathname } from 'next/navigation';
 import {
   ArrowLeftRight,
   BarChart3,
+  BookOpen,
   HandCoins,
   LayoutDashboard,
   Lock,
@@ -33,7 +34,10 @@ const navGroups = [
   },
   {
     label: 'Insights',
-    items: [{ href: '/analytics', label: 'Analytics', icon: BarChart3 }],
+    items: [
+      { href: '/analytics', label: 'Analytics', icon: BarChart3 },
+      { href: '/guides', label: 'Guides', icon: BookOpen },
+    ],
   },
   {
     label: 'Plan',

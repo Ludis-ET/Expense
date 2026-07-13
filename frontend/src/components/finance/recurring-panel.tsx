@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Play, Plus, Trash2 } from 'lucide-react';
+import { Play, Plus, Trash2, Target, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -17,7 +17,9 @@ import { formatDate } from '@/lib/format';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import type { Account, Category, Frequency, RecurringRule, TxKind } from '@/lib/types';
+import type { Account, Category, Frequency, RecurringRule, SavingsGoal, TxKind, WishlistItem } from '@/lib/types';
+
+type PlanType = 'transaction' | 'goal' | 'wishlist';
 
 const FREQUENCIES: Frequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
 const freqLabel = (f: Frequency, interval: number) =>
@@ -98,9 +100,25 @@ export function RecurringPanel() {
                 <div className="min-w-40 flex-1">
                   <p className="flex items-center gap-2 font-medium">
                     {r.name}
-                    <Badge tone={r.kind === 'INCOME' ? 'success' : 'neutral'}>{r.kind.toLowerCase()}</Badge>
+                    {r.planType === 'goal' ? (
+                      <Badge tone="info">auto-save</Badge>
+                    ) : r.planType === 'wishlist' ? (
+                      <Badge tone="info">wishlist</Badge>
+                    ) : (
+                      <Badge tone={r.kind === 'INCOME' ? 'success' : 'neutral'}>{r.kind.toLowerCase()}</Badge>
+                    )}
                   </p>
-                  {r.category && <CategoryBadge category={r.category} className="mt-1 text-xs text-muted" />}
+                  {r.planType === 'goal' && r.goal ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+                      <Target className="h-3 w-3" /> {r.goal.name}
+                    </p>
+                  ) : r.planType === 'wishlist' && r.wishlistItem ? (
+                    <p className="mt-1 flex items-center gap-1 text-xs text-muted">
+                      <Sparkles className="h-3 w-3" /> {r.wishlistItem.emoji} {r.wishlistItem.name}
+                    </p>
+                  ) : (
+                    r.category && <CategoryBadge category={r.category} className="mt-1 text-xs text-muted" />
+                  )}
                 </div>
                 <div className="text-sm">
                   <p className="font-semibold tabular-nums">{money(r.amount)}</p>
@@ -137,14 +155,28 @@ export function RecurringPanel() {
   );
 }
 
+const PLAN_TYPES: { id: PlanType; label: string; hint: string }[] = [
+  { id: 'transaction', label: 'Transaction', hint: 'Post income or an expense on a schedule.' },
+  { id: 'goal', label: 'Save to goal', hint: 'Auto-contribute to a savings goal each period.' },
+  { id: 'wishlist', label: 'Fund a want', hint: 'Set money aside toward a wishlist item.' },
+];
+
 function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; editing: RecurringRule | null; onClose: () => void; onSaved: () => void }) {
+  const { activeCurrency } = useCurrencyView();
   const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
+  const { data: goalsData } = useSWR<{ items: SavingsGoal[] }>(open ? '/goals' : null);
+  const { data: wishlistData } = useSWR<{ items: WishlistItem[] }>(
+    open ? `/wishlist?currency=${encodeURIComponent(activeCurrency)}` : null,
+  );
+  const [planType, setPlanType] = useState<PlanType>('transaction');
   const [name, setName] = useState('');
   const [kind, setKind] = useState<Exclude<TxKind, 'TRANSFER'>>('EXPENSE');
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
+  const [goalId, setGoalId] = useState('');
+  const [wishlistItemId, setWishlistItemId] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('MONTHLY');
   const [interval, setInterval] = useState('1');
   const [dayOfMonth, setDayOfMonth] = useState('1');
@@ -156,14 +188,20 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
     [accountsData?.items],
   );
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
+  const goals = (goalsData?.items ?? []).filter((g) => !g.achievedAt);
+  const wants = (wishlistData?.items ?? []).filter((w) => w.status === 'WANTING' || w.status === 'SAVING');
+  const isSavings = planType !== 'transaction';
 
   useEffect(() => {
     if (!open) return;
+    setPlanType(editing?.planType ?? 'transaction');
     setName(editing?.name ?? '');
     setKind(editing?.kind === 'INCOME' ? 'INCOME' : 'EXPENSE');
     setAmount(editing ? String(Number(editing.amount)) : '');
     setAccountId(editing?.accountId ?? '');
     setCategoryId(editing?.categoryId ?? '');
+    setGoalId(editing?.goalId ?? '');
+    setWishlistItemId(editing?.wishlistItemId ?? '');
     setFrequency(editing?.frequency ?? 'MONTHLY');
     setInterval(String(editing?.interval ?? 1));
     setDayOfMonth(String(editing?.dayOfMonth ?? 1));
@@ -177,13 +215,34 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!categoryId) return toast.error('Pick a category');
+    if (planType === 'transaction' && !categoryId) return toast.error('Pick a category');
+    if (planType === 'goal' && !goalId) return toast.error('Pick a goal');
+    if (planType === 'wishlist' && !wishlistItemId) return toast.error('Pick a wishlist item');
     setSaving(true);
-    const payload = { name, kind, amount: Number(amount), accountId, categoryId, frequency, interval: Number(interval), dayOfMonth: frequency === 'MONTHLY' ? Number(dayOfMonth) : undefined, nextRun, autoPost };
+    const base = {
+      name,
+      amount: Number(amount),
+      accountId,
+      currency: activeCurrency,
+      frequency,
+      interval: Number(interval),
+      dayOfMonth: frequency === 'MONTHLY' ? Number(dayOfMonth) : undefined,
+      nextRun,
+      autoPost,
+    };
+    const payload = isSavings
+      ? {
+          ...base,
+          kind: 'EXPENSE' as const,
+          goalId: planType === 'goal' ? goalId : null,
+          wishlistItemId: planType === 'wishlist' ? wishlistItemId : null,
+          categoryId: null,
+        }
+      : { ...base, kind, categoryId, goalId: null, wishlistItemId: null };
     try {
       if (editing) await api.put(`/recurring/${editing.id}`, payload);
       else await api.post('/recurring', payload);
-      toast.success(editing ? 'Rule updated' : 'Rule created');
+      toast.success(editing ? 'Rule updated' : isSavings ? 'Auto-save plan created' : 'Rule created');
       onSaved();
       onClose();
     } catch (err) {
@@ -194,29 +253,66 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit rule' : 'New recurring rule'}>
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit rule' : 'New recurring plan'}>
       <form onSubmit={submit} className="space-y-4">
-        <Field label="Name"><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder="Rent" /></Field>
+        {!editing && (
+          <div className="grid grid-cols-3 gap-2">
+            {PLAN_TYPES.map((p) => (
+              <button
+                key={p.id}
+                type="button"
+                onClick={() => setPlanType(p.id)}
+                className={`rounded-xl border p-2.5 text-left text-xs transition-colors ${
+                  planType === p.id ? 'border-primary bg-primary/5' : 'border-border hover:bg-surface-muted'
+                }`}
+              >
+                <span className="block font-semibold">{p.label}</span>
+              </button>
+            ))}
+          </div>
+        )}
+        {isSavings && (
+          <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted">
+            {PLAN_TYPES.find((p) => p.id === planType)!.hint} A linked spend lock will grow automatically, reserving the money.
+          </p>
+        )}
+
+        <Field label="Name"><Input required value={name} onChange={(e) => setName(e.target.value)} placeholder={isSavings ? 'Weekly saving' : 'Rent'} /></Field>
+
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Type">
-            <Select value={kind} onChange={(e) => { setKind(e.target.value as 'INCOME' | 'EXPENSE'); setCategoryId(''); }}>
-              <option value="EXPENSE">Expense</option>
-              <option value="INCOME">Income</option>
-            </Select>
-          </Field>
+          {isSavings ? (
+            <Field label="Type"><Input value="Auto-save" disabled /></Field>
+          ) : (
+            <Field label="Type">
+              <Select value={kind} onChange={(e) => { setKind(e.target.value as 'INCOME' | 'EXPENSE'); setCategoryId(''); }}>
+                <option value="EXPENSE">Expense</option>
+                <option value="INCOME">Income</option>
+              </Select>
+            </Field>
+          )}
           <Field label="Amount"><Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} /></Field>
         </div>
+
         <div className="grid grid-cols-2 gap-3">
-          <Field label="Account"><Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
-          <Field label="Category"><Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
+          <Field label={isSavings ? 'From account' : 'Account'}><Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
+          {planType === 'transaction' && (
+            <Field label="Category"><Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
+          )}
+          {planType === 'goal' && (
+            <Field label="Goal"><Select value={goalId} onChange={(e) => setGoalId(e.target.value)}><option value="">Select…</option>{goals.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select></Field>
+          )}
+          {planType === 'wishlist' && (
+            <Field label="Wishlist item"><Select value={wishlistItemId} onChange={(e) => setWishlistItemId(e.target.value)}><option value="">Select…</option>{wants.map((w) => <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>)}</Select></Field>
+          )}
         </div>
+
         <div className="grid grid-cols-3 gap-3">
           <Field label="Frequency"><Select value={frequency} onChange={(e) => setFrequency(e.target.value as Frequency)}>{FREQUENCIES.map((f) => <option key={f} value={f}>{f.toLowerCase()}</option>)}</Select></Field>
           <Field label="Every"><Input type="number" min="1" value={interval} onChange={(e) => setInterval(e.target.value)} /></Field>
           {frequency === 'MONTHLY' && <Field label="Day"><Input type="number" min="1" max="31" value={dayOfMonth} onChange={(e) => setDayOfMonth(e.target.value)} /></Field>}
         </div>
         <Field label="Next run"><DateInput required value={nextRun} onChange={(e) => setNextRun(e.target.value)} /></Field>
-        <Checkbox checked={autoPost} onChange={setAutoPost} label="Post automatically" />
+        <Checkbox checked={autoPost} onChange={setAutoPost} label={isSavings ? 'Save automatically' : 'Post automatically'} />
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={saving}>{editing ? 'Save' : 'Create'}</Button>

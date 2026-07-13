@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Check, Plus, Target, Trash2 } from 'lucide-react';
+import { Check, Plus, Target, Trash2, Repeat } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -83,6 +83,18 @@ export function GoalsPanel() {
                     {g.deadline && <span>by {formatDate(g.deadline)}</span>}
                   </div>
                   {g.monthlyNeeded && !achieved && <p className="mt-1 text-xs text-muted">Save {money(g.monthlyNeeded)}/mo to hit deadline.</p>}
+                  {!achieved && g.autoSave.planCount > 0 && (
+                    <div className="mt-2 flex flex-wrap items-center gap-1.5 rounded-lg bg-primary/5 px-2.5 py-1.5 text-xs">
+                      <Repeat className="h-3 w-3 text-primary" />
+                      <span className="font-medium text-primary">Auto-saving {money(g.autoSave.monthly)}/mo</span>
+                      {g.autoSave.projectedDate && (
+                        <span className={g.autoSave.onTrack === false ? 'text-amber-600 dark:text-amber-400' : 'text-muted'}>
+                          · done ~{formatDate(g.autoSave.projectedDate)}
+                          {g.autoSave.onTrack === false ? ' (after deadline)' : g.autoSave.onTrack === true ? ' ✓' : ''}
+                        </span>
+                      )}
+                    </div>
+                  )}
                   {!achieved && <Button variant="outline" size="sm" className="mt-3 w-full" onClick={() => setContributing(g)}>Add contribution</Button>}
                 </CardContent>
               </Card>

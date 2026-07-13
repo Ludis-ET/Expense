@@ -92,6 +92,19 @@ export interface RecurringRule {
   autoPost: boolean;
   active: boolean;
   postedCount: number;
+  planType: 'transaction' | 'goal' | 'wishlist';
+  goalId?: string | null;
+  goal?: { id: string; name: string; icon?: string | null; color?: string | null } | null;
+  wishlistItemId?: string | null;
+  wishlistItem?: { id: string; name: string; emoji?: string | null } | null;
+}
+
+export interface GoalAutoSave {
+  monthly: string;
+  planCount: number;
+  nextRun: string | null;
+  projectedDate: string | null;
+  onTrack: boolean | null;
 }
 
 export interface BudgetRow {
@@ -125,8 +138,10 @@ export interface SavingsGoal {
   color?: string | null;
   targetAmount: string;
   saved: string;
+  remaining: string;
   pct: number;
   monthlyNeeded: string | null;
+  autoSave: GoalAutoSave;
   deadline?: string | null;
   note?: string | null;
   achievedAt?: string | null;
@@ -354,6 +369,39 @@ export interface WishlistResponse {
     savedTotal: string;
     currency: string | null;
   };
+}
+
+export type GuideCategory = 'getting-started' | 'saving' | 'spending' | 'debt';
+
+export interface GuideSection {
+  heading: string;
+  body: string;
+}
+
+export interface Guide {
+  id: string;
+  title: string;
+  emoji: string;
+  category: GuideCategory;
+  readMins: number;
+  tagline: string;
+  href?: string;
+  sections: GuideSection[];
+}
+
+export interface GuideSuggestion {
+  id: string;
+  title: string;
+  body: string;
+  tone: 'tip' | 'success' | 'warning';
+  guideId?: string;
+  href?: string;
+  cta?: string;
+}
+
+export interface GuidesOverview {
+  guides: Guide[];
+  suggestions: GuideSuggestion[];
 }
 
 export interface WishlistDigest {

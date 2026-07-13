@@ -1,4 +1,4 @@
-import { Frequency, type RecurringRule } from '../../core/prisma.js';
+import { Frequency, Prisma, WishlistStatus, type RecurringRule } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { logger } from '../../core/logger.js';
 import { notify } from '../notifications/notifications.service.js';
@@ -35,10 +35,90 @@ export function advanceNextRun(
   }
 }
 
+export type OccurrenceKind = 'transaction' | 'goal' | 'wishlist';
+
+/**
+ * Materialize one occurrence of a rule inside an open DB transaction:
+ * - savings plan targeting a goal → adds a goal contribution (and marks the
+ *   goal achieved on completion). A linked GOAL spend-lock grows automatically.
+ * - savings plan targeting a wishlist item → funds the want (and mirrors into
+ *   its linked goal, matching the manual Fund flow).
+ * - otherwise → posts a normal transaction.
+ */
+export async function applyOccurrence(
+  dbTx: Prisma.TransactionClient,
+  userId: string,
+  rule: RecurringRule,
+  date: Date,
+): Promise<OccurrenceKind> {
+  if (rule.goalId) {
+    const goal = await dbTx.savingsGoal.findUnique({ where: { id: rule.goalId } });
+    await dbTx.goalContribution.create({
+      data: { goalId: rule.goalId, amount: rule.amount, date, note: `Auto-save: ${rule.name}` },
+    });
+    if (goal && !goal.achievedAt) {
+      const agg = await dbTx.goalContribution.aggregate({ where: { goalId: rule.goalId }, _sum: { amount: true } });
+      if ((agg._sum.amount ?? new Prisma.Decimal(0)).gte(goal.targetAmount)) {
+        await dbTx.savingsGoal.update({ where: { id: goal.id }, data: { achievedAt: new Date() } });
+        await notify(userId, 'goal_achieved', `🎉 Auto-save reached your "${goal.name}" goal!`, '/budgets?tab=goals');
+      }
+    }
+    return 'goal';
+  }
+
+  if (rule.wishlistItemId) {
+    const item = await dbTx.wishlistItem.findUnique({ where: { id: rule.wishlistItemId } });
+    if (item && item.status !== WishlistStatus.BOUGHT && item.status !== WishlistStatus.DROPPED) {
+      const cost = item.estimatedCost;
+      const wasFunded = item.savedAmount.gte(cost);
+      const nextSaved = Prisma.Decimal.min(cost, item.savedAmount.add(rule.amount));
+      await dbTx.wishlistItem.update({
+        where: { id: item.id },
+        data: {
+          savedAmount: nextSaved,
+          status: item.status === WishlistStatus.WANTING ? WishlistStatus.SAVING : item.status,
+        },
+      });
+      if (item.goalId) {
+        await dbTx.goalContribution.create({
+          data: { goalId: item.goalId, amount: rule.amount, date, note: `Auto-save: ${rule.name}` },
+        });
+      }
+      if (!wasFunded && nextSaved.gte(cost)) {
+        await notify(userId, 'wishlist_funded', `🎯 Auto-save fully funded "${item.name}" — ready to buy!`, '/wishlist');
+      }
+    }
+    return 'wishlist';
+  }
+
+  await dbTx.transaction.create({
+    data: {
+      userId,
+      kind: rule.kind,
+      amount: rule.amount,
+      currency: rule.currency,
+      date,
+      accountId: rule.accountId,
+      categoryId: rule.categoryId,
+      payee: rule.payee,
+      note: rule.note,
+      recurringRuleId: rule.id,
+    },
+  });
+  return 'transaction';
+}
+
+function reminderLink(rule: RecurringRule): string {
+  if (rule.goalId) return '/budgets?tab=goals';
+  if (rule.wishlistItemId) return '/wishlist';
+  return '/recurring';
+}
+
 /**
  * Materialize all due occurrences for a user's active rules. autoPost rules
- * create transactions dated at each scheduled time; remind-only rules fire a
- * notification. Runs in one DB transaction so a crash can't double-post.
+ * create transactions / savings contributions dated at each scheduled time;
+ * remind-only rules fire a notification. Runs in one DB transaction so a crash
+ * can't double-post.
  */
 export async function catchUpUser(userId: string): Promise<void> {
   const now = new Date();
@@ -56,26 +136,13 @@ export async function catchUpUser(userId: string): Promise<void> {
         if (rule.endDate && nextRun > rule.endDate) break;
 
         if (rule.autoPost) {
-          await dbTx.transaction.create({
-            data: {
-              userId,
-              kind: rule.kind,
-              amount: rule.amount,
-              currency: rule.currency,
-              date: nextRun,
-              accountId: rule.accountId,
-              categoryId: rule.categoryId,
-              payee: rule.payee,
-              note: rule.note,
-              recurringRuleId: rule.id,
-            },
-          });
+          await applyOccurrence(dbTx, userId, rule, nextRun);
         } else {
           await notify(
             userId,
             'recurring_due',
             `Reminder: ${rule.name} (${rule.amount.toFixed(2)} ${rule.currency}) is due.`,
-            '/recurring',
+            reminderLink(rule),
           );
         }
 

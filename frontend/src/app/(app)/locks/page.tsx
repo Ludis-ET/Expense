@@ -219,12 +219,23 @@ export default function LocksPage() {
                     )}
                   </div>
                   <p className="mt-0.5 text-xs text-muted">
-                    {lock.goal ? `→ ${lock.goal.name}` : meta.blurb}
+                    {lock.kind === "GOAL" && lock.goal
+                      ? `→ ${lock.goal.name} · ${money(lock.goalSaved ?? "0")} saved so far`
+                      : lock.goal
+                        ? `→ ${lock.goal.name}`
+                        : meta.blurb}
                   </p>
                 </div>
-                <p className="text-lg font-bold tabular-nums">
-                  {money(lock.amount)}
-                </p>
+                <div className="text-right">
+                  <p className="text-lg font-bold tabular-nums">
+                    {money(lock.kind === "GOAL" ? lock.lockedAmount : lock.amount)}
+                  </p>
+                  {lock.kind === "GOAL" && (
+                    <p className="text-[10px] text-muted">
+                      reserved of {money(lock.amount)}
+                    </p>
+                  )}
+                </div>
                 <div className="flex gap-1">
                   <button
                     type="button"

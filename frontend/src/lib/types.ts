@@ -293,10 +293,13 @@ export interface SpendLock {
   kind: SpendLockKind;
   name: string;
   amount: string;
+  /** What is actually protected right now (GOAL locks track real goal savings). */
+  lockedAmount: string;
   currency: string;
   active: boolean;
   note?: string | null;
   goalId?: string | null;
+  goalSaved?: string | null;
   goal?: { id: string; name: string; targetAmount: string; color?: string | null; icon?: string | null } | null;
   createdAt: string;
   updatedAt: string;
@@ -332,6 +335,8 @@ export interface WishlistItem {
   savedAmount: string;
   remaining: string;
   pct: number;
+  /** true = you can cover what's left out of unlocked money; null = closed/unknown. */
+  affordable: boolean | null;
   goalId?: string | null;
   goal?: { id: string; name: string } | null;
   createdAt: string;
@@ -344,10 +349,19 @@ export interface WishlistResponse {
     wanting: number;
     saving: number;
     bought: number;
+    affordable: number;
     dreamTotal: string;
     savedTotal: string;
     currency: string | null;
   };
+}
+
+export interface WishlistDigest {
+  currency: string;
+  activeCount: number;
+  affordableCount: number;
+  dreamTotal: string;
+  top: WishlistItem[];
 }
 
 export interface LedgerPersonGroup {
@@ -392,4 +406,6 @@ export interface DashboardData {
   familySupport: FamilySupportStats;
   household: HouseholdOverview | null;
   tab: LedgerSummary;
+  wishlist: WishlistDigest;
+  spendable: SpendLockOverview;
 }

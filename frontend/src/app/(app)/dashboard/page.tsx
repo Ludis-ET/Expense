@@ -16,6 +16,7 @@ import { CategoryHeatAlerts } from '@/components/finance/category-heat-alerts';
 import { FamilySupportTracker } from '@/components/finance/family-support-tracker';
 import { HouseholdWidget } from '@/components/finance/household-widget';
 import { TabWidget } from '@/components/finance/tab-widget';
+import { SpendableWidget, WishlistWidget } from '@/components/finance/wishlist-locks-widget';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
@@ -139,6 +140,11 @@ export default function DashboardPage() {
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
         <SpendingStreaks data={data.spendingStreak} money={money} />
         <TabWidget tab={data.tab} money={money} />
+      </div>
+
+      <div className="grid gap-4 sm:grid-cols-2">
+        <SpendableWidget spendable={data.spendable} money={money} />
+        <WishlistWidget wishlist={data.wishlist} money={money} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

@@ -24,8 +24,28 @@ export const listWishlistQuery = z.object({
   status: z.nativeEnum(WishlistStatus).optional(),
 });
 
+export const fundWishlistSchema = z.object({
+  amount: money.refine((n) => n > 0, 'Amount must be positive'),
+});
+
+export const promoteWishlistSchema = z.object({
+  deadline: z.coerce.date().optional(),
+  createLock: z.boolean().default(false),
+});
+
+export const purchaseWishlistSchema = z.object({
+  accountId: z.string().min(1),
+  categoryId: z.string().min(1),
+  amount: money.optional(), // defaults to estimatedCost
+  date: z.coerce.date().optional(),
+  note: z.string().max(2000).optional(),
+});
+
 export const wishlistIdParam = z.object({ id: z.string().min(1) });
 
 export type CreateWishlistInput = z.infer<typeof createWishlistSchema>;
 export type UpdateWishlistInput = z.infer<typeof updateWishlistSchema>;
 export type ListWishlistQuery = z.infer<typeof listWishlistQuery>;
+export type FundWishlistInput = z.infer<typeof fundWishlistSchema>;
+export type PromoteWishlistInput = z.infer<typeof promoteWishlistSchema>;
+export type PurchaseWishlistInput = z.infer<typeof purchaseWishlistSchema>;

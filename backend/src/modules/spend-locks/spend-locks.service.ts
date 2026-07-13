@@ -4,7 +4,7 @@ import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
 import type { CreateSpendLockInput, ListSpendLocksQuery, UpdateSpendLockInput } from './spend-locks.schema.js';
 
-function serialize(lock: {
+type LockRow = {
   id: string;
   kind: SpendLockKind;
   name: string;
@@ -13,19 +13,45 @@ function serialize(lock: {
   active: boolean;
   note: string | null;
   goalId: string | null;
-  goal?: { id: string; name: string; targetAmount: Prisma.Decimal; color: string | null; icon: string | null } | null;
+  goal?: {
+    id: string;
+    name: string;
+    targetAmount: Prisma.Decimal;
+    color: string | null;
+    icon: string | null;
+  } | null;
   createdAt: Date;
   updatedAt: Date;
-}) {
+};
+
+/**
+ * The amount a lock actually protects. GOAL locks track the linked goal's real
+ * saved balance (capped by the reserve amount you set), so the vault grows as
+ * you contribute and never over-locks past the target. Other kinds use their
+ * own amount verbatim.
+ */
+function effectiveAmount(lock: LockRow, goalSaved: Map<string, Prisma.Decimal>): Prisma.Decimal {
+  if (lock.kind === SpendLockKind.GOAL && lock.goalId) {
+    const saved = goalSaved.get(lock.goalId) ?? new Prisma.Decimal(0);
+    return Prisma.Decimal.min(saved, lock.amount);
+  }
+  return lock.amount;
+}
+
+function serialize(lock: LockRow, goalSaved: Map<string, Prisma.Decimal>) {
+  const locked = effectiveAmount(lock, goalSaved);
+  const saved = lock.goalId ? goalSaved.get(lock.goalId) ?? null : null;
   return {
     id: lock.id,
     kind: lock.kind,
     name: lock.name,
     amount: lock.amount.toFixed(2),
+    lockedAmount: locked.toFixed(2), // what is actually protected right now
     currency: lock.currency,
     active: lock.active,
     note: lock.note,
     goalId: lock.goalId,
+    goalSaved: saved ? saved.toFixed(2) : null,
     goal: lock.goal
       ? {
           id: lock.goal.id,
@@ -43,6 +69,20 @@ function serialize(lock: {
 const include = {
   goal: { select: { id: true, name: true, targetAmount: true, color: true, icon: true } },
 } satisfies Prisma.SpendLockInclude;
+
+/** Real saved amounts (sum of contributions) for the given goals. */
+async function goalSavedMap(userId: string, goalIds: string[]) {
+  const ids = [...new Set(goalIds.filter(Boolean))];
+  const map = new Map<string, Prisma.Decimal>();
+  if (ids.length === 0) return map;
+  const rows = await prisma.goalContribution.groupBy({
+    by: ['goalId'],
+    where: { goalId: { in: ids }, goal: { userId } },
+    _sum: { amount: true },
+  });
+  for (const r of rows) map.set(r.goalId, r._sum.amount ?? new Prisma.Decimal(0));
+  return map;
+}
 
 async function accountBalance(userId: string, currency: string) {
   const accounts = await prisma.account.findMany({
@@ -83,8 +123,9 @@ async function accountBalance(userId: string, currency: string) {
 
 function overviewFor(
   currency: string,
-  locks: Awaited<ReturnType<typeof prisma.spendLock.findMany>>,
+  locks: LockRow[],
   balance: Prisma.Decimal,
+  goalSaved: Map<string, Prisma.Decimal>,
 ) {
   const active = locks.filter((l) => l.active && l.currency === currency);
   const floorLocks = active.filter((l) => l.kind === SpendLockKind.FLOOR);
@@ -93,7 +134,10 @@ function overviewFor(
     (max, l) => (l.amount.gt(max) ? l.amount : max),
     new Prisma.Decimal(0),
   );
-  const reservedAmount = reserveLocks.reduce((s, l) => s.add(l.amount), new Prisma.Decimal(0));
+  const reservedAmount = reserveLocks.reduce(
+    (s, l) => s.add(effectiveAmount(l, goalSaved)),
+    new Prisma.Decimal(0),
+  );
   const lockedTotal = floorAmount.add(reservedAmount);
   const spendable = Prisma.Decimal.max(new Prisma.Decimal(0), balance.sub(lockedTotal));
   const multiFloor = floorLocks.length > 1;
@@ -116,9 +160,25 @@ function overviewFor(
   };
 }
 
+export type SpendableRow = ReturnType<typeof overviewFor>;
+
+/** Spendable-money overview for one currency. Shared by wishlist + dashboard. */
+export async function spendableFor(userId: string, currency: string): Promise<SpendableRow> {
+  const cur = currency.toUpperCase();
+  const locks = (await prisma.spendLock.findMany({
+    where: { userId, currency: cur, active: true },
+    include,
+  })) as LockRow[];
+  const [balance, goalSaved] = await Promise.all([
+    accountBalance(userId, cur),
+    goalSavedMap(userId, locks.map((l) => l.goalId ?? '')),
+  ]);
+  return overviewFor(cur, locks, balance, goalSaved);
+}
+
 export async function list(user: AuthUser, query: ListSpendLocksQuery) {
   const currency = query.currency?.toUpperCase();
-  const locks = await prisma.spendLock.findMany({
+  const locks = (await prisma.spendLock.findMany({
     where: {
       userId: user.id,
       ...(currency ? { currency } : {}),
@@ -126,21 +186,21 @@ export async function list(user: AuthUser, query: ListSpendLocksQuery) {
     },
     include,
     orderBy: [{ active: 'desc' }, { createdAt: 'desc' }],
-  });
+  })) as LockRow[];
 
-  const currencies = currency
-    ? [currency]
-    : [...new Set(locks.map((l) => l.currency))];
+  const goalSaved = await goalSavedMap(user.id, locks.map((l) => l.goalId ?? ''));
+
+  const currencies = currency ? [currency] : [...new Set(locks.map((l) => l.currency))];
   if (currencies.length === 0) {
     const userRow = await prisma.user.findUnique({ where: { id: user.id }, select: { currency: true } });
     currencies.push(userRow?.currency ?? 'ETB');
   }
 
   const overview = await Promise.all(
-    currencies.map(async (cur) => overviewFor(cur, locks, await accountBalance(user.id, cur))),
+    currencies.map(async (cur) => overviewFor(cur, locks, await accountBalance(user.id, cur), goalSaved)),
   );
 
-  return { items: locks.map(serialize), overview };
+  return { items: locks.map((l) => serialize(l, goalSaved)), overview };
 }
 
 export async function create(user: AuthUser, input: CreateSpendLockInput) {
@@ -157,7 +217,7 @@ export async function create(user: AuthUser, input: CreateSpendLockInput) {
         ? 'Goal vault'
         : 'Reserve');
 
-  const lock = await prisma.spendLock.create({
+  const lock = (await prisma.spendLock.create({
     data: {
       userId: user.id,
       kind: input.kind,
@@ -169,9 +229,10 @@ export async function create(user: AuthUser, input: CreateSpendLockInput) {
       active: input.active ?? true,
     },
     include,
-  });
+  })) as LockRow;
 
-  return serialize(lock);
+  const goalSaved = await goalSavedMap(user.id, [lock.goalId ?? '']);
+  return serialize(lock, goalSaved);
 }
 
 export async function update(user: AuthUser, id: string, input: UpdateSpendLockInput) {
@@ -183,7 +244,7 @@ export async function update(user: AuthUser, id: string, input: UpdateSpendLockI
     if (!goal) throw new NotFoundError('Goal not found');
   }
 
-  const lock = await prisma.spendLock.update({
+  const lock = (await prisma.spendLock.update({
     where: { id },
     data: {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
@@ -193,9 +254,10 @@ export async function update(user: AuthUser, id: string, input: UpdateSpendLockI
       ...(input.goalId !== undefined ? { goalId: input.goalId } : {}),
     },
     include,
-  });
+  })) as LockRow;
 
-  return serialize(lock);
+  const goalSaved = await goalSavedMap(user.id, [lock.goalId ?? '']);
+  return serialize(lock, goalSaved);
 }
 
 export async function remove(user: AuthUser, id: string) {
@@ -204,18 +266,21 @@ export async function remove(user: AuthUser, id: string) {
   await prisma.spendLock.delete({ where: { id } });
 }
 
+/** Deactivate any GOAL locks tied to a goal - used when its reserve is spent as intended. */
+export async function releaseGoalLocks(userId: string, goalId: string) {
+  await prisma.spendLock.updateMany({
+    where: { userId, goalId, kind: SpendLockKind.GOAL, active: true },
+    data: { active: false },
+  });
+}
+
 /** Reject expenses that would break active spend locks for that currency. */
 export async function assertExpenseAllowed(userId: string, currency: string, expenseAmount: number) {
-  const locks = await prisma.spendLock.findMany({
-    where: { userId, currency: currency.toUpperCase(), active: true },
-  });
-  if (locks.length === 0) return;
-
-  const balance = await accountBalance(userId, currency.toUpperCase());
-  const row = overviewFor(currency.toUpperCase(), locks, balance);
+  const row = await spendableFor(userId, currency);
+  if (row.lockCount === 0) return;
   if (expenseAmount > Number(row.spendable) + 0.001) {
     throw new BadRequestError(
-      `Spend lock: only ${row.spendable} ${currency} is unlocked. Locked: ${row.lockedTotal} (floor ${row.floorAmount} + reserved ${row.reservedAmount}).`,
+      `Spend lock: only ${row.spendable} ${currency.toUpperCase()} is unlocked. Locked: ${row.lockedTotal} (floor ${row.floorAmount} + reserved ${row.reservedAmount}).`,
     );
   }
 }

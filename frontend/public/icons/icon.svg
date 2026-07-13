@@ -1,0 +1,39 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Santim">
+  <defs>
+    <linearGradient id="bg" x1="12%" y1="0%" x2="88%" y2="100%">
+      <stop offset="0%" stop-color="#34d399"/>
+      <stop offset="42%" stop-color="#059669"/>
+      <stop offset="100%" stop-color="#115e59"/>
+    </linearGradient>
+    <linearGradient id="sheen" x1="30%" y1="0%" x2="70%" y2="70%">
+      <stop offset="0%" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="55%" stop-color="#ffffff" stop-opacity="0"/>
+    </linearGradient>
+    <filter id="lift" x="-30%" y="-30%" width="160%" height="160%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#022c22" flood-opacity="0.35"/>
+    </filter>
+  </defs>
+
+  <rect width="512" height="512" rx="114" fill="url(#bg)"/>
+  <rect width="512" height="512" rx="114" fill="url(#sheen)"/>
+
+  <g filter="url(#lift)" fill="none" stroke="#ffffff" stroke-linecap="round">
+    <!-- Open coin ring (gaps at top & bottom) -->
+    <path
+      stroke-width="22"
+      d="M256 108
+         a148 148 0 0 1 0 296
+         a148 148 0 0 1 0 -296"
+      stroke-dasharray="412 54"
+      stroke-dashoffset="27"
+    />
+  </g>
+
+  <g filter="url(#lift)">
+    <!-- Serif-inspired S monogram -->
+    <path
+      fill="#ffffff"
+      d="M322 186.5c-11.5-24.5-37.5-40.5-70.5-40.5-51 0-84.5 30-84.5 72.5 0 30.5 17.5 51.5 52.5 64l40.5 14.5c19 7 27.5 15.5 27.5 30.5 0 19.5-17.5 32.5-45.5 32.5-26.5 0-46-11.5-56.5-33.5l-36.5 19c17.5 37 52 55 93 55 56.5 0 93.5-33 93.5-79.5 0-34.5-19.5-56.5-56-69.5l-42-15c-16.5-6-23-13-23-25.5 0-17 15-28 39-28 21.5 0 37 9 45.5 26.5l36.5-19.5z"
+    />
+  </g>
+</svg>

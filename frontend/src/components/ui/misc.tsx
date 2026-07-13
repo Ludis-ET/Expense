@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
-import { Brand } from '@/components/brand';
+import { BrandMark } from '@/components/brand';
 import { cn } from '@/lib/utils';
 import { initials } from '@/lib/format';
 
@@ -51,8 +51,8 @@ export function AppLoader({ label = 'Loading your workspace…' }: { label?: str
             aria-hidden
             className="absolute -inset-4 rounded-[1.75rem] bg-gradient-to-br from-primary/25 to-accent/20 blur-xl"
           />
-          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-border/60 bg-surface shadow-[var(--shadow-elevated)]">
-            <Brand compact className="[&>div]:h-11 [&>div]:w-11 [&>div]:rounded-xl [&>div>svg]:h-6 [&>div>svg]:w-6" />
+          <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl border border-border/60 bg-surface p-2.5 shadow-[var(--shadow-elevated)]">
+            <BrandMark className="h-full w-full shadow-none" />
             <span
               aria-hidden
               className="absolute inset-0 rounded-2xl border-2 border-transparent border-t-primary/80 animate-spin-slow"

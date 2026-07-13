@@ -1,12 +1,47 @@
-import { Coins } from 'lucide-react';
+import { useId } from 'react';
 import { cn } from '@/lib/utils';
+
+/** Santim mark — matches app / favicon monogram. */
+export function BrandMark({ className }: { className?: string }) {
+  const uid = useId().replace(/:/g, '');
+  const bg = `santim-bg-${uid}`;
+
+  return (
+    <svg
+      viewBox="0 0 512 512"
+      className={cn('h-9 w-9 shrink-0 rounded-[22%] shadow-md shadow-primary/25', className)}
+      aria-hidden
+    >
+      <defs>
+        <linearGradient id={bg} x1="12%" y1="0%" x2="88%" y2="100%">
+          <stop offset="0%" stopColor="#34d399" />
+          <stop offset="42%" stopColor="#059669" />
+          <stop offset="100%" stopColor="#115e59" />
+        </linearGradient>
+      </defs>
+      <rect width="512" height="512" rx="114" fill={`url(#${bg})`} />
+      <path
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="22"
+        strokeLinecap="round"
+        d="M256 108a148 148 0 0 1 0 296a148 148 0 0 1 0-296"
+        strokeDasharray="412 54"
+        strokeDashoffset="27"
+        opacity="0.95"
+      />
+      <path
+        fill="#ffffff"
+        d="M322 186.5c-11.5-24.5-37.5-40.5-70.5-40.5-51 0-84.5 30-84.5 72.5 0 30.5 17.5 51.5 52.5 64l40.5 14.5c19 7 27.5 15.5 27.5 30.5 0 19.5-17.5 32.5-45.5 32.5-26.5 0-46-11.5-56.5-33.5l-36.5 19c17.5 37 52 55 93 55 56.5 0 93.5-33 93.5-79.5 0-34.5-19.5-56.5-56-69.5l-42-15c-16.5-6-23-13-23-25.5 0-17 15-28 39-28 21.5 0 37 9 45.5 26.5l36.5-19.5z"
+      />
+    </svg>
+  );
+}
 
 export function Brand({ className, compact = false }: { className?: string; compact?: boolean }) {
   return (
     <div className={cn('flex items-center gap-2.5', className)}>
-      <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-primary to-accent text-white shadow-md shadow-primary/25">
-        <Coins className="h-5 w-5" />
-      </div>
+      <BrandMark />
       {!compact && (
         <span className="text-lg font-bold tracking-tight">
           San<span className="text-primary">tim</span>

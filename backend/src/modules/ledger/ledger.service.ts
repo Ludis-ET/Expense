@@ -220,9 +220,14 @@ export async function list(user: AuthUser, query: ListLedgerQuery) {
   return { items: entries.map(serializeEntry) };
 }
 
-export async function people(user: AuthUser) {
+export async function people(user: AuthUser, currency?: string) {
+  const cur = currency?.toUpperCase();
   const entries = await prisma.ledgerEntry.findMany({
-    where: { userId: user.id, status: LedgerStatus.OPEN },
+    where: {
+      userId: user.id,
+      status: LedgerStatus.OPEN,
+      ...(cur ? { currency: cur } : {}),
+    },
     orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
     include: entryInclude,
   });
@@ -280,9 +285,14 @@ export async function people(user: AuthUser) {
   return { items };
 }
 
-export async function summary(user: AuthUser) {
+export async function summary(user: AuthUser, currency?: string) {
+  const cur = currency?.toUpperCase();
   const entries = await prisma.ledgerEntry.findMany({
-    where: { userId: user.id, status: LedgerStatus.OPEN },
+    where: {
+      userId: user.id,
+      status: LedgerStatus.OPEN,
+      ...(cur ? { currency: cur } : {}),
+    },
     include: entryInclude,
     orderBy: [{ dueDate: 'asc' }, { createdAt: 'desc' }],
   });
@@ -313,6 +323,7 @@ export async function summary(user: AuthUser) {
     .reduce((s, e) => s + Number(e.remaining), 0);
 
   return {
+    currency: cur ?? null,
     receivable: receivable.toFixed(2),
     payable: payable.toFixed(2),
     expectedIn: expectedIn.toFixed(2),
@@ -358,6 +369,7 @@ export async function create(user: AuthUser, input: CreateLedgerInput) {
       counterparty: input.counterparty.trim(),
       title: input.title?.trim() || null,
       totalAmount: input.totalAmount,
+      currency: (input.currency ?? 'ETB').toUpperCase(),
       dueDate: input.dueDate,
       note: input.note,
       categoryId: input.categoryId,
@@ -366,7 +378,14 @@ export async function create(user: AuthUser, input: CreateLedgerInput) {
   });
 
   if (input.recordMovement && input.sourceAccountId) {
-    await assertOwnedAccount(input.sourceAccountId, user.id);
+    const account = await assertOwnedAccount(input.sourceAccountId, user.id);
+    if (input.currency && account.currency !== input.currency.toUpperCase()) {
+      throw new BadRequestError(`Account currency (${account.currency}) must match tab currency (${input.currency})`);
+    }
+    // Prefer account currency if create omitted it
+    if (entry.currency !== account.currency) {
+      await prisma.ledgerEntry.update({ where: { id: entry.id }, data: { currency: account.currency } });
+    }
     const txKind = initialMovementTxKind(input.kind);
     const categoryId =
       txKind === TxKind.INCOME
@@ -378,7 +397,7 @@ export async function create(user: AuthUser, input: CreateLedgerInput) {
         userId: user.id,
         kind: txKind,
         amount: input.totalAmount,
-        currency: entry.currency,
+        currency: account.currency,
         date: new Date(),
         accountId: input.sourceAccountId,
         categoryId,

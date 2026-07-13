@@ -123,6 +123,11 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     categoryId = input.categoryId;
   }
 
+  if (input.kind === TxKind.EXPENSE) {
+    const { assertExpenseAllowed } = await import('../spend-locks/spend-locks.service.js');
+    await assertExpenseAllowed(user.id, input.currency, input.amount);
+  }
+
   const tx = await prisma.transaction.create({
     data: {
       userId: user.id,

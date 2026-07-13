@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { z } from 'zod';
 import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
@@ -18,15 +19,19 @@ ledgerRouter.use(requireAuth, tabReminderCatchUp);
 
 ledgerRouter.get(
   '/summary',
+  validate({ query: z.object({ currency: z.string().length(3).toUpperCase().optional() }) }),
   asyncHandler(async (req, res) => {
-    res.json(await ledger.summary(req.user!));
+    const q = req.query as { currency?: string };
+    res.json(await ledger.summary(req.user!, q.currency));
   }),
 );
 
 ledgerRouter.get(
   '/people',
+  validate({ query: z.object({ currency: z.string().length(3).toUpperCase().optional() }) }),
   asyncHandler(async (req, res) => {
-    res.json(await ledger.people(req.user!));
+    const q = req.query as { currency?: string };
+    res.json(await ledger.people(req.user!, q.currency));
   }),
 );
 

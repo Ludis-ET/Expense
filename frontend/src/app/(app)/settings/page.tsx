@@ -12,6 +12,7 @@ import { ExchangeRatesPanel } from '@/components/settings/exchange-rates-panel';
 import { AiProviders } from '@/components/settings/ai-providers';
 import { CategoryManager } from '@/components/settings/category-manager';
 import { HouseholdPanel } from '@/components/settings/household-panel';
+import { AppLockPanel } from '@/components/settings/app-lock-panel';
 import { api, ApiError } from '@/lib/api';
 import { formatEthiopian } from '@/lib/ethiopian-calendar';
 import { useAuth } from '@/lib/auth';
@@ -152,6 +153,10 @@ export default function SettingsPage() {
           </div>
         </CardContent>
       </Card>
+
+      <div className="mb-6" id="app-lock">
+        <AppLockPanel />
+      </div>
 
       <div className="mb-6">
         <ExchangeRatesPanel />

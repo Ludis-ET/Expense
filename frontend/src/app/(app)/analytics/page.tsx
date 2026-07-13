@@ -1,7 +1,6 @@
 'use client';
 
 import Link from 'next/link';
-import { ArrowRight } from 'lucide-react';
 import { PageHeader } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { DashboardAnalytics } from '@/components/finance/dashboard-analytics';

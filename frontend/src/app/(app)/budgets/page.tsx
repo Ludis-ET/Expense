@@ -14,7 +14,6 @@ import { MonthNavigator, currentMonth } from '@/components/finance/month-navigat
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { GoalsPanel } from '@/components/finance/goals-panel';
 import { api, ApiError } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
@@ -37,7 +36,6 @@ function PlanInner() {
   const confirm = useConfirm();
   const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
   const { activeCurrency } = useCurrencyView();
-  const { user } = useAuth();
   const { money } = useMoney();
   const [month, setMonth] = useState(currentMonth());
   const { data, mutate } = useSWR<BudgetsResponse>(`/budgets?month=${month}`);

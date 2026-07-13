@@ -16,6 +16,11 @@
     "test": "pnpm -r test",
     "typecheck": "pnpm -r typecheck",
     "db:migrate": "pnpm --filter @santim/backend db:migrate",
-    "db:seed": "pnpm --filter @santim/backend db:seed"
+    "db:seed": "pnpm --filter @santim/backend db:seed",
+    "prepare": "husky"
+  },
+  "devDependencies": {
+    "husky": "^9.1.7",
+    "lint-staged": "^17.0.8"
   }
 }

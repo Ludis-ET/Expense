@@ -8,6 +8,7 @@ import {
   BarChart3,
   HandCoins,
   LayoutDashboard,
+  Lock,
   Moon,
   PiggyBank,
   Plus,
@@ -17,7 +18,9 @@ import {
   Sun,
   Wallet,
 } from 'lucide-react';
+import { openAssistant } from '@/components/ai/assistant-fab';
 import { cn } from '@/lib/utils';
+import { useOptionalAppLock } from '@/lib/app-lock-context';
 
 interface Command {
   id: string;
@@ -30,6 +33,7 @@ interface Command {
 export function CommandPalette() {
   const router = useRouter();
   const { resolvedTheme, setTheme } = useTheme();
+  const appLock = useOptionalAppLock();
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [active, setActive] = useState(0);
@@ -40,7 +44,7 @@ export function CommandPalette() {
       router.push(path);
       setOpen(false);
     };
-    return [
+    const items: Command[] = [
       { id: 'add', label: 'Add transaction', hint: 'quick add', icon: Plus, run: go('/transactions?add=1') },
       { id: 'dashboard', label: 'Go to Dashboard', icon: LayoutDashboard, run: go('/dashboard') },
       { id: 'transactions', label: 'Go to Transactions', icon: ArrowLeftRight, run: go('/transactions') },
@@ -50,20 +54,34 @@ export function CommandPalette() {
       { id: 'goals', label: 'Go to Savings goals', icon: PiggyBank, run: go('/budgets?tab=goals') },
       { id: 'tab', label: 'Go to Money Tab', hint: 'loans & IOUs', icon: HandCoins, run: go('/tab') },
       { id: 'analytics', label: 'Go to Analytics', icon: BarChart3, run: go('/analytics') },
-      { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: go('/dashboard?assistant=1') },
+      { id: 'assistant', label: 'Ask about your money', hint: 'AI', icon: Sparkles, run: () => { openAssistant('ask'); setOpen(false); } },
       { id: 'household', label: 'Couples & shared accounts', icon: Wallet, run: go('/settings#household') },
       { id: 'settings', label: 'Go to Settings', icon: Settings, run: go('/settings') },
-      {
-        id: 'theme',
-        label: 'Toggle theme',
-        icon: resolvedTheme === 'dark' ? Sun : Moon,
+      { id: 'app-lock', label: 'App lock settings', icon: Lock, run: go('/settings#app-lock') },
+    ];
+    if (appLock?.enabled) {
+      items.push({
+        id: 'lock-now',
+        label: 'Lock Santim now',
+        hint: 'PIN / biometrics',
+        icon: Lock,
         run: () => {
-          setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+          appLock.lock();
           setOpen(false);
         },
+      });
+    }
+    items.push({
+      id: 'theme',
+      label: 'Toggle theme',
+      icon: resolvedTheme === 'dark' ? Sun : Moon,
+      run: () => {
+        setTheme(resolvedTheme === 'dark' ? 'light' : 'dark');
+        setOpen(false);
       },
-    ];
-  }, [router, resolvedTheme, setTheme]);
+    });
+    return items;
+  }, [router, resolvedTheme, setTheme, appLock]);
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();

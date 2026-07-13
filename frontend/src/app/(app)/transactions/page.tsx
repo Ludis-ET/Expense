@@ -4,16 +4,16 @@ import { Suspense, useEffect, useMemo, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Download, Plus, Search } from 'lucide-react';
+import { Download, Plus, Search, ArrowLeftRight } from 'lucide-react';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { TransactionForm } from '@/components/finance/transaction-form';
+import { TransferModal } from '@/components/finance/transfer-modal';
 import { RecurringPanel } from '@/components/finance/recurring-panel';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { api, ApiError } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { useCurrencyView } from '@/lib/currency-view-context';
@@ -32,7 +32,6 @@ function TransactionsInner() {
   const confirm = useConfirm();
   const tab = params.get('tab') === 'recurring' ? 'recurring' : 'ledger';
   const { activeCurrency } = useCurrencyView();
-  const { user } = useAuth();
   const [month, setMonth] = useState(currentMonth());
   const [kind, setKind] = useState<TxKind | ''>('');
   const [categoryId, setCategoryId] = useState('');
@@ -40,6 +39,7 @@ function TransactionsInner() {
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
+  const [transferOpen, setTransferOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
 
   const { data: accountsData } = useSWR<{ items: Account[] }>('/accounts');
@@ -136,9 +136,18 @@ function TransactionsInner() {
         badge={<CurrencyBadge />}
         action={
           tab === 'ledger' ? (
-            <div className="flex items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportCsv}>
+            <div className="flex flex-wrap items-center gap-2">
+              <Button variant="outline" size="sm" onClick={exportCsv} className="hidden sm:inline-flex">
                 <Download className="h-4 w-4" /> Export
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={(accountsData?.items.length ?? 0) < 2}
+                onClick={() => setTransferOpen(true)}
+              >
+                <ArrowLeftRight className="h-4 w-4" />
+                <span className="hidden xs:inline sm:inline">Transfer</span>
               </Button>
               <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
                 <Plus className="h-4 w-4" /> Add
@@ -222,6 +231,11 @@ function TransactionsInner() {
         open={formOpen}
         editing={editing}
         onClose={() => setFormOpen(false)}
+        onSaved={() => void mutate()}
+      />
+      <TransferModal
+        open={transferOpen}
+        onClose={() => setTransferOpen(false)}
         onSaved={() => void mutate()}
       />
         </>

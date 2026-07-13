@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
@@ -19,7 +19,10 @@ export function TransferModal({
   onSaved: () => void;
 }) {
   const { data } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
-  const accounts = data?.items.filter((a) => !a.archived) ?? [];
+  const accounts = useMemo(
+    () => data?.items.filter((a) => !a.archived) ?? [],
+    [data?.items],
+  );
 
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -37,11 +40,13 @@ export function TransferModal({
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (from === to) return toast.error('Choose two different accounts');
+    const fromAccount = accounts.find((a) => a.id === from);
     setSaving(true);
     try {
       await api.post('/transactions', {
         kind: 'TRANSFER',
         amount: Number(amount),
+        currency: fromAccount?.currency ?? 'ETB',
         accountId: from,
         transferAccountId: to,
         date: new Date().toISOString().slice(0, 10),

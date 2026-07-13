@@ -227,13 +227,12 @@ export function PersonTabCard({
   money,
   onRecord,
   onEdit,
-  onRemove,
 }: {
   group: import('@/lib/types').LedgerPersonGroup;
   money: (v: number | string) => string;
   onRecord: (entry: LedgerEntry) => void;
   onEdit: (entry: LedgerEntry) => void;
-  onRemove: (entry: LedgerEntry) => void;
+  onRemove?: (entry: LedgerEntry) => void;
 }) {
   const net = Number(group.netRemaining);
   return (

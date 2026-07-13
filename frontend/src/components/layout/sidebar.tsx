@@ -7,8 +7,10 @@ import {
   BarChart3,
   HandCoins,
   LayoutDashboard,
+  Lock,
   PiggyBank,
   Settings,
+  Sparkles,
   Wallet,
   X,
 } from 'lucide-react';
@@ -37,6 +39,8 @@ const navGroups = [
     label: 'Plan',
     items: [
       { href: '/budgets', label: 'Budgets & Goals', icon: PiggyBank },
+      { href: '/locks', label: 'Spend Locks', icon: Lock },
+      { href: '/wishlist', label: 'Wishlist', icon: Sparkles },
       { href: '/tab', label: 'Money Tab', icon: HandCoins },
     ],
   },

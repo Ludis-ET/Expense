@@ -5,7 +5,6 @@ import {
   BarChart3,
   CheckCircle2,
   Globe2,
-  Lock,
   PiggyBank,
   Repeat,
   Sparkles,

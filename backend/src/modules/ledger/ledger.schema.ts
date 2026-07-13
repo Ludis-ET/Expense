@@ -9,6 +9,7 @@ export const createLedgerSchema = z.object({
   counterparty: z.string().min(1).max(100),
   title: z.string().max(200).optional(),
   totalAmount: money,
+  currency: z.string().length(3).toUpperCase().optional(),
   dueDate: z.coerce.date().optional(),
   note: z.string().max(2000).optional(),
   categoryId: z.string().min(1).optional(),

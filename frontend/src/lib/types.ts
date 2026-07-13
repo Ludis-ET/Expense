@@ -265,6 +265,7 @@ export interface LedgerEntry {
 }
 
 export interface LedgerSummary {
+  currency?: string | null;
   receivable: string;
   payable: string;
   expectedIn: string;
@@ -281,6 +282,71 @@ export interface LedgerSummary {
     expectedOut: string;
     netIfOnTime: string;
     allOpenNet: string;
+  };
+}
+
+export type SpendLockKind = 'FLOOR' | 'GOAL' | 'RESERVE';
+export type WishlistStatus = 'WANTING' | 'SAVING' | 'BOUGHT' | 'DROPPED';
+
+export interface SpendLock {
+  id: string;
+  kind: SpendLockKind;
+  name: string;
+  amount: string;
+  currency: string;
+  active: boolean;
+  note?: string | null;
+  goalId?: string | null;
+  goal?: { id: string; name: string; targetAmount: string; color?: string | null; icon?: string | null } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface SpendLockOverview {
+  currency: string;
+  balance: string;
+  floorAmount: string;
+  reservedAmount: string;
+  lockedTotal: string;
+  spendable: string;
+  lockCount: number;
+  conflict: boolean;
+  hint?: string | null;
+}
+
+export interface SpendLocksResponse {
+  items: SpendLock[];
+  overview: SpendLockOverview[];
+}
+
+export interface WishlistItem {
+  id: string;
+  name: string;
+  estimatedCost: string;
+  currency: string;
+  priority: number;
+  status: WishlistStatus;
+  note?: string | null;
+  link?: string | null;
+  emoji?: string | null;
+  savedAmount: string;
+  remaining: string;
+  pct: number;
+  goalId?: string | null;
+  goal?: { id: string; name: string } | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface WishlistResponse {
+  items: WishlistItem[];
+  stats: {
+    wanting: number;
+    saving: number;
+    bought: number;
+    dreamTotal: string;
+    savedTotal: string;
+    currency: string | null;
   };
 }
 

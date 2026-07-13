@@ -30,7 +30,7 @@ interface TransactionListProps {
   onDelete?: (tx: Transaction) => void;
 }
 
-/** Day-grouped transaction rows with per-day subtotals. */
+/** Day-grouped transaction rows with always-visible mobile actions. */
 export function TransactionList({ items, compact, onEdit, onDelete }: TransactionListProps) {
   const { signedMoney, hidden } = useMoney();
   const groups: { day: string; items: Transaction[]; net: number }[] = [];
@@ -75,7 +75,7 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
               return (
                 <li
                   key={tx.id}
-                  className="group flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0"
+                  className="flex items-center gap-2 border-b border-border px-3 py-3 last:border-b-0 sm:gap-3 sm:px-4"
                 >
                   <span
                     className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg"
@@ -98,27 +98,29 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
                       )}
                     </p>
                   </div>
-                  <span className={cn('text-sm font-semibold tabular-nums', amountColor[tx.kind])}>
+                  <span className={cn('shrink-0 text-sm font-semibold tabular-nums', amountColor[tx.kind])}>
                     {signedMoney(tx.amount, tx.kind, tx.currency)}
                   </span>
                   {(onEdit || onDelete) && (
-                    <span className="hidden shrink-0 items-center gap-1 group-hover:flex">
+                    <span className="flex shrink-0 items-center gap-0.5">
                       {onEdit && !isTransfer && (
                         <button
+                          type="button"
                           onClick={() => onEdit(tx)}
-                          className="rounded-md p-1.5 text-muted hover:bg-surface-muted hover:text-foreground"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-surface-muted hover:text-foreground"
                           aria-label="Edit"
                         >
-                          <Pencil className="h-3.5 w-3.5" />
+                          <Pencil className="h-4 w-4" />
                         </button>
                       )}
                       {onDelete && (
                         <button
+                          type="button"
                           onClick={() => onDelete(tx)}
-                          className="rounded-md p-1.5 text-muted hover:bg-surface-muted hover:text-danger"
+                          className="flex h-9 w-9 items-center justify-center rounded-lg text-muted hover:bg-surface-muted hover:text-danger"
                           aria-label="Delete"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Trash2 className="h-4 w-4" />
                         </button>
                       )}
                     </span>

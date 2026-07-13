@@ -18,7 +18,6 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { TabEntryCard, PersonTabCard } from '@/components/finance/tab-widget';
 import { api, ApiError } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
@@ -38,7 +37,6 @@ const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
 ];
 
 export default function TabPage() {
-  const { user } = useAuth();
   const confirm = useConfirm();
   const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
@@ -52,8 +50,12 @@ export default function TabPage() {
     ? `/ledger?status=open&currency=${encodeURIComponent(activeCurrency)}`
     : `/ledger?status=open&kind=${filter}&currency=${encodeURIComponent(activeCurrency)}`;
   const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(view === 'entries' ? query : null);
-  const { data: people, mutate: mutatePeople } = useSWR<{ items: LedgerPersonGroup[] }>(view === 'people' ? '/ledger/people' : null);
-  const { data: summary, mutate: mutateSummary } = useSWR<LedgerSummary>('/ledger/summary');
+  const { data: people, mutate: mutatePeople } = useSWR<{ items: LedgerPersonGroup[] }>(
+    view === 'people' ? `/ledger/people?currency=${encodeURIComponent(activeCurrency)}` : null,
+  );
+  const { data: summary, mutate: mutateSummary } = useSWR<LedgerSummary>(
+    `/ledger/summary?currency=${encodeURIComponent(activeCurrency)}`,
+  );
 
   const refresh = () => {
     void mutateList();
@@ -92,7 +94,7 @@ export default function TabPage() {
         description={currencyScopeHint(activeCurrency)}
         badge={<CurrencyBadge />}
         action={
-          <Button size="sm" onClick={() => { setEditing(null); setFormOpen(true); }}>
+          <Button size="sm" className="min-h-10" onClick={() => { setEditing(null); setFormOpen(true); }}>
             <Plus className="h-4 w-4" /> New entry
           </Button>
         }
@@ -103,35 +105,35 @@ export default function TabPage() {
       ) : (
         <>
           {summary.forecast && (
-            <div className="card flex flex-wrap items-center justify-between gap-3 border-primary/20 bg-primary/5 px-5 py-4">
+            <div className="card flex flex-col gap-2 border-primary/20 bg-primary/5 px-4 py-4 sm:flex-row sm:flex-wrap sm:items-center sm:justify-between sm:px-5">
               <div>
                 <p className="text-xs font-medium uppercase tracking-wide text-muted">Cash-flow forecast · {summary.forecast.month}</p>
-                <p className="mt-1 text-sm text-muted">If everything due this month settles on time</p>
+                <p className="mt-1 text-sm text-muted">If everything due this month settles on time · {activeCurrency}</p>
               </div>
               <p className={cn('text-2xl font-bold tabular-nums', forecastNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
                 {forecastNet >= 0 ? '+' : ''}{money(forecastNet)}
               </p>
             </div>
           )}
-          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-            <StatTile label="Net position" value={money(summary.netPosition)} hint="all open tabs" />
+          <div className="grid grid-cols-2 gap-2 sm:gap-3 lg:grid-cols-5">
+            <StatTile label="Net position" value={money(summary.netPosition)} hint={`${activeCurrency} open tabs`} />
             <StatTile label="Owed to you" value={money(summary.receivable)} tone="emerald" />
             <StatTile label="Incoming" value={money(summary.expectedIn)} tone="sky" />
             <StatTile label="You owe" value={money(summary.payable)} tone="amber" />
-            <StatTile label="Outgoing" value={money(summary.expectedOut)} tone="violet" />
+            <StatTile label="Outgoing" value={money(summary.expectedOut)} tone="violet" className="col-span-2 lg:col-span-1" />
           </div>
         </>
       )}
 
-      <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded-xl border border-border p-1">
+      <div className="flex flex-col gap-2 sm:flex-row sm:flex-wrap sm:items-center">
+        <div className="flex w-full gap-1 overflow-x-auto rounded-xl border border-border p-1 sm:w-auto">
           {(['entries', 'people'] as ViewMode[]).map((v) => (
             <button
               key={v}
               type="button"
               onClick={() => setView(v)}
               className={cn(
-                'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium capitalize',
+                'flex min-h-10 flex-1 items-center justify-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium capitalize sm:flex-none',
                 view === v ? 'bg-primary text-primary-foreground' : 'text-muted hover:text-foreground',
               )}
             >
@@ -141,14 +143,14 @@ export default function TabPage() {
           ))}
         </div>
         {view === 'entries' && (
-          <div className="flex flex-wrap gap-1 rounded-xl border border-border p-1">
+          <div className="flex gap-1 overflow-x-auto rounded-xl border border-border p-1 [-ms-overflow-style:none] [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
             {filters.map((f) => (
               <button
                 key={f.id}
                 type="button"
                 onClick={() => setFilter(f.id)}
                 className={cn(
-                  'flex items-center gap-1.5 rounded-lg px-3.5 py-1.5 text-xs font-medium transition-all',
+                  'flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all',
                   filter === f.id ? 'bg-surface-muted text-foreground shadow-sm' : 'text-muted hover:text-foreground',
                 )}
               >
@@ -219,11 +221,13 @@ function StatTile({
   value,
   hint,
   tone,
+  className,
 }: {
   label: string;
   value: string;
   hint?: string;
   tone?: 'emerald' | 'sky' | 'amber' | 'violet';
+  className?: string;
 }) {
   const toneClass =
     tone === 'emerald'
@@ -236,9 +240,9 @@ function StatTile({
             ? 'text-violet-600 dark:text-violet-400'
             : '';
   return (
-    <div className="card p-4">
+    <div className={cn('card p-3 sm:p-4', className)}>
       <p className="text-xs font-medium text-muted">{label}</p>
-      <p className={cn('mt-1 text-xl font-bold tabular-nums', toneClass)}>{value}</p>
+      <p className={cn('mt-1 text-lg font-bold tabular-nums sm:text-xl', toneClass)}>{value}</p>
       {hint && <p className="mt-0.5 text-[10px] text-muted">{hint}</p>}
     </div>
   );
@@ -255,6 +259,7 @@ function EntryForm({
   onClose: () => void;
   onSaved: () => void;
 }) {
+  const { activeCurrency } = useCurrencyView();
   const [kind, setKind] = useState<LedgerKind>('LENT');
   const [counterparty, setCounterparty] = useState('');
   const [title, setTitle] = useState('');
@@ -269,6 +274,10 @@ function EntryForm({
   const { data: accounts } = useSWR<{ items: Account[] }>('/accounts');
   const { data: incomeCats } = useSWR<{ items: Category[] }>('/categories?kind=INCOME');
   const { data: expenseCats } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
+
+  const currencyAccounts = (accounts?.items ?? []).filter(
+    (a) => !a.archived && a.currency === activeCurrency,
+  );
 
   useEffect(() => {
     if (!open) return;
@@ -302,6 +311,7 @@ function EntryForm({
       counterparty,
       title: title || undefined,
       totalAmount: Number(totalAmount),
+      currency: activeCurrency,
       dueDate: dueDate || undefined,
       note: note || undefined,
       categoryId:
@@ -393,7 +403,7 @@ function EntryForm({
               <Field label="Account">
                 <Select required value={sourceAccountId} onChange={(e) => setSourceAccountId(e.target.value)}>
                   <option value="">Select account…</option>
-                  {(accounts?.items ?? []).filter((a) => !a.archived).map((a) => (
+                  {currencyAccounts.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
                   ))}
                 </Select>

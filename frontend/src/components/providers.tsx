@@ -6,6 +6,7 @@ import { SWRConfig } from 'swr';
 import { Toaster } from 'sonner';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { AmountVisibilityProvider } from '@/lib/amount-visibility';
+import { AppLockProvider } from '@/lib/app-lock-context';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { CurrencyViewProvider } from '@/lib/currency-view-context';
@@ -29,9 +30,11 @@ export function Providers({ children }: { children: ReactNode }) {
           <PwaInstallProvider>
             <CurrencyViewBridge>
               <AmountVisibilityProvider>
-                <ConfirmProvider>
-                  {children}
-                </ConfirmProvider>
+                <AppLockProvider>
+                  <ConfirmProvider>
+                    {children}
+                  </ConfirmProvider>
+                </AppLockProvider>
               </AmountVisibilityProvider>
             </CurrencyViewBridge>
             <InstallPrompt />

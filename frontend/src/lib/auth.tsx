@@ -74,6 +74,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const logout = useCallback(() => {
     tokens.clear();
     setUser(null);
+    try {
+      sessionStorage.removeItem('santim-app-lock-unlocked');
+    } catch {
+      /* ignore */
+    }
     router.push('/login');
   }, [router]);
 

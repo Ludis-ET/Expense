@@ -65,6 +65,20 @@ enum LedgerStatus {
   CANCELLED
 }
 
+// Soft spend protection: floor (can't go below), goal reserve, or general vault.
+enum SpendLockKind {
+  FLOOR
+  GOAL
+  RESERVE
+}
+
+enum WishlistStatus {
+  WANTING
+  SAVING
+  BOUGHT
+  DROPPED
+}
+
 model User {
   id             String @id @default(cuid())
   email          String @unique
@@ -87,6 +101,8 @@ model User {
   sentInvites       HouseholdInvite[] @relation("InviteSender")
   ledgerEntries     LedgerEntry[]
   exchangeRates     ExchangeRate[]
+  spendLocks        SpendLock[]
+  wishlistItems     WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -285,6 +301,8 @@ model SavingsGoal {
   achievedAt   DateTime?
 
   contributions GoalContribution[]
+  spendLocks    SpendLock[]
+  wishlistItems WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -373,6 +391,53 @@ model LedgerPayment {
 
   @@index([ledgerEntryId])
   @@map("ledger_payments")
+}
+
+// Money you promise not to touch - floor, goal vault, or named reserve. Multiple locks stack per currency.
+model SpendLock {
+  id       String        @id @default(cuid())
+  userId   String
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind     SpendLockKind
+  name     String
+  amount   Decimal       @db.Decimal(14, 2)
+  currency String        @default("ETB")
+  active   Boolean       @default(true)
+  note     String?
+  goalId   String?
+  goal     SavingsGoal?  @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, currency, active])
+  @@index([goalId])
+  @@map("spend_locks")
+}
+
+// Creative wishlist - wants with priority, optional goal link, and save progress.
+model WishlistItem {
+  id            String         @id @default(cuid())
+  userId        String
+  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name          String
+  estimatedCost Decimal        @db.Decimal(14, 2)
+  currency      String         @default("ETB")
+  priority      Int            @default(3) // 1 = dream-now, 5 = someday
+  status        WishlistStatus @default(WANTING)
+  note          String?
+  link          String?
+  emoji         String?
+  savedAmount   Decimal        @default(0) @db.Decimal(14, 2)
+  goalId        String?
+  goal          SavingsGoal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, status])
+  @@index([userId, currency])
+  @@map("wishlist_items")
 }
 
 // User-defined conversion rates (e.g. 1 USD = 56.5 ETB). Never merge currencies without these.

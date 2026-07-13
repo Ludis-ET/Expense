@@ -25,7 +25,8 @@ The core ledger - every birr in and out.
 - **Add** income or expense via the quick-add modal (the **+ Add transaction** button, the `N` shortcut, or the command palette). Pick a type, amount, account, category (filtered to the right type), date, payee, tags and a note.
 - **✨ Suggest** - if you've set an AI key, one click reads your payee/note and picks the best category for you.
 - **Filter** by month, type, category, account, tag, or free-text search across payees and notes.
-- **Edit or delete** any transaction inline; rows are grouped by day with running subtotals.
+- **Edit or delete** any transaction (always visible on mobile, not hover-only); rows are grouped by day with running subtotals.
+- **Transfer** between your accounts from this page (same as Accounts).
 - **Export** the current view to CSV.
 
 Three transaction kinds: **income**, **expense**, and **transfer** (moving money between your own accounts - transfers change balances but are excluded from income/expense analytics).
@@ -44,6 +45,21 @@ Set a **monthly spending limit per category** and stay ahead of overspending.
 - Progress bars turn amber then red as you approach and cross the limit.
 - Set an **alert threshold** (e.g. 80%) - when you cross it, Santim drops a notification.
 - A month navigator lets you review any past month; a summary strip shows total budgeted vs spent vs remaining.
+
+## Spend locks (`/locks`)
+
+Protect money you refuse to touch. Locks are **per currency** and stack:
+- **Safety floor** - "I can't spend below this." Multiple floors use the **highest** floor.
+- **Goal vault** - reserve an amount toward a savings goal.
+- **Named reserve** - rent buffer, emergency pot, etc.
+- Expenses that would break unlocked balance are **blocked** at create time.
+
+## Wishlist (`/wishlist`)
+
+A creative **dream board** for things you want (phones, trips, gear):
+- Priority, emoji, optional product link, and progress toward the cost.
+- Optionally link a want to a savings goal.
+- Statuses: wanting → saving → bought.
 
 ## Goals (`/goals`)
 
@@ -103,6 +119,7 @@ Without an AI key everything else in the app works normally; these features simp
 ## Settings (`/settings`)
 
 - **Profile** - name, **default currency**, language (English/Amharic/Oromo/Tigrinya), first day of week, and an optional **Ethiopian (Geʿez) calendar** display.
+- **App lock** - optional on-device PIN (4–8 digits) plus biometrics via WebAuthn (Face ID, Touch ID, Windows Hello, Android fingerprint). Auto-lock after idle time and/or when you switch apps. Secrets stay in the browser — never sent to the server. Lock instantly from the top bar.
 - **Exchange rates** - set your own conversion rates between currencies (e.g. USD → ETB). Combined totals only appear when every rate is defined; otherwise each currency is shown separately.
 - **Appearance** - light / dark / system theme.
 - **Category manager** - rename, recolor, re-icon, add or delete your income and expense categories (deleting a used category asks where to move its transactions).

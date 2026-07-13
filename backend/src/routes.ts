@@ -14,6 +14,8 @@ import { notificationsRouter } from './modules/notifications/notifications.route
 import { householdRouter } from './modules/household/household.router.js';
 import { ledgerRouter } from './modules/ledger/ledger.router.js';
 import { exchangeRatesRouter } from './modules/exchange-rates/exchange-rates.router.js';
+import { spendLocksRouter } from './modules/spend-locks/spend-locks.router.js';
+import { wishlistRouter } from './modules/wishlist/wishlist.router.js';
 
 export const apiRouter = Router();
 
@@ -32,3 +34,5 @@ apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/household', householdRouter);
 apiRouter.use('/ledger', ledgerRouter);
 apiRouter.use('/exchange-rates', exchangeRatesRouter);
+apiRouter.use('/spend-locks', spendLocksRouter);
+apiRouter.use('/wishlist', wishlistRouter);

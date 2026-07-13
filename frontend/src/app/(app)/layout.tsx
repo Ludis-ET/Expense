@@ -10,13 +10,16 @@ import { MobileBottomNav } from '@/components/layout/mobile-bottom-nav';
 import { CurrencyBootstrap } from '@/components/finance/currency-bootstrap';
 import { CommandPalette } from '@/components/command-palette';
 import { AssistantFab } from '@/components/ai/assistant-fab';
+import { LockScreen } from '@/components/lock/lock-screen';
 import { Spinner } from '@/components/ui/misc';
 import { useAuth } from '@/lib/auth';
+import { useAppLock } from '@/lib/app-lock-context';
 
 function AppShell({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth();
   const router = useRouter();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const { locked, ready: lockReady } = useAppLock();
 
   useEffect(() => {
     if (!loading && !user) router.replace('/login');
@@ -38,18 +41,26 @@ function AppShell({ children }: { children: React.ReactNode }) {
       >
         Skip to main content
       </a>
-      <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
-      <CurrencyBootstrap />
-      <div className="lg:pl-[260px]">
-        <Topbar onMenu={() => setSidebarOpen(true)} />
-        <MobileInstallBar />
-        <main id="main-content" className="mx-auto max-w-7xl px-4 py-6 pb-24 lg:px-8 lg:py-8 lg:pb-8">{children}</main>
+      {lockReady && <LockScreen />}
+      <div className={locked ? 'pointer-events-none select-none blur-sm' : undefined} aria-hidden={locked || undefined}>
+        <Sidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+        <CurrencyBootstrap />
+        <div className="lg:pl-[260px]">
+          <Topbar onMenu={() => setSidebarOpen(true)} />
+          <MobileInstallBar />
+          <main
+            id="main-content"
+            className="mx-auto max-w-7xl px-3 py-4 pb-[calc(8.75rem+env(safe-area-inset-bottom))] sm:px-4 sm:py-6 lg:px-8 lg:py-8 lg:pb-8"
+          >
+            {children}
+          </main>
+        </div>
+        <MobileBottomNav />
+        <CommandPalette />
+        <Suspense fallback={null}>
+          <AssistantFab />
+        </Suspense>
       </div>
-      <MobileBottomNav />
-      <CommandPalette />
-      <Suspense fallback={null}>
-        <AssistantFab />
-      </Suspense>
     </div>
   );
 }

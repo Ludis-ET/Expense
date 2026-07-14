@@ -113,15 +113,15 @@ export default function SettingsPage() {
       {/* Hero */}
       <div className="relative overflow-hidden rounded-3xl border border-border">
         <div className="h-28 bg-gradient-to-br from-primary/80 via-violet-500/70 to-sky-500/70 sm:h-32" />
-        <div className="flex flex-col gap-4 px-5 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-7 sm:pb-6">
-          <div className="-mt-10 flex items-end gap-4 sm:-mt-12">
+        <div className="flex flex-col gap-4 px-4 pb-5 sm:flex-row sm:items-end sm:justify-between sm:px-7 sm:pb-6">
+          <div className="-mt-10 flex min-w-0 items-end gap-3 sm:-mt-12 sm:gap-4">
             <Avatar
               name={user?.name ?? '?'}
-              className="h-20 w-20 rounded-2xl border-4 border-surface text-2xl shadow-lg sm:h-24 sm:w-24"
+              className="h-16 w-16 shrink-0 rounded-2xl border-4 border-surface text-xl shadow-lg sm:h-24 sm:w-24 sm:text-2xl"
             />
-            <div className="pb-1">
-              <h1 className="text-xl font-bold tracking-tight sm:text-2xl">{user?.name}</h1>
-              <p className="text-sm text-muted">{user?.email}</p>
+            <div className="min-w-0 pb-1">
+              <h1 className="truncate text-lg font-bold tracking-tight sm:text-2xl">{user?.name}</h1>
+              <p className="truncate text-sm text-muted">{user?.email}</p>
             </div>
           </div>
           <div className="hidden items-center gap-2 rounded-xl border border-border bg-surface/60 px-3 py-2 text-xs text-muted backdrop-blur sm:flex">
@@ -133,8 +133,8 @@ export default function SettingsPage() {
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[220px_1fr]">
         {/* Section nav */}
-        <nav className="lg:sticky lg:top-20 lg:self-start">
-          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface p-1.5 lg:flex-col lg:overflow-visible">
+        <nav className="sticky top-14 z-10 -mx-3 bg-background/85 px-3 py-2 backdrop-blur sm:top-16 lg:top-20 lg:mx-0 lg:self-start lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
+          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-col lg:overflow-visible [&::-webkit-scrollbar]:hidden">
             {SECTIONS.map((s) => {
               const isActive = active === s.id;
               return (

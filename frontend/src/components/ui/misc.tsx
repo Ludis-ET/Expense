@@ -152,14 +152,14 @@ export function PageHeader({
 }) {
   return (
     <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
-      <div>
-        <div className="flex items-center gap-2">
+      <div className="min-w-0">
+        <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>
           {badge}
         </div>
-        {description && <p className="mt-1 text-sm text-muted">{description}</p>}
+        {description && <p className="mt-1 max-w-prose text-sm text-muted">{description}</p>}
       </div>
-      {action}
+      {action && <div className="shrink-0">{action}</div>}
     </div>
   );
 }

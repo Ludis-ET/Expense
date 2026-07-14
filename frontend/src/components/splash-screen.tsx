@@ -5,7 +5,7 @@ import { BrandMark } from '@/components/brand';
 import { cn } from '@/lib/utils';
 
 const SESSION_KEY = 'santim.splash.shown';
-const HOLD_MS = 15000; // fully visible
+const HOLD_MS = 1900; // fully visible
 const FADE_MS = 550; // fade-out duration
 
 type Phase = 'pending' | 'showing' | 'hiding' | 'gone';

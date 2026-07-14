@@ -1,15 +1,18 @@
-import { useId } from 'react';
-import { cn } from '@/lib/utils';
+import { useId } from "react";
+import { cn } from "@/lib/utils";
 
-/** Santim mark — matches app / favicon monogram. */
+/** Santim mark   matches app / favicon monogram. */
 export function BrandMark({ className }: { className?: string }) {
-  const uid = useId().replace(/:/g, '');
+  const uid = useId().replace(/:/g, "");
   const bg = `santim-bg-${uid}`;
 
   return (
     <svg
       viewBox="0 0 512 512"
-      className={cn('h-9 w-9 shrink-0 rounded-[22%] shadow-md shadow-primary/25', className)}
+      className={cn(
+        "h-9 w-9 shrink-0 rounded-[22%] shadow-md shadow-primary/25",
+        className,
+      )}
       aria-hidden
     >
       <defs>
@@ -38,9 +41,15 @@ export function BrandMark({ className }: { className?: string }) {
   );
 }
 
-export function Brand({ className, compact = false }: { className?: string; compact?: boolean }) {
+export function Brand({
+  className,
+  compact = false,
+}: {
+  className?: string;
+  compact?: boolean;
+}) {
   return (
-    <div className={cn('flex items-center gap-2.5', className)}>
+    <div className={cn("flex items-center gap-2.5", className)}>
       <BrandMark />
       {!compact && (
         <span className="text-lg font-bold tracking-tight">

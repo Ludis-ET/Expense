@@ -1,48 +1,90 @@
-'use client';
+"use client";
 
-import { Download, Share, Smartphone } from 'lucide-react';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { usePwaInstall } from '@/lib/pwa-install-context';
+import { Download, Share, Smartphone } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { usePwaInstall } from "@/lib/pwa-install-context";
 
 export function InstallInstructionsModal() {
-  const { instructionsOpen, closeInstructions, platform, hasNativePrompt, install } = usePwaInstall();
+  const {
+    instructionsOpen,
+    closeInstructions,
+    platform,
+    hasNativePrompt,
+    install,
+  } = usePwaInstall();
 
   const steps =
-    platform === 'ios'
+    platform === "ios"
       ? [
-          { icon: Share, text: 'Open Santim in Safari (not Chrome or in-app browsers).' },
-          { icon: Share, text: 'Tap the Share button (square with an arrow).' },
-          { icon: Smartphone, text: 'Scroll down and tap "Add to Home Screen".' },
-          { icon: Download, text: 'Tap Add — Santim appears on your home screen like an app.' },
+          {
+            icon: Share,
+            text: "Open Santim in Safari (not Chrome or in-app browsers).",
+          },
+          { icon: Share, text: "Tap the Share button (square with an arrow)." },
+          {
+            icon: Smartphone,
+            text: 'Scroll down and tap "Add to Home Screen".',
+          },
+          {
+            icon: Download,
+            text: "Tap Add   Santim appears on your home screen like an app.",
+          },
         ]
-      : platform === 'android'
+      : platform === "android"
         ? hasNativePrompt
           ? [
-              { icon: Download, text: 'Tap Install below to open Chrome’s install dialog.' },
-              { icon: Smartphone, text: 'Confirm Install — Santim opens full screen from your home screen.' },
+              {
+                icon: Download,
+                text: "Tap Install below to open Chrome’s install dialog.",
+              },
+              {
+                icon: Smartphone,
+                text: "Confirm Install   Santim opens full screen from your home screen.",
+              },
             ]
           : [
-              { icon: Download, text: 'Use Chrome (not Facebook/Instagram in-app browser).' },
-              { icon: Smartphone, text: 'Stay on the site ~30 seconds, then open the ⋮ menu.' },
-              { icon: Download, text: 'Tap "Install app" or "Add to Home screen", then confirm.' },
+              {
+                icon: Download,
+                text: "Use Chrome (not Facebook/Instagram in-app browser).",
+              },
+              {
+                icon: Smartphone,
+                text: "Stay on the site ~30 seconds, then open the ⋮ menu.",
+              },
+              {
+                icon: Download,
+                text: 'Tap "Install app" or "Add to Home screen", then confirm.',
+              },
             ]
         : [
-            { icon: Download, text: 'In Chrome, open the browser menu (⋮).' },
-            { icon: Smartphone, text: 'Choose "Install Santim…" or "Cast, save, and share" → "Install page as app".' },
-            { icon: Download, text: 'Confirm — Santim opens in its own window.' },
+            { icon: Download, text: "In Chrome, open the browser menu (⋮)." },
+            {
+              icon: Smartphone,
+              text: 'Choose "Install Santim…" or "Cast, save, and share" → "Install page as app".',
+            },
+            {
+              icon: Download,
+              text: "Confirm   Santim opens in its own window.",
+            },
           ];
 
   return (
-    <Modal open={instructionsOpen} onClose={closeInstructions} title="Install Santim">
+    <Modal
+      open={instructionsOpen}
+      onClose={closeInstructions}
+      title="Install Santim"
+    >
       <div className="space-y-4">
         <p className="text-sm text-muted">
-          Install Santim for a full-screen app experience and one-tap access to your money.
+          Install Santim for a full-screen app experience and one-tap access to
+          your money.
         </p>
-        {!hasNativePrompt && platform === 'android' && (
+        {!hasNativePrompt && platform === "android" && (
           <p className="rounded-xl border border-amber-500/30 bg-amber-500/10 px-3 py-2 text-xs text-amber-800 dark:text-amber-200">
-            If Chrome says “Can’t install app”, open this site in Chrome over HTTPS (or localhost), refresh once,
-            and make sure Santim isn’t already installed under your apps list.
+            If Chrome says “Can’t install app”, open this site in Chrome over
+            HTTPS (or localhost), refresh once, and make sure Santim isn’t
+            already installed under your apps list.
           </p>
         )}
         <ol className="space-y-3">
@@ -75,7 +117,9 @@ export function InstallInstructionsModal() {
               Install now
             </Button>
           )}
-          {!hasNativePrompt && <Button onClick={closeInstructions}>Got it</Button>}
+          {!hasNativePrompt && (
+            <Button onClick={closeInstructions}>Got it</Button>
+          )}
         </div>
       </div>
     </Modal>

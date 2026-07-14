@@ -203,3 +203,40 @@ body {
 .animate-bounce-dot {
   animation: bounce-dot 1s ease-in-out infinite;
 }
+
+/* ---- Splash screen ---- */
+@keyframes splash-pop {
+  0% { opacity: 0; transform: scale(0.6); }
+  55% { opacity: 1; transform: scale(1.08); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes splash-ring {
+  from { stroke-dashoffset: 302; }
+  to { stroke-dashoffset: 64; }
+}
+@keyframes splash-orb {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(26px, -32px) scale(1.15); }
+}
+@keyframes splash-orb-2 {
+  0%, 100% { transform: translate(0, 0) scale(1); }
+  50% { transform: translate(-30px, 24px) scale(1.2); }
+}
+@keyframes splash-sweep {
+  0% { transform: translateX(-100%); }
+  100% { transform: translateX(320%); }
+}
+
+.animate-splash-pop { animation: splash-pop 0.85s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.animate-splash-ring { animation: splash-ring 1.5s cubic-bezier(0.4, 0, 0.2, 1) forwards, spin-slow 9s linear 1.5s infinite; transform-origin: center; }
+.animate-splash-orb { animation: splash-orb 7s ease-in-out infinite; }
+.animate-splash-orb-2 { animation: splash-orb-2 8s ease-in-out infinite; }
+.animate-splash-sweep { animation: splash-sweep 1.5s ease-in-out infinite; }
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-splash-pop,
+  .animate-splash-ring,
+  .animate-splash-orb,
+  .animate-splash-orb-2,
+  .animate-splash-sweep { animation: none; }
+}

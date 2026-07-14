@@ -1,42 +1,44 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
-import Link from 'next/link';
-import { toast } from 'sonner';
-import { FileText, MessageCircle, Sparkles, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Spinner } from '@/components/ui/misc';
-import { AskWidget } from '@/components/ai/ask-widget';
-import { Markdown } from '@/components/markdown';
-import { currentMonth } from '@/components/finance/month-navigator';
-import { api, ApiError } from '@/lib/api';
-import { formatMonth } from '@/lib/format';
-import { cn } from '@/lib/utils';
+import { useEffect, useState } from "react";
+import { useSearchParams } from "next/navigation";
+import Link from "next/link";
+import { toast } from "sonner";
+import { FileText, MessageCircle, Sparkles, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Spinner } from "@/components/ui/misc";
+import { AskWidget } from "@/components/ai/ask-widget";
+import { Markdown } from "@/components/markdown";
+import { currentMonth } from "@/components/finance/month-navigator";
+import { api, ApiError } from "@/lib/api";
+import { formatMonth } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
-export const OPEN_ASSISTANT_EVENT = 'santim:open-assistant';
+export const OPEN_ASSISTANT_EVENT = "santim:open-assistant";
 
-export function openAssistant(tab?: 'ask' | 'review') {
-  if (typeof window === 'undefined') return;
-  window.dispatchEvent(new CustomEvent(OPEN_ASSISTANT_EVENT, { detail: { tab } }));
+export function openAssistant(tab?: "ask" | "review") {
+  if (typeof window === "undefined") return;
+  window.dispatchEvent(
+    new CustomEvent(OPEN_ASSISTANT_EVENT, { detail: { tab } }),
+  );
 }
 
 export function AssistantFab() {
   const params = useSearchParams();
   const [open, setOpen] = useState(false);
-  const [tab, setTab] = useState<'ask' | 'review'>('ask');
+  const [tab, setTab] = useState<"ask" | "review">("ask");
   const [month, setMonth] = useState(currentMonth());
   const [review, setReview] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (params.get('assistant')) setOpen(true);
+    if (params.get("assistant")) setOpen(true);
   }, [params]);
 
   useEffect(() => {
     const onOpen = (e: Event) => {
-      const detail = (e as CustomEvent<{ tab?: 'ask' | 'review' }>).detail;
+      const detail = (e as CustomEvent<{ tab?: "ask" | "review" }>).detail;
       if (detail?.tab) setTab(detail.tab);
       setOpen(true);
     };
@@ -47,7 +49,7 @@ export function AssistantFab() {
   useEffect(() => {
     if (!open) return;
     const prev = document.body.style.overflow;
-    document.body.style.overflow = 'hidden';
+    document.body.style.overflow = "hidden";
     return () => {
       document.body.style.overflow = prev;
     };
@@ -57,10 +59,12 @@ export function AssistantFab() {
     setLoading(true);
     setReview(null);
     try {
-      const res = await api.post<{ markdown: string }>('/ai/review', { month });
+      const res = await api.post<{ markdown: string }>("/ai/review", { month });
       setReview(res.markdown);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to generate review');
+      toast.error(
+        err instanceof ApiError ? err.message : "Failed to generate review",
+      );
     } finally {
       setLoading(false);
     }
@@ -68,7 +72,7 @@ export function AssistantFab() {
 
   return (
     <>
-      {/* Desktop only — mobile uses top bar / bottom nav so tabs stay clear */}
+      {/* Desktop only   mobile uses top bar / bottom nav so tabs stay clear */}
       <button
         type="button"
         onClick={() => setOpen(true)}
@@ -88,8 +92,8 @@ export function AssistantFab() {
           />
           <div
             className={cn(
-              'relative z-10 flex w-full flex-col overflow-hidden border-border bg-surface shadow-2xl animate-in',
-              'max-h-[min(92dvh,920px)] rounded-t-3xl border-t sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:border',
+              "relative z-10 flex w-full flex-col overflow-hidden border-border bg-surface shadow-2xl animate-in",
+              "max-h-[min(92dvh,920px)] rounded-t-3xl border-t sm:max-h-[90vh] sm:max-w-lg sm:rounded-2xl sm:border",
             )}
             role="dialog"
             aria-modal="true"
@@ -106,7 +110,9 @@ export function AssistantFab() {
                 </span>
                 <div>
                   <p className="font-semibold leading-tight">Money assistant</p>
-                  <p className="text-[11px] text-muted">Ask about your finances</p>
+                  <p className="text-[11px] text-muted">
+                    Ask about your finances
+                  </p>
                 </div>
               </div>
               <button
@@ -120,32 +126,38 @@ export function AssistantFab() {
             </div>
 
             <div className="mx-4 mb-3 flex rounded-xl border border-border bg-surface-muted/50 p-1 sm:mx-5">
-              {(['ask', 'review'] as const).map((t) => (
+              {(["ask", "review"] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
                   onClick={() => setTab(t)}
                   className={cn(
-                    'flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all',
+                    "flex flex-1 items-center justify-center gap-2 rounded-lg py-2 text-sm font-medium transition-all",
                     tab === t
-                      ? 'bg-surface text-foreground shadow-sm'
-                      : 'text-muted hover:text-foreground',
+                      ? "bg-surface text-foreground shadow-sm"
+                      : "text-muted hover:text-foreground",
                   )}
                 >
-                  {t === 'ask' ? <MessageCircle className="h-4 w-4" /> : <FileText className="h-4 w-4" />}
-                  {t === 'ask' ? 'Ask' : 'Review'}
+                  {t === "ask" ? (
+                    <MessageCircle className="h-4 w-4" />
+                  ) : (
+                    <FileText className="h-4 w-4" />
+                  )}
+                  {t === "ask" ? "Ask" : "Review"}
                 </button>
               ))}
             </div>
 
             <div className="flex-1 overflow-y-auto px-5 pb-[max(1.25rem,env(safe-area-inset-bottom))]">
-              {tab === 'ask' ? (
+              {tab === "ask" ? (
                 <AskWidget compact />
               ) : (
                 <div className="space-y-4 pb-2">
                   <div className="flex flex-wrap items-end gap-3">
                     <div>
-                      <label className="mb-1.5 block text-sm font-medium">Month</label>
+                      <label className="mb-1.5 block text-sm font-medium">
+                        Month
+                      </label>
                       <Input
                         type="month"
                         value={month}
@@ -154,7 +166,11 @@ export function AssistantFab() {
                         className="w-44"
                       />
                     </div>
-                    <Button onClick={generateReview} loading={loading} size="sm">
+                    <Button
+                      onClick={generateReview}
+                      loading={loading}
+                      size="sm"
+                    >
                       Generate for {formatMonth(month)}
                     </Button>
                   </div>
@@ -169,9 +185,12 @@ export function AssistantFab() {
                     </div>
                   )}
                   <p className="text-xs text-muted">
-                    <Link href="/settings" className="text-primary hover:underline">
+                    <Link
+                      href="/settings"
+                      className="text-primary hover:underline"
+                    >
                       Configure AI keys
-                    </Link>{' '}
+                    </Link>{" "}
                     in Settings.
                   </p>
                 </div>

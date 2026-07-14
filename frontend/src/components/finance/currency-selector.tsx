@@ -11,7 +11,7 @@ interface CurrencySelectorProps {
   variant?: "header" | "inline";
 }
 
-/** Global currency picker — lives in the app header. */
+/** Global currency picker   lives in the app header. */
 export function CurrencySelector({
   className,
   variant = "header",

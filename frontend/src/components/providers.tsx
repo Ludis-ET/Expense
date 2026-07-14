@@ -9,6 +9,7 @@ import { AmountVisibilityProvider } from '@/lib/amount-visibility';
 import { AppLockProvider } from '@/lib/app-lock-context';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
+import { SplashScreen } from '@/components/splash-screen';
 import { CurrencyViewProvider } from '@/lib/currency-view-context';
 import { fetcher } from '@/lib/api';
 import { AuthProvider, useAuth } from '@/lib/auth';
@@ -25,6 +26,7 @@ function CurrencyViewBridge({ children }: { children: ReactNode }) {
 export function Providers({ children }: { children: ReactNode }) {
   return (
     <ThemeProvider attribute="class" defaultTheme="system" enableSystem disableTransitionOnChange>
+      <SplashScreen />
       <SWRConfig value={{ fetcher, revalidateOnFocus: false, shouldRetryOnError: false }}>
         <AuthProvider>
           <PwaInstallProvider>

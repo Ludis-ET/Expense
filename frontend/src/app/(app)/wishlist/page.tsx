@@ -209,7 +209,7 @@ export default function WishlistPage() {
         <EmptyState
           icon={<Sparkles className="h-5 w-5" />}
           title="Wishlist is empty"
-          description="Park the things you want — phones, trips, tools — and track how close you are."
+          description="Park the things you want   phones, trips, tools   and track how close you are."
           action={<Button onClick={() => setOpen(true)}>Add first want</Button>}
         />
       ) : (
@@ -407,7 +407,7 @@ function FundModal({
     try {
       await api.post(`/wishlist/${item.id}/fund`, { amount: Number(amount) });
       toast.success(
-        item.goalId ? "Funded — goal updated too" : "Saved toward it",
+        item.goalId ? "Funded   goal updated too" : "Saved toward it",
       );
       onSaved();
       onClose();
@@ -448,7 +448,9 @@ function FundModal({
               <button
                 key={f}
                 type="button"
-                onClick={() => setAmount(String(Math.round(remaining * f * 100) / 100))}
+                onClick={() =>
+                  setAmount(String(Math.round(remaining * f * 100) / 100))
+                }
                 className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-muted hover:bg-surface-muted"
               >
                 {f === 1 ? "Fund the rest" : `${f * 100}%`}
@@ -537,7 +539,9 @@ function PromoteModal({
         });
       }
       toast.success(
-        autoSave ? "Goal + auto-save plan created" : "Promoted to a savings goal",
+        autoSave
+          ? "Goal + auto-save plan created"
+          : "Promoted to a savings goal",
       );
       onSaved();
       onClose();
@@ -573,7 +577,8 @@ function PromoteModal({
           <span className="text-sm">
             <span className="font-medium">Reserve the money</span>
             <span className="block text-xs text-muted">
-              Adds a spend lock so this amount is protected from everyday spending.
+              Adds a spend lock so this amount is protected from everyday
+              spending.
             </span>
           </span>
         </label>
@@ -587,7 +592,8 @@ function PromoteModal({
           <span className="text-sm">
             <span className="font-medium">Auto-save on a schedule</span>
             <span className="block text-xs text-muted">
-              Creates a recurring plan that sets money aside for you every period.
+              Creates a recurring plan that sets money aside for you every
+              period.
             </span>
           </span>
         </label>
@@ -605,7 +611,9 @@ function PromoteModal({
             <Field label="Every">
               <Select
                 value={saveFreq}
-                onChange={(e) => setSaveFreq(e.target.value as "WEEKLY" | "MONTHLY")}
+                onChange={(e) =>
+                  setSaveFreq(e.target.value as "WEEKLY" | "MONTHLY")
+                }
               >
                 <option value="WEEKLY">Week</option>
                 <option value="MONTHLY">Month</option>

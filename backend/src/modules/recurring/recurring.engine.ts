@@ -1,7 +1,12 @@
-import { Frequency, Prisma, WishlistStatus, type RecurringRule } from '../../core/prisma.js';
-import { prisma } from '../../core/db.js';
-import { logger } from '../../core/logger.js';
-import { notify } from '../notifications/notifications.service.js';
+import {
+  Frequency,
+  Prisma,
+  WishlistStatus,
+  type RecurringRule,
+} from "../../core/prisma.js";
+import { prisma } from "../../core/db.js";
+import { logger } from "../../core/logger.js";
+import { notify } from "../notifications/notifications.service.js";
 
 /** Runaway guard: a rule can post at most this many missed occurrences per catch-up. */
 const MAX_OCCURRENCES = 120;
@@ -11,7 +16,7 @@ const MAX_OCCURRENCES = 120;
  * MONTHLY rules, clamping dayOfMonth 29–31 to the last day of shorter months.
  */
 export function advanceNextRun(
-  rule: Pick<RecurringRule, 'frequency' | 'interval' | 'dayOfMonth'>,
+  rule: Pick<RecurringRule, "frequency" | "interval" | "dayOfMonth">,
   from: Date,
 ): Date {
   const d = new Date(from);
@@ -25,17 +30,35 @@ export function advanceNextRun(
     case Frequency.MONTHLY: {
       const target = rule.dayOfMonth ?? from.getUTCDate();
       // Move to the 1st first so adding months can't skip (e.g. Jan 31 + 1mo).
-      const next = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + rule.interval, 1, d.getUTCHours(), d.getUTCMinutes()));
-      const lastDay = new Date(Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0)).getUTCDate();
+      const next = new Date(
+        Date.UTC(
+          d.getUTCFullYear(),
+          d.getUTCMonth() + rule.interval,
+          1,
+          d.getUTCHours(),
+          d.getUTCMinutes(),
+        ),
+      );
+      const lastDay = new Date(
+        Date.UTC(next.getUTCFullYear(), next.getUTCMonth() + 1, 0),
+      ).getUTCDate();
       next.setUTCDate(Math.min(target, lastDay));
       return next;
     }
     case Frequency.YEARLY:
-      return new Date(Date.UTC(d.getUTCFullYear() + rule.interval, d.getUTCMonth(), d.getUTCDate(), d.getUTCHours(), d.getUTCMinutes()));
+      return new Date(
+        Date.UTC(
+          d.getUTCFullYear() + rule.interval,
+          d.getUTCMonth(),
+          d.getUTCDate(),
+          d.getUTCHours(),
+          d.getUTCMinutes(),
+        ),
+      );
   }
 }
 
-export type OccurrenceKind = 'transaction' | 'goal' | 'wishlist';
+export type OccurrenceKind = "transaction" | "goal" | "wishlist";
 
 /**
  * Materialize one occurrence of a rule inside an open DB transaction:
@@ -52,43 +75,83 @@ export async function applyOccurrence(
   date: Date,
 ): Promise<OccurrenceKind> {
   if (rule.goalId) {
-    const goal = await dbTx.savingsGoal.findUnique({ where: { id: rule.goalId } });
+    const goal = await dbTx.savingsGoal.findUnique({
+      where: { id: rule.goalId },
+    });
     await dbTx.goalContribution.create({
-      data: { goalId: rule.goalId, amount: rule.amount, date, note: `Auto-save: ${rule.name}` },
+      data: {
+        goalId: rule.goalId,
+        amount: rule.amount,
+        date,
+        note: `Auto-save: ${rule.name}`,
+      },
     });
     if (goal && !goal.achievedAt) {
-      const agg = await dbTx.goalContribution.aggregate({ where: { goalId: rule.goalId }, _sum: { amount: true } });
+      const agg = await dbTx.goalContribution.aggregate({
+        where: { goalId: rule.goalId },
+        _sum: { amount: true },
+      });
       if ((agg._sum.amount ?? new Prisma.Decimal(0)).gte(goal.targetAmount)) {
-        await dbTx.savingsGoal.update({ where: { id: goal.id }, data: { achievedAt: new Date() } });
-        await notify(userId, 'goal_achieved', `🎉 Auto-save reached your "${goal.name}" goal!`, '/budgets?tab=goals');
+        await dbTx.savingsGoal.update({
+          where: { id: goal.id },
+          data: { achievedAt: new Date() },
+        });
+        await notify(
+          userId,
+          "goal_achieved",
+          `🎉 Auto-save reached your "${goal.name}" goal!`,
+          "/budgets?tab=goals",
+        );
       }
     }
-    return 'goal';
+    return "goal";
   }
 
   if (rule.wishlistItemId) {
-    const item = await dbTx.wishlistItem.findUnique({ where: { id: rule.wishlistItemId } });
-    if (item && item.status !== WishlistStatus.BOUGHT && item.status !== WishlistStatus.DROPPED) {
+    const item = await dbTx.wishlistItem.findUnique({
+      where: { id: rule.wishlistItemId },
+    });
+    if (
+      item &&
+      item.status !== WishlistStatus.BOUGHT &&
+      item.status !== WishlistStatus.DROPPED
+    ) {
       const cost = item.estimatedCost;
       const wasFunded = item.savedAmount.gte(cost);
-      const nextSaved = Prisma.Decimal.min(cost, item.savedAmount.add(rule.amount));
+      const nextSaved = Prisma.Decimal.min(
+        cost,
+        item.savedAmount.add(rule.amount),
+      );
       await dbTx.wishlistItem.update({
         where: { id: item.id },
         data: {
           savedAmount: nextSaved,
-          status: item.status === WishlistStatus.WANTING ? WishlistStatus.SAVING : item.status,
+          status:
+            item.status === WishlistStatus.WANTING
+              ? WishlistStatus.SAVING
+              : item.status,
         },
       });
       if (item.goalId) {
         await dbTx.goalContribution.create({
-          data: { goalId: item.goalId, amount: rule.amount, date, note: `Auto-save: ${rule.name}` },
+          data: {
+            goalId: item.goalId,
+            amount: rule.amount,
+            date,
+            note: `Auto-save: ${rule.name}`,
+          },
         });
       }
       if (!wasFunded && nextSaved.gte(cost)) {
-        await notify(userId, 'wishlist_funded', `🎯 Auto-save fully funded "${item.name}" — ready to buy!`, '/wishlist');
+        await notify(
+          userId,
+          "wishlist_funded",
+          `🎯 Auto-save fully funded "${item.name}"   ready to buy!`,
+          "/wishlist",
+        );
       }
     }
-    return 'wishlist';
+    return "wishlist";
   }
 
   await dbTx.transaction.create({
@@ -105,13 +168,13 @@ export async function applyOccurrence(
       recurringRuleId: rule.id,
     },
   });
-  return 'transaction';
+  return "transaction";
 }
 
 function reminderLink(rule: RecurringRule): string {
-  if (rule.goalId) return '/budgets?tab=goals';
-  if (rule.wishlistItemId) return '/wishlist';
-  return '/recurring';
+  if (rule.goalId) return "/budgets?tab=goals";
+  if (rule.wishlistItemId) return "/wishlist";
+  return "/recurring";
 }
 
 /**
@@ -140,7 +203,7 @@ export async function catchUpUser(userId: string): Promise<void> {
         } else {
           await notify(
             userId,
-            'recurring_due',
+            "recurring_due",
             `Reminder: ${rule.name} (${rule.amount.toFixed(2)} ${rule.currency}) is due.`,
             reminderLink(rule),
           );
@@ -153,10 +216,14 @@ export async function catchUpUser(userId: string): Promise<void> {
       const expired = rule.endDate ? nextRun > rule.endDate : false;
       await dbTx.recurringRule.update({
         where: { id: rule.id },
-        data: { nextRun, lastRunAt: now, ...(expired ? { active: false } : {}) },
+        data: {
+          nextRun,
+          lastRunAt: now,
+          ...(expired ? { active: false } : {}),
+        },
       });
     }
   });
 
-  logger.debug({ userId }, 'recurring catch-up complete');
+  logger.debug({ userId }, "recurring catch-up complete");
 }

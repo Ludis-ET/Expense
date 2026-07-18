@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { financeIcon } from './icons';
 import { api, ApiError } from '@/lib/api';
+import { useOffline } from '@/lib/offline/offline-context';
+import { newId } from '@/lib/offline/outbox';
 import { cn } from '@/lib/utils';
 import type { Account, Category, Transaction, TxKind } from '@/lib/types';
 
@@ -28,6 +30,7 @@ const KINDS: { value: Exclude<TxKind, 'TRANSFER'>; label: string }[] = [
 export function TransactionForm({ open, onClose, onSaved, editing }: TransactionFormProps) {
   const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
+  const { saveTransaction, updateTransaction } = useOffline();
 
   const [kind, setKind] = useState<Exclude<TxKind, 'TRANSFER'>>('EXPENSE');
   const [amount, setAmount] = useState('');
@@ -108,6 +111,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     if (!accountId) return toast.error('Pick an account');
     if (!categoryId) return toast.error('Pick a category');
     setSaving(true);
+    const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
     const payload = {
       kind,
       amount: Number(amount),
@@ -116,12 +120,38 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       date,
       payee: payee || undefined,
       note: note || undefined,
-      tags: tags.split(',').map((t) => t.trim()).filter(Boolean),
+      tags: tagList,
     };
+
+    // A local preview so the change appears instantly, even offline.
+    const account = accounts.find((a) => a.id === accountId);
+    const category = categories.find((c) => c.id === categoryId);
+    const optimistic: Transaction = {
+      id: editing ? editing.id : newId(),
+      kind,
+      amount: Number(amount).toFixed(2),
+      currency: account?.currency ?? 'ETB',
+      date: `${date}T12:00:00.000Z`,
+      accountId,
+      account: account ? { id: account.id, name: account.name, type: account.type } : undefined,
+      categoryId,
+      category: category ? { id: category.id, name: category.name, icon: category.icon, color: category.color } : null,
+      payee: payee || null,
+      note: note || null,
+      tags: tagList,
+    };
+
     try {
-      if (editing) await api.put(`/transactions/${editing.id}`, payload);
-      else await api.post('/transactions', payload);
-      toast.success(editing ? 'Transaction updated' : 'Transaction added');
+      const { queued } = editing
+        ? await updateTransaction(editing.id, payload, optimistic)
+        : await saveTransaction(payload, optimistic);
+      toast.success(
+        queued
+          ? 'Saved offline — will sync when you reconnect'
+          : editing
+            ? 'Transaction updated'
+            : 'Transaction added',
+      );
       onSaved();
       onClose();
     } catch (err) {

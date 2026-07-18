@@ -6,8 +6,10 @@ import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea } from '@/components/ui/input';
-import { api, ApiError } from '@/lib/api';
-import type { Account } from '@/lib/types';
+import { ApiError } from '@/lib/api';
+import { useOffline } from '@/lib/offline/offline-context';
+import { newId } from '@/lib/offline/outbox';
+import type { Account, Transaction } from '@/lib/types';
 
 export function TransferModal({
   open,
@@ -19,6 +21,7 @@ export function TransferModal({
   onSaved: () => void;
 }) {
   const { data } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
+  const { saveTransfer } = useOffline();
   const accounts = useMemo(
     () => data?.items.filter((a) => !a.archived) ?? [],
     [data?.items],
@@ -41,18 +44,36 @@ export function TransferModal({
     e.preventDefault();
     if (from === to) return toast.error('Choose two different accounts');
     const fromAccount = accounts.find((a) => a.id === from);
+    const toAccount = accounts.find((a) => a.id === to);
+    const today = new Date().toISOString().slice(0, 10);
     setSaving(true);
+    const payload = {
+      kind: 'TRANSFER',
+      amount: Number(amount),
+      currency: fromAccount?.currency ?? 'ETB',
+      accountId: from,
+      transferAccountId: to,
+      date: today,
+      note: note || undefined,
+    };
+    const optimistic: Transaction = {
+      id: newId(),
+      kind: 'TRANSFER',
+      amount: Number(amount).toFixed(2),
+      currency: fromAccount?.currency ?? 'ETB',
+      date: `${today}T12:00:00.000Z`,
+      accountId: from,
+      account: fromAccount ? { id: fromAccount.id, name: fromAccount.name, type: fromAccount.type } : undefined,
+      transferAccountId: to,
+      transferAccount: toAccount ? { id: toAccount.id, name: toAccount.name } : null,
+      categoryId: null,
+      category: null,
+      note: note || null,
+      tags: [],
+    };
     try {
-      await api.post('/transactions', {
-        kind: 'TRANSFER',
-        amount: Number(amount),
-        currency: fromAccount?.currency ?? 'ETB',
-        accountId: from,
-        transferAccountId: to,
-        date: new Date().toISOString().slice(0, 10),
-        note: note || undefined,
-      });
-      toast.success('Transfer recorded');
+      const { queued } = await saveTransfer(payload, optimistic);
+      toast.success(queued ? 'Transfer saved offline — will sync later' : 'Transfer recorded');
       onSaved();
       onClose();
       setAmount('');

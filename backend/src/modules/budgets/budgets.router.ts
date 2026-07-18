@@ -2,7 +2,12 @@ import { Router } from 'express';
 import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
-import { budgetCategoryParam, budgetsMonthQuery, upsertBudgetSchema } from './budgets.schema.js';
+import {
+  budgetCategoryParam,
+  budgetHistoryQuery,
+  budgetsMonthQuery,
+  upsertBudgetSchema,
+} from './budgets.schema.js';
 import * as budgets from './budgets.service.js';
 
 export const budgetsRouter = Router();
@@ -14,6 +19,14 @@ budgetsRouter.get(
   validate({ query: budgetsMonthQuery }),
   asyncHandler(async (req, res) => {
     res.json(await budgets.list(req.user!, req.query.month as string | undefined));
+  }),
+);
+
+budgetsRouter.get(
+  '/:categoryId/history',
+  validate({ params: budgetCategoryParam, query: budgetHistoryQuery }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.history(req.user!, req.params.categoryId!, Number(req.query.periods ?? 6)));
   }),
 );
 

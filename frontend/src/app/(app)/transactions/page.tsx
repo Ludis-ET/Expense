@@ -13,7 +13,8 @@ import { TransactionForm } from '@/components/finance/transaction-form';
 import { TransferModal } from '@/components/finance/transfer-modal';
 import { RecurringPanel } from '@/components/finance/recurring-panel';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
-import { api, ApiError } from '@/lib/api';
+import { ApiError } from '@/lib/api';
+import { useOffline } from '@/lib/offline/offline-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { useCurrencyView } from '@/lib/currency-view-context';
@@ -56,6 +57,28 @@ function TransactionsInner() {
   }, [from, to, page, kind, categoryId, accountId, q, activeCurrency]);
 
   const { data, isLoading, mutate } = useSWR<TransactionPage>(`/transactions?${query}`);
+  const { deleteTransaction, pendingCreates, pendingPatches, deletedIds } = useOffline();
+
+  // Fold the offline outbox into what's on screen: queued edits patch matching
+  // rows, queued deletes hide them, and queued new items appear on page 1.
+  const displayItems = useMemo(() => {
+    const base = (data?.items ?? [])
+      .filter((t) => !deletedIds.has(t.id))
+      .map((t) => pendingPatches.get(t.id) ?? t);
+    if (page !== 1) return base;
+    const matches = (t: Transaction) => {
+      const day = t.date.slice(0, 10);
+      if (day < from || day > to) return false;
+      if (kind && t.kind !== kind) return false;
+      if (categoryId && t.categoryId !== categoryId) return false;
+      if (accountId && t.accountId !== accountId && t.transferAccountId !== accountId) return false;
+      if (q && !`${t.payee ?? ''} ${t.note ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false;
+      return true;
+    };
+    const seen = new Set(base.map((t) => t.id));
+    const extras = pendingCreates.filter((t) => !seen.has(t.id) && matches(t));
+    return [...extras, ...base];
+  }, [data?.items, pendingCreates, pendingPatches, deletedIds, page, from, to, kind, categoryId, accountId, q]);
 
   // Open the quick-add modal when arriving via ?add=1 (topbar / command palette).
   useEffect(() => {
@@ -90,8 +113,8 @@ function TransactionsInner() {
     });
     if (!ok) return;
     try {
-      await api.del(`/transactions/${tx.id}`);
-      toast.success('Deleted');
+      const { queued } = await deleteTransaction(tx.id);
+      toast.success(queued ? 'Delete queued — will sync when online' : 'Deleted');
       void mutate();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to delete');
@@ -202,9 +225,9 @@ function TransactionsInner() {
         </Select>
       </div>
 
-      {isLoading ? (
+      {isLoading && displayItems.length === 0 ? (
         <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-      ) : !data || data.items.length === 0 ? (
+      ) : displayItems.length === 0 ? (
         <EmptyState
           title="No transactions"
           description="Nothing matches these filters for this month."
@@ -212,7 +235,7 @@ function TransactionsInner() {
         />
       ) : (
         <>
-          <TransactionList items={data.items} onEdit={(tx) => { setEditing(tx); setFormOpen(true); }} onDelete={remove} />
+          <TransactionList items={displayItems} onEdit={(tx) => { setEditing(tx); setFormOpen(true); }} onDelete={remove} />
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center gap-3 text-sm">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>

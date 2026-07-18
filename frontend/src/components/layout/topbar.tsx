@@ -8,6 +8,7 @@ import { Button } from '@/components/ui/button';
 import { AmountVisibilityToggle } from '@/components/amount-visibility-toggle';
 import { CurrencySelector } from '@/components/finance/currency-selector';
 import { DownloadAppButton } from '@/components/pwa/download-app-button';
+import { SyncStatus } from '@/components/pwa/sync-status';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { NotificationsMenu } from './notifications-menu';
 import { openAssistant } from '@/components/ai/assistant-fab';
@@ -80,6 +81,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             <Lock className="h-5 w-5" />
           </button>
         )} */}
+        <SyncStatus />
         <ThemeToggle />
         <NotificationsMenu />
         <div className="relative">

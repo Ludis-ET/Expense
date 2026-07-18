@@ -255,7 +255,7 @@ export async function overview(user: AuthUser) {
     convertedTotal,
     accounts: accountList.items,
     month: primaryBreakdown?.month ?? summary,
-    budgetsAtRisk: budgetList.items.filter((b) => b.status !== 'ok').slice(0, 4),
+    budgetsAtRisk: budgetList.items.filter((b) => b.status === 'warning' || b.status === 'over').slice(0, 4),
     goals: goalList.items.slice(0, 3),
     recentTransactions: recent.map((t) => ({ ...t, amount: t.amount.toFixed(2) })),
     topCategories: topCategories.items.slice(0, 5),

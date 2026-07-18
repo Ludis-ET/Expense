@@ -4,11 +4,12 @@ import { Suspense, useEffect, useState } from 'react';
 import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, History, Repeat, RefreshCw } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select } from '@/components/ui/input';
+import { Field, Input, Select, DateInput } from '@/components/ui/input';
+import { Checkbox } from '@/components/ui/checkbox';
 import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { CategoryBadge } from '@/components/finance/category-badge';
@@ -19,9 +20,20 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
-import type { BudgetRow, BudgetsResponse, Category } from '@/lib/types';
+import type { BudgetHistory, BudgetPeriod, BudgetRow, BudgetsResponse, Category } from '@/lib/types';
 
-const tone = (status: BudgetRow['status']) => (status === 'over' ? 'danger' : status === 'warning' ? 'warning' : 'success');
+const tone = (status: BudgetRow['status']) =>
+  status === 'over' ? 'danger' : status === 'warning' ? 'warning' : 'success';
+
+const PERIOD_OPTIONS: { value: BudgetPeriod; label: string; noun: string }[] = [
+  { value: 'WEEKLY', label: 'Weekly', noun: 'week' },
+  { value: 'MONTHLY', label: 'Monthly', noun: 'month' },
+  { value: 'QUARTERLY', label: 'Quarterly', noun: 'quarter' },
+  { value: 'YEARLY', label: 'Yearly', noun: 'year' },
+];
+
+const periodNoun = (p: BudgetPeriod) => PERIOD_OPTIONS.find((o) => o.value === p)?.noun ?? 'month';
+const periodLabel = (p: BudgetPeriod) => PERIOD_OPTIONS.find((o) => o.value === p)?.label ?? 'Monthly';
 
 export default function BudgetsPage() {
   return (
@@ -42,6 +54,7 @@ function PlanInner() {
   const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetRow | null>(null);
+  const [historyFor, setHistoryFor] = useState<BudgetRow | null>(null);
 
   const budgeted = new Set((data?.items ?? []).map((b) => b.categoryId));
   const unbudgeted = (categoriesData?.items ?? []).filter((c) => !c.archived && !budgeted.has(c.id));
@@ -111,35 +124,20 @@ function PlanInner() {
       ) : data.items.length === 0 ? (
         <EmptyState
           title="No budgets yet"
-          description="Create a budget for a spending category to track it here."
+          description="Create a recurring budget for a spending category to track it here."
           action={unbudgeted.length > 0 ? <Button onClick={() => { setEditing(null); setModalOpen(true); }}>Set a budget</Button> : undefined}
         />
       ) : (
         <div className="space-y-3">
           {data.items.map((b) => (
-            <Card key={b.id}>
-              <CardContent className="p-4">
-                <div className="mb-2 flex items-center justify-between">
-                  <CategoryBadge category={b.category} className="font-medium" />
-                  <div className="flex items-center gap-3">
-                    <span className="text-sm tabular-nums text-muted">
-                      {money(b.spent)} / {money(b.amount)}
-                    </span>
-                    <button onClick={() => { setEditing(b); setModalOpen(true); }} className="text-xs text-muted hover:text-foreground">Edit</button>
-                    <button onClick={() => remove(b)} className="text-muted hover:text-danger" aria-label="Remove">
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                </div>
-                <ProgressBar value={b.pct} tone={tone(b.status)} />
-                <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
-                  <span>{b.pct}% used</span>
-                  <span className={b.status === 'over' ? 'font-medium text-danger' : ''}>
-                    {Number(b.remaining) >= 0 ? `${money(b.remaining)} left` : `${money(Math.abs(Number(b.remaining)))} over`}
-                  </span>
-                </div>
-              </CardContent>
-            </Card>
+            <BudgetCard
+              key={b.id}
+              b={b}
+              money={money}
+              onEdit={() => { setEditing(b); setModalOpen(true); }}
+              onHistory={() => setHistoryFor(b)}
+              onRemove={() => remove(b)}
+            />
           ))}
         </div>
       )}
@@ -157,9 +155,80 @@ function PlanInner() {
         onClose={() => setModalOpen(false)}
         onSaved={() => void mutate()}
       />
+      <BudgetHistoryModal row={historyFor} onClose={() => setHistoryFor(null)} />
         </>
       )}
     </div>
+  );
+}
+
+function BudgetCard({
+  b,
+  money,
+  onEdit,
+  onHistory,
+  onRemove,
+}: {
+  b: BudgetRow;
+  money: (v: string | number) => string;
+  onEdit: () => void;
+  onHistory: () => void;
+  onRemove: () => void;
+}) {
+  const carry = Number(b.carryIn);
+  const inactive = b.status === 'upcoming' || b.status === 'ended';
+  return (
+    <Card className={inactive ? 'opacity-70' : undefined}>
+      <CardContent className="p-4">
+        <div className="mb-2 flex items-center justify-between gap-2">
+          <div className="flex min-w-0 items-center gap-2">
+            <CategoryBadge category={b.category} className="font-medium" />
+            <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-muted">
+              <Repeat className="h-3 w-3" /> {periodLabel(b.period)}
+            </span>
+            {b.rollover && (
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary" title="Unused budget rolls into the next period">
+                <RefreshCw className="h-3 w-3" /> Rollover
+              </span>
+            )}
+          </div>
+          <div className="flex shrink-0 items-center gap-3">
+            <span className="text-sm tabular-nums text-muted">
+              {money(b.spent)} / {money(b.effectiveLimit)}
+            </span>
+            <button onClick={onHistory} className="text-muted hover:text-foreground" aria-label="History">
+              <History className="h-3.5 w-3.5" />
+            </button>
+            <button onClick={onEdit} className="text-xs text-muted hover:text-foreground">Edit</button>
+            <button onClick={onRemove} className="text-muted hover:text-danger" aria-label="Remove">
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+
+        {b.status === 'upcoming' ? (
+          <p className="text-xs text-muted">Starts {new Date(b.periodStart).toLocaleDateString()}</p>
+        ) : b.status === 'ended' ? (
+          <p className="text-xs text-muted">Ended — no longer tracking.</p>
+        ) : (
+          <>
+            <ProgressBar value={Math.min(b.pct, 100)} tone={tone(b.status)} />
+            <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
+              <span>{b.periodLabel} · {b.pct}% used</span>
+              <span className={b.status === 'over' ? 'font-medium text-danger' : ''}>
+                {Number(b.remaining) >= 0 ? `${money(b.remaining)} left` : `${money(Math.abs(Number(b.remaining)))} over`}
+              </span>
+            </div>
+            {b.rollover && carry !== 0 && (
+              <p className="mt-1 text-[11px] text-muted">
+                {carry > 0 ? `+${money(carry)} rolled over` : `${money(Math.abs(carry))} carried as overspend`}
+                {' · '}base {money(b.amount)}/{periodNoun(b.period)}
+              </p>
+            )}
+          </>
+        )}
+      </CardContent>
+    </Card>
   );
 }
 
@@ -179,6 +248,10 @@ function BudgetModal({
   const [categoryId, setCategoryId] = useState('');
   const [amount, setAmount] = useState('');
   const [threshold, setThreshold] = useState('80');
+  const [period, setPeriod] = useState<BudgetPeriod>('MONTHLY');
+  const [rollover, setRollover] = useState(false);
+  const [startDate, setStartDate] = useState('');
+  const [endDate, setEndDate] = useState('');
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -186,13 +259,27 @@ function BudgetModal({
     setCategoryId(editing?.categoryId ?? unbudgeted[0]?.id ?? '');
     setAmount(editing ? String(Number(editing.amount)) : '');
     setThreshold(String(editing?.alertThreshold ?? 80));
+    setPeriod(editing?.period ?? 'MONTHLY');
+    setRollover(editing?.rollover ?? false);
+    setStartDate(editing?.startDate ? editing.startDate.slice(0, 10) : '');
+    setEndDate(editing?.endDate ? editing.endDate.slice(0, 10) : '');
   }, [open, editing, unbudgeted]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (startDate && endDate && endDate < startDate) {
+      return toast.error('End date must be on or after the start date');
+    }
     setSaving(true);
     try {
-      await api.put(`/budgets/${categoryId}`, { amount: Number(amount), alertThreshold: Number(threshold) });
+      await api.put(`/budgets/${categoryId}`, {
+        amount: Number(amount),
+        alertThreshold: Number(threshold),
+        period,
+        rollover,
+        startDate: startDate || undefined,
+        endDate: endDate || undefined,
+      });
       toast.success('Budget saved');
       onSaved();
       onClose();
@@ -204,7 +291,7 @@ function BudgetModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit budget' : 'Set a budget'}>
+    <Modal open={open} onClose={onClose} title={editing ? 'Edit budget' : 'Set a recurring budget'}>
       <form onSubmit={submit} className="space-y-4">
         <Field label="Category">
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={!!editing}>
@@ -215,17 +302,84 @@ function BudgetModal({
             )}
           </Select>
         </Field>
-        <Field label="Monthly limit">
-          <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Repeats">
+            <Select value={period} onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}>
+              {PERIOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+            </Select>
+          </Field>
+          <Field label={`Limit per ${periodNoun(period)}`}>
+            <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
+          </Field>
+        </div>
+
         <Field label="Alert threshold" hint="Get notified when you cross this percentage">
           <Input type="number" min="1" max="100" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
         </Field>
+
+        <div className="rounded-xl border border-border p-3">
+          <Checkbox
+            checked={rollover}
+            onChange={setRollover}
+            label={<span>Roll over unused budget into the next {periodNoun(period)}</span>}
+          />
+          <p className="mt-1 pl-[1.9rem] text-xs text-muted">
+            Underspend adds to the next {periodNoun(period)}’s limit; overspend is subtracted.
+          </p>
+        </div>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Start date" hint="optional">
+            <DateInput value={startDate} onChange={(e) => setStartDate(e.target.value)} />
+          </Field>
+          <Field label="End date" hint="optional">
+            <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+          </Field>
+        </div>
+
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
           <Button type="submit" loading={saving}>Save budget</Button>
         </div>
       </form>
+    </Modal>
+  );
+}
+
+function BudgetHistoryModal({ row, onClose }: { row: BudgetRow | null; onClose: () => void }) {
+  const { money } = useMoney();
+  const { data } = useSWR<BudgetHistory>(row ? `/budgets/${row.categoryId}/history?periods=8` : null);
+
+  return (
+    <Modal open={!!row} onClose={onClose} title={row ? `${row.category.name} — history` : 'History'}>
+      {!data ? (
+        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
+      ) : data.items.length === 0 ? (
+        <p className="py-6 text-center text-sm text-muted">No history yet.</p>
+      ) : (
+        <ul className="space-y-2">
+          {data.items.map((p) => {
+            const remaining = Number(p.remaining);
+            return (
+              <li key={p.index} className={cn('rounded-xl border border-border p-3', p.current && 'border-primary/40 bg-primary/5')}>
+                <div className="mb-1.5 flex items-center justify-between text-sm">
+                  <span className="font-medium">{p.label}{p.current && <span className="ml-2 text-xs text-primary">current</span>}</span>
+                  <span className="tabular-nums text-muted">{money(p.spent)} / {money(p.effectiveLimit)}</span>
+                </div>
+                <ProgressBar value={Math.min(p.pct, 100)} tone={p.status === 'over' ? 'danger' : p.status === 'warning' ? 'warning' : 'success'} />
+                <div className="mt-1 flex items-center justify-between text-xs text-muted">
+                  <span>{p.pct}% used</span>
+                  <span className={remaining < 0 ? 'font-medium text-danger' : ''}>
+                    {remaining >= 0 ? `${money(remaining)} left` : `${money(Math.abs(remaining))} over`}
+                    {data.rollover && Number(p.carryIn) !== 0 && ` · ${Number(p.carryIn) > 0 ? '+' : ''}${money(p.carryIn)} carried`}
+                  </span>
+                </div>
+              </li>
+            );
+          })}
+        </ul>
+      )}
     </Modal>
   );
 }

@@ -63,6 +63,8 @@ export interface Transaction {
   payee?: string | null;
   tags: string[];
   recurringRuleId?: string | null;
+  /** Client-only: set on transactions still queued in the offline outbox. */
+  pending?: 'pending' | 'syncing' | 'error';
 }
 
 export interface TransactionPage {
@@ -107,21 +109,59 @@ export interface GoalAutoSave {
   onTrack: boolean | null;
 }
 
+export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
+export type BudgetStatus = 'ok' | 'warning' | 'over' | 'upcoming' | 'ended';
+
 export interface BudgetRow {
   id: string;
   categoryId: string;
   category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> & { archived?: boolean };
+  /** Base limit for one period. */
   amount: string;
+  /** Base limit plus any rollover carried in — what `spent` is measured against. */
+  effectiveLimit: string;
+  /** Rollover carried in from prior periods (can be negative). */
+  carryIn: string;
   alertThreshold: number;
+  period: BudgetPeriod;
+  rollover: boolean;
+  startDate: string | null;
+  endDate: string | null;
+  spent: string;
+  remaining: string;
+  pct: number;
+  status: BudgetStatus;
+  periodStart: string;
+  periodEnd: string;
+  periodLabel: string;
+}
+
+export interface BudgetsResponse {
+  items: BudgetRow[];
+  totals: { budgeted: string; spent: string; remaining: string };
+}
+
+export interface BudgetHistoryPeriod {
+  index: number;
+  current: boolean;
+  label: string;
+  start: string;
+  end: string;
+  limit: string;
+  carryIn: string;
+  effectiveLimit: string;
   spent: string;
   remaining: string;
   pct: number;
   status: 'ok' | 'warning' | 'over';
 }
 
-export interface BudgetsResponse {
-  items: BudgetRow[];
-  totals: { budgeted: string; spent: string; remaining: string };
+export interface BudgetHistory {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'>;
+  period: BudgetPeriod;
+  rollover: boolean;
+  amount: string;
+  items: BudgetHistoryPeriod[];
 }
 
 export interface GoalContribution {

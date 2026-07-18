@@ -39,6 +39,15 @@ enum Frequency {
   YEARLY
 }
 
+// How often a budget's limit renews. QUARTERLY has no Frequency equivalent, so
+// budgets carry their own period enum.
+enum BudgetPeriod {
+  WEEKLY
+  MONTHLY
+  QUARTERLY
+  YEARLY
+}
+
 enum HouseholdRole {
   OWNER
   PARTNER
@@ -283,13 +292,17 @@ model RecurringRule {
 }
 
 model Budget {
-  id             String   @id @default(cuid())
+  id             String       @id @default(cuid())
   userId         String
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId     String   @unique // one ongoing monthly budget per category
-  category       Category @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  amount         Decimal  @db.Decimal(14, 2) // monthly limit
-  alertThreshold Int      @default(80) // % - notify when crossed
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  categoryId     String       @unique // one ongoing budget per category
+  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
+  amount         Decimal      @db.Decimal(14, 2) // limit per period
+  alertThreshold Int          @default(80) // % - notify when crossed
+  period         BudgetPeriod @default(MONTHLY) // how often the limit renews
+  rollover       Boolean      @default(false) // carry unused (or overspend) into the next period
+  startDate      DateTime? // budget is inactive before this; also anchors period alignment
+  endDate        DateTime? // budget auto-stops after this
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt

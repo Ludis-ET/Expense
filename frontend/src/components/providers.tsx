@@ -7,6 +7,7 @@ import { Toaster } from 'sonner';
 import { ConfirmProvider } from '@/components/ui/confirm-dialog';
 import { AmountVisibilityProvider } from '@/lib/amount-visibility';
 import { AppLockProvider } from '@/lib/app-lock-context';
+import { OfflineProvider } from '@/lib/offline/offline-context';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { SplashScreen } from '@/components/splash-screen';
@@ -34,7 +35,9 @@ export function Providers({ children }: { children: ReactNode }) {
               <AmountVisibilityProvider>
                 <AppLockProvider>
                   <ConfirmProvider>
-                    {children}
+                    <OfflineProvider>
+                      {children}
+                    </OfflineProvider>
                   </ConfirmProvider>
                 </AppLockProvider>
               </AmountVisibilityProvider>

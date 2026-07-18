@@ -2,8 +2,37 @@
 
 import { createContext, useCallback, useContext, useEffect, useState, type ReactNode } from 'react';
 import { useRouter } from 'next/navigation';
-import { api, tokens } from './api';
+import { api, ApiError, tokens } from './api';
 import type { AuthResponse, User } from './types';
+
+const USER_KEY = 'rt.user';
+
+/** Last-known user, cached so the app still opens offline. */
+const cachedUser = {
+  get(): User | null {
+    if (typeof window === 'undefined') return null;
+    try {
+      const raw = localStorage.getItem(USER_KEY);
+      return raw ? (JSON.parse(raw) as User) : null;
+    } catch {
+      return null;
+    }
+  },
+  set(user: User) {
+    try {
+      localStorage.setItem(USER_KEY, JSON.stringify(user));
+    } catch {
+      /* ignore */
+    }
+  },
+  clear() {
+    try {
+      localStorage.removeItem(USER_KEY);
+    } catch {
+      /* ignore */
+    }
+  },
+};
 
 interface AuthContextValue {
   user: User | null;
@@ -29,15 +58,26 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const loadUser = useCallback(async () => {
     if (!tokens.access) {
+      cachedUser.clear();
       setUser(null);
       setLoading(false);
       return;
     }
+    // Show the last-known user immediately so the app opens while offline.
+    const cached = cachedUser.get();
+    if (cached) setUser(cached);
     try {
-      setUser(await api.get<User>('/users/me'));
-    } catch {
-      tokens.clear();
-      setUser(null);
+      const fresh = await api.get<User>('/users/me');
+      cachedUser.set(fresh);
+      setUser(fresh);
+    } catch (err) {
+      // Only sign out on a real auth rejection — never just because we're offline.
+      if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
+        tokens.clear();
+        cachedUser.clear();
+        setUser(null);
+      }
+      // Network/offline error: keep whatever cached user we already have.
     } finally {
       setLoading(false);
     }
@@ -73,6 +113,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const logout = useCallback(() => {
     tokens.clear();
+    cachedUser.clear();
     setUser(null);
     try {
       sessionStorage.removeItem('santim-app-lock-unlocked');

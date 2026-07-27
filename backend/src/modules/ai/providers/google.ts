@@ -4,10 +4,10 @@ import type { AiProviderAdapter } from './types.js';
 export const googleAdapter: AiProviderAdapter = {
   id: 'google',
   label: 'Google (Gemini)',
-  defaultModel: 'gemini-1.5-pro',
+  defaultModel: 'gemini-3.1-pro-preview',
   keysUrl: 'https://aistudio.google.com/app/apikey',
   async chat(cfg, req) {
-    const model = cfg.model || 'gemini-1.5-pro';
+    const model = cfg.model || 'gemini-3.1-pro-preview';
     const url = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${encodeURIComponent(cfg.apiKey)}`;
     const res = await fetch(url, {
       method: 'POST',

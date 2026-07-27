@@ -9,7 +9,7 @@ export const ADAPTERS: Record<ProviderId, AiProviderAdapter> = {
   google: googleAdapter,
 };
 
-export const PROVIDER_IDS: ProviderId[] = ['anthropic', 'openai', 'google'];
+export const PROVIDER_IDS: ProviderId[] = ['google', 'anthropic', 'openai'];
 
 /** Public catalog (no secrets) used to render the settings UI. */
 export const PROVIDER_CATALOG = PROVIDER_IDS.map((id) => ({

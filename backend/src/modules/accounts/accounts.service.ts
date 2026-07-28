@@ -119,6 +119,53 @@ export async function availableBalance(
   return real.sub(locked.get(accountId) ?? new Prisma.Decimal(0));
 }
 
+/**
+ * Total money genuinely free to spend in one currency: everything sitting in
+ * unarchived accounts, minus whatever budget plans have reserved.
+ */
+export async function availableTotal(userId: string, currency: string): Promise<Prisma.Decimal> {
+  const cur = currency.toUpperCase();
+  const accounts = await prisma.account.findMany({
+    where: { userId, currency: cur, archived: false },
+    select: { id: true, openingBalance: true },
+  });
+  if (accounts.length === 0) return new Prisma.Decimal(0);
+
+  const { lockedByAccount } = await import('../budgets/budgets.service.js');
+  const zero = new Prisma.Decimal(0);
+  const ids = accounts.map((a) => a.id);
+
+  const [sums, transfersIn, locked] = await Promise.all([
+    prisma.transaction.groupBy({
+      by: ['accountId', 'kind'],
+      where: { userId, accountId: { in: ids } },
+      _sum: { amount: true },
+    }),
+    prisma.transaction.groupBy({
+      by: ['transferAccountId'],
+      where: { userId, kind: TxKind.TRANSFER, transferAccountId: { in: ids } },
+      _sum: { amount: true },
+    }),
+    lockedByAccount(userId),
+  ]);
+
+  let total = zero;
+  for (const a of accounts) {
+    let balance = new Prisma.Decimal(a.openingBalance);
+    for (const s of sums) {
+      if (s.accountId !== a.id) continue;
+      const amt = s._sum.amount ?? zero;
+      if (s.kind === TxKind.INCOME) balance = balance.add(amt);
+      else balance = balance.sub(amt);
+    }
+    for (const t of transfersIn) {
+      if (t.transferAccountId === a.id) balance = balance.add(t._sum.amount ?? zero);
+    }
+    total = total.add(balance.sub(locked.get(a.id) ?? zero));
+  }
+  return total;
+}
+
 export async function create(user: AuthUser, input: CreateAccountInput) {
   if (input.isDefault) {
     await prisma.account.updateMany({ where: { userId: user.id }, data: { isDefault: false } });

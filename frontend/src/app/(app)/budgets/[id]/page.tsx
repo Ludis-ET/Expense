@@ -58,8 +58,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         (key.startsWith('/dashboard') ||
           key.startsWith('/accounts') ||
           key.startsWith('/budgets') ||
-          key.startsWith('/transactions') ||
-          key.startsWith('/spend-locks')),
+          key.startsWith('/transactions')),
     );
 
   if (error) {

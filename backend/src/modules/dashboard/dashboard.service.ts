@@ -9,7 +9,6 @@ import { FAMILY_SUPPORT_CATEGORY_NAME } from '../categories/default-categories.j
 import * as household from '../household/household.service.js';
 import * as ledger from '../ledger/ledger.service.js';
 import * as wishlist from '../wishlist/wishlist.service.js';
-import * as spendLocks from '../spend-locks/spend-locks.service.js';
 import * as currency from '../../core/currency.service.js';
 
 function weekBounds(firstDayOfWeek: number) {
@@ -186,7 +185,7 @@ export async function overview(user: AuthUser) {
   const in7Days = new Date(Date.now() + 7 * 86_400_000);
   const defaultCur = await currency.resolveCurrency(user.id);
 
-  const [accountList, summary, budgetList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary, wishlistDigest, spendable] =
+  const [accountList, summary, budgetList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary, wishlistDigest] =
     await Promise.all([
       accounts.list(user),
       analytics.summary(user, undefined, defaultCur),
@@ -215,7 +214,6 @@ export async function overview(user: AuthUser) {
       household.overview(user),
       ledger.summary(user),
       wishlist.dashboard(user, defaultCur),
-      spendLocks.spendableFor(user.id, defaultCur),
     ]);
 
   // Every balance below is the *available* figure: real money minus whatever
@@ -277,6 +275,5 @@ export async function overview(user: AuthUser) {
     household: householdData,
     tab: tabSummary,
     wishlist: wishlistDigest,
-    spendable,
   };
 }

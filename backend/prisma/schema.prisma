@@ -93,12 +93,6 @@ enum LedgerStatus {
   CANCELLED
 }
 
-// Soft spend protection: floor (can't go below) or a named reserve.
-enum SpendLockKind {
-  FLOOR
-  RESERVE
-}
-
 enum WishlistStatus {
   WANTING
   SAVING
@@ -128,7 +122,6 @@ model User {
   sentInvites       HouseholdInvite[] @relation("InviteSender")
   ledgerEntries     LedgerEntry[]
   exchangeRates     ExchangeRate[]
-  spendLocks        SpendLock[]
   wishlistItems     WishlistItem[]
 
   createdAt DateTime @default(now())
@@ -473,25 +466,6 @@ model LedgerPayment {
 
   @@index([ledgerEntryId])
   @@map("ledger_payments")
-}
-
-// Money you promise not to touch - a floor or a named reserve. Multiple locks stack per currency.
-model SpendLock {
-  id       String        @id @default(cuid())
-  userId   String
-  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
-  kind     SpendLockKind
-  name     String
-  amount   Decimal       @db.Decimal(14, 2)
-  currency String        @default("ETB")
-  active   Boolean       @default(true)
-  note     String?
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@index([userId, currency, active])
-  @@map("spend_locks")
 }
 
 // Creative wishlist - wants with priority and save progress.

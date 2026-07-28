@@ -46,7 +46,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "4. Protect and plan",
-        body: "Spend Locks ring-fence money you refuse to touch (a safety floor or a named reserve). The Wishlist parks the things you want and shows when you can actually afford them. Both live as tabs under Budgets. Recurring turns any of this into an automatic habit.",
+        body: "Filling a plan is what ring-fences money you refuse to touch — rent, school fees, an emergency buffer. The Wishlist, a tab under Budgets, parks the things you want and shows when you can actually afford them. Recurring turns any of this into an automatic habit.",
       },
     ],
   },
@@ -92,7 +92,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "Lock it so it's really there",
-        body: "An emergency fund you dip into is not an emergency fund. Add a Safety Floor spend lock for the amount   Santim will then refuse everyday expenses that would eat into it, keeping the buffer intact until a real emergency.",
+        body: "An emergency fund you dip into is not an emergency fund. Create a budget plan for the amount and fill it from your accounts. The money then drops out of every \"available\" figure in Santim and can only be spent against that plan, so it stays intact until a real emergency.",
       },
     ],
   },

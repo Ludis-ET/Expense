@@ -4,14 +4,13 @@ import { Suspense, useState } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { Lock, PiggyBank, Plus, Sparkles, Wallet } from 'lucide-react';
+import { PiggyBank, Plus, Sparkles, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { BudgetPlanCard } from '@/components/finance/budget-plan-card';
 import { BudgetPlanForm } from '@/components/finance/budget-plan-modals';
 import { WishlistPanel } from '@/components/finance/wishlist-panel';
-import { SpendLocksPanel } from '@/components/finance/spend-locks-panel';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
@@ -20,7 +19,6 @@ import type { BudgetsResponse } from '@/lib/types';
 const TABS = [
   { id: 'plans', label: 'Plans', icon: PiggyBank },
   { id: 'wishlist', label: 'Wishlist', icon: Sparkles },
-  { id: 'locks', label: 'Spend locks', icon: Lock },
 ] as const;
 
 type TabId = (typeof TABS)[number]['id'];
@@ -78,7 +76,6 @@ function BudgetsInner() {
 
       {tab === 'plans' && <PlansPanel />}
       {tab === 'wishlist' && <WishlistPanel />}
-      {tab === 'locks' && <SpendLocksPanel />}
     </div>
   );
 }

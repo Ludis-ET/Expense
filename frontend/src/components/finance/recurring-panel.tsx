@@ -260,7 +260,7 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
         )}
         {isSavings && (
           <p className="rounded-lg bg-primary/5 px-3 py-2 text-xs text-muted">
-            {PLAN_TYPES.find((p) => p.id === planType)!.hint} A linked spend lock will grow automatically, reserving the money.
+            {PLAN_TYPES.find((p) => p.id === planType)!.hint}
           </p>
         )}
 

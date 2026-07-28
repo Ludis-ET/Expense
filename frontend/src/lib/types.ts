@@ -407,44 +407,7 @@ export interface LedgerSummary {
   };
 }
 
-export type SpendLockKind = 'FLOOR' | 'RESERVE';
 export type WishlistStatus = 'WANTING' | 'SAVING' | 'BOUGHT' | 'DROPPED';
-
-export interface SpendLock {
-  id: string;
-  kind: SpendLockKind;
-  name: string;
-  amount: string;
-  /** What is actually protected right now. */
-  lockedAmount: string;
-  currency: string;
-  active: boolean;
-  note?: string | null;
-  createdAt: string;
-  updatedAt: string;
-}
-
-export interface SpendLockOverview {
-  currency: string;
-  /** Money physically in accounts. */
-  balance: string;
-  /** Held inside budget plans. */
-  budgetLocked: string;
-  /** Balance minus budget plans - what locks are measured against. */
-  available: string;
-  floorAmount: string;
-  reservedAmount: string;
-  lockedTotal: string;
-  spendable: string;
-  lockCount: number;
-  conflict: boolean;
-  hint?: string | null;
-}
-
-export interface SpendLocksResponse {
-  items: SpendLock[];
-  overview: SpendLockOverview[];
-}
 
 export interface WishlistItem {
   id: string;
@@ -567,5 +530,4 @@ export interface DashboardData {
   household: HouseholdOverview | null;
   tab: LedgerSummary;
   wishlist: WishlistDigest;
-  spendable: SpendLockOverview;
 }

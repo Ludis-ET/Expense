@@ -68,8 +68,7 @@ export function WishlistPanel() {
         (key.startsWith("/dashboard") ||
           key.startsWith("/accounts") ||
           key.startsWith("/budgets") ||
-          key.startsWith("/recurring") ||
-          key.startsWith("/spend-locks")),
+          key.startsWith("/recurring")),
     );
 
   const items = (data?.items ?? []).filter((i) => {

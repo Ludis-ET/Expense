@@ -4,7 +4,7 @@ import { BadRequestError, NotFoundError } from "../../core/errors.js";
 import type { AuthUser } from "../../core/context.js";
 import { notify } from "../notifications/notifications.service.js";
 import * as transactions from "../transactions/transactions.service.js";
-import { spendableFor } from "../spend-locks/spend-locks.service.js";
+import { availableTotal } from "../accounts/accounts.service.js";
 import type {
   CreateWishlistInput,
   FundWishlistInput,
@@ -28,7 +28,7 @@ type ItemRow = {
   updatedAt: Date;
 };
 
-/** `spendable` = unlocked money available in the item's currency (or null when unknown). */
+/** `spendable` = money free to spend in the item's currency (or null when unknown). */
 function serialize(item: ItemRow, spendable?: number | null) {
   const cost = Number(item.estimatedCost);
   const saved = Number(item.savedAmount);
@@ -50,7 +50,7 @@ function serialize(item: ItemRow, spendable?: number | null) {
     savedAmount: item.savedAmount.toFixed(2),
     remaining: remaining.toFixed(2),
     pct,
-    // Can you cover what's left out of unlocked money right now?
+    // Can you cover what's left out of money that is free to spend?
     affordable:
       spendable == null || !isActive ? null : spendable + 0.001 >= remaining,
     createdAt: item.createdAt,
@@ -64,13 +64,13 @@ async function assertOwned(id: string, userId: string) {
   return item as ItemRow;
 }
 
-/** Spendable-per-currency map for the currencies present in a set of items. */
+/** Available-money-per-currency map for the currencies present in a set of items. */
 async function spendableByCurrency(userId: string, currencies: string[]) {
   const uniq = [...new Set(currencies)];
   const rows = await Promise.all(
     uniq.map(
       async (c) =>
-        [c, Number((await spendableFor(userId, c)).spendable)] as const,
+        [c, Number(await availableTotal(userId, c))] as const,
     ),
   );
   return new Map(rows);
@@ -124,7 +124,7 @@ export async function dashboard(user: AuthUser, currency: string) {
     },
     orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
   })) as ItemRow[];
-  const spendable = Number((await spendableFor(user.id, cur)).spendable);
+  const spendable = Number(await availableTotal(user.id, cur));
   const serialized = items.map((i) => serialize(i, spendable));
 
   return {
@@ -161,7 +161,7 @@ export async function create(user: AuthUser, input: CreateWishlistInput) {
 
   return serialize(
     item,
-    Number((await spendableFor(user.id, item.currency)).spendable),
+    Number(await availableTotal(user.id, item.currency)),
   );
 }
 
@@ -195,7 +195,7 @@ export async function update(
 
   return serialize(
     item,
-    Number((await spendableFor(user.id, item.currency)).spendable),
+    Number(await availableTotal(user.id, item.currency)),
   );
 }
 
@@ -242,7 +242,7 @@ export async function fund(
 
   return serialize(
     item,
-    Number((await spendableFor(user.id, item.currency)).spendable),
+    Number(await availableTotal(user.id, item.currency)),
   );
 }
 

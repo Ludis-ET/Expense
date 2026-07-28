@@ -45,14 +45,14 @@ Your wallets - **cash, bank, mobile-money (e.g. Telebirr), card or other**.
 
 ## Budgets (`/budgets`)
 
-Budgets are **envelopes**, not just limits. The page has three tabs: **Plans**, **Wishlist** and **Spend locks**.
+Budgets are **envelopes**, not just limits. The page has two tabs: **Plans** and **Wishlist**.
 
 ### Plans
 
 A plan is something you name yourself - "Weekend food", "New laptop", "School fees". A category is **optional**: if you attach one, it is pre-selected whenever you spend from the plan.
 
 - Choose **one-time** or **recurring** (weekly / monthly / quarterly / yearly), and say how much you **plan to spend**. That figure is also the ceiling on how much money the plan will accept.
-- A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, spend locks, the overdraw guard).
+- A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, the overdraw guard). This is also how you ring-fence money you refuse to touch — rent, fees, an emergency buffer.
 - **Give back** any unspent money to the account it came from at any time.
 
 ### Spending from a plan
@@ -69,14 +69,6 @@ Everything about one plan on its own page: what's left, a bar reading spent → 
 
 - **One-time plans** close themselves once the pot is empty *and* something has been spent from them. Closed plans stay listed and keep their history, but no longer appear when you add a transaction. **Reopen** them any time.
 - **Recurring plans** snapshot each finished cycle - planned, carried in, filled, spent, leftover, and the transactions in it - then carry any leftover money forward into the new cycle and start accepting fills again.
-
-### Spend locks
-
-Protect money you refuse to touch. Locks are **per currency**, stack, and apply to whatever is left *after* budget plans:
-
-- **Safety floor** - "I can't spend below this." Multiple floors use the **highest** floor.
-- **Named reserve** - rent buffer, emergency pot, etc.
-- Expenses that would break the unlocked balance are **blocked** at create time.
 
 ### Wishlist
 

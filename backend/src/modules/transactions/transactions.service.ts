@@ -173,12 +173,6 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     }
   }
 
-  // Spend locks guard free money; plan money is already ring-fenced elsewhere.
-  if (input.kind === TxKind.EXPENSE && !plan) {
-    const { assertExpenseAllowed } = await import('../spend-locks/spend-locks.service.js');
-    await assertExpenseAllowed(user.id, input.currency, input.amount);
-  }
-
   const tx = await prisma.transaction.create({
     data: {
       userId: user.id,
@@ -201,7 +195,7 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
 
   if (tx.budgetId) {
     const { afterSpend } = await import('../budgets/budgets.service.js');
-    void afterSpend(user.id, tx.budgetId);
+    await afterSpend(user.id, tx.budgetId);
   }
   return serialize(tx);
 }
@@ -250,7 +244,7 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
 
   if (tx.budgetId) {
     const { afterSpend } = await import('../budgets/budgets.service.js');
-    void afterSpend(user.id, tx.budgetId);
+    await afterSpend(user.id, tx.budgetId);
   }
   return serialize(tx);
 }
@@ -261,6 +255,6 @@ export async function remove(user: AuthUser, id: string) {
   // Deleting a plan expense hands the money back to the pot.
   if (existing.budgetId) {
     const { afterSpend } = await import('../budgets/budgets.service.js');
-    void afterSpend(user.id, existing.budgetId);
+    await afterSpend(user.id, existing.budgetId);
   }
 }

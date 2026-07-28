@@ -201,7 +201,7 @@ function serialize(budget: BudgetWithCategory, t: Totals) {
 export type SerializedBudget = ReturnType<typeof serialize>;
 
 // ---------------------------------------------------------------------------
-// Reservation lookups (used by accounts / transactions / spend locks)
+// Reservation lookups (used by accounts / transactions / wishlist)
 // ---------------------------------------------------------------------------
 
 /**
@@ -839,8 +839,13 @@ export async function assertSpendable(
 }
 
 /**
- * After a plan expense lands: warn when the pot runs low, and retire a one-time
- * plan whose money is fully spent.
+ * After a plan expense lands (or is edited/deleted): warn when the pot runs
+ * low, and retire a one-time plan whose money is fully spent.
+ *
+ * Awaited by the caller so the ACTIVE -> CLOSED transition is part of the
+ * write's outcome — nothing else reconciles it, so a dropped call would leave a
+ * drained plan open forever. Everything here is best-effort internally, so
+ * awaiting it can never fail the transaction.
  */
 export async function afterSpend(userId: string, budgetId: string): Promise<void> {
   try {

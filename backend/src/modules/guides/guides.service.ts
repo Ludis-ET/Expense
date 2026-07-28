@@ -6,7 +6,6 @@ import * as analytics from "../analytics/analytics.service.js";
 import * as budgets from "../budgets/budgets.service.js";
 import { monthRange } from "../budgets/budgets.service.js";
 import * as wishlist from "../wishlist/wishlist.service.js";
-import { spendableFor } from "../spend-locks/spend-locks.service.js";
 import { GUIDES } from "./guides.content.js";
 
 export type SuggestionTone = "tip" | "success" | "warning";
@@ -29,7 +28,6 @@ async function snapshot(user: AuthUser) {
   const [
     monthRows,
     txCount,
-    spendable,
     savingsPlans,
     budgetList,
     wishDigest,
@@ -46,7 +44,6 @@ async function snapshot(user: AuthUser) {
       _sum: { amount: true },
     }),
     prisma.transaction.count({ where: { userId: user.id } }),
-    spendableFor(user.id, cur),
     prisma.recurringRule.count({
       where: { userId: user.id, active: true, wishlistItemId: { not: null } },
     }),
@@ -68,7 +65,6 @@ async function snapshot(user: AuthUser) {
     currency: cur,
     txCount,
     savingsRate,
-    lockCount: spendable.lockCount,
     savingsPlans,
     budgetCount: budgetList.items.length,
     budgetsUnfunded: budgetList.items.filter(
@@ -99,18 +95,6 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
       guideId: "getting-started",
       href: "/transactions",
       cta: "Add a transaction",
-    });
-  }
-
-  if (s.lockCount === 0) {
-    add(90, {
-      id: "set-floor",
-      title: "Protect yourself with a safety floor",
-      body: "You have no spend locks yet. A safety-floor lock stops everyday expenses from eating into money you cannot afford to lose.",
-      tone: "tip",
-      guideId: "emergency-fund",
-      href: "/budgets?tab=locks",
-      cta: "Set a lock",
     });
   }
 
@@ -176,7 +160,7 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
     add(50, {
       id: "first-budget",
       title: "Create your first budget plan",
-      body: "A plan is an envelope you fill from your accounts. Once money is in it, it is set aside and can only be spent on that plan.",
+      body: "A plan is an envelope you fill from your accounts. Once money is in it, it drops out of your available balance and can only be spent on that plan — the simplest way to ring-fence rent, fees or an emergency buffer.",
       tone: "tip",
       guideId: "budget-basics",
       href: "/budgets",

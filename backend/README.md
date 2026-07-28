@@ -38,8 +38,7 @@ src/
     categories/          income/expense categories (+ default set)
     transactions/        income / expense / transfer + rich filtering
     recurring/           recurring rules + lazy catch-up engine
-    budgets/             per-category monthly budgets + alerts
-    goals/               savings goals + contributions
+    budgets/             budget plans (envelopes) + funding, cycles, alerts
     analytics/           summary, series, breakdowns, heatmap, payees
     dashboard/           single aggregated dashboard payload
     ai/                  bring-your-own-key assistant (ask, review, categorize)
@@ -92,8 +91,9 @@ All routes are under `/api/v1`. Everything except `/auth/*` requires a
 | GET/POST | `/categories`, PUT/DELETE `/categories/:id` | `?kind=`, delete `?reassignTo=` |
 | GET/POST | `/transactions`, GET/PUT/DELETE `/transactions/:id`, GET `/transactions/tags` | filters: from,to,kind,categoryId,accountId,tag,q,min,max,page,pageSize,sort |
 | GET/POST | `/recurring`, PUT/DELETE `/recurring/:id`, POST `/recurring/:id/run-now` | |
-| GET      | `/budgets?month=YYYY-MM`, PUT/DELETE `/budgets/:categoryId` | joined with month spend |
-| GET/POST | `/goals`, PUT/DELETE `/goals/:id`, POST/DELETE `/goals/:id/contributions[/:cid]` | |
+| GET/POST | `/budgets`, GET/PUT/DELETE `/budgets/:id` | `?state=`, `?currency=` |
+| POST     | `/budgets/:id/{fund,release,close,reopen}` | move money in/out of a plan's pot |
+| GET      | `/budgets/sources`                      | plans holding money, for the tx form |
 | GET      | `/analytics/{summary,series,categories,income-vs-expense,heatmap,payees,unnecessary}` | |
 | GET      | `/dashboard`                            | one aggregated payload |
 | POST     | `/ai/ask` · `/ai/review` · `/ai/categorize` | needs a provider key |

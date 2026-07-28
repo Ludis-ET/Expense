@@ -38,8 +38,8 @@ export async function monthlyReview(user: AuthUser, month: string): Promise<Revi
     'You are a supportive personal-finance coach writing a monthly money review. Use ONLY the facts ' +
     'in the provided JSON; never invent numbers. Output clean GitHub-flavoured Markdown with clear ' +
     'headings and short paragraphs. Cover: income vs spending for the requested month, how spending ' +
-    'shifted between categories vs the previous month, budget adherence (call out overruns kindly but ' +
-    'honestly), goal progress, and end with exactly 3 specific, actionable suggestions based on the ' +
+    'shifted between categories vs the previous month, how the budget plans are holding up (call out overspending kindly but ' +
+    'honestly), and end with exactly 3 specific, actionable suggestions based on the ' +
     "user's real patterns. Do not wrap the output in code fences.";
   const prompt = `Write the review for ${month}.\n\nFINANCE DATA:\n${JSON.stringify(snapshot)}`;
 

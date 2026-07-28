@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Play, Plus, Trash2, Target, Sparkles } from 'lucide-react';
+import { Play, Plus, Trash2, Sparkles } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
@@ -17,9 +17,9 @@ import { formatDate } from '@/lib/format';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import type { Account, Category, Frequency, RecurringRule, SavingsGoal, TxKind, WishlistItem } from '@/lib/types';
+import type { Account, Category, Frequency, RecurringRule, TxKind, WishlistItem } from '@/lib/types';
 
-type PlanType = 'transaction' | 'goal' | 'wishlist';
+type PlanType = 'transaction' | 'wishlist';
 
 const FREQUENCIES: Frequency[] = ['DAILY', 'WEEKLY', 'MONTHLY', 'YEARLY'];
 const freqLabel = (f: Frequency, interval: number) =>
@@ -100,19 +100,13 @@ export function RecurringPanel() {
                 <div className="min-w-40 flex-1">
                   <p className="flex items-center gap-2 font-medium">
                     {r.name}
-                    {r.planType === 'goal' ? (
-                      <Badge tone="info">auto-save</Badge>
-                    ) : r.planType === 'wishlist' ? (
+                    {r.planType === 'wishlist' ? (
                       <Badge tone="info">wishlist</Badge>
                     ) : (
                       <Badge tone={r.kind === 'INCOME' ? 'success' : 'neutral'}>{r.kind.toLowerCase()}</Badge>
                     )}
                   </p>
-                  {r.planType === 'goal' && r.goal ? (
-                    <p className="mt-1 flex items-center gap-1 text-xs text-muted">
-                      <Target className="h-3 w-3" /> {r.goal.name}
-                    </p>
-                  ) : r.planType === 'wishlist' && r.wishlistItem ? (
+                  {r.planType === 'wishlist' && r.wishlistItem ? (
                     <p className="mt-1 flex items-center gap-1 text-xs text-muted">
                       <Sparkles className="h-3 w-3" /> {r.wishlistItem.emoji} {r.wishlistItem.name}
                     </p>
@@ -157,7 +151,6 @@ export function RecurringPanel() {
 
 const PLAN_TYPES: { id: PlanType; label: string; hint: string }[] = [
   { id: 'transaction', label: 'Transaction', hint: 'Post income or an expense on a schedule.' },
-  { id: 'goal', label: 'Save to goal', hint: 'Auto-contribute to a savings goal each period.' },
   { id: 'wishlist', label: 'Fund a want', hint: 'Set money aside toward a wishlist item.' },
 ];
 
@@ -165,7 +158,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   const { activeCurrency } = useCurrencyView();
   const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
-  const { data: goalsData } = useSWR<{ items: SavingsGoal[] }>(open ? '/goals' : null);
   const { data: wishlistData } = useSWR<{ items: WishlistItem[] }>(
     open ? `/wishlist?currency=${encodeURIComponent(activeCurrency)}` : null,
   );
@@ -175,7 +167,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   const [amount, setAmount] = useState('');
   const [accountId, setAccountId] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [goalId, setGoalId] = useState('');
   const [wishlistItemId, setWishlistItemId] = useState('');
   const [frequency, setFrequency] = useState<Frequency>('MONTHLY');
   const [interval, setInterval] = useState('1');
@@ -188,7 +179,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
     [accountsData?.items],
   );
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
-  const goals = (goalsData?.items ?? []).filter((g) => !g.achievedAt);
   const wants = (wishlistData?.items ?? []).filter((w) => w.status === 'WANTING' || w.status === 'SAVING');
   const isSavings = planType !== 'transaction';
 
@@ -200,7 +190,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
     setAmount(editing ? String(Number(editing.amount)) : '');
     setAccountId(editing?.accountId ?? '');
     setCategoryId(editing?.categoryId ?? '');
-    setGoalId(editing?.goalId ?? '');
     setWishlistItemId(editing?.wishlistItemId ?? '');
     setFrequency(editing?.frequency ?? 'MONTHLY');
     setInterval(String(editing?.interval ?? 1));
@@ -216,7 +205,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (planType === 'transaction' && !categoryId) return toast.error('Pick a category');
-    if (planType === 'goal' && !goalId) return toast.error('Pick a goal');
     if (planType === 'wishlist' && !wishlistItemId) return toast.error('Pick a wishlist item');
     setSaving(true);
     const base = {
@@ -234,11 +222,10 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
       ? {
           ...base,
           kind: 'EXPENSE' as const,
-          goalId: planType === 'goal' ? goalId : null,
-          wishlistItemId: planType === 'wishlist' ? wishlistItemId : null,
+          wishlistItemId,
           categoryId: null,
         }
-      : { ...base, kind, categoryId, goalId: null, wishlistItemId: null };
+      : { ...base, kind, categoryId, wishlistItemId: null };
     try {
       if (editing) await api.put(`/recurring/${editing.id}`, payload);
       else await api.post('/recurring', payload);
@@ -297,9 +284,6 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
           <Field label={isSavings ? 'From account' : 'Account'}><Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
           {planType === 'transaction' && (
             <Field label="Category"><Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
-          )}
-          {planType === 'goal' && (
-            <Field label="Goal"><Select value={goalId} onChange={(e) => setGoalId(e.target.value)}><option value="">Select…</option>{goals.map((g) => <option key={g.id} value={g.id}>{g.name}</option>)}</Select></Field>
           )}
           {planType === 'wishlist' && (
             <Field label="Wishlist item"><Select value={wishlistItemId} onChange={(e) => setWishlistItemId(e.target.value)}><option value="">Select…</option>{wants.map((w) => <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>)}</Select></Field>

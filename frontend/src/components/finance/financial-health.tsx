@@ -17,24 +17,24 @@ function computeHealth(data: DashboardData): { score: number; factors: HealthFac
 
   const savingsScore = income > 0 ? Math.min(100, Math.max(0, (net / income) * 100 + 50)) : 50;
 
-  const budgetCount = data.budgetsAtRisk.length;
-  const overCount = data.budgetsAtRisk.filter((b) => b.status === 'over').length;
-  const budgetScore = budgetCount === 0 ? 85 : Math.max(0, 100 - overCount * 30 - (budgetCount - overCount) * 10);
+  const atRisk = data.budgetsAtRisk.length;
+  const drained = data.budgetsAtRisk.filter((b) => b.health === 'drained').length;
+  const budgetScore = atRisk === 0 ? 85 : Math.max(0, 100 - drained * 30 - (atRisk - drained) * 10);
 
   const unnecessary = Number(data.unnecessary.total);
   const unnecessaryScore =
     expense > 0 ? Math.max(0, 100 - (unnecessary / expense) * 200) : 90;
 
-  const goalScore =
-    data.goals.length > 0
-      ? data.goals.reduce((s, g) => s + g.pct, 0) / data.goals.length
-      : 60;
+  // How much of what you planned to spend is actually set aside.
+  const planned = Number(data.budgetTotals?.planned ?? 0);
+  const funded = Number(data.budgetTotals?.funded ?? 0);
+  const fundingScore = planned > 0 ? Math.min(100, (funded / planned) * 100) : 60;
 
   const factors: HealthFactor[] = [
     { label: 'Savings', score: Math.round(savingsScore), icon: TrendingUp },
-    { label: 'Budgets', score: Math.round(budgetScore), icon: Shield },
+    { label: 'Plans', score: Math.round(budgetScore), icon: Shield },
     { label: 'Discipline', score: Math.round(unnecessaryScore), icon: Activity },
-    { label: 'Goals', score: Math.round(goalScore), icon: Wallet },
+    { label: 'Funding', score: Math.round(fundingScore), icon: Wallet },
   ];
 
   const score = Math.round(factors.reduce((s, f) => s + f.score, 0) / factors.length);

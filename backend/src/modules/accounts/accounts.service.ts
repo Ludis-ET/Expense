@@ -11,8 +11,13 @@ async function assertOwnedAccount(id: string, userId: string) {
 }
 
 /**
- * All accounts with computed balances:
+ * All accounts with computed balances.
+ *
+ * `realBalance` is the money physically in the account:
  * opening + income − expense − transfers-out + transfers-in.
+ *
+ * `lockedAmount` is the slice of it reserved by budget plans. `balance` is what
+ * is left over — the figure every "available to spend" surface should use.
  */
 export async function list(user: AuthUser) {
   const accounts = await prisma.account.findMany({
@@ -20,7 +25,8 @@ export async function list(user: AuthUser) {
     orderBy: [{ isDefault: 'desc' }, { createdAt: 'asc' }],
   });
 
-  const [sums, transfersIn] = await Promise.all([
+  const { lockedByAccount } = await import('../budgets/budgets.service.js');
+  const [sums, transfersIn, locked] = await Promise.all([
     prisma.transaction.groupBy({
       by: ['accountId', 'kind'],
       where: { userId: user.id },
@@ -31,29 +37,37 @@ export async function list(user: AuthUser) {
       where: { userId: user.id, kind: TxKind.TRANSFER, transferAccountId: { not: null } },
       _sum: { amount: true },
     }),
+    lockedByAccount(user.id),
   ]);
 
   const zero = new Prisma.Decimal(0);
   const rows = accounts.map((a) => {
-    let balance = new Prisma.Decimal(a.openingBalance);
+    let real = new Prisma.Decimal(a.openingBalance);
     for (const s of sums) {
       if (s.accountId !== a.id) continue;
       const amt = s._sum.amount ?? zero;
-      if (s.kind === TxKind.INCOME) balance = balance.add(amt);
-      else balance = balance.sub(amt); // EXPENSE and TRANSFER both leave the source account
+      if (s.kind === TxKind.INCOME) real = real.add(amt);
+      else real = real.sub(amt); // EXPENSE and TRANSFER both leave the source account
     }
     for (const t of transfersIn) {
-      if (t.transferAccountId === a.id) balance = balance.add(t._sum.amount ?? zero);
+      if (t.transferAccountId === a.id) real = real.add(t._sum.amount ?? zero);
     }
-    return { ...a, openingBalance: a.openingBalance.toFixed(2), balance: balance.toFixed(2) };
+    const lockedAmount = locked.get(a.id) ?? zero;
+    return {
+      ...a,
+      openingBalance: a.openingBalance.toFixed(2),
+      realBalance: real.toFixed(2),
+      lockedAmount: lockedAmount.toFixed(2),
+      balance: real.sub(lockedAmount).toFixed(2),
+    };
   });
 
   return { items: rows };
 }
 
 /**
- * Current computed balance for a single account. Pass `excludeTxId` to compute
- * the balance as if a given transaction didn't exist (used when editing it).
+ * Money physically in a single account. Pass `excludeTxId` to compute the
+ * balance as if a given transaction didn't exist (used when editing it).
  */
 export async function accountBalance(
   userId: string,
@@ -88,6 +102,23 @@ export async function accountBalance(
   return balance;
 }
 
+/**
+ * Real balance minus whatever budget plans have reserved out of this account.
+ * This is what an ordinary expense or a new plan fill-up may draw on.
+ */
+export async function availableBalance(
+  userId: string,
+  accountId: string,
+  excludeTxId?: string,
+): Promise<Prisma.Decimal> {
+  const { lockedByAccount } = await import('../budgets/budgets.service.js');
+  const [real, locked] = await Promise.all([
+    accountBalance(userId, accountId, excludeTxId),
+    lockedByAccount(userId),
+  ]);
+  return real.sub(locked.get(accountId) ?? new Prisma.Decimal(0));
+}
+
 export async function create(user: AuthUser, input: CreateAccountInput) {
   if (input.isDefault) {
     await prisma.account.updateMany({ where: { userId: user.id }, data: { isDefault: false } });
@@ -105,6 +136,10 @@ export async function update(user: AuthUser, id: string, input: UpdateAccountInp
 
 export async function remove(user: AuthUser, id: string) {
   await assertOwnedAccount(id, user.id);
+  const allocations = await prisma.budgetAllocation.count({ where: { accountId: id } });
+  if (allocations > 0) {
+    throw new ConflictError('This account has money set aside in budget plans. Give it back first.');
+  }
   const txCount = await prisma.transaction.count({
     where: { OR: [{ accountId: id }, { transferAccountId: id }] },
   });

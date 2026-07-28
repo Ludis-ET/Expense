@@ -12,17 +12,16 @@ A personal income & expense tracker - **Express + Prisma backend** and a **Next.
 
 ## Features
 
-**Backend** - JWT auth (access + refresh), per-user data isolation (every row scoped by `userId`), and modules for accounts, categories, transactions (income/expense/transfer), recurring rules, budgets, savings goals, analytics, a dashboard aggregator, notifications, and an optional AI assistant. Zod-validated, pino-logged, fail-fast config.
+**Backend** - JWT auth (access + refresh), per-user data isolation (every row scoped by `userId`), and modules for accounts, categories, transactions (income/expense/transfer), recurring rules, budget plans, analytics, a dashboard aggregator, notifications, and an optional AI assistant. Zod-validated, pino-logged, fail-fast config.
 
 **Frontend** - a polished, responsive app with:
 
 - Marketing **landing page** with light/dark theme
 - **Auth** (login / register) - each person gets their own private account
-- **Dashboard** - balance, income/spend/net stat cards with trend deltas, a spending donut, recent transactions, budgets at risk, goal progress and upcoming bills
+- **Dashboard** - available balance (after money set aside in plans), income/spend/net stat cards with trend deltas, a spending donut, recent transactions, plans running low and upcoming bills
 - **Transactions** - month navigator, powerful filters (type, category, account, tag, text search), quick-add modal (press `N`), inline edit/delete, and CSV export
 - **Accounts** - cash / bank / mobile-money wallets with computed balances and transfers between them
-- **Budgets** - per-category monthly limits with progress bars and over-spend alerts
-- **Goals** - savings goals with contributions, deadlines and "how much per month to get there"
+- **Budgets** - named spending plans (envelopes) you fill from your accounts. Filled money is reserved: it stays in the account but drops out of every "available" figure, and can only be spent against that plan. One-time plans close themselves once empty; recurring plans snapshot each cycle and carry leftovers forward. The Budgets page also hosts the **Wishlist** and **Spend Locks** tabs
 - **Recurring** - salary, rent and subscriptions that auto-post or remind you
 - **Analytics** - daily/weekly/monthly income-vs-expense trends, category breakdowns, a calendar spend heatmap, top payees, an "unnecessary spend" meter and savings rate
 - **Assistant** - ask questions about your money and generate a personalized monthly review (using your own AI provider key)

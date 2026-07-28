@@ -27,11 +27,11 @@ interface NotificationData {
 
 /** Map a notification type to an icon + accent colour. */
 function typeMeta(type: string): { icon: LucideIcon; cls: string; bg: string } {
-  if (type.startsWith('goal')) return { icon: Target, cls: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/12' };
   if (type === 'wishlist_funded') return { icon: Sparkles, cls: 'text-violet-600 dark:text-violet-400', bg: 'bg-violet-500/12' };
-  if (type === 'wishlist_promoted') return { icon: Star, cls: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/12' };
   if (type === 'wishlist_bought') return { icon: ShoppingBag, cls: 'text-rose-600 dark:text-rose-400', bg: 'bg-rose-500/12' };
   if (type === 'budget_alert') return { icon: AlertTriangle, cls: 'text-amber-600 dark:text-amber-400', bg: 'bg-amber-500/12' };
+  if (type === 'budget_closed') return { icon: Target, cls: 'text-slate-600 dark:text-slate-400', bg: 'bg-slate-500/12' };
+  if (type === 'budget_cycle_rolled') return { icon: Star, cls: 'text-emerald-600 dark:text-emerald-400', bg: 'bg-emerald-500/12' };
   if (type === 'recurring_due') return { icon: CalendarClock, cls: 'text-sky-600 dark:text-sky-400', bg: 'bg-sky-500/12' };
   return { icon: Bell, cls: 'text-primary', bg: 'bg-primary/10' };
 }

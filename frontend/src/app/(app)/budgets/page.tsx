@@ -1,398 +1,189 @@
 'use client';
 
-import { Suspense, useEffect, useState } from 'react';
-import { useSearchParams } from 'next/navigation';
+import { Suspense, useState } from 'react';
+import Link from 'next/link';
+import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { toast } from 'sonner';
-import { Plus, Trash2, History, Repeat, RefreshCw } from 'lucide-react';
-import { Card, CardContent } from '@/components/ui/card';
-import { Modal } from '@/components/ui/modal';
+import { Lock, PiggyBank, Plus, Sparkles, Wallet } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select, DateInput } from '@/components/ui/input';
-import { Checkbox } from '@/components/ui/checkbox';
-import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
-import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
-import { CategoryBadge } from '@/components/finance/category-badge';
-import { GoalsPanel } from '@/components/finance/goals-panel';
-import { BudgetDetailModal } from '@/components/finance/budget-detail-modal';
-import { api, ApiError } from '@/lib/api';
-import { useMoney } from '@/lib/amount-visibility';
-import { useConfirm } from '@/components/ui/confirm-dialog';
+import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
+import { BudgetPlanCard } from '@/components/finance/budget-plan-card';
+import { BudgetPlanForm } from '@/components/finance/budget-plan-modals';
+import { WishlistPanel } from '@/components/finance/wishlist-panel';
+import { SpendLocksPanel } from '@/components/finance/spend-locks-panel';
+import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
-import type { BudgetHistory, BudgetPeriod, BudgetRow, BudgetsResponse, Category } from '@/lib/types';
+import type { BudgetsResponse } from '@/lib/types';
 
-const tone = (status: BudgetRow['status']) =>
-  status === 'over' ? 'danger' : status === 'warning' ? 'warning' : 'success';
+const TABS = [
+  { id: 'plans', label: 'Plans', icon: PiggyBank },
+  { id: 'wishlist', label: 'Wishlist', icon: Sparkles },
+  { id: 'locks', label: 'Spend locks', icon: Lock },
+] as const;
 
-const PERIOD_OPTIONS: { value: BudgetPeriod; label: string; noun: string }[] = [
-  { value: 'WEEKLY', label: 'Weekly', noun: 'week' },
-  { value: 'MONTHLY', label: 'Monthly', noun: 'month' },
-  { value: 'QUARTERLY', label: 'Quarterly', noun: 'quarter' },
-  { value: 'YEARLY', label: 'Yearly', noun: 'year' },
-];
-
-const periodNoun = (p: BudgetPeriod) => PERIOD_OPTIONS.find((o) => o.value === p)?.noun ?? 'month';
-const periodLabel = (p: BudgetPeriod) => PERIOD_OPTIONS.find((o) => o.value === p)?.label ?? 'Monthly';
+type TabId = (typeof TABS)[number]['id'];
 
 export default function BudgetsPage() {
   return (
     <Suspense fallback={<Skeleton className="h-96" />}>
-      <PlanInner />
+      <BudgetsInner />
     </Suspense>
   );
 }
 
-function PlanInner() {
+function BudgetsInner() {
   const params = useSearchParams();
-  const confirm = useConfirm();
-  const tab = params.get('tab') === 'goals' ? 'goals' : 'budgets';
+  const pathname = usePathname();
   const { activeCurrency } = useCurrencyView();
-  const { money } = useMoney();
-  const [month, setMonth] = useState(currentMonth());
-  const { data, mutate } = useSWR<BudgetsResponse>(`/budgets?month=${month}`);
-  const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editing, setEditing] = useState<BudgetRow | null>(null);
-  const [historyFor, setHistoryFor] = useState<BudgetRow | null>(null);
-  const [viewingBudget, setViewingBudget] = useState<BudgetRow | null>(null);
-
-  const budgeted = new Set((data?.items ?? []).map((b) => b.categoryId));
-  const unbudgeted = (categoriesData?.items ?? []).filter((c) => !c.archived && !budgeted.has(c.id));
-
-  async function remove(row: BudgetRow) {
-    const ok = await confirm({
-      title: 'Remove budget?',
-      description: `Remove the budget for ${row.category.name}?`,
-      confirmLabel: 'Remove',
-      tone: 'danger',
-    });
-    if (!ok) return;
-    try {
-      await api.del(`/budgets/${row.categoryId}`);
-      toast.success('Budget removed');
-      void mutate();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed');
-    }
-  }
+  const raw = params.get('tab');
+  const tab: TabId = TABS.some((t) => t.id === raw) ? (raw as TabId) : 'plans';
 
   return (
     <div>
       <PageHeader
-        title="Plan"
+        title="Budgets"
         description={currencyScopeHint(activeCurrency)}
         badge={<CurrencyBadge />}
-        action={
-          tab === 'budgets' ? (
-            <Button size="sm" onClick={() => { setEditing(null); setModalOpen(true); }} disabled={unbudgeted.length === 0}>
-              <Plus className="h-4 w-4" /> Set budget
-            </Button>
-          ) : undefined
-        }
       />
 
-      <div className="mb-4 flex gap-1 rounded-xl border border-border p-1 w-fit">
-        {(['budgets', 'goals'] as const).map((t) => (
-          <a
-            key={t}
-            href={t === 'budgets' ? '/budgets' : '/budgets?tab=goals'}
-            className={cn(
-              'rounded-lg px-4 py-2 text-sm font-medium capitalize transition-colors',
-              tab === t ? 'bg-primary text-primary-foreground' : 'text-muted hover:bg-surface-muted',
-            )}
-          >
-            {t === 'budgets' ? 'Budgets' : 'Goals'}
-          </a>
-        ))}
+      <div
+        role="tablist"
+        className="mb-5 flex w-full gap-1 overflow-x-auto rounded-xl border border-border p-1 sm:w-fit"
+      >
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <Link
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              href={t.id === 'plans' ? pathname : `${pathname}?tab=${t.id}`}
+              scroll={false}
+              className={cn(
+                'inline-flex min-h-10 shrink-0 items-center gap-1.5 rounded-lg px-4 py-2 text-sm font-medium transition-colors',
+                active
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted hover:bg-surface-muted hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </Link>
+          );
+        })}
       </div>
 
-      {tab === 'goals' ? (
-        <GoalsPanel />
-      ) : (
-        <>
-      <div className="mb-4 flex items-center justify-between">
-        <MonthNavigator month={month} onChange={setMonth} />
-        {data && (
-          <p className="text-sm text-muted">
-            <span className="font-semibold text-foreground">{money(data.totals.spent)}</span> of {money(data.totals.budgeted)} used
-          </p>
-        )}
-      </div>
-
-      {!data ? (
-        <div className="space-y-3">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-20" />)}</div>
-      ) : data.items.length === 0 ? (
-        <EmptyState
-          title="No budgets yet"
-          description="Create a recurring budget for a spending category to track it here."
-          action={unbudgeted.length > 0 ? <Button onClick={() => { setEditing(null); setModalOpen(true); }}>Set a budget</Button> : undefined}
-        />
-      ) : (
-        <div className="space-y-3">
-          {data.items.map((b) => (
-            <BudgetCard
-              key={b.id}
-              b={b}
-              money={money}
-              onView={() => setViewingBudget(b)}
-              onEdit={() => { setEditing(b); setModalOpen(true); }}
-              onHistory={() => setHistoryFor(b)}
-              onRemove={() => remove(b)}
-            />
-          ))}
-        </div>
-      )}
-
-      {unbudgeted.length > 0 && data && data.items.length > 0 && (
-        <p className="mt-4 text-sm text-muted">
-          {unbudgeted.length} categories have no budget yet.
-        </p>
-      )}
-
-      <BudgetModal
-        open={modalOpen}
-        editing={editing}
-        unbudgeted={unbudgeted}
-        onClose={() => setModalOpen(false)}
-        onSaved={() => void mutate()}
-      />
-      <BudgetHistoryModal row={historyFor} onClose={() => setHistoryFor(null)} />
-      <BudgetDetailModal
-        row={viewingBudget}
-        onClose={() => setViewingBudget(null)}
-        onEdit={() => { setEditing(viewingBudget); setModalOpen(true); }}
-      />
-        </>
-      )}
+      {tab === 'plans' && <PlansPanel />}
+      {tab === 'wishlist' && <WishlistPanel />}
+      {tab === 'locks' && <SpendLocksPanel />}
     </div>
   );
 }
 
-function BudgetCard({
-  b,
-  money,
-  onView,
-  onEdit,
-  onHistory,
-  onRemove,
-}: {
-  b: BudgetRow;
-  money: (v: string | number) => string;
-  onView: () => void;
-  onEdit: () => void;
-  onHistory: () => void;
-  onRemove: () => void;
-}) {
-  const carry = Number(b.carryIn);
-  const inactive = b.status === 'upcoming' || b.status === 'ended';
-  return (
-    <Card
-      className={cn(inactive ? 'opacity-70' : undefined, 'cursor-pointer hover:shadow-md transition-shadow')}
-      onClick={onView}
-    >
-      <CardContent className="p-4">
-        <div className="mb-2 flex items-center justify-between gap-2">
-          <div className="flex min-w-0 items-center gap-2">
-            <CategoryBadge category={b.category} className="font-medium" />
-            <span className="inline-flex items-center gap-1 rounded-full bg-surface-muted px-2 py-0.5 text-[11px] font-medium text-muted">
-              <Repeat className="h-3 w-3" /> {periodLabel(b.period)}
-            </span>
-            {b.rollover && (
-              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium text-primary" title="Unused budget rolls into the next period">
-                <RefreshCw className="h-3 w-3" /> Rollover
-              </span>
-            )}
-          </div>
-          <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
-            <span className="text-sm tabular-nums text-muted">
-              {money(b.spent)} / {money(b.effectiveLimit)}
-            </span>
-            <button onClick={onHistory} className="text-muted hover:text-foreground" aria-label="History">
-              <History className="h-3.5 w-3.5" />
-            </button>
-            <button onClick={onEdit} className="text-xs text-muted hover:text-foreground">Edit</button>
-            <button onClick={onRemove} className="text-muted hover:text-danger" aria-label="Remove">
-              <Trash2 className="h-3.5 w-3.5" />
-            </button>
-          </div>
-        </div>
-
-        {b.status === 'upcoming' ? (
-          <p className="text-xs text-muted">Starts {new Date(b.periodStart).toLocaleDateString()}</p>
-        ) : b.status === 'ended' ? (
-          <p className="text-xs text-muted">Ended — no longer tracking.</p>
-        ) : (
-          <>
-            <ProgressBar value={Math.min(b.pct, 100)} tone={tone(b.status)} />
-            <div className="mt-1.5 flex items-center justify-between text-xs text-muted">
-              <span>{b.periodLabel} · {b.pct}% used</span>
-              <span className={b.status === 'over' ? 'font-medium text-danger' : ''}>
-                {Number(b.remaining) >= 0 ? `${money(b.remaining)} left` : `${money(Math.abs(Number(b.remaining)))} over`}
-              </span>
-            </div>
-            {b.rollover && carry !== 0 && (
-              <p className="mt-1 text-[11px] text-muted">
-                {carry > 0 ? `+${money(carry)} rolled over` : `${money(Math.abs(carry))} carried as overspend`}
-                {' · '}base {money(b.amount)}/{periodNoun(b.period)}
-              </p>
-            )}
-          </>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function BudgetModal({
-  open,
-  editing,
-  unbudgeted,
-  onClose,
-  onSaved,
-}: {
-  open: boolean;
-  editing: BudgetRow | null;
-  unbudgeted: Category[];
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [categoryId, setCategoryId] = useState('');
-  const [amount, setAmount] = useState('');
-  const [threshold, setThreshold] = useState('80');
-  const [period, setPeriod] = useState<BudgetPeriod>('MONTHLY');
-  const [rollover, setRollover] = useState(false);
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setCategoryId(editing?.categoryId ?? unbudgeted[0]?.id ?? '');
-    setAmount(editing ? String(Number(editing.amount)) : '');
-    setThreshold(String(editing?.alertThreshold ?? 80));
-    setPeriod(editing?.period ?? 'MONTHLY');
-    setRollover(editing?.rollover ?? false);
-    setStartDate(editing?.startDate ? editing.startDate.slice(0, 10) : '');
-    setEndDate(editing?.endDate ? editing.endDate.slice(0, 10) : '');
-  }, [open, editing, unbudgeted]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (startDate && endDate && endDate < startDate) {
-      return toast.error('End date must be on or after the start date');
-    }
-    setSaving(true);
-    try {
-      await api.put(`/budgets/${categoryId}`, {
-        amount: Number(amount),
-        alertThreshold: Number(threshold),
-        period,
-        rollover,
-        startDate: startDate || undefined,
-        endDate: endDate || undefined,
-      });
-      toast.success('Budget saved');
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Failed to save');
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal open={open} onClose={onClose} title={editing ? 'Edit budget' : 'Set a recurring budget'}>
-      <form onSubmit={submit} className="space-y-4">
-        <Field label="Category">
-          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} disabled={!!editing}>
-            {editing ? (
-              <option value={editing.categoryId}>{editing.category.name}</option>
-            ) : (
-              unbudgeted.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)
-            )}
-          </Select>
-        </Field>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Repeats">
-            <Select value={period} onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}>
-              {PERIOD_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
-            </Select>
-          </Field>
-          <Field label={`Limit per ${periodNoun(period)}`}>
-            <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} placeholder="0.00" />
-          </Field>
-        </div>
-
-        <Field label="Alert threshold" hint="Get notified when you cross this percentage">
-          <Input type="number" min="1" max="100" value={threshold} onChange={(e) => setThreshold(e.target.value)} />
-        </Field>
-
-        <div className="rounded-xl border border-border p-3">
-          <Checkbox
-            checked={rollover}
-            onChange={setRollover}
-            label={<span>Roll over unused budget into the next {periodNoun(period)}</span>}
-          />
-          <p className="mt-1 pl-[1.9rem] text-xs text-muted">
-            Underspend adds to the next {periodNoun(period)}’s limit; overspend is subtracted.
-          </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Field label="Start date" hint="optional">
-            <DateInput value={startDate} onChange={(e) => setStartDate(e.target.value)} />
-          </Field>
-          <Field label="End date" hint="optional">
-            <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
-          </Field>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>Cancel</Button>
-          <Button type="submit" loading={saving}>Save budget</Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function BudgetHistoryModal({ row, onClose }: { row: BudgetRow | null; onClose: () => void }) {
+function PlansPanel() {
+  const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
-  const { data } = useSWR<BudgetHistory>(row ? `/budgets/${row.categoryId}/history?periods=8` : null);
+  const { data, mutate, isLoading } = useSWR<BudgetsResponse>(
+    `/budgets?currency=${encodeURIComponent(activeCurrency)}`,
+  );
+  const [formOpen, setFormOpen] = useState(false);
+  const [showClosed, setShowClosed] = useState(false);
+
+  const items = data?.items ?? [];
+  const active = items.filter((b) => b.state === 'ACTIVE');
+  const closed = items.filter((b) => b.state === 'CLOSED');
+  const totals = data?.totals;
 
   return (
-    <Modal open={!!row} onClose={onClose} title={row ? `${row.category.name} — history` : 'History'}>
-      {!data ? (
-        <div className="space-y-2">{Array.from({ length: 4 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>
-      ) : data.items.length === 0 ? (
-        <p className="py-6 text-center text-sm text-muted">No history yet.</p>
-      ) : (
-        <ul className="space-y-2">
-          {data.items.map((p) => {
-            const remaining = Number(p.remaining);
-            return (
-              <li key={p.index} className={cn('rounded-xl border border-border p-3', p.current && 'border-primary/40 bg-primary/5')}>
-                <div className="mb-1.5 flex items-center justify-between text-sm">
-                  <span className="font-medium">{p.label}{p.current && <span className="ml-2 text-xs text-primary">current</span>}</span>
-                  <span className="tabular-nums text-muted">{money(p.spent)} / {money(p.effectiveLimit)}</span>
-                </div>
-                <ProgressBar value={Math.min(p.pct, 100)} tone={p.status === 'over' ? 'danger' : p.status === 'warning' ? 'warning' : 'success'} />
-                <div className="mt-1 flex items-center justify-between text-xs text-muted">
-                  <span>{p.pct}% used</span>
-                  <span className={remaining < 0 ? 'font-medium text-danger' : ''}>
-                    {remaining >= 0 ? `${money(remaining)} left` : `${money(Math.abs(remaining))} over`}
-                    {data.rollover && Number(p.carryIn) !== 0 && ` · ${Number(p.carryIn) > 0 ? '+' : ''}${money(p.carryIn)} carried`}
-                  </span>
-                </div>
-              </li>
-            );
-          })}
-        </ul>
+    <div className="animate-in space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          Envelopes you fill from your accounts, then spend only from.
+        </p>
+        <Button size="sm" className="min-h-10 shrink-0" onClick={() => setFormOpen(true)}>
+          <Plus className="h-4 w-4" /> New plan
+        </Button>
+      </div>
+
+      {totals && active.length > 0 && (
+        <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 p-5 dark:from-indigo-950/40 dark:via-sky-950/30 dark:to-emerald-950/30 sm:p-6">
+          <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
+          <p className="flex items-center gap-2 text-xs font-semibold uppercase tracking-widest text-muted">
+            <Wallet className="h-3.5 w-3.5" /> Set aside in plans · {activeCurrency}
+          </p>
+          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
+            <div>
+              <p className="text-2xl font-bold tabular-nums text-primary">
+                {money(totals.locked)}
+              </p>
+              <p className="text-xs text-muted">locked right now</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">{money(totals.funded)}</p>
+              <p className="text-xs text-muted">filled this cycle</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">{money(totals.spent)}</p>
+              <p className="text-xs text-muted">spent from plans</p>
+            </div>
+            <div>
+              <p className="text-2xl font-bold tabular-nums">{money(totals.planned)}</p>
+              <p className="text-xs text-muted">planned in total</p>
+            </div>
+          </div>
+        </div>
       )}
-    </Modal>
+
+      {isLoading ? (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="h-44" />
+          ))}
+        </div>
+      ) : active.length === 0 ? (
+        <EmptyState
+          icon={<PiggyBank className="h-5 w-5" />}
+          title="No budget plans yet"
+          description="Name a plan, say how much you intend to spend, then move money into it from an account."
+          action={<Button onClick={() => setFormOpen(true)}>Create your first plan</Button>}
+        />
+      ) : (
+        <div className="grid gap-4 sm:grid-cols-2">
+          {active.map((plan) => (
+            <BudgetPlanCard key={plan.id} plan={plan} />
+          ))}
+        </div>
+      )}
+
+      {closed.length > 0 && (
+        <div>
+          <button
+            type="button"
+            onClick={() => setShowClosed((v) => !v)}
+            className="mb-3 text-sm font-medium text-muted hover:text-foreground"
+          >
+            {showClosed ? 'Hide' : 'Show'} closed plans ({closed.length})
+          </button>
+          {showClosed && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {closed.map((plan) => (
+                <BudgetPlanCard key={plan.id} plan={plan} />
+              ))}
+            </div>
+          )}
+        </div>
+      )}
+
+      <BudgetPlanForm
+        open={formOpen}
+        editing={null}
+        currency={activeCurrency}
+        onClose={() => setFormOpen(false)}
+        onSaved={() => void mutate()}
+      />
+    </div>
   );
 }

@@ -7,8 +7,8 @@ import { cn } from '@/lib/utils';
 const actions = [
   { label: 'Add expense', icon: Plus, href: '/transactions?add=1', color: 'from-emerald-500 to-teal-600' },
   { label: 'Transfer', icon: ArrowLeftRight, href: '/transactions?transfer=1', color: 'from-blue-500 to-indigo-600' },
-  { label: 'Set budget', icon: PiggyBank, href: '/budgets', color: 'from-amber-500 to-orange-600' },
-  { label: 'New goal', icon: Target, href: '/goals', color: 'from-violet-500 to-purple-600' },
+  { label: 'Budget plans', icon: PiggyBank, href: '/budgets', color: 'from-amber-500 to-orange-600' },
+  { label: 'Wishlist', icon: Target, href: '/budgets?tab=wishlist', color: 'from-violet-500 to-purple-600' },
   { label: 'Recurring', icon: Repeat, href: '/recurring', color: 'from-cyan-500 to-blue-600' },
   { label: 'Ask AI', icon: Sparkles, href: '/assistant', color: 'from-pink-500 to-rose-600' },
   { label: 'Analytics', icon: BarChart3, href: '/analytics', color: 'from-slate-500 to-slate-700' },

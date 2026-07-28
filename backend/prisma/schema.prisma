@@ -39,13 +39,32 @@ enum Frequency {
   YEARLY
 }
 
-// How often a budget's limit renews. QUARTERLY has no Frequency equivalent, so
-// budgets carry their own period enum.
+// How often a recurring budget plan starts a fresh cycle. QUARTERLY has no
+// Frequency equivalent, so budgets carry their own period enum.
 enum BudgetPeriod {
   WEEKLY
   MONTHLY
   QUARTERLY
   YEARLY
+}
+
+// A plan either runs once until its money is gone, or renews every period.
+enum BudgetKind {
+  ONE_TIME
+  RECURRING
+}
+
+enum BudgetState {
+  ACTIVE
+  CLOSED
+}
+
+// Money moving between an account and a plan's pot. FUND is positive (account
+// -> plan), RELEASE is negative (plan -> account). Spending is not an
+// allocation: it is a Transaction carrying budgetId.
+enum BudgetAllocationKind {
+  FUND
+  RELEASE
 }
 
 enum HouseholdRole {
@@ -74,10 +93,9 @@ enum LedgerStatus {
   CANCELLED
 }
 
-// Soft spend protection: floor (can't go below), goal reserve, or general vault.
+// Soft spend protection: floor (can't go below) or a named reserve.
 enum SpendLockKind {
   FLOOR
-  GOAL
   RESERVE
 }
 
@@ -103,7 +121,7 @@ model User {
   transactions      Transaction[]
   recurringRules    RecurringRule[]
   budgets           Budget[]
-  goals             SavingsGoal[]
+  budgetAllocations BudgetAllocation[]
   notifications     Notification[]
   aiSetting         AiSetting?
   householdMembers  HouseholdMember[]
@@ -179,9 +197,10 @@ model Account {
   isDefault      Boolean     @default(false)
   archived       Boolean     @default(false)
 
-  transactions   Transaction[]   @relation("TxAccount")
-  transfersIn    Transaction[]   @relation("TxTransferAccount")
+  transactions   Transaction[]      @relation("TxAccount")
+  transfersIn    Transaction[]      @relation("TxTransferAccount")
   recurringRules RecurringRule[]
+  allocations    BudgetAllocation[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -204,7 +223,7 @@ model Category {
 
   transactions   Transaction[]
   recurringRules RecurringRule[]
-  budget         Budget?
+  budgets        Budget[]
   ledgerEntries  LedgerEntry[]
 
   createdAt DateTime @default(now())
@@ -231,6 +250,13 @@ model Transaction {
   categoryId        String? // null for transfers
   category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
+  // Paid out of a budget plan's pot instead of straight from the account. The
+  // money was already reserved when the plan was funded, so the spend releases
+  // that reservation and takes the real balance down at the same time.
+  budgetId    String?
+  budget      Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  budgetCycle Int? // which cycle of a recurring plan this belongs to
+
   note            String?
   payee           String? // merchant / person
   tags            String[]       @default([])
@@ -245,6 +271,7 @@ model Transaction {
   @@index([userId, categoryId])
   @@index([userId, kind])
   @@index([accountId])
+  @@index([budgetId, budgetCycle])
   @@map("transactions")
 }
 
@@ -272,11 +299,8 @@ model RecurringRule {
   active     Boolean   @default(true)
   lastRunAt  DateTime?
 
-  // Savings-plan targets. When either is set the rule is an auto-save plan:
-  // firing it contributes to the goal / funds the want instead of posting a
-  // transaction (goals are virtual; a linked GOAL spend-lock reserves it).
-  goalId         String?
-  goal           SavingsGoal?  @relation("GoalPlans", fields: [goalId], references: [id], onDelete: SetNull)
+  // Auto-save plan target. When set, firing the rule funds the want instead of
+  // posting a transaction.
   wishlistItemId String?
   wishlistItem   WishlistItem? @relation("WishlistPlans", fields: [wishlistItemId], references: [id], onDelete: SetNull)
 
@@ -286,67 +310,101 @@ model RecurringRule {
   updatedAt DateTime @updatedAt
 
   @@index([userId, active, nextRun])
-  @@index([goalId])
   @@index([wishlistItemId])
   @@map("recurring_rules")
 }
 
+// A spending plan (envelope). Named by the user - a category is optional
+// metadata that pre-selects itself when you spend from the plan.
+//
+// A plan starts empty. You fill it from accounts (BudgetAllocation), which
+// reserves that money: it stays physically in the account but no longer counts
+// as available. Spending against the plan writes a Transaction carrying
+// budgetId, which takes the real balance down and frees the reservation.
+//
+// Live pot balance = SUM(allocations) - SUM(plan expenses). plannedAmount caps
+// how much you may put in during one cycle.
 model Budget {
   id             String       @id @default(cuid())
   userId         String
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  categoryId     String       @unique // one ongoing budget per category
-  category       Category     @relation(fields: [categoryId], references: [id], onDelete: Cascade)
-  amount         Decimal      @db.Decimal(14, 2) // limit per period
-  alertThreshold Int          @default(80) // % - notify when crossed
-  period         BudgetPeriod @default(MONTHLY) // how often the limit renews
-  rollover       Boolean      @default(false) // carry unused (or overspend) into the next period
-  startDate      DateTime? // budget is inactive before this; also anchors period alignment
-  endDate        DateTime? // budget auto-stops after this
+  name           String
+  categoryId     String? // optional hint, auto-selected when spending
+  category       Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
+  kind           BudgetKind   @default(ONE_TIME)
+  period         BudgetPeriod? // RECURRING only
+  plannedAmount  Decimal      @db.Decimal(14, 2) // how much you plan to spend per cycle
+  currency       String       @default("ETB")
+  icon           String?
+  color          String?
+  note           String?
+  alertThreshold Int          @default(80) // % of the funded pot - notify when crossed
+  state          BudgetState  @default(ACTIVE)
+  closedAt       DateTime?
+
+  // Recurring bookkeeping. cycleIndex is the current phase; completed phases
+  // are snapshotted into BudgetCycle and leftover money carries forward.
+  cycleIndex     Int      @default(0)
+  cycleStartedAt DateTime @default(now())
+  nextResetAt    DateTime? // RECURRING only
+  endDate        DateTime? // stop recurring after this
+
+  allocations  BudgetAllocation[]
+  cycles       BudgetCycle[]
+  transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  @@index([userId])
+  @@index([userId, state])
+  @@index([userId, kind, nextResetAt])
   @@map("budgets")
 }
 
-model SavingsGoal {
-  id           String    @id @default(cuid())
-  userId       String
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name         String
-  icon         String?
-  color        String?
-  targetAmount Decimal   @db.Decimal(14, 2)
-  deadline     DateTime?
-  note         String?
-  achievedAt   DateTime?
-
-  contributions  GoalContribution[]
-  spendLocks     SpendLock[]
-  wishlistItems  WishlistItem[]
-  recurringRules RecurringRule[]    @relation("GoalPlans")
+// One fill-up (or give-back) of a plan's pot from a specific account.
+model BudgetAllocation {
+  id         String               @id @default(cuid())
+  userId     String
+  user       User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetId   String
+  budget     Budget               @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  accountId  String
+  account    Account              @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  kind       BudgetAllocationKind @default(FUND)
+  amount     Decimal              @db.Decimal(14, 2) // signed: FUND > 0, RELEASE < 0
+  cycleIndex Int                  @default(0)
+  date       DateTime             @default(now())
+  note       String?
 
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
 
-  @@index([userId])
-  @@map("savings_goals")
+  @@index([budgetId, cycleIndex])
+  @@index([userId, accountId])
+  @@map("budget_allocations")
 }
 
-model GoalContribution {
-  id     String      @id @default(cuid())
-  goalId String
-  goal   SavingsGoal @relation(fields: [goalId], references: [id], onDelete: Cascade)
-  amount Decimal     @db.Decimal(14, 2)
-  date   DateTime    @default(now())
-  note   String?
+// Frozen record of a finished cycle of a recurring plan.
+model BudgetCycle {
+  id       String @id @default(cuid())
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  index    Int
+
+  startedAt DateTime
+  endedAt   DateTime
+  label     String
+
+  plannedAmount Decimal @db.Decimal(14, 2)
+  carriedIn     Decimal @db.Decimal(14, 2) // pot balance when the cycle opened
+  fundedAmount  Decimal @db.Decimal(14, 2) // carriedIn + fills during the cycle
+  spentAmount   Decimal @db.Decimal(14, 2)
+  leftoverAmount Decimal @db.Decimal(14, 2) // rolled into the next cycle
+  txCount       Int     @default(0)
 
   createdAt DateTime @default(now())
 
-  @@index([goalId])
-  @@map("goal_contributions")
+  @@unique([budgetId, index])
+  @@map("budget_cycles")
 }
 
 model Notification {
@@ -417,7 +475,7 @@ model LedgerPayment {
   @@map("ledger_payments")
 }
 
-// Money you promise not to touch - floor, goal vault, or named reserve. Multiple locks stack per currency.
+// Money you promise not to touch - a floor or a named reserve. Multiple locks stack per currency.
 model SpendLock {
   id       String        @id @default(cuid())
   userId   String
@@ -428,18 +486,15 @@ model SpendLock {
   currency String        @default("ETB")
   active   Boolean       @default(true)
   note     String?
-  goalId   String?
-  goal     SavingsGoal?  @relation(fields: [goalId], references: [id], onDelete: SetNull)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, currency, active])
-  @@index([goalId])
   @@map("spend_locks")
 }
 
-// Creative wishlist - wants with priority, optional goal link, and save progress.
+// Creative wishlist - wants with priority and save progress.
 model WishlistItem {
   id            String         @id @default(cuid())
   userId        String
@@ -453,8 +508,6 @@ model WishlistItem {
   link          String?
   emoji         String?
   savedAmount   Decimal        @default(0) @db.Decimal(14, 2)
-  goalId        String?
-  goal          SavingsGoal?   @relation(fields: [goalId], references: [id], onDelete: SetNull)
   recurringRules RecurringRule[] @relation("WishlistPlans")
 
   createdAt DateTime @default(now())

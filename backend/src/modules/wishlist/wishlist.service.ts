@@ -1,21 +1,14 @@
-import {
-  Prisma,
-  SpendLockKind,
-  TxKind,
-  WishlistStatus,
-} from "../../core/prisma.js";
+import { Prisma, TxKind, WishlistStatus } from "../../core/prisma.js";
 import { prisma } from "../../core/db.js";
 import { BadRequestError, NotFoundError } from "../../core/errors.js";
 import type { AuthUser } from "../../core/context.js";
 import { notify } from "../notifications/notifications.service.js";
-import * as goalsService from "../goals/goals.service.js";
 import * as transactions from "../transactions/transactions.service.js";
 import { spendableFor } from "../spend-locks/spend-locks.service.js";
 import type {
   CreateWishlistInput,
   FundWishlistInput,
   ListWishlistQuery,
-  PromoteWishlistInput,
   PurchaseWishlistInput,
   UpdateWishlistInput,
 } from "./wishlist.schema.js";
@@ -31,8 +24,6 @@ type ItemRow = {
   link: string | null;
   emoji: string | null;
   savedAmount: Prisma.Decimal;
-  goalId: string | null;
-  goal?: { id: string; name: string } | null;
   createdAt: Date;
   updatedAt: Date;
 };
@@ -62,22 +53,13 @@ function serialize(item: ItemRow, spendable?: number | null) {
     // Can you cover what's left out of unlocked money right now?
     affordable:
       spendable == null || !isActive ? null : spendable + 0.001 >= remaining,
-    goalId: item.goalId,
-    goal: item.goal ? { id: item.goal.id, name: item.goal.name } : null,
     createdAt: item.createdAt,
     updatedAt: item.updatedAt,
   };
 }
 
-const include = {
-  goal: { select: { id: true, name: true } },
-} satisfies Prisma.WishlistItemInclude;
-
 async function assertOwned(id: string, userId: string) {
-  const item = await prisma.wishlistItem.findFirst({
-    where: { id, userId },
-    include,
-  });
+  const item = await prisma.wishlistItem.findFirst({ where: { id, userId } });
   if (!item) throw new NotFoundError("Wishlist item not found");
   return item as ItemRow;
 }
@@ -101,7 +83,6 @@ export async function list(user: AuthUser, query: ListWishlistQuery) {
       ...(query.currency ? { currency: query.currency.toUpperCase() } : {}),
       ...(query.status ? { status: query.status } : {}),
     },
-    include,
     orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
   })) as ItemRow[];
 
@@ -141,7 +122,6 @@ export async function dashboard(user: AuthUser, currency: string) {
       currency: cur,
       status: { in: [WishlistStatus.WANTING, WishlistStatus.SAVING] },
     },
-    include,
     orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
   })) as ItemRow[];
   const spendable = Number((await spendableFor(user.id, cur)).spendable);
@@ -164,13 +144,6 @@ export async function dashboard(user: AuthUser, currency: string) {
 }
 
 export async function create(user: AuthUser, input: CreateWishlistInput) {
-  if (input.goalId) {
-    const goal = await prisma.savingsGoal.findFirst({
-      where: { id: input.goalId, userId: user.id },
-    });
-    if (!goal) throw new NotFoundError("Goal not found");
-  }
-
   const item = (await prisma.wishlistItem.create({
     data: {
       userId: user.id,
@@ -181,11 +154,9 @@ export async function create(user: AuthUser, input: CreateWishlistInput) {
       note: input.note,
       link: input.link || null,
       emoji: input.emoji,
-      goalId: input.goalId,
       status: input.status ?? WishlistStatus.WANTING,
       savedAmount: input.savedAmount ?? 0,
     },
-    include,
   })) as ItemRow;
 
   return serialize(
@@ -201,13 +172,6 @@ export async function update(
 ) {
   await assertOwned(id, user.id);
 
-  if (input.goalId) {
-    const goal = await prisma.savingsGoal.findFirst({
-      where: { id: input.goalId, userId: user.id },
-    });
-    if (!goal) throw new NotFoundError("Goal not found");
-  }
-
   const item = (await prisma.wishlistItem.update({
     where: { id },
     data: {
@@ -222,13 +186,11 @@ export async function update(
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.link !== undefined ? { link: input.link || null } : {}),
       ...(input.emoji !== undefined ? { emoji: input.emoji } : {}),
-      ...(input.goalId !== undefined ? { goalId: input.goalId } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
       ...(input.savedAmount !== undefined
         ? { savedAmount: input.savedAmount }
         : {}),
     },
-    include,
   })) as ItemRow;
 
   return serialize(
@@ -237,11 +199,7 @@ export async function update(
   );
 }
 
-/**
- * Set aside money toward a want. Bumps its own progress and, when the want is
- * linked to a savings goal, records a matching goal contribution so both stay
- * in step. Notifies once the want is fully funded.
- */
+/** Set aside money toward a want. Notifies once it is fully funded. */
 export async function fund(
   user: AuthUser,
   id: string,
@@ -271,22 +229,14 @@ export async function fund(
           ? WishlistStatus.SAVING
           : existing.status,
     },
-    include,
   })) as ItemRow;
-
-  if (existing.goalId) {
-    await goalsService.addContribution(user, existing.goalId, {
-      amount: input.amount,
-      note: `Toward "${existing.name}"`,
-    } as never);
-  }
 
   if (!wasFunded && nextSaved.gte(cost)) {
     await notify(
       user.id,
       "wishlist_funded",
       `🎯 You've fully funded "${existing.name}"   ready to buy!`,
-      "/wishlist",
+      "/budgets?tab=wishlist",
     );
   }
 
@@ -297,78 +247,8 @@ export async function fund(
 }
 
 /**
- * Turn a want into a first-class savings goal: creates the goal, links the want,
- * seeds a contribution for whatever is already saved, and optionally opens a
- * GOAL spend-lock so the reserved money is protected.
- */
-export async function promoteToGoal(
-  user: AuthUser,
-  id: string,
-  input: PromoteWishlistInput,
-) {
-  const existing = await assertOwned(id, user.id);
-  if (existing.goalId)
-    throw new BadRequestError("This want is already linked to a goal");
-
-  const goal = (await goalsService.create(user, {
-    name: existing.name,
-    targetAmount: Number(existing.estimatedCost),
-    icon: null,
-    color: null,
-    note: existing.note ?? null,
-    deadline: input.deadline ?? null,
-  } as never)) as unknown as { id: string };
-
-  if (Number(existing.savedAmount) > 0) {
-    await goalsService.addContribution(user, goal.id, {
-      amount: Number(existing.savedAmount),
-      note: "Carried over from wishlist",
-    } as never);
-  }
-
-  const item = (await prisma.wishlistItem.update({
-    where: { id },
-    data: { goalId: goal.id, status: WishlistStatus.SAVING },
-    include,
-  })) as ItemRow;
-
-  let lockId: string | null = null;
-  if (input.createLock) {
-    const lock = await prisma.spendLock.create({
-      data: {
-        userId: user.id,
-        kind: SpendLockKind.GOAL,
-        name: existing.name,
-        amount: existing.estimatedCost,
-        currency: existing.currency,
-        goalId: goal.id,
-        note: "Reserve for wishlist goal",
-      },
-    });
-    lockId = lock.id;
-  }
-
-  await notify(
-    user.id,
-    "wishlist_promoted",
-    `⭐ "${existing.name}" is now a savings goal.`,
-    "/budgets?tab=goals",
-  );
-
-  return {
-    item: serialize(
-      item,
-      Number((await spendableFor(user.id, item.currency)).spendable),
-    ),
-    goalId: goal.id,
-    lockId,
-  };
-}
-
-/**
  * Buy the want: writes a real EXPENSE against the chosen account/category and
- * marks the item BOUGHT. If it was reserved behind a GOAL lock, that lock is
- * released first so the planned purchase isn't blocked by its own reserve.
+ * marks the item BOUGHT.
  */
 export async function purchase(
   user: AuthUser,
@@ -380,12 +260,6 @@ export async function purchase(
     throw new BadRequestError("Already marked bought");
 
   const amount = input.amount ?? Number(existing.estimatedCost);
-
-  if (existing.goalId) {
-    const { releaseGoalLocks } =
-      await import("../spend-locks/spend-locks.service.js");
-    await releaseGoalLocks(user.id, existing.goalId);
-  }
 
   const tx = await transactions.create(user, {
     kind: TxKind.EXPENSE,
@@ -402,7 +276,6 @@ export async function purchase(
   const item = (await prisma.wishlistItem.update({
     where: { id },
     data: { status: WishlistStatus.BOUGHT },
-    include,
   })) as ItemRow;
 
   await notify(

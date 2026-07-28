@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Wallet } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
@@ -12,7 +12,19 @@ import { api, ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
 import { newId } from '@/lib/offline/outbox';
 import { cn } from '@/lib/utils';
-import type { Account, Category, Transaction, TxKind } from '@/lib/types';
+import type {
+  Account,
+  BudgetSourcesResponse,
+  Category,
+  Transaction,
+  TxKind,
+} from '@/lib/types';
+
+/**
+ * The "pay from" dropdown mixes plain accounts with budget plans that still
+ * hold money. A plan value is prefixed so the two namespaces can't collide.
+ */
+const PLAN_PREFIX = 'plan:';
 
 interface TransactionFormProps {
   open: boolean;
@@ -30,11 +42,13 @@ const KINDS: { value: Exclude<TxKind, 'TRANSFER'>; label: string }[] = [
 export function TransactionForm({ open, onClose, onSaved, editing }: TransactionFormProps) {
   const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
+  const { data: plansData } = useSWR<BudgetSourcesResponse>(open ? '/budgets/sources' : null);
   const { saveTransaction, updateTransaction } = useOffline();
 
   const [kind, setKind] = useState<Exclude<TxKind, 'TRANSFER'>>('EXPENSE');
   const [amount, setAmount] = useState('');
-  const [accountId, setAccountId] = useState('');
+  /** Either an account id, or `plan:<budgetId>`. */
+  const [source, setSource] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [payee, setPayee] = useState('');
@@ -47,7 +61,17 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     () => accountsData?.items.filter((a) => !a.archived) ?? [],
     [accountsData?.items],
   );
+  // Plans are a spend source for expenses only, and only while they hold money.
+  const plans = useMemo(
+    () => (kind === 'EXPENSE' ? (plansData?.items ?? []) : []),
+    [kind, plansData?.items],
+  );
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
+
+  const selectedPlan = source.startsWith(PLAN_PREFIX)
+    ? plans.find((p) => p.id === source.slice(PLAN_PREFIX.length))
+    : undefined;
+  const accountId = selectedPlan ? undefined : source;
 
   // Seed the form when opening (either blank or from the editing target).
   useEffect(() => {
@@ -55,7 +79,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     if (editing) {
       setKind(editing.kind === 'INCOME' ? 'INCOME' : 'EXPENSE');
       setAmount(String(Number(editing.amount)));
-      setAccountId(editing.accountId);
+      setSource(editing.budgetId ? `${PLAN_PREFIX}${editing.budgetId}` : editing.accountId);
       setCategoryId(editing.categoryId ?? '');
       setDate(editing.date.slice(0, 10));
       setPayee(editing.payee ?? '');
@@ -72,12 +96,28 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     }
   }, [open, editing]);
 
-  // Default the account to the user's default once accounts load.
+  // Default the source to the user's default account once accounts load.
   useEffect(() => {
-    if (open && !editing && !accountId && accounts.length > 0) {
-      setAccountId((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
+    if (open && !editing && !source && accounts.length > 0) {
+      setSource((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
     }
-  }, [open, editing, accountId, accounts]);
+  }, [open, editing, source, accounts]);
+
+  // Switching to income drops any plan selection - plans only pay expenses.
+  useEffect(() => {
+    if (kind === 'INCOME' && source.startsWith(PLAN_PREFIX)) {
+      setSource((accounts.find((a) => a.isDefault) ?? accounts[0])?.id ?? '');
+    }
+  }, [kind, source, accounts]);
+
+  /** Picking a plan that has a category pre-selects it, as promised. */
+  function pickSource(value: string) {
+    setSource(value);
+    if (value.startsWith(PLAN_PREFIX)) {
+      const plan = plans.find((p) => p.id === value.slice(PLAN_PREFIX.length));
+      if (plan?.categoryId) setCategoryId(plan.categoryId);
+    }
+  }
 
   async function suggestCategory() {
     const description = [payee, note].filter(Boolean).join(' ');
@@ -108,14 +148,19 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!accountId) return toast.error('Pick an account');
+    if (!source) return toast.error('Pick an account or plan');
     if (!categoryId) return toast.error('Pick a category');
+    if (selectedPlan && Number(amount) > Number(selectedPlan.balance)) {
+      return toast.error(
+        `"${selectedPlan.name}" only has ${Number(selectedPlan.balance).toFixed(2)} ${selectedPlan.currency} left.`,
+      );
+    }
     setSaving(true);
     const tagList = tags.split(',').map((t) => t.trim()).filter(Boolean);
     const payload = {
       kind,
       amount: Number(amount),
-      accountId,
+      ...(selectedPlan ? { budgetId: selectedPlan.id } : { accountId }),
       categoryId,
       date,
       payee: payee || undefined,
@@ -123,19 +168,32 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       tags: tagList,
     };
 
-    // A local preview so the change appears instantly, even offline.
-    const account = accounts.find((a) => a.id === accountId);
+    // A local preview so the change appears instantly, even offline. For a plan
+    // spend the backend decides the account, so mirror its largest source.
+    const previewAccountId =
+      accountId ?? selectedPlan?.sources[0]?.account?.id ?? editing?.accountId ?? '';
+    const account = accounts.find((a) => a.id === previewAccountId);
     const category = categories.find((c) => c.id === categoryId);
     const optimistic: Transaction = {
       id: editing ? editing.id : newId(),
       kind,
       amount: Number(amount).toFixed(2),
-      currency: account?.currency ?? 'ETB',
+      currency: selectedPlan?.currency ?? account?.currency ?? 'ETB',
       date: `${date}T12:00:00.000Z`,
-      accountId,
+      accountId: previewAccountId,
       account: account ? { id: account.id, name: account.name, type: account.type } : undefined,
       categoryId,
       category: category ? { id: category.id, name: category.name, icon: category.icon, color: category.color } : null,
+      budgetId: selectedPlan?.id ?? null,
+      budget: selectedPlan
+        ? {
+            id: selectedPlan.id,
+            name: selectedPlan.name,
+            icon: selectedPlan.icon,
+            color: selectedPlan.color,
+            currency: selectedPlan.currency,
+          }
+        : null,
       payee: payee || null,
       note: note || null,
       tags: tagList,
@@ -208,15 +266,43 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
           </Field>
         </div>
 
-        <Field label="Account">
-          <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
-            {accounts.map((a) => (
-              <option key={a.id} value={a.id}>
-                {a.name}
-              </option>
-            ))}
+        <Field
+          label="Pay from"
+          hint={plans.length > 0 ? 'accounts or a funded budget plan' : undefined}
+        >
+          <Select value={source} onChange={(e) => pickSource(e.target.value)}>
+            <optgroup label="Accounts">
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} — {Number(a.balance).toFixed(2)} {a.currency} available
+                </option>
+              ))}
+            </optgroup>
+            {plans.length > 0 && (
+              <optgroup label="Budget plans">
+                {plans.map((p) => (
+                  <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
+                    {p.name} — {Number(p.balance).toFixed(2)} {p.currency} left
+                  </option>
+                ))}
+              </optgroup>
+            )}
           </Select>
         </Field>
+
+        {selectedPlan && (
+          <p className="-mt-2 flex items-start gap-2 rounded-xl bg-primary/5 px-3 py-2 text-xs text-muted">
+            <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
+            <span>
+              Comes out of the money already set aside in{' '}
+              <strong className="text-foreground">{selectedPlan.name}</strong>
+              {selectedPlan.sources[0]?.account && (
+                <> · charged to {selectedPlan.sources[0].account.name}</>
+              )}
+              . It can&apos;t go below zero.
+            </span>
+          </p>
+        )}
 
         <div>
           <div className="mb-1.5 flex items-center justify-between">

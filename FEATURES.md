@@ -14,11 +14,11 @@ Create an account with just a name, email and password - you immediately get a s
 
 Your money at a glance:
 
-- **Stat cards** - total balance across accounts, income this month, spending this month (with up/down trend vs last month), and net, with average daily spend.
+- **Stat cards** - money **available to spend** across accounts (that is, the real balance minus anything set aside in budget plans), income this month, spending this month (with up/down trend vs last month), and net, with average daily spend.
 - **Recent transactions** - your latest activity, grouped by day.
 - **Top spending** donut - where this month's money went, by category.
-- **Budgets at risk** - any category near or over its limit.
-- **Goals** - progress bars toward your savings goals.
+- **Budget plans** - what's left in each plan and how much of it you've spent.
+- **Set aside** - the running total locked inside your plans, which every balance on the page already excludes.
 - **Upcoming & unnecessary** - bills due in the next 7 days, plus how much you've spent on "unnecessary" impulse buys this month.
 
 ## Transactions (`/transactions`)
@@ -38,43 +38,53 @@ Three transaction kinds: **income**, **expense**, and **transfer** (moving money
 
 Your wallets - **cash, bank, mobile-money (e.g. Telebirr), card or other**.
 
-- Each shows a **computed balance** (opening balance + income − expenses ± transfers).
+- Each shows two figures: the **available balance** (what you can actually spend) and, when a budget plan is holding some of it, the **real balance** physically in the account plus how much is set aside.
 - Add, edit, archive, or delete accounts (deleting is blocked if it has transactions - archive instead).
 - **Transfer** money between accounts in one step.
 - Pick an icon and color for each.
 
 ## Budgets (`/budgets`)
 
-Set a **monthly spending limit per category** and stay ahead of overspending.
+Budgets are **envelopes**, not just limits. The page has three tabs: **Plans**, **Wishlist** and **Spend locks**.
 
-- Progress bars turn amber then red as you approach and cross the limit.
-- Set an **alert threshold** (e.g. 80%) - when you cross it, Santim drops a notification.
-- A month navigator lets you review any past month; a summary strip shows total budgeted vs spent vs remaining.
+### Plans
 
-## Spend locks (`/locks`)
+A plan is something you name yourself - "Weekend food", "New laptop", "School fees". A category is **optional**: if you attach one, it is pre-selected whenever you spend from the plan.
 
-Protect money you refuse to touch. Locks are **per currency** and stack:
+- Choose **one-time** or **recurring** (weekly / monthly / quarterly / yearly), and say how much you **plan to spend**. That figure is also the ceiling on how much money the plan will accept.
+- A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, spend locks, the overdraw guard).
+- **Give back** any unspent money to the account it came from at any time.
+
+### Spending from a plan
+
+On the transaction form, the "Pay from" dropdown lists your accounts **and** any plan that still holds money. Pick a plan and:
+
+- its category is auto-selected (if it has one),
+- the expense comes out of the plan's pot **and** the real account balance at the same moment, so nothing is double-counted,
+- Santim refuses anything that would take the plan negative.
+
+### Plan detail page (`/budgets/:id`)
+
+Everything about one plan on its own page: what's left, a bar reading spent → still in the pot → not yet filled, which accounts the money is held in, and a **timeline** of every fill, give-back and expense.
+
+- **One-time plans** close themselves once the pot is empty *and* something has been spent from them. Closed plans stay listed and keep their history, but no longer appear when you add a transaction. **Reopen** them any time.
+- **Recurring plans** snapshot each finished cycle - planned, carried in, filled, spent, leftover, and the transactions in it - then carry any leftover money forward into the new cycle and start accepting fills again.
+
+### Spend locks
+
+Protect money you refuse to touch. Locks are **per currency**, stack, and apply to whatever is left *after* budget plans:
 
 - **Safety floor** - "I can't spend below this." Multiple floors use the **highest** floor.
-- **Goal vault** - reserve an amount toward a savings goal.
 - **Named reserve** - rent buffer, emergency pot, etc.
-- Expenses that would break unlocked balance are **blocked** at create time.
+- Expenses that would break the unlocked balance are **blocked** at create time.
 
-## Wishlist (`/wishlist`)
+### Wishlist
 
 A creative **dream board** for things you want (phones, trips, gear):
 
 - Priority, emoji, optional product link, and progress toward the cost.
-- Optionally link a want to a savings goal.
 - Statuses: wanting → saving → bought.
-
-## Goals (`/goals`)
-
-Save towards the things that matter - an emergency fund, a trip, a new laptop.
-
-- Set a **target amount** and an optional **deadline**; Santim tells you **how much per month** you need to save to get there.
-- Log **contributions** as you save; the goal marks itself **reached** (with a celebration) when you hit the target.
-- Give each goal its own icon and color.
+- Shows "Can afford" once what's left is covered by your genuinely spendable money.
 
 ## Recurring (`/recurring`)
 
@@ -125,7 +135,7 @@ The deep dive into your habits.
 AI features powered by **your own** provider key (Anthropic / OpenAI / Google - set under Settings):
 
 - **Ask about your money** - natural-language questions ("How much did I spend on transport this month?", "Where is my money leaking?", "Who still owes me money?", "What incoming payments am I waiting on?"), answered from your real data, sometimes with a chart.
-- **Monthly review** - generate a personalized written review of any month: income vs spending, category shifts, budget adherence, goal progress, and three concrete suggestions.
+- **Monthly review** - generate a personalized written review of any month: income vs spending, category shifts, how your budget plans are holding up, and three concrete suggestions.
 
 Without an AI key everything else in the app works normally; these features simply prompt you to add one.
 
@@ -140,7 +150,7 @@ Without an AI key everything else in the app works normally; these features simp
 
 ## Notifications
 
-A live bell menu surfaces things needing attention: budget-threshold alerts, recurring-bill reminders, and goal-reached celebrations.
+A live bell menu surfaces things needing attention: budget-plan alerts (running low, auto-closed, new cycle started with money carried over) and recurring-bill reminders.
 
 ## Command palette
 

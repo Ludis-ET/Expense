@@ -18,7 +18,6 @@ import { HouseholdWidget } from '@/components/finance/household-widget';
 import { TabWidget } from '@/components/finance/tab-widget';
 import { SpendableWidget, WishlistWidget } from '@/components/finance/wishlist-locks-widget';
 import { TransactionList } from '@/components/finance/transaction-list';
-import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
@@ -30,10 +29,14 @@ function SmartInsight({ data, money }: { data: DashboardData; money: (v: number 
   const net = Number(data.month.net);
   const income = Number(data.month.income);
 
-  if (data.budgetsAtRisk.some((b) => b.status === 'over')) {
-    insights.push('One or more budgets are over limit - review your spending categories.');
+  const drained = data.budgetsAtRisk.filter((b) => b.health === 'drained').length;
+  if (drained > 0) {
+    insights.push(`${drained} budget plan${drained > 1 ? 's are' : ' is'} empty - top up or hold off until the next cycle.`);
   } else if (data.budgetsAtRisk.length > 0) {
-    insights.push(`${data.budgetsAtRisk.length} budget${data.budgetsAtRisk.length > 1 ? 's are' : ' is'} approaching the limit.`);
+    insights.push(`${data.budgetsAtRisk.length} budget plan${data.budgetsAtRisk.length > 1 ? 's are' : ' is'} running low.`);
+  }
+  if (Number(data.budgetLocked ?? 0) > 0) {
+    insights.push(`${money(data.budgetLocked!)} is set aside in budget plans and excluded from your available balance.`);
   }
   if (income > 0 && net / income < 0.1) {
     insights.push('Your savings rate is below 10% this month. Consider cutting unnecessary expenses.');
@@ -181,46 +184,70 @@ export default function DashboardPage() {
         <div className="space-y-6 lg:col-span-2">
           <Card>
             <CardHeader>
-              <CardTitle>Budgets at risk</CardTitle>
+              <CardTitle>Budget plans</CardTitle>
               <Link href="/budgets" className="text-xs font-medium text-primary hover:underline">Manage</Link>
             </CardHeader>
             <CardContent className="space-y-4">
-              {data.budgetsAtRisk.length === 0 ? (
-                <p className="py-4 text-center text-sm text-muted">All budgets on track ✓</p>
+              {data.budgets.length === 0 ? (
+                <EmptyState
+                  icon={<PiggyBank className="h-5 w-5" />}
+                  title="No plans yet"
+                  description="Set money aside for what you intend to spend."
+                />
               ) : (
-                data.budgetsAtRisk.map((b) => (
-                  <div key={b.id}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <CategoryBadge category={b.category} />
-                      <span className="tabular-nums text-xs text-muted">{money(b.spent)} / {money(b.amount)}</span>
-                    </div>
-                    <ProgressBar value={b.pct} tone={b.status === 'over' ? 'danger' : 'warning'} />
-                  </div>
-                ))
+                data.budgets.map((b) => {
+                  const planned = Math.max(Number(b.plannedAmount), 0.01);
+                  const spentPct = Math.min(100, (Number(b.spentAmount) / planned) * 100);
+                  return (
+                    <Link key={b.id} href={`/budgets/${b.id}`} className="block">
+                      <div className="mb-1 flex items-center justify-between gap-2 text-sm">
+                        <span className="truncate font-medium">{b.name}</span>
+                        <span className="shrink-0 tabular-nums text-xs text-muted">
+                          {money(b.balance)} left
+                        </span>
+                      </div>
+                      <ProgressBar
+                        value={spentPct}
+                        tone={b.health === 'drained' ? 'danger' : b.health === 'low' ? 'warning' : 'primary'}
+                      />
+                      <p className="mt-1 text-xs text-muted">
+                        {money(b.spentAmount)} spent of {money(b.fundedAmount)} filled
+                      </p>
+                    </Link>
+                  );
+                })
               )}
             </CardContent>
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Goals</CardTitle>
-              <Link href="/budgets?tab=goals" className="text-xs font-medium text-primary hover:underline">All goals</Link>
+              <CardTitle>Set aside</CardTitle>
+              <Link href="/budgets" className="text-xs font-medium text-primary hover:underline">All plans</Link>
             </CardHeader>
-            <CardContent className="space-y-4">
-              {data.goals.length === 0 ? (
-                <EmptyState icon={<PiggyBank className="h-5 w-5" />} title="No goals yet" />
-              ) : (
-                data.goals.map((g) => (
-                  <div key={g.id}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="font-medium">{g.name}</span>
-                      <span className="tabular-nums text-xs text-muted">{g.pct}%</span>
-                    </div>
-                    <ProgressBar value={g.pct} tone="success" />
-                    <p className="mt-1 text-xs text-muted">{money(g.saved)} of {money(g.targetAmount)}</p>
-                  </div>
-                ))
-              )}
+            <CardContent className="space-y-3">
+              <div>
+                <p className="text-2xl font-bold tabular-nums text-primary">
+                  {money(data.budgetTotals.locked)}
+                </p>
+                <p className="text-xs text-muted">
+                  locked in {data.budgetTotals.activeCount} active plan
+                  {data.budgetTotals.activeCount === 1 ? '' : 's'}
+                </p>
+              </div>
+              <dl className="grid grid-cols-2 gap-3 text-xs">
+                <div>
+                  <dt className="text-muted">Filled this cycle</dt>
+                  <dd className="font-semibold tabular-nums">{money(data.budgetTotals.funded)}</dd>
+                </div>
+                <div>
+                  <dt className="text-muted">Spent from plans</dt>
+                  <dd className="font-semibold tabular-nums">{money(data.budgetTotals.spent)}</dd>
+                </div>
+              </dl>
+              <p className="text-xs text-muted">
+                Every balance on this page is shown after this money is taken out.
+              </p>
             </CardContent>
           </Card>
         </div>

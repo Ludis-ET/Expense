@@ -14,7 +14,12 @@ const STORAGE_KEY = 'santim-active-currency';
 
 export interface CurrencyBreakdown {
   currency: string;
+  /** Available: money in accounts minus what budget plans hold. */
   totalBalance: string;
+  /** Money physically in the accounts. */
+  realBalance?: string;
+  /** Held inside budget plans. */
+  budgetLocked?: string;
   accountCount: number;
   month: {
     month: string;

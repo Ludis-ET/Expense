@@ -8,7 +8,6 @@ import type { CreateRecurringInput, UpdateRecurringInput } from './recurring.sch
 const ruleInclude = {
   category: { select: { id: true, name: true, icon: true, color: true } },
   account: { select: { id: true, name: true, type: true } },
-  goal: { select: { id: true, name: true, icon: true, color: true } },
   wishlistItem: { select: { id: true, name: true, emoji: true } },
   _count: { select: { transactions: true } },
 } as const;
@@ -16,13 +15,12 @@ const ruleInclude = {
 function serialize(
   rule: {
     amount: { toFixed(n: number): string };
-    goalId: string | null;
     wishlistItemId: string | null;
     _count: { transactions: number };
   } & Record<string, unknown>,
 ) {
   const { _count, ...rest } = rule;
-  const planType = rule.goalId ? 'goal' : rule.wishlistItemId ? 'wishlist' : 'transaction';
+  const planType = rule.wishlistItemId ? 'wishlist' : 'transaction';
   return { ...rest, amount: rule.amount.toFixed(2), postedCount: _count.transactions, planType };
 }
 
@@ -35,7 +33,7 @@ async function assertOwnedRule(id: string, userId: string) {
 async function assertRefsOwned(
   userId: string,
   kind: TxKind,
-  input: { accountId?: string; categoryId?: string | null; goalId?: string | null; wishlistItemId?: string | null },
+  input: { accountId?: string; categoryId?: string | null; wishlistItemId?: string | null },
 ) {
   if (input.accountId) {
     const account = await prisma.account.findFirst({ where: { id: input.accountId, userId } });
@@ -48,10 +46,6 @@ async function assertRefsOwned(
     if (category.kind !== expected) {
       throw new BadRequestError(`"${category.name}" is a ${category.kind.toLowerCase()} category`);
     }
-  }
-  if (input.goalId) {
-    const goal = await prisma.savingsGoal.findFirst({ where: { id: input.goalId, userId } });
-    if (!goal) throw new NotFoundError('Goal not found');
   }
   if (input.wishlistItemId) {
     const item = await prisma.wishlistItem.findFirst({ where: { id: input.wishlistItemId, userId } });
@@ -69,8 +63,8 @@ export async function list(user: AuthUser) {
 }
 
 export async function create(user: AuthUser, input: CreateRecurringInput) {
-  // Savings plans clear the category; goal/wishlist funding doesn't use one.
-  const isSavings = !!input.goalId || !!input.wishlistItemId;
+  // Auto-save plans clear the category; wishlist funding doesn't use one.
+  const isSavings = !!input.wishlistItemId;
   const data = { ...input, categoryId: isSavings ? null : (input.categoryId ?? null) };
   await assertRefsOwned(user.id, input.kind, data);
   const rule = await prisma.recurringRule.create({

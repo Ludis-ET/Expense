@@ -27,7 +27,7 @@ export function SpendableWidget({
         <p className="mt-1 max-w-xs text-sm text-muted">
           Ring-fence a safety floor or vault money for a goal so you never overspend.
         </p>
-        <Link href="/locks" className="mt-4 text-sm font-medium text-primary hover:underline">
+        <Link href="/budgets?tab=locks" className="mt-4 text-sm font-medium text-primary hover:underline">
           Set a lock →
         </Link>
       </div>
@@ -44,7 +44,7 @@ export function SpendableWidget({
           <Lock className="h-4 w-4 text-primary" />
           <p className="font-semibold">Safe to spend</p>
         </div>
-        <Link href="/locks" className="text-xs font-medium text-primary hover:underline">
+        <Link href="/budgets?tab=locks" className="text-xs font-medium text-primary hover:underline">
           Manage
         </Link>
       </div>
@@ -100,7 +100,7 @@ export function WishlistWidget({
         <p className="mt-1 max-w-xs text-sm text-muted">
           Park the things you want and watch them get closer as you save.
         </p>
-        <Link href="/wishlist" className="mt-4 text-sm font-medium text-primary hover:underline">
+        <Link href="/budgets?tab=wishlist" className="mt-4 text-sm font-medium text-primary hover:underline">
           Add a want →
         </Link>
       </div>
@@ -114,7 +114,7 @@ export function WishlistWidget({
           <Sparkles className="h-4 w-4 text-primary" />
           <p className="font-semibold">Wishlist</p>
         </div>
-        <Link href="/wishlist" className="text-xs font-medium text-primary hover:underline">
+        <Link href="/budgets?tab=wishlist" className="text-xs font-medium text-primary hover:underline">
           View all
         </Link>
       </div>

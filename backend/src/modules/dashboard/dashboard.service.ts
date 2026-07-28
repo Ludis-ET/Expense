@@ -4,8 +4,7 @@ import { prisma } from '../../core/db.js';
 import * as accounts from '../accounts/accounts.service.js';
 import * as analytics from '../analytics/analytics.service.js';
 import * as budgets from '../budgets/budgets.service.js';
-import * as goals from '../goals/goals.service.js';
-import { monthRange } from '../budgets/budgets.service.js';
+import { monthRange } from '../budgets/budgets.periods.js';
 import { FAMILY_SUPPORT_CATEGORY_NAME } from '../categories/default-categories.js';
 import * as household from '../household/household.service.js';
 import * as ledger from '../ledger/ledger.service.js';
@@ -187,12 +186,11 @@ export async function overview(user: AuthUser) {
   const in7Days = new Date(Date.now() + 7 * 86_400_000);
   const defaultCur = await currency.resolveCurrency(user.id);
 
-  const [accountList, summary, budgetList, goalList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary, wishlistDigest, spendable] =
+  const [accountList, summary, budgetList, recent, topCategories, upcoming, weekly, streak, heatAlerts, family, householdData, tabSummary, wishlistDigest, spendable] =
     await Promise.all([
       accounts.list(user),
       analytics.summary(user, undefined, defaultCur),
-      budgets.list(user),
-      goals.list(user),
+      budgets.list(user, { currency: defaultCur }),
       prisma.transaction.findMany({
         where: { userId: user.id },
         orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
@@ -220,6 +218,8 @@ export async function overview(user: AuthUser) {
       spendLocks.spendableFor(user.id, defaultCur),
     ]);
 
+  // Every balance below is the *available* figure: real money minus whatever
+  // budget plans are holding.
   const totalBalance = accountList.items
     .filter((a) => !a.archived)
     .reduce((s, a) => s + Number(a.balance), 0);
@@ -229,10 +229,13 @@ export async function overview(user: AuthUser) {
     currencies.map(async (cur) => {
       const accountsInCur = accountList.items.filter((a) => a.currency === cur && !a.archived);
       const bal = accountsInCur.reduce((s, a) => s + Number(a.balance), 0);
+      const real = accountsInCur.reduce((s, a) => s + Number(a.realBalance), 0);
       const month = await analytics.summary(user, undefined, cur);
       return {
         currency: cur,
         totalBalance: bal.toFixed(2),
+        realBalance: real.toFixed(2),
+        budgetLocked: (real - bal).toFixed(2),
         accountCount: accountsInCur.length,
         month,
       };
@@ -249,14 +252,20 @@ export async function overview(user: AuthUser) {
 
   return {
     totalBalance: primaryBreakdown?.totalBalance ?? totalBalance.toFixed(2),
+    realBalance: primaryBreakdown?.realBalance ?? totalBalance.toFixed(2),
+    budgetLocked: primaryBreakdown?.budgetLocked ?? '0.00',
     displayCurrency: primaryBreakdown?.currency ?? primaryCurrency,
     currencies,
     currencyBreakdown,
     convertedTotal,
     accounts: accountList.items,
     month: primaryBreakdown?.month ?? summary,
-    budgetsAtRisk: budgetList.items.filter((b) => b.status === 'warning' || b.status === 'over').slice(0, 4),
-    goals: goalList.items.slice(0, 3),
+    budgetTotals: budgetList.totals,
+    /** Active plans nearest to running dry, plus anything already drained. */
+    budgetsAtRisk: budgetList.items
+      .filter((b) => b.state === 'ACTIVE' && (b.health === 'low' || b.health === 'drained'))
+      .slice(0, 4),
+    budgets: budgetList.items.filter((b) => b.state === 'ACTIVE').slice(0, 4),
     recentTransactions: recent.map((t) => ({ ...t, amount: t.amount.toFixed(2) })),
     topCategories: topCategories.items.slice(0, 5),
     upcomingRecurring: upcoming.map((r) => ({ ...r, amount: r.amount.toFixed(2) })),

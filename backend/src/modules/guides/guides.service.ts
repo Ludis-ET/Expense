@@ -30,7 +30,6 @@ async function snapshot(user: AuthUser) {
     monthRows,
     txCount,
     spendable,
-    goalsActive,
     savingsPlans,
     budgetList,
     wishDigest,
@@ -48,13 +47,8 @@ async function snapshot(user: AuthUser) {
     }),
     prisma.transaction.count({ where: { userId: user.id } }),
     spendableFor(user.id, cur),
-    prisma.savingsGoal.count({ where: { userId: user.id, achievedAt: null } }),
     prisma.recurringRule.count({
-      where: {
-        userId: user.id,
-        active: true,
-        OR: [{ goalId: { not: null } }, { wishlistItemId: { not: null } }],
-      },
+      where: { userId: user.id, active: true, wishlistItemId: { not: null } },
     }),
     budgets.list(user),
     wishlist.dashboard(user, cur),
@@ -75,10 +69,14 @@ async function snapshot(user: AuthUser) {
     txCount,
     savingsRate,
     lockCount: spendable.lockCount,
-    goalsActive,
     savingsPlans,
     budgetCount: budgetList.items.length,
-    budgetsAtRisk: budgetList.items.filter((b) => b.status !== "ok").length,
+    budgetsUnfunded: budgetList.items.filter(
+      (b) => b.state === "ACTIVE" && Number(b.fundedAmount) <= 0,
+    ).length,
+    budgetsRunningLow: budgetList.items.filter(
+      (b) => b.health === "low" || b.health === "drained",
+    ).length,
     activeWants: wishDigest.activeCount,
     affordableWants: wishDigest.affordableCount,
     unnecessary: Number(unnecessary.total),
@@ -111,7 +109,7 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
       body: "You have no spend locks yet. A safety-floor lock stops everyday expenses from eating into money you cannot afford to lose.",
       tone: "tip",
       guideId: "emergency-fund",
-      href: "/locks",
+      href: "/budgets?tab=locks",
       cta: "Set a lock",
     });
   }
@@ -150,23 +148,11 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
     });
   }
 
-  if (s.activeWants > 0 && s.goalsActive === 0) {
-    add(65, {
-      id: "promote-want",
-      title: "Turn a want into a goal",
-      body: "You have wishlist items but no savings goals. Promoting a want gives it a plan, a deadline, and optional auto-saving.",
-      tone: "tip",
-      guideId: "goals-vs-wants",
-      href: "/wishlist",
-      cta: "Open wishlist",
-    });
-  }
-
-  if (s.goalsActive > 0 && s.savingsPlans === 0) {
+  if (s.activeWants > 0 && s.savingsPlans === 0) {
     add(60, {
       id: "automate",
-      title: "Automate your saving",
-      body: "Your goals rely on remembering to contribute. An auto-save plan moves money for you every period   and shows a projected finish date.",
+      title: "Automate saving for a want",
+      body: "Your wishlist relies on remembering to set money aside. An auto-save plan moves money for you every period.",
       tone: "tip",
       guideId: "automate-saving",
       href: "/recurring",
@@ -178,10 +164,10 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
     add(55, {
       id: "affordable",
       title: `You can afford ${s.affordableWants} want${s.affordableWants === 1 ? "" : "s"} now`,
-      body: "You have saved enough (after locks) to buy them guilt-free. Or keep the momentum and redirect the money to a goal.",
+      body: "You have saved enough (after locks and budget plans) to buy them guilt-free.",
       tone: "success",
-      guideId: "goals-vs-wants",
-      href: "/wishlist",
+      guideId: "budget-basics",
+      href: "/budgets?tab=wishlist",
       cta: "Review wishlist",
     });
   }
@@ -189,18 +175,28 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
   if (s.budgetCount === 0) {
     add(50, {
       id: "first-budget",
-      title: "Set your first budget",
-      body: "Budgets cap a category and warn you before you overspend. Start with the one category that always surprises you.",
+      title: "Create your first budget plan",
+      body: "A plan is an envelope you fill from your accounts. Once money is in it, it is set aside and can only be spent on that plan.",
       tone: "tip",
       guideId: "budget-basics",
       href: "/budgets",
-      cta: "Add a budget",
+      cta: "Add a plan",
     });
-  } else if (s.budgetsAtRisk > 0) {
+  } else if (s.budgetsUnfunded > 0) {
+    add(68, {
+      id: "budget-unfunded",
+      title: `${s.budgetsUnfunded} plan${s.budgetsUnfunded === 1 ? " is" : "s are"} still empty`,
+      body: "A plan does nothing until you fill it. Move money in from an account so it is reserved before you spend it.",
+      tone: "tip",
+      guideId: "budget-basics",
+      href: "/budgets",
+      cta: "Fill a plan",
+    });
+  } else if (s.budgetsRunningLow > 0) {
     add(75, {
       id: "budget-risk",
-      title: `${s.budgetsAtRisk} budget${s.budgetsAtRisk === 1 ? "" : "s"} at risk`,
-      body: "One or more categories are near or over their limit. Rebalance now while there is still month left.",
+      title: `${s.budgetsRunningLow} plan${s.budgetsRunningLow === 1 ? " is" : "s are"} running low`,
+      body: "One or more plans are close to empty. Top them up, or ease off until the next cycle.",
       tone: "warning",
       guideId: "budget-basics",
       href: "/budgets",

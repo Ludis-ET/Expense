@@ -3,34 +3,17 @@
 import { useEffect, useState } from "react";
 import useSWR from "swr";
 import { toast } from "sonner";
-import {
-  Lock,
-  Shield,
-  Target,
-  Vault,
-  Plus,
-  Trash2,
-  Unlock,
-} from "lucide-react";
-import { PageHeader, Skeleton, EmptyState } from "@/components/ui/misc";
+import { Lock, Shield, Vault, Plus, Trash2, Unlock, Wallet } from "lucide-react";
+import { Skeleton, EmptyState } from "@/components/ui/misc";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/input";
-import {
-  CurrencyBadge,
-  currencyScopeHint,
-} from "@/components/finance/currency-badge";
+import { Field, Input, Textarea } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { useMoney } from "@/lib/amount-visibility";
 import { useCurrencyView } from "@/lib/currency-view-context";
 import { useConfirm } from "@/components/ui/confirm-dialog";
 import { cn } from "@/lib/utils";
-import type {
-  SavingsGoal,
-  SpendLock,
-  SpendLockKind,
-  SpendLocksResponse,
-} from "@/lib/types";
+import type { SpendLock, SpendLockKind, SpendLocksResponse } from "@/lib/types";
 
 const KIND_META: Record<
   SpendLockKind,
@@ -38,14 +21,8 @@ const KIND_META: Record<
 > = {
   FLOOR: {
     label: "Safety floor",
-    blurb:
-      "You cannot spend below this balance. Multiple floors → highest wins.",
+    blurb: "You cannot spend below this balance. Multiple floors → highest wins.",
     icon: Shield,
-  },
-  GOAL: {
-    label: "Goal vault",
-    blurb: "Money reserved for a savings goal   stacked with other vaults.",
-    icon: Target,
   },
   RESERVE: {
     label: "Named reserve",
@@ -54,26 +31,22 @@ const KIND_META: Record<
   },
 };
 
-export default function LocksPage() {
+export function SpendLocksPanel() {
   const confirm = useConfirm();
   const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
   const { data, mutate, isLoading } = useSWR<SpendLocksResponse>(
     `/spend-locks?currency=${encodeURIComponent(activeCurrency)}`,
   );
-  const { data: goalsData } = useSWR<{ items: SavingsGoal[] }>("/goals");
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<SpendLock | null>(null);
 
   const overview =
-    data?.overview.find((o) => o.currency === activeCurrency) ??
-    data?.overview[0];
+    data?.overview.find((o) => o.currency === activeCurrency) ?? data?.overview[0];
   const items = data?.items ?? [];
   const spendablePct =
     overview && Number(overview.balance) > 0
-      ? Math.round(
-          (Number(overview.spendable) / Number(overview.balance)) * 100,
-        )
+      ? Math.round((Number(overview.spendable) / Number(overview.balance)) * 100)
       : 100;
 
   async function remove(lock: SpendLock) {
@@ -104,24 +77,22 @@ export default function LocksPage() {
   }
 
   return (
-    <div className="animate-in space-y-6">
-      <PageHeader
-        title="Spend locks"
-        description={currencyScopeHint(activeCurrency)}
-        badge={<CurrencyBadge />}
-        action={
-          <Button
-            size="sm"
-            className="min-h-10"
-            onClick={() => {
-              setEditing(null);
-              setOpen(true);
-            }}
-          >
-            <Plus className="h-4 w-4" /> New lock
-          </Button>
-        }
-      />
+    <div className="animate-in space-y-5">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm text-muted">
+          Money you promise not to touch. Checked on every expense.
+        </p>
+        <Button
+          size="sm"
+          className="min-h-10 shrink-0"
+          onClick={() => {
+            setEditing(null);
+            setOpen(true);
+          }}
+        >
+          <Plus className="h-4 w-4" /> New lock
+        </Button>
+      </div>
 
       {isLoading || !overview ? (
         <Skeleton className="h-40 rounded-2xl" />
@@ -137,11 +108,17 @@ export default function LocksPage() {
                 {money(overview.spendable)}
               </p>
               <p className="mt-1 text-sm text-white/70">
-                of {money(overview.balance)} · {overview.lockCount} active lock
-                {overview.lockCount === 1 ? "" : "s"}
+                of {money(overview.balance)} in accounts · {overview.lockCount} active
+                lock{overview.lockCount === 1 ? "" : "s"}
               </p>
             </div>
-            <div className="grid grid-cols-2 gap-3 text-sm sm:text-right">
+            <div className="grid grid-cols-3 gap-3 text-sm sm:text-right">
+              <div>
+                <p className="text-white/50">In plans</p>
+                <p className="font-semibold tabular-nums">
+                  {money(overview.budgetLocked)}
+                </p>
+              </div>
               <div>
                 <p className="text-white/50">Floor</p>
                 <p className="font-semibold tabular-nums">
@@ -160,13 +137,20 @@ export default function LocksPage() {
             <div className="h-2 overflow-hidden rounded-full bg-white/15">
               <div
                 className="h-full rounded-full bg-emerald-400 transition-all"
-                style={{ width: `${spendablePct}%` }}
+                style={{ width: `${Math.max(0, Math.min(100, spendablePct))}%` }}
               />
             </div>
             <p className="mt-2 text-xs text-white/60">
-              {spendablePct}% of balance is free to spend
+              {Math.max(0, spendablePct)}% of your balance is free to spend
             </p>
           </div>
+          {Number(overview.budgetLocked) > 0 && (
+            <p className="relative mt-3 flex items-center gap-2 rounded-xl bg-white/10 px-3 py-2 text-xs text-white/75">
+              <Wallet className="h-3.5 w-3.5 shrink-0" />
+              {money(overview.budgetLocked)} is already held in budget plans and is
+              subtracted before your locks apply.
+            </p>
+          )}
           {overview.hint && (
             <p className="relative mt-3 rounded-xl bg-amber-400/15 px-3 py-2 text-xs text-amber-100">
               {overview.hint}
@@ -185,10 +169,8 @@ export default function LocksPage() {
         <EmptyState
           icon={<Lock className="h-5 w-5" />}
           title="No locks yet"
-          description="Set a safety floor, vault money for a goal, or name a reserve you won't touch."
-          action={
-            <Button onClick={() => setOpen(true)}>Create first lock</Button>
-          }
+          description="Set a safety floor or name a reserve you won't touch."
+          action={<Button onClick={() => setOpen(true)}>Create first lock</Button>}
         />
       ) : (
         <ul className="space-y-3">
@@ -218,24 +200,9 @@ export default function LocksPage() {
                       </span>
                     )}
                   </div>
-                  <p className="mt-0.5 text-xs text-muted">
-                    {lock.kind === "GOAL" && lock.goal
-                      ? `→ ${lock.goal.name} · ${money(lock.goalSaved ?? "0")} saved so far`
-                      : lock.goal
-                        ? `→ ${lock.goal.name}`
-                        : meta.blurb}
-                  </p>
+                  <p className="mt-0.5 text-xs text-muted">{lock.note || meta.blurb}</p>
                 </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold tabular-nums">
-                    {money(lock.kind === "GOAL" ? lock.lockedAmount : lock.amount)}
-                  </p>
-                  {lock.kind === "GOAL" && (
-                    <p className="text-[10px] text-muted">
-                      reserved of {money(lock.amount)}
-                    </p>
-                  )}
-                </div>
+                <p className="text-lg font-bold tabular-nums">{money(lock.amount)}</p>
                 <div className="flex gap-1">
                   <button
                     type="button"
@@ -277,7 +244,6 @@ export default function LocksPage() {
       <LockForm
         open={open}
         editing={editing}
-        goals={goalsData?.items ?? []}
         currency={activeCurrency}
         onClose={() => {
           setOpen(false);
@@ -292,14 +258,12 @@ export default function LocksPage() {
 function LockForm({
   open,
   editing,
-  goals,
   currency,
   onClose,
   onSaved,
 }: {
   open: boolean;
   editing: SpendLock | null;
-  goals: SavingsGoal[];
   currency: string;
   onClose: () => void;
   onSaved: () => void;
@@ -307,7 +271,6 @@ function LockForm({
   const [kind, setKind] = useState<SpendLockKind>("FLOOR");
   const [name, setName] = useState("");
   const [amount, setAmount] = useState("");
-  const [goalId, setGoalId] = useState("");
   const [note, setNote] = useState("");
   const [saving, setSaving] = useState(false);
 
@@ -316,7 +279,6 @@ function LockForm({
     setKind(editing?.kind ?? "FLOOR");
     setName(editing?.name ?? "");
     setAmount(editing ? String(Number(editing.amount)) : "");
-    setGoalId(editing?.goalId ?? "");
     setNote(editing?.note ?? "");
   }, [open, editing]);
 
@@ -329,8 +291,6 @@ function LockForm({
           name,
           amount: Number(amount),
           note: note || null,
-          goalId:
-            kind === "GOAL" || editing.kind === "GOAL" ? goalId || null : null,
         });
         toast.success("Lock updated");
       } else {
@@ -340,7 +300,6 @@ function LockForm({
           amount: Number(amount),
           currency,
           note: note || undefined,
-          goalId: kind === "GOAL" ? goalId || undefined : undefined,
         });
         toast.success("Lock armed");
       }
@@ -382,9 +341,7 @@ function LockForm({
                 >
                   <Icon className="mt-0.5 h-5 w-5 shrink-0 text-primary" />
                   <span>
-                    <span className="block text-sm font-semibold">
-                      {meta.label}
-                    </span>
+                    <span className="block text-sm font-semibold">{meta.label}</span>
                     <span className="text-xs text-muted">{meta.blurb}</span>
                   </span>
                 </button>
@@ -409,22 +366,6 @@ function LockForm({
             onChange={(e) => setAmount(e.target.value)}
           />
         </Field>
-        {formKind === "GOAL" && (
-          <Field label="Savings goal">
-            <Select
-              required={!editing}
-              value={goalId}
-              onChange={(e) => setGoalId(e.target.value)}
-            >
-              <option value="">Pick a goal…</option>
-              {goals.map((g) => (
-                <option key={g.id} value={g.id}>
-                  {g.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-        )}
         <Field label="Note">
           <Textarea
             rows={2}

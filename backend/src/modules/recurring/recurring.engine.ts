@@ -58,14 +58,12 @@ export function advanceNextRun(
   }
 }
 
-export type OccurrenceKind = "transaction" | "goal" | "wishlist";
+export type OccurrenceKind = "transaction" | "wishlist";
 
 /**
  * Materialize one occurrence of a rule inside an open DB transaction:
- * - savings plan targeting a goal → adds a goal contribution (and marks the
- *   goal achieved on completion). A linked GOAL spend-lock grows automatically.
- * - savings plan targeting a wishlist item → funds the want (and mirrors into
- *   its linked goal, matching the manual Fund flow).
+ * - auto-save plan targeting a wishlist item → funds the want, matching the
+ *   manual Fund flow.
  * - otherwise → posts a normal transaction.
  */
 export async function applyOccurrence(
@@ -74,39 +72,6 @@ export async function applyOccurrence(
   rule: RecurringRule,
   date: Date,
 ): Promise<OccurrenceKind> {
-  if (rule.goalId) {
-    const goal = await dbTx.savingsGoal.findUnique({
-      where: { id: rule.goalId },
-    });
-    await dbTx.goalContribution.create({
-      data: {
-        goalId: rule.goalId,
-        amount: rule.amount,
-        date,
-        note: `Auto-save: ${rule.name}`,
-      },
-    });
-    if (goal && !goal.achievedAt) {
-      const agg = await dbTx.goalContribution.aggregate({
-        where: { goalId: rule.goalId },
-        _sum: { amount: true },
-      });
-      if ((agg._sum.amount ?? new Prisma.Decimal(0)).gte(goal.targetAmount)) {
-        await dbTx.savingsGoal.update({
-          where: { id: goal.id },
-          data: { achievedAt: new Date() },
-        });
-        await notify(
-          userId,
-          "goal_achieved",
-          `🎉 Auto-save reached your "${goal.name}" goal!`,
-          "/budgets?tab=goals",
-        );
-      }
-    }
-    return "goal";
-  }
-
   if (rule.wishlistItemId) {
     const item = await dbTx.wishlistItem.findUnique({
       where: { id: rule.wishlistItemId },
@@ -132,22 +97,12 @@ export async function applyOccurrence(
               : item.status,
         },
       });
-      if (item.goalId) {
-        await dbTx.goalContribution.create({
-          data: {
-            goalId: item.goalId,
-            amount: rule.amount,
-            date,
-            note: `Auto-save: ${rule.name}`,
-          },
-        });
-      }
       if (!wasFunded && nextSaved.gte(cost)) {
         await notify(
           userId,
           "wishlist_funded",
           `🎯 Auto-save fully funded "${item.name}"   ready to buy!`,
-          "/wishlist",
+          "/budgets?tab=wishlist",
         );
       }
     }
@@ -172,9 +127,7 @@ export async function applyOccurrence(
 }
 
 function reminderLink(rule: RecurringRule): string {
-  if (rule.goalId) return "/budgets?tab=goals";
-  if (rule.wishlistItemId) return "/wishlist";
-  return "/recurring";
+  return rule.wishlistItemId ? "/budgets?tab=wishlist" : "/recurring";
 }
 
 /**

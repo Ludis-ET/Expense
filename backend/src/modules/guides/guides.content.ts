@@ -41,12 +41,12 @@ export const GUIDES: Guide[] = [
         body: "Use the Transactions page (or press N anywhere) to record money in and out. Pick a category so your analytics mean something. Transfers move money between your own accounts and never count as spending. Santim now blocks an expense or transfer that would push an account below zero   a gentle guardrail against overdrawing.",
       },
       {
-        heading: "3. Set budgets and goals",
-        body: "Budgets cap what you spend per category each month and warn you before you blow past them. Goals are the opposite   targets you save toward, like an emergency fund or a trip. Both live under Budgets.",
+        heading: "3. Create budget plans",
+        body: "A budget plan is a named envelope: you decide how much you plan to spend, then fill it from your accounts. That money is set aside immediately   it stops counting as available anywhere in Santim   and can only be spent against that plan. Plans can run once or renew every week, month, quarter or year.",
       },
       {
         heading: "4. Protect and plan",
-        body: "Spend Locks ring-fence money you refuse to touch (a safety floor, a goal vault, a named reserve). The Wishlist parks the things you want and shows when you can actually afford them. Recurring turns any of this into an automatic habit   including auto-save plans that feed a goal or wishlist item every week or month.",
+        body: "Spend Locks ring-fence money you refuse to touch (a safety floor or a named reserve). The Wishlist parks the things you want and shows when you can actually afford them. Both live as tabs under Budgets. Recurring turns any of this into an automatic habit.",
       },
     ],
   },
@@ -88,7 +88,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "Start with one month",
-        body: "Total your essential monthly spending (rent, food, transport, utilities). That number is your first milestone. Make it a savings Goal and watch the progress bar fill.",
+        body: "Total your essential monthly spending (rent, food, transport, utilities). That number is your first milestone.",
       },
       {
         heading: "Lock it so it's really there",
@@ -111,7 +111,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "Set an auto-save plan",
-        body: 'On the Recurring page, choose "Save to goal" or "Fund a want", pick an amount and a frequency, and Santim contributes for you every period. Your goal shows a projected finish date, and any linked spend lock grows on its own so the money is reserved the moment it lands.',
+        body: 'On the Recurring page, choose "Fund a want", pick an amount and a frequency, and Santim sets the money aside for you every period. For everyday spending, a recurring budget plan does the same job: it renews on schedule and carries any leftover into the next cycle.',
       },
     ],
   },
@@ -122,7 +122,7 @@ export const GUIDES: Guide[] = [
     category: "spending",
     readMins: 3,
     tagline: "Beat the buy-now urge without feeling deprived.",
-    href: "/wishlist",
+    href: "/budgets?tab=wishlist",
     sections: [
       {
         heading: "The 24-hour rule",
@@ -134,26 +134,30 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: 'Name your "unnecessary" spending',
-        body: "Santim tracks spending you flag as unnecessary. Seeing the monthly total is often enough to shrink it. Aim to trim it by a third and redirect that money to a goal.",
+        body: "Santim tracks spending you flag as unnecessary. Seeing the monthly total is often enough to shrink it. Aim to trim it by a third and redirect that money into a budget plan you care about.",
       },
     ],
   },
   {
-    id: "goals-vs-wants",
-    title: "Turn wants into goals",
-    emoji: "🎯",
-    category: "saving",
-    readMins: 2,
-    tagline: "The bridge from wishful thinking to actually owning it.",
-    href: "/wishlist",
+    id: "plan-envelopes",
+    title: "How budget plans hold money",
+    emoji: "✉️",
+    category: "spending",
+    readMins: 3,
+    tagline: "Fill an envelope from your accounts, then spend only from it.",
+    href: "/budgets",
     sections: [
       {
-        heading: "A want is a wish; a goal has a plan",
-        body: 'A wishlist item says "someday". A goal says "by this date, this much per month". The difference is a plan   and plans are what get funded.',
+        heading: "Filling a plan is not a transaction",
+        body: "When you move 2,000 into a plan, nothing has been spent yet. The cash is still physically in your account   Santim just stops counting it as available. Your accounts page shows both figures: the real balance, and what is genuinely free after plans.",
       },
       {
-        heading: "Promote in one tap",
-        body: 'On any wishlist item, choose "To goal". Santim creates the savings goal, carries over what you have saved, can reserve the money with a spend lock, and can even start an auto-save plan to hit it on schedule.',
+        heading: "Spending draws it down",
+        body: "When you add an expense, the account dropdown also lists any plan that still holds money. Pick the plan and the expense comes out of its envelope: the plan balance drops, the real account balance drops, and the reservation is released at the same moment. Santim will not let a plan go negative.",
+      },
+      {
+        heading: "One-time vs recurring",
+        body: "A one-time plan closes itself once it is empty and has been spent from   it stays on the Budgets page for the record, and you can reopen it. A recurring plan snapshots each finished cycle, carries any leftover into the next one, and starts accepting fills again.",
       },
     ],
   },
@@ -172,11 +176,11 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "Envelopes for problem categories",
-        body: "For categories that always overshoot (eating out, data), treat the budget like a cash envelope: when it is empty, you stop until next month. Santim warns you as you approach the limit so there are no surprises.",
+        body: "For categories that always overshoot (eating out, data), a plan is a real cash envelope: when it is empty, you stop. Santim warns you as the pot runs low and blocks anything that would take it negative.",
       },
       {
         heading: "Review weekly, not yearly",
-        body: 'A five-minute weekly check on the dashboard beats a painful annual reckoning. Watch the "budgets at risk" panel and adjust early.',
+        body: 'A five-minute weekly check on the dashboard beats a painful annual reckoning. Watch the "plans running low" panel and top up or ease off early.',
       },
     ],
   },

@@ -71,7 +71,7 @@ export default function LandingPage() {
             <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">birr goes</span>
           </h1>
           <p className="animate-in mx-auto mt-5 max-w-xl text-base text-muted md:text-lg">
-            Santim brings your income, spending, budgets and savings goals together - with analytics that actually
+            Santim brings your income, spending and budget plans together - with analytics that actually
             tell you something, all private to you.
           </p>
           <div className="animate-in mt-8 flex flex-col items-center justify-center gap-3 sm:flex-row">

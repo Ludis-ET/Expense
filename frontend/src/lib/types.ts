@@ -27,7 +27,12 @@ export interface Account {
   type: AccountType;
   currency: string;
   openingBalance: string;
+  /** Available: real money minus what budget plans have reserved. */
   balance: string;
+  /** Money physically in the account. */
+  realBalance: string;
+  /** Reserved by budget plans. */
+  lockedAmount: string;
   icon?: string | null;
   color?: string | null;
   isDefault: boolean;
@@ -59,6 +64,10 @@ export interface Transaction {
   transferAccount?: { id: string; name: string } | null;
   categoryId?: string | null;
   category?: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  /** Set when the expense was paid out of a budget plan's pot. */
+  budgetId?: string | null;
+  budget?: { id: string; name: string; icon?: string | null; color?: string | null; currency: string } | null;
+  budgetCycle?: number | null;
   note?: string | null;
   payee?: string | null;
   tags: string[];
@@ -94,98 +103,156 @@ export interface RecurringRule {
   autoPost: boolean;
   active: boolean;
   postedCount: number;
-  planType: 'transaction' | 'goal' | 'wishlist';
-  goalId?: string | null;
-  goal?: { id: string; name: string; icon?: string | null; color?: string | null } | null;
+  planType: 'transaction' | 'wishlist';
   wishlistItemId?: string | null;
   wishlistItem?: { id: string; name: string; emoji?: string | null } | null;
 }
 
-export interface GoalAutoSave {
-  monthly: string;
-  planCount: number;
-  nextRun: string | null;
-  projectedDate: string | null;
-  onTrack: boolean | null;
-}
-
 export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-export type BudgetStatus = 'ok' | 'warning' | 'over' | 'upcoming' | 'ended';
+export type BudgetKind = 'ONE_TIME' | 'RECURRING';
+export type BudgetState = 'ACTIVE' | 'CLOSED';
+export type BudgetHealth =
+  | 'empty'
+  | 'partly-funded'
+  | 'ready'
+  | 'spending'
+  | 'low'
+  | 'drained'
+  | 'closed';
 
+export type BudgetCategory = Pick<Category, 'id' | 'name' | 'icon' | 'color' | 'kind'>;
+export type BudgetAccount = Pick<Account, 'id' | 'name' | 'type' | 'currency' | 'color' | 'icon'>;
+
+/** A named spending envelope, filled from accounts and spent down. */
 export interface BudgetRow {
   id: string;
-  categoryId: string;
-  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> & { archived?: boolean };
-  /** Base limit for one period. */
-  amount: string;
-  /** Base limit plus any rollover carried in — what `spent` is measured against. */
-  effectiveLimit: string;
-  /** Rollover carried in from prior periods (can be negative). */
-  carryIn: string;
+  name: string;
+  categoryId: string | null;
+  category: BudgetCategory | null;
+  kind: BudgetKind;
+  period: BudgetPeriod | null;
+  periodNoun: string | null;
+  currency: string;
+  icon?: string | null;
+  color?: string | null;
+  note?: string | null;
   alertThreshold: number;
-  period: BudgetPeriod;
-  rollover: boolean;
-  startDate: string | null;
+  state: BudgetState;
+  closedAt: string | null;
+
+  /** How much you plan to spend per cycle - also the fill-up ceiling. */
+  plannedAmount: string;
+  /** Put into the pot this cycle, including money carried over. */
+  fundedAmount: string;
+  /** Carried over from the previous cycle. */
+  carriedIn: string;
+  /** Still accepted from accounts before hitting the planned amount. */
+  fillable: string;
+  /** Spent out of the pot this cycle. */
+  spentAmount: string;
+  /** What is left to spend right now. */
+  balance: string;
+
+  pctFunded: number;
+  pctOfPlan: number;
+  pctSpentOfFunded: number;
+  health: BudgetHealth;
+
+  cycleIndex: number;
+  cycleStartedAt: string;
+  nextResetAt: string | null;
   endDate: string | null;
-  spent: string;
-  remaining: string;
-  pct: number;
-  status: BudgetStatus;
-  periodStart: string;
-  periodEnd: string;
-  periodLabel: string;
+  cycleLabel: string | null;
+
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface BudgetsResponse {
   items: BudgetRow[];
-  totals: { budgeted: string; spent: string; remaining: string };
+  totals: {
+    planned: string;
+    funded: string;
+    spent: string;
+    locked: string;
+    activeCount: number;
+    closedCount: number;
+  };
 }
 
-export interface BudgetHistoryPeriod {
-  index: number;
-  current: boolean;
-  label: string;
-  start: string;
-  end: string;
-  limit: string;
-  carryIn: string;
-  effectiveLimit: string;
-  spent: string;
-  remaining: string;
-  pct: number;
-  status: 'ok' | 'warning' | 'over';
-}
-
-export interface BudgetHistory {
-  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'>;
-  period: BudgetPeriod;
-  rollover: boolean;
-  amount: string;
-  items: BudgetHistoryPeriod[];
-}
-
-export interface GoalContribution {
+export interface BudgetAllocation {
   id: string;
+  kind: 'FUND' | 'RELEASE';
+  /** Signed: negative for a give-back. */
   amount: string;
   date: string;
   note?: string | null;
+  account: BudgetAccount | null;
+  cycleIndex: number;
 }
 
-export interface SavingsGoal {
+export interface BudgetTransaction {
+  id: string;
+  amount: string;
+  currency: string;
+  date: string;
+  payee?: string | null;
+  note?: string | null;
+  tags: string[];
+  category: BudgetCategory | null;
+  account: BudgetAccount | null;
+  budgetCycle: number | null;
+}
+
+export type BudgetTimelineEntry =
+  | { type: 'fund' | 'release'; at: string; cycleIndex: number; entry: BudgetAllocation }
+  | { type: 'spend'; at: string; cycleIndex: number; entry: BudgetTransaction };
+
+/** A finished cycle of a recurring plan, frozen at the moment it rolled over. */
+export interface BudgetCycleSnapshot {
+  index: number;
+  label: string;
+  startedAt: string;
+  endedAt: string;
+  plannedAmount: string;
+  carriedIn: string;
+  fundedAmount: string;
+  spentAmount: string;
+  leftoverAmount: string;
+  txCount: number;
+  transactions: BudgetTransaction[];
+  allocations: BudgetAllocation[];
+}
+
+export interface BudgetSource {
+  account: BudgetAccount | null;
+  available: string;
+}
+
+export interface BudgetDetail extends BudgetRow {
+  timeline: BudgetTimelineEntry[];
+  transactions: BudgetTransaction[];
+  allocations: BudgetAllocation[];
+  sources: BudgetSource[];
+  cycles: BudgetCycleSnapshot[];
+  lifetime: { allocated: string; spent: string; cycleCount: number };
+}
+
+/** A plan offered as a "pay from" option on the transaction form. */
+export interface BudgetSpendSource {
   id: string;
   name: string;
+  currency: string;
+  balance: string;
   icon?: string | null;
   color?: string | null;
-  targetAmount: string;
-  saved: string;
-  remaining: string;
-  pct: number;
-  monthlyNeeded: string | null;
-  autoSave: GoalAutoSave;
-  deadline?: string | null;
-  note?: string | null;
-  achievedAt?: string | null;
-  contributions: GoalContribution[];
+  categoryId: string | null;
+  category: BudgetCategory | null;
+  sources: BudgetSource[];
+}
+
+export interface BudgetSourcesResponse {
+  items: BudgetSpendSource[];
 }
 
 export interface Notification {
@@ -340,7 +407,7 @@ export interface LedgerSummary {
   };
 }
 
-export type SpendLockKind = 'FLOOR' | 'GOAL' | 'RESERVE';
+export type SpendLockKind = 'FLOOR' | 'RESERVE';
 export type WishlistStatus = 'WANTING' | 'SAVING' | 'BOUGHT' | 'DROPPED';
 
 export interface SpendLock {
@@ -348,21 +415,23 @@ export interface SpendLock {
   kind: SpendLockKind;
   name: string;
   amount: string;
-  /** What is actually protected right now (GOAL locks track real goal savings). */
+  /** What is actually protected right now. */
   lockedAmount: string;
   currency: string;
   active: boolean;
   note?: string | null;
-  goalId?: string | null;
-  goalSaved?: string | null;
-  goal?: { id: string; name: string; targetAmount: string; color?: string | null; icon?: string | null } | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface SpendLockOverview {
   currency: string;
+  /** Money physically in accounts. */
   balance: string;
+  /** Held inside budget plans. */
+  budgetLocked: string;
+  /** Balance minus budget plans - what locks are measured against. */
+  available: string;
   floorAmount: string;
   reservedAmount: string;
   lockedTotal: string;
@@ -392,8 +461,6 @@ export interface WishlistItem {
   pct: number;
   /** true = you can cover what's left out of unlocked money; null = closed/unknown. */
   affordable: boolean | null;
-  goalId?: string | null;
-  goal?: { id: string; name: string } | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -468,9 +535,13 @@ export interface DashboardData {
   totalBalance: string;
   displayCurrency?: string;
   currencies?: string[];
+  realBalance?: string;
+  budgetLocked?: string;
   currencyBreakdown?: {
     currency: string;
     totalBalance: string;
+    realBalance: string;
+    budgetLocked: string;
     accountCount: number;
     month: MonthSummary;
   }[];
@@ -482,8 +553,9 @@ export interface DashboardData {
   };
   accounts: Account[];
   month: MonthSummary;
+  budgetTotals: BudgetsResponse['totals'];
   budgetsAtRisk: BudgetRow[];
-  goals: SavingsGoal[];
+  budgets: BudgetRow[];
   recentTransactions: Transaction[];
   topCategories: CategoryBreakdownItem[];
   upcomingRecurring: (RecurringRule & { category?: { name: string; icon: string; color: string } | null })[];

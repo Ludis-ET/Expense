@@ -1,5 +1,13 @@
 import bcrypt from 'bcryptjs';
-import { AccountType, Frequency, PrismaClient, TxKind } from '../generated/client/index.js';
+import {
+  AccountType,
+  BudgetAllocationKind,
+  BudgetKind,
+  BudgetPeriod,
+  Frequency,
+  PrismaClient,
+  TxKind,
+} from '../generated/client/index.js';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/default-categories.js';
 
 const prisma = new PrismaClient();
@@ -10,6 +18,16 @@ function daysAgo(days: number, hour = 12): Date {
   const d = new Date(Date.now() - days * DAY);
   d.setUTCHours(hour, 0, 0, 0);
   return d;
+}
+
+function startOfMonth(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth(), 1));
+}
+
+function startOfNextMonth(): Date {
+  const n = new Date();
+  return new Date(Date.UTC(n.getUTCFullYear(), n.getUTCMonth() + 1, 1));
 }
 
 /** Deterministic pseudo-random so re-seeding produces the same data. */
@@ -226,34 +244,54 @@ async function main() {
     ],
   });
 
-  // --- Budgets ---
-  await prisma.budget.createMany({
-    data: [
-      { userId: user.id, categoryId: cat('Food & Groceries').id, amount: 10000, alertThreshold: 80 },
-      { userId: user.id, categoryId: cat('Transport').id, amount: 4000, alertThreshold: 80 },
-      { userId: user.id, categoryId: cat('Unnecessary').id, amount: 1500, alertThreshold: 75 },
-      { userId: user.id, categoryId: cat('Entertainment').id, amount: 3000, alertThreshold: 80 },
-    ],
-  });
-
-  // --- Savings goal with contributions ---
-  await prisma.savingsGoal.create({
+  // --- Budget plans, partly filled from accounts ---
+  const monthlyGroceries = await prisma.budget.create({
     data: {
       userId: user.id,
-      name: 'Emergency Fund',
-      icon: 'shield',
+      name: 'Monthly groceries',
+      categoryId: cat('Food & Groceries').id,
+      kind: BudgetKind.RECURRING,
+      period: BudgetPeriod.MONTHLY,
+      plannedAmount: 10000,
+      currency: 'ETB',
+      icon: 'shopping-cart',
       color: '#10b981',
-      targetAmount: 100000,
-      deadline: new Date(Date.now() + 8 * 30 * DAY),
-      note: 'Six months of expenses, just in case.',
-      contributions: {
-        create: [
-          { amount: 10000, date: daysAgo(75), note: 'Initial deposit' },
-          { amount: 9000, date: daysAgo(45) },
-          { amount: 9000, date: daysAgo(14) },
-        ],
-      },
+      alertThreshold: 80,
+      cycleStartedAt: startOfMonth(),
+      nextResetAt: startOfNextMonth(),
     },
+  });
+
+  const laptopFund = await prisma.budget.create({
+    data: {
+      userId: user.id,
+      name: 'New laptop',
+      kind: BudgetKind.ONE_TIME,
+      plannedAmount: 60000,
+      currency: 'ETB',
+      icon: 'laptop',
+      color: '#6366f1',
+      note: 'Saving up before the old one dies.',
+      alertThreshold: 90,
+    },
+  });
+
+  await prisma.budgetAllocation.createMany({
+    data: [
+      {
+        userId: user.id, budgetId: monthlyGroceries.id, accountId: cbe.id,
+        kind: BudgetAllocationKind.FUND, amount: 8000, date: startOfMonth(),
+        note: 'Filled at the start of the month',
+      },
+      {
+        userId: user.id, budgetId: laptopFund.id, accountId: cbe.id,
+        kind: BudgetAllocationKind.FUND, amount: 18000, date: daysAgo(45),
+      },
+      {
+        userId: user.id, budgetId: laptopFund.id, accountId: telebirr.id,
+        kind: BudgetAllocationKind.FUND, amount: 6000, date: daysAgo(14),
+      },
+    ],
   });
 
   await prisma.notification.create({

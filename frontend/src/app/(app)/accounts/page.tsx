@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
@@ -103,8 +104,13 @@ export default function AccountsPage() {
   const accounts = data?.items ?? [];
   const activeAccounts = accounts.filter((a) => !a.archived && a.currency === activeCurrency);
 
-  const total = useMemo(
-    () => activeAccounts.reduce((s, a) => s + Number(a.balance), 0),
+  // `balance` is available money; `realBalance` is what is physically there.
+  const totals = useMemo(
+    () => ({
+      available: activeAccounts.reduce((s, a) => s + Number(a.balance), 0),
+      real: activeAccounts.reduce((s, a) => s + Number(a.realBalance), 0),
+      locked: activeAccounts.reduce((s, a) => s + Number(a.lockedAmount), 0),
+    }),
     [activeAccounts],
   );
 
@@ -157,8 +163,16 @@ export default function AccountsPage() {
         <>
           <Card className="mb-4">
             <CardContent className="p-5">
-              <span className="text-sm text-muted">Total balance · {activeCurrency}</span>
-              <p className="mt-1 text-2xl font-bold tabular-nums">{money(total)}</p>
+              <span className="text-sm text-muted">Available to spend · {activeCurrency}</span>
+              <p className="mt-1 text-2xl font-bold tabular-nums">{money(totals.available)}</p>
+              {totals.locked > 0 && (
+                <p className="mt-1.5 text-xs text-muted">
+                  {money(totals.real)} actually in your accounts ·{' '}
+                  <Link href="/budgets" className="font-medium text-primary hover:underline">
+                    {money(totals.locked)} set aside in budget plans
+                  </Link>
+                </p>
+              )}
             </CardContent>
           </Card>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -239,6 +253,13 @@ function AccountCard({
         </p>
         <p className="text-xs text-muted">{typeLabel(account.type)} · {account.currency}</p>
         <p className="mt-2 text-xl font-bold tabular-nums">{money(account.balance)}</p>
+        {Number(account.lockedAmount) > 0 ? (
+          <p className="mt-0.5 text-[11px] text-muted">
+            available · {money(account.realBalance)} real, {money(account.lockedAmount)} in plans
+          </p>
+        ) : (
+          <p className="mt-0.5 text-[11px] text-muted">available</p>
+        )}
 
         {/* Mini sparkline */}
         {sparkPoints.length >= 2 && (

@@ -17,7 +17,9 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
   const { activeCurrency, activeBreakdown, convertedTotal } = useCurrencyView();
 
   const month = activeBreakdown?.month ?? data.month;
+  // Available money: what is in the accounts minus what budget plans hold.
   const balance = activeBreakdown?.totalBalance ?? data.totalBalance;
+  const budgetLocked = Number(activeBreakdown?.budgetLocked ?? data.budgetLocked ?? 0);
   const accounts = data.accounts.filter((a) => a.currency === activeCurrency);
 
   const net = Number(month.net);
@@ -61,12 +63,19 @@ export function HeroBalance({ data, money, userName }: HeroBalanceProps) {
         </div>
 
         <p className="mt-1 text-xs opacity-60">
-          Total balance · {activeCurrency}
+          Available to spend · {activeCurrency}
         </p>
 
         <p className="mt-3 text-4xl font-bold tracking-tight tabular-nums md:text-5xl">
           {money(balance)}
         </p>
+
+        {budgetLocked > 0 && (
+          <p className="mt-1.5 text-xs opacity-75">
+            {money(activeBreakdown?.realBalance ?? data.realBalance ?? balance)} in your accounts ·{' '}
+            {money(budgetLocked)} set aside in budget plans
+          </p>
+        )}
 
         {convertedTotal && !convertedTotal.complete && convertedTotal.missingRates.length > 0 && (
           <p className="mt-2 text-xs opacity-75">

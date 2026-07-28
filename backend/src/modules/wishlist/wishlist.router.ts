@@ -6,7 +6,6 @@ import {
   createWishlistSchema,
   fundWishlistSchema,
   listWishlistQuery,
-  promoteWishlistSchema,
   purchaseWishlistSchema,
   updateWishlistSchema,
   wishlistIdParam,
@@ -46,14 +45,6 @@ wishlistRouter.post(
   validate({ params: wishlistIdParam, body: fundWishlistSchema }),
   asyncHandler(async (req, res) => {
     res.json(await wishlist.fund(req.user!, req.params.id!, req.body));
-  }),
-);
-
-wishlistRouter.post(
-  '/:id/promote',
-  validate({ params: wishlistIdParam, body: promoteWishlistSchema }),
-  asyncHandler(async (req, res) => {
-    res.json(await wishlist.promoteToGoal(req.user!, req.params.id!, req.body));
   }),
 );
 

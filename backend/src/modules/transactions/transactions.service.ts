@@ -2,7 +2,6 @@ import { CategoryKind, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
-import { notify } from '../notifications/notifications.service.js';
 import type {
   CreateTransactionInput,
   ListTransactionsQuery,
@@ -13,6 +12,7 @@ const txInclude = {
   category: { select: { id: true, name: true, kind: true, icon: true, color: true } },
   account: { select: { id: true, name: true, type: true, currency: true } },
   transferAccount: { select: { id: true, name: true, type: true } },
+  budget: { select: { id: true, name: true, icon: true, color: true, currency: true } },
 } satisfies Prisma.TransactionInclude;
 
 function serialize(tx: { amount: Prisma.Decimal } & Record<string, unknown>) {
@@ -32,7 +32,8 @@ async function assertOwnedAccount(id: string, userId: string) {
 }
 
 /**
- * Money leaving an account (expense or transfer-out) may not overdraw it.
+ * Money leaving an account (expense or transfer-out) may not overdraw it, and
+ * may not eat into what budget plans have already reserved.
  * `excludeTxId` lets an edit ignore its own prior effect on the balance.
  */
 async function assertSufficientBalance(
@@ -42,11 +43,11 @@ async function assertSufficientBalance(
   outflow: number,
   excludeTxId?: string,
 ) {
-  const { accountBalance } = await import('../accounts/accounts.service.js');
-  const available = await accountBalance(userId, accountId, excludeTxId);
+  const { availableBalance } = await import('../accounts/accounts.service.js');
+  const available = await availableBalance(userId, accountId, excludeTxId);
   if (new Prisma.Decimal(outflow).gt(available)) {
     throw new BadRequestError(
-      `Not enough balance in "${accountName}": available ${available.toFixed(2)}, needed ${outflow.toFixed(2)}. This would overdraw the account.`,
+      `Not enough available balance in "${accountName}": ${available.toFixed(2)} free (after money set aside in budget plans), needed ${outflow.toFixed(2)}.`,
     );
   }
 }
@@ -72,6 +73,7 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
     ...(query.accountId
       ? { OR: [{ accountId: query.accountId }, { transferAccountId: query.accountId }] }
       : {}),
+    ...(query.budgetId ? { budgetId: query.budgetId } : {}),
     ...(query.currency ? { currency: query.currency } : {}),
     ...(query.tag ? { tags: { has: query.tag } } : {}),
     ...(query.q
@@ -133,7 +135,21 @@ export async function listTags(user: AuthUser) {
 }
 
 export async function create(user: AuthUser, input: CreateTransactionInput) {
-  const account = await assertOwnedAccount(input.accountId, user.id);
+  const planId = input.kind === TxKind.EXPENSE ? input.budgetId : undefined;
+
+  // Spending from a plan: the plan's pot must cover it, and it decides which
+  // account the real money leaves from (the one that funded that share).
+  let plan: { id: string; cycleIndex: number } | null = null;
+  let accountId = input.accountId;
+  if (planId) {
+    const { assertSpendable } = await import('../budgets/budgets.service.js');
+    const charge = await assertSpendable(user.id, planId, input.amount, input.accountId);
+    plan = { id: charge.budget.id, cycleIndex: charge.budget.cycleIndex };
+    accountId = charge.accountId;
+  }
+
+  if (!accountId) throw new BadRequestError('Pick an account or a budget plan to pay from');
+  const account = await assertOwnedAccount(accountId, user.id);
 
   let categoryId: string | null = null;
   if (input.kind === TxKind.TRANSFER) {
@@ -143,12 +159,22 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     categoryId = input.categoryId;
   }
 
-  // Money leaving an account may not push it negative.
-  if (input.kind === TxKind.EXPENSE || input.kind === TxKind.TRANSFER) {
+  // Money leaving an account may not push it negative. A plan expense is
+  // already covered by its own reservation, so it only needs the real balance.
+  if (input.kind === TxKind.TRANSFER || (input.kind === TxKind.EXPENSE && !plan)) {
     await assertSufficientBalance(user.id, account.id, account.name, input.amount);
+  } else if (plan) {
+    const { accountBalance } = await import('../accounts/accounts.service.js');
+    const real = await accountBalance(user.id, account.id);
+    if (new Prisma.Decimal(input.amount).gt(real)) {
+      throw new BadRequestError(
+        `"${account.name}" only holds ${real.toFixed(2)} ${account.currency} right now.`,
+      );
+    }
   }
 
-  if (input.kind === TxKind.EXPENSE) {
+  // Spend locks guard free money; plan money is already ring-fenced elsewhere.
+  if (input.kind === TxKind.EXPENSE && !plan) {
     const { assertExpenseAllowed } = await import('../spend-locks/spend-locks.service.js');
     await assertExpenseAllowed(user.id, input.currency, input.amount);
   }
@@ -160,9 +186,11 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
       amount: input.amount,
       currency: input.currency,
       date: input.date,
-      accountId: input.accountId,
+      accountId: account.id,
       transferAccountId: input.kind === TxKind.TRANSFER ? input.transferAccountId : null,
       categoryId,
+      budgetId: plan?.id ?? null,
+      budgetCycle: plan?.cycleIndex ?? null,
       note: input.note,
       payee: input.payee,
       tags: input.tags,
@@ -171,8 +199,9 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     include: txInclude,
   });
 
-  if (tx.kind === TxKind.EXPENSE && tx.categoryId) {
-    void checkBudgetAlert(user.id, tx.categoryId, tx.date);
+  if (tx.budgetId) {
+    const { afterSpend } = await import('../budgets/budgets.service.js');
+    void afterSpend(user.id, tx.budgetId);
   }
   return serialize(tx);
 }
@@ -180,6 +209,11 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
 export async function update(user: AuthUser, id: string, input: UpdateTransactionInput) {
   const existing = await assertOwnedTransaction(id, user.id);
 
+  if (input.accountId && existing.budgetId && input.accountId !== existing.accountId) {
+    throw new BadRequestError(
+      'This expense is paid from a budget plan; the plan decides which account it comes out of.',
+    );
+  }
   if (input.accountId) await assertOwnedAccount(input.accountId, user.id);
   if (input.transferAccountId) {
     if (existing.kind !== TxKind.TRANSFER) {
@@ -200,70 +234,33 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
   // Re-check the balance guard for outflows, ignoring this transaction's own
   // prior effect so an unchanged edit can't falsely trip.
   if (existing.kind === TxKind.EXPENSE || existing.kind === TxKind.TRANSFER) {
-    const sourceId = input.accountId ?? existing.accountId;
     const outflow = Number(input.amount ?? existing.amount);
-    const source = await assertOwnedAccount(sourceId, user.id);
-    await assertSufficientBalance(user.id, sourceId, source.name, outflow, id);
+    if (existing.budgetId) {
+      // Plan expenses are capped by the plan's pot, not by free account money.
+      const { assertSpendable } = await import('../budgets/budgets.service.js');
+      await assertSpendable(user.id, existing.budgetId, outflow, existing.accountId, id);
+    } else {
+      const sourceId = input.accountId ?? existing.accountId;
+      const source = await assertOwnedAccount(sourceId, user.id);
+      await assertSufficientBalance(user.id, sourceId, source.name, outflow, id);
+    }
   }
 
   const tx = await prisma.transaction.update({ where: { id }, data: input, include: txInclude });
 
-  if (tx.kind === TxKind.EXPENSE && tx.categoryId) {
-    void checkBudgetAlert(user.id, tx.categoryId, tx.date);
+  if (tx.budgetId) {
+    const { afterSpend } = await import('../budgets/budgets.service.js');
+    void afterSpend(user.id, tx.budgetId);
   }
   return serialize(tx);
 }
 
 export async function remove(user: AuthUser, id: string) {
-  await assertOwnedTransaction(id, user.id);
+  const existing = await assertOwnedTransaction(id, user.id);
   await prisma.transaction.delete({ where: { id } });
-}
-
-/**
- * After an expense is written, check whether its category's monthly budget
- * crossed the alert threshold (or 100%) and notify once per category/month
- * while an unread alert exists.
- */
-async function checkBudgetAlert(userId: string, categoryId: string, date: Date) {
-  try {
-    const budget = await prisma.budget.findFirst({
-      where: { categoryId, userId },
-      include: { category: { select: { name: true } } },
-    });
-    if (!budget) return;
-
-    const monthStart = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth(), 1));
-    const monthEnd = new Date(Date.UTC(date.getUTCFullYear(), date.getUTCMonth() + 1, 1));
-
-    const spent = await prisma.transaction.aggregate({
-      where: { userId, categoryId, kind: TxKind.EXPENSE, date: { gte: monthStart, lt: monthEnd } },
-      _sum: { amount: true },
-    });
-    const spentAmt = spent._sum.amount ?? new Prisma.Decimal(0);
-    const pct = new Prisma.Decimal(spentAmt).div(budget.amount).mul(100).toNumber();
-    if (pct < budget.alertThreshold) return;
-
-    const existing = await prisma.notification.findFirst({
-      where: {
-        userId,
-        type: 'budget_alert',
-        readFlag: false,
-        message: { contains: budget.category.name },
-        createdAt: { gte: monthStart },
-      },
-    });
-    if (existing) return;
-
-    const over = pct >= 100;
-    await notify(
-      userId,
-      'budget_alert',
-      over
-        ? `You've exceeded your ${budget.category.name} budget this month (${Math.round(pct)}%).`
-        : `You've used ${Math.round(pct)}% of your ${budget.category.name} budget this month.`,
-      '/budgets',
-    );
-  } catch {
-    // Alerts are best-effort; never fail the transaction write.
+  // Deleting a plan expense hands the money back to the pot.
+  if (existing.budgetId) {
+    const { afterSpend } = await import('../budgets/budgets.service.js');
+    void afterSpend(user.id, existing.budgetId);
   }
 }

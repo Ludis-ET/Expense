@@ -7,7 +7,8 @@ const baseTx = {
   amount: money,
   currency: z.string().length(3).toUpperCase().default('ETB'),
   date: z.coerce.date(),
-  accountId: z.string().min(1),
+  /** Optional when `budgetId` is set: the plan decides which account pays. */
+  accountId: z.string().min(1).optional(),
   note: z.string().max(2000).optional(),
   payee: z.string().max(200).optional(),
   tags: z.array(z.string().min(1).max(40)).max(10).default([]),
@@ -17,13 +18,33 @@ const baseTx = {
 /** INCOME and EXPENSE need a category; TRANSFER needs a distinct destination account. */
 export const createTransactionSchema = z
   .discriminatedUnion('kind', [
-    z.object({ kind: z.literal(TxKind.INCOME), categoryId: z.string().min(1), ...baseTx }),
-    z.object({ kind: z.literal(TxKind.EXPENSE), categoryId: z.string().min(1), ...baseTx }),
-    z.object({ kind: z.literal(TxKind.TRANSFER), transferAccountId: z.string().min(1), ...baseTx }),
+    z.object({
+      kind: z.literal(TxKind.INCOME),
+      categoryId: z.string().min(1),
+      ...baseTx,
+      accountId: z.string().min(1),
+    }),
+    z.object({
+      kind: z.literal(TxKind.EXPENSE),
+      categoryId: z.string().min(1),
+      /** Pay out of a budget plan's pot instead of straight from an account. */
+      budgetId: z.string().min(1).optional(),
+      ...baseTx,
+    }),
+    z.object({
+      kind: z.literal(TxKind.TRANSFER),
+      transferAccountId: z.string().min(1),
+      ...baseTx,
+      accountId: z.string().min(1),
+    }),
   ])
   .refine((d) => d.kind !== TxKind.TRANSFER || d.transferAccountId !== d.accountId, {
     message: 'Transfer destination must be a different account',
     path: ['transferAccountId'],
+  })
+  .refine((d) => d.kind !== TxKind.EXPENSE || !!d.accountId || !!d.budgetId, {
+    message: 'Pick an account or a budget plan to pay from',
+    path: ['accountId'],
   });
 
 export const updateTransactionSchema = z.object({
@@ -46,6 +67,7 @@ export const listTransactionsQuery = z.object({
   kind: z.nativeEnum(TxKind).optional(),
   categoryId: z.string().optional(),
   accountId: z.string().optional(),
+  budgetId: z.string().optional(),
   tag: z.string().optional(),
   q: z.string().max(200).optional(),
   min: z.coerce.number().optional(),

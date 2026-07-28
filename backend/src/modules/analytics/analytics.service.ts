@@ -283,10 +283,10 @@ export async function unnecessary(user: AuthUser, month?: string, currency?: str
   };
 }
 
-/** Cumulative spend this month vs total budgeted (single currency). */
+/** Cumulative spend this month vs what active budget plans plan to spend. */
 export async function burnRate(user: AuthUser, currency?: string) {
   const cur = await resolveCurrency(user.id, currency);
-  const budgetList = await budgets.list(user);
+  const budgetList = await budgets.list(user, { currency: cur });
   const { start, end } = monthRange();
   const rows = await prisma.transaction.findMany({
     where: { userId: user.id, currency: cur, kind: TxKind.EXPENSE, date: { gte: start, lt: end } },
@@ -298,5 +298,5 @@ export async function burnRate(user: AuthUser, currency?: string) {
     cumulative += Number(r.amount);
     return { date: r.date.toISOString().slice(0, 10), cumulative: cumulative.toFixed(2) };
   });
-  return { currency: cur, points, totalPlanned: budgetList.totals.budgeted };
+  return { currency: cur, points, totalPlanned: budgetList.totals.planned };
 }

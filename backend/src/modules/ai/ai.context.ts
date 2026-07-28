@@ -11,7 +11,7 @@ export async function buildFinanceSnapshot(userId: string) {
   const now = new Date();
   const threeMonthsAgo = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - 2, 1));
 
-  const [user, accounts, categories, transactions, budgets, goals, payees, tabEntries] = await Promise.all([
+  const [user, accounts, categories, transactions, budgets, payees, tabEntries] = await Promise.all([
     prisma.user.findUnique({ where: { id: userId }, select: { name: true, currency: true } }),
     prisma.account.findMany({
       where: { userId, archived: false },
@@ -27,16 +27,18 @@ export async function buildFinanceSnapshot(userId: string) {
     }),
     prisma.budget.findMany({
       where: { userId },
-      select: { amount: true, alertThreshold: true, category: { select: { name: true } } },
-    }),
-    prisma.savingsGoal.findMany({
-      where: { userId },
       select: {
         name: true,
-        targetAmount: true,
-        deadline: true,
-        achievedAt: true,
-        contributions: { select: { amount: true } },
+        kind: true,
+        period: true,
+        plannedAmount: true,
+        currency: true,
+        state: true,
+        cycleIndex: true,
+        alertThreshold: true,
+        category: { select: { name: true } },
+        allocations: { select: { amount: true } },
+        transactions: { where: { kind: TxKind.EXPENSE }, select: { amount: true, budgetCycle: true } },
       },
     }),
     prisma.transaction.groupBy({
@@ -110,19 +112,25 @@ export async function buildFinanceSnapshot(userId: string) {
     accounts: accounts.map((a) => ({ name: a.name, type: a.type, currency: a.currency })),
     categories: categories.map((c) => ({ name: c.name, kind: c.kind })),
     monthlyTotals: monthly,
-    budgets: budgets.map((b) => ({
-      category: b.category.name,
-      monthlyLimit: Number(b.amount),
-      spentThisMonth: Math.round((currentSpend[b.category.name] ?? 0) * 100) / 100,
-      alertThresholdPct: b.alertThreshold,
-    })),
-    goals: goals.map((g) => ({
-      name: g.name,
-      target: Number(g.targetAmount),
-      saved: Number(g.contributions.reduce((s, c) => s.add(c.amount), zero)),
-      deadline: g.deadline?.toISOString().slice(0, 10) ?? null,
-      achieved: Boolean(g.achievedAt),
-    })),
+    budgetPlans: budgets.map((b) => {
+      const allocated = b.allocations.reduce((s, a) => s.add(a.amount), zero);
+      const spentAll = b.transactions.reduce((s, t) => s.add(t.amount), zero);
+      const spentThisCycle = b.transactions
+        .filter((t) => t.budgetCycle === b.cycleIndex)
+        .reduce((s, t) => s.add(t.amount), zero);
+      return {
+        name: b.name,
+        category: b.category?.name ?? null,
+        kind: b.kind,
+        period: b.period,
+        currency: b.currency,
+        state: b.state,
+        plannedPerCycle: Number(b.plannedAmount),
+        inPotNow: Number(allocated.sub(spentAll)),
+        spentThisCycle: Number(spentThisCycle),
+        alertThresholdPct: b.alertThreshold,
+      };
+    }),
     topPayees: payees.map((p) => ({ payee: p.payee, total: Number(p._sum.amount ?? zero) })),
     moneyTab: {
       summary: {

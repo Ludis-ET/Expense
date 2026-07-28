@@ -5,7 +5,7 @@ import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
-import { Field, Input, Select, Textarea } from '@/components/ui/input';
+import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
 import { newId } from '@/lib/offline/outbox';
@@ -31,6 +31,7 @@ export function TransferModal({
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -45,7 +46,7 @@ export function TransferModal({
     if (from === to) return toast.error('Choose two different accounts');
     const fromAccount = accounts.find((a) => a.id === from);
     const toAccount = accounts.find((a) => a.id === to);
-    const today = new Date().toISOString().slice(0, 10);
+    const txDate = date || new Date().toISOString().slice(0, 10);
     setSaving(true);
     const payload = {
       kind: 'TRANSFER',
@@ -53,7 +54,7 @@ export function TransferModal({
       currency: fromAccount?.currency ?? 'ETB',
       accountId: from,
       transferAccountId: to,
-      date: today,
+      date: txDate,
       note: note || undefined,
     };
     const optimistic: Transaction = {
@@ -61,7 +62,7 @@ export function TransferModal({
       kind: 'TRANSFER',
       amount: Number(amount).toFixed(2),
       currency: fromAccount?.currency ?? 'ETB',
-      date: `${today}T12:00:00.000Z`,
+      date: `${txDate}T12:00:00.000Z`,
       accountId: from,
       account: fromAccount ? { id: fromAccount.id, name: fromAccount.name, type: fromAccount.type } : undefined,
       transferAccountId: to,
@@ -77,6 +78,7 @@ export function TransferModal({
       onSaved();
       onClose();
       setAmount('');
+      setDate(new Date().toISOString().slice(0, 10));
       setNote('');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to transfer');
@@ -114,6 +116,9 @@ export function TransferModal({
             onChange={(e) => setAmount(e.target.value)}
             placeholder="0.00"
           />
+        </Field>
+        <Field label="Date">
+          <DateInput value={date} onChange={(e) => setDate(e.target.value)} required />
         </Field>
         <Field label="Note">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Optional…" />

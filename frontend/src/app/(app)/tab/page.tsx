@@ -17,6 +17,7 @@ import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
 import { TabEntryCard, PersonTabCard } from '@/components/finance/tab-widget';
+import { LedgerDetailModal } from '@/components/finance/ledger-detail-modal';
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -45,6 +46,7 @@ export default function TabPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [paying, setPaying] = useState<LedgerEntry | null>(null);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
+  const [viewingEntry, setViewingEntry] = useState<LedgerEntry | null>(null);
 
   const query = filter === 'all'
     ? `/ledger?status=open&currency=${encodeURIComponent(activeCurrency)}`
@@ -200,6 +202,7 @@ export default function TabPage() {
               onRecord={() => setPaying(entry)}
               onEdit={() => { setEditing(entry); setFormOpen(true); }}
               onRemove={() => removeEntry(entry)}
+              onView={() => setViewingEntry(entry)}
             />
           ))}
         </div>
@@ -212,6 +215,13 @@ export default function TabPage() {
         onSaved={refresh}
       />
       <PaymentModal entry={paying} onClose={() => setPaying(null)} onSaved={refresh} />
+      <LedgerDetailModal
+        entry={viewingEntry}
+        onClose={() => setViewingEntry(null)}
+        onRecord={() => { setViewingEntry(null); setPaying(viewingEntry); }}
+        onEdit={() => { setViewingEntry(null); setEditing(viewingEntry); setFormOpen(true); }}
+        onRemove={() => { setViewingEntry(null); if (viewingEntry) void removeEntry(viewingEntry); }}
+      />
     </div>
   );
 }

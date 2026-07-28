@@ -152,6 +152,7 @@ export function TabEntryCard({
   onRecord,
   onEdit,
   onRemove,
+  onView,
   compact,
 }: {
   entry: LedgerEntry;
@@ -159,13 +160,17 @@ export function TabEntryCard({
   onRecord: () => void;
   onEdit: () => void;
   onRemove: () => void;
+  onView?: () => void;
   compact?: boolean;
 }) {
   const meta = kindMeta[entry.kind];
   const Icon = meta.icon;
 
   return (
-    <div className={cn('card overflow-hidden', entry.isOverdue && 'ring-1 ring-warning/40')}>
+    <div
+      className={cn('card overflow-hidden', entry.isOverdue && 'ring-1 ring-warning/40', onView && 'cursor-pointer hover:shadow-md transition-shadow')}
+      onClick={onView}
+    >
       <div className={cn('p-5', compact && 'p-4')}>
         <div className="flex items-start justify-between gap-3">
           <div className="flex items-start gap-3">
@@ -201,7 +206,7 @@ export function TabEntryCard({
         {entry.note && !compact && <p className="mt-3 text-sm text-muted">{entry.note}</p>}
 
         {entry.status === 'OPEN' && !compact && (
-          <div className="mt-4 flex flex-wrap gap-2">
+          <div className="mt-4 flex flex-wrap gap-2" onClick={(e) => e.stopPropagation()}>
             <button
               type="button"
               onClick={onRecord}
@@ -221,6 +226,7 @@ export function TabEntryCard({
     </div>
   );
 }
+
 
 export function PersonTabCard({
   group,

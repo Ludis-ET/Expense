@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
@@ -18,12 +19,77 @@ import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
-import type { Account, AccountType } from '@/lib/types';
+import type { Account, AccountType, Transaction } from '@/lib/types';
 
 const TYPES: AccountType[] = ['CASH', 'BANK', 'MOBILE_MONEY', 'CARD', 'OTHER'];
 const typeLabel = (t: AccountType) => t.replace('_', ' ').toLowerCase().replace(/^\w/, (c) => c.toUpperCase());
 
+/** Mini SVG sparkline showing last 7 data points */
+function Sparkline({ points, color }: { points: number[]; color: string }) {
+  if (points.length < 2) return null;
+  const min = Math.min(...points);
+  const max = Math.max(...points);
+  const range = max - min || 1;
+  const w = 80;
+  const h = 32;
+  const pad = 2;
+  const coords = points.map((v, i) => ({
+    x: pad + (i / (points.length - 1)) * (w - pad * 2),
+    y: h - pad - ((v - min) / range) * (h - pad * 2),
+  }));
+  const d = coords.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const areaD = `${d} L${coords[coords.length - 1]!.x.toFixed(1)},${h} L${coords[0]!.x.toFixed(1)},${h} Z`;
+
+  return (
+    <svg width={w} height={h} viewBox={`0 0 ${w} ${h}`} className="overflow-visible">
+      <defs>
+        <linearGradient id={`grad-${color.replace('#', '')}`} x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0%" stopColor={color} stopOpacity="0.3" />
+          <stop offset="100%" stopColor={color} stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path d={areaD} fill={`url(#grad-${color.replace('#', '')})`} />
+      <path d={d} fill="none" stroke={color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
+}
+
+/** Fetch last 14 days of transactions for a given account and compute daily running balance */
+function useAccountSparkline(accountId: string, openingBalance: string) {
+  const today = new Date();
+  const from = new Date(today.getTime() - 13 * 86_400_000).toISOString().slice(0, 10);
+  const to = today.toISOString().slice(0, 10);
+
+  const { data } = useSWR<{ items: Transaction[] }>(
+    `/transactions?accountId=${accountId}&from=${from}&to=${to}&pageSize=200`,
+  );
+
+  const points = useMemo(() => {
+    if (!data) return [];
+    // Build day buckets for last 14 days
+    const days: Record<string, number> = {};
+    for (let i = 0; i < 14; i++) {
+      const d = new Date(today.getTime() - (13 - i) * 86_400_000).toISOString().slice(0, 10);
+      days[d] = 0;
+    }
+    for (const tx of data.items) {
+      const day = tx.date.slice(0, 10);
+      if (day in days) {
+        if (tx.kind === 'INCOME') days[day]! += Number(tx.amount);
+        else if (tx.kind === 'EXPENSE') days[day]! -= Number(tx.amount);
+      }
+    }
+    // Running balance from opening
+    let balance = Number(openingBalance);
+    return Object.values(days).map((delta) => { balance += delta; return balance; });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [data, openingBalance]);
+
+  return points;
+}
+
 export default function AccountsPage() {
+  const router = useRouter();
   const { user } = useAuth();
   const confirm = useConfirm();
   const { activeCurrency } = useCurrencyView();
@@ -59,6 +125,10 @@ export default function AccountsPage() {
     }
   }
 
+  function goToTransactions(accountId: string) {
+    router.push(`/transactions?accountId=${accountId}`);
+  }
+
   return (
     <div>
       <PageHeader
@@ -79,7 +149,7 @@ export default function AccountsPage() {
 
       {!data ? (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-32" />)}
+          {Array.from({ length: 3 }).map((_, i) => <Skeleton key={i} className="h-40" />)}
         </div>
       ) : accounts.length === 0 ? (
         <EmptyState title="No accounts" description="Add your first wallet to start tracking." />
@@ -92,46 +162,15 @@ export default function AccountsPage() {
             </CardContent>
           </Card>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-            {accounts.filter((a) => a.currency === activeCurrency).map((a) => {
-              const Icon = financeIcon(a.icon);
-              const color = a.color ?? '#64748b';
-              return (
-                <Card key={a.id} className={a.archived ? 'opacity-60' : undefined}>
-                  <CardContent className="p-5">
-                    <div className="flex items-start justify-between">
-                      <span
-                        className="flex h-10 w-10 items-center justify-center rounded-lg"
-                        style={{ backgroundColor: `${color}22`, color }}
-                      >
-                        <Icon className="h-5 w-5" />
-                      </span>
-                      <div className="flex gap-1">
-                        <button
-                          onClick={() => { setEditing(a); setFormOpen(true); }}
-                          className="rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-muted"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => remove(a)}
-                          className="rounded-md p-1 text-muted hover:bg-surface-muted hover:text-danger"
-                          aria-label="Delete"
-                        >
-                          <Trash2 className="h-3.5 w-3.5" />
-                        </button>
-                      </div>
-                    </div>
-                    <p className="mt-3 flex items-center gap-2 font-medium">
-                      {a.name}
-                      {a.isDefault && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">default</span>}
-                      {a.archived && <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-muted">archived</span>}
-                    </p>
-                    <p className="text-xs text-muted">{typeLabel(a.type)} · {a.currency}</p>
-                    <AccountBalance balance={a.balance} currency={a.currency} />
-                  </CardContent>
-                </Card>
-              );
-            })}
+            {accounts.filter((a) => a.currency === activeCurrency).map((a) => (
+              <AccountCard
+                key={a.id}
+                account={a}
+                onEdit={() => { setEditing(a); setFormOpen(true); }}
+                onDelete={() => remove(a)}
+                onClick={() => goToTransactions(a.id)}
+              />
+            ))}
           </div>
         </>
       )}
@@ -148,9 +187,74 @@ export default function AccountsPage() {
   );
 }
 
-function AccountBalance({ balance, currency }: { balance: string; currency: string }) {
-  const { money } = useMoney(currency);
-  return <p className="mt-2 text-xl font-bold tabular-nums">{money(balance)}</p>;
+function AccountCard({
+  account,
+  onEdit,
+  onDelete,
+  onClick,
+}: {
+  account: Account;
+  onEdit: () => void;
+  onDelete: () => void;
+  onClick: () => void;
+}) {
+  const { money } = useMoney(account.currency);
+  const sparkPoints = useAccountSparkline(account.id, account.openingBalance);
+  const Icon = financeIcon(account.icon);
+  const color = account.color ?? '#64748b';
+
+  return (
+    <Card
+      className={`${account.archived ? 'opacity-60' : ''} cursor-pointer hover:shadow-lg transition-shadow group`}
+      onClick={onClick}
+    >
+      <CardContent className="p-5">
+        <div className="flex items-start justify-between">
+          <span
+            className="flex h-10 w-10 items-center justify-center rounded-lg"
+            style={{ backgroundColor: `${color}22`, color }}
+          >
+            <Icon className="h-5 w-5" />
+          </span>
+          <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
+            <button
+              onClick={onEdit}
+              className="rounded-md px-2 py-1 text-xs text-muted hover:bg-surface-muted"
+            >
+              Edit
+            </button>
+            <button
+              onClick={onDelete}
+              className="rounded-md p-1 text-muted hover:bg-surface-muted hover:text-danger"
+              aria-label="Delete"
+            >
+              <Trash2 className="h-3.5 w-3.5" />
+            </button>
+          </div>
+        </div>
+        <p className="mt-3 flex items-center gap-2 font-medium">
+          {account.name}
+          {account.isDefault && <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[10px] text-primary">default</span>}
+          {account.archived && <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] text-muted">archived</span>}
+        </p>
+        <p className="text-xs text-muted">{typeLabel(account.type)} · {account.currency}</p>
+        <p className="mt-2 text-xl font-bold tabular-nums">{money(account.balance)}</p>
+
+        {/* Mini sparkline */}
+        {sparkPoints.length >= 2 && (
+          <div className="mt-3 flex items-end justify-between gap-2">
+            <p className="text-[10px] text-muted">14-day trend</p>
+            <Sparkline points={sparkPoints} color={color} />
+          </div>
+        )}
+        {sparkPoints.length >= 2 && (
+          <p className="mt-1 text-right text-[10px] text-primary opacity-0 group-hover:opacity-100 transition-opacity">
+            View transactions →
+          </p>
+        )}
+      </CardContent>
+    </Card>
+  );
 }
 
 function AccountForm({

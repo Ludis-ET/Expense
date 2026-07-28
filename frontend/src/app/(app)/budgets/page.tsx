@@ -14,6 +14,7 @@ import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/m
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { GoalsPanel } from '@/components/finance/goals-panel';
+import { BudgetDetailModal } from '@/components/finance/budget-detail-modal';
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -55,6 +56,7 @@ function PlanInner() {
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<BudgetRow | null>(null);
   const [historyFor, setHistoryFor] = useState<BudgetRow | null>(null);
+  const [viewingBudget, setViewingBudget] = useState<BudgetRow | null>(null);
 
   const budgeted = new Set((data?.items ?? []).map((b) => b.categoryId));
   const unbudgeted = (categoriesData?.items ?? []).filter((c) => !c.archived && !budgeted.has(c.id));
@@ -134,6 +136,7 @@ function PlanInner() {
               key={b.id}
               b={b}
               money={money}
+              onView={() => setViewingBudget(b)}
               onEdit={() => { setEditing(b); setModalOpen(true); }}
               onHistory={() => setHistoryFor(b)}
               onRemove={() => remove(b)}
@@ -156,6 +159,11 @@ function PlanInner() {
         onSaved={() => void mutate()}
       />
       <BudgetHistoryModal row={historyFor} onClose={() => setHistoryFor(null)} />
+      <BudgetDetailModal
+        row={viewingBudget}
+        onClose={() => setViewingBudget(null)}
+        onEdit={() => { setEditing(viewingBudget); setModalOpen(true); }}
+      />
         </>
       )}
     </div>
@@ -165,12 +173,14 @@ function PlanInner() {
 function BudgetCard({
   b,
   money,
+  onView,
   onEdit,
   onHistory,
   onRemove,
 }: {
   b: BudgetRow;
   money: (v: string | number) => string;
+  onView: () => void;
   onEdit: () => void;
   onHistory: () => void;
   onRemove: () => void;
@@ -178,7 +188,10 @@ function BudgetCard({
   const carry = Number(b.carryIn);
   const inactive = b.status === 'upcoming' || b.status === 'ended';
   return (
-    <Card className={inactive ? 'opacity-70' : undefined}>
+    <Card
+      className={cn(inactive ? 'opacity-70' : undefined, 'cursor-pointer hover:shadow-md transition-shadow')}
+      onClick={onView}
+    >
       <CardContent className="p-4">
         <div className="mb-2 flex items-center justify-between gap-2">
           <div className="flex min-w-0 items-center gap-2">
@@ -192,7 +205,7 @@ function BudgetCard({
               </span>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-3">
+          <div className="flex shrink-0 items-center gap-3" onClick={(e) => e.stopPropagation()}>
             <span className="text-sm tabular-nums text-muted">
               {money(b.spent)} / {money(b.effectiveLimit)}
             </span>

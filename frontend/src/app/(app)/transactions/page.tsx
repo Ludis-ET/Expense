@@ -10,8 +10,10 @@ import { Button } from '@/components/ui/button';
 import { Input, Select } from '@/components/ui/input';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { TransactionForm } from '@/components/finance/transaction-form';
+import { TransactionDetailModal } from '@/components/finance/transaction-detail-modal';
 import { TransferModal } from '@/components/finance/transfer-modal';
 import { RecurringPanel } from '@/components/finance/recurring-panel';
+import { ExportImportModal } from '@/components/finance/export-import-modal';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
@@ -36,12 +38,20 @@ function TransactionsInner() {
   const [month, setMonth] = useState(currentMonth());
   const [kind, setKind] = useState<TxKind | ''>('');
   const [categoryId, setCategoryId] = useState('');
-  const [accountId, setAccountId] = useState('');
+  const [accountId, setAccountId] = useState(params.get('accountId') ?? '');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
+  const [exportImportOpen, setExportImportOpen] = useState(false);
   const [editing, setEditing] = useState<Transaction | null>(null);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
+
+  // Pre-fill accountId from URL (when navigating from accounts page)
+  useEffect(() => {
+    const fromUrl = params.get('accountId');
+    if (fromUrl) setAccountId(fromUrl);
+  }, [params]);
 
   const { data: accountsData } = useSWR<{ items: Account[] }>('/accounts');
   const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories');
@@ -121,34 +131,6 @@ function TransactionsInner() {
     }
   }
 
-  function exportCsv() {
-    const rows = data?.items ?? [];
-    if (rows.length === 0) return toast.info('Nothing to export');
-    const header = ['Date', 'Kind', 'Amount', 'Currency', 'Category', 'Account', 'Payee', 'Note', 'Tags'];
-    const body = rows.map((t) =>
-      [
-        t.date.slice(0, 10),
-        t.kind,
-        t.amount,
-        t.currency,
-        t.category?.name ?? '',
-        t.account?.name ?? '',
-        t.payee ?? '',
-        t.note ?? '',
-        t.tags.join('|'),
-      ]
-        .map((v) => `"${String(v).replace(/"/g, '""')}"`)
-        .join(','),
-    );
-    const blob = new Blob([[header.join(','), ...body].join('\n')], { type: 'text/csv' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `transactions-${month}.csv`;
-    a.click();
-    URL.revokeObjectURL(url);
-  }
-
   const totalPages = data ? Math.max(1, Math.ceil(data.total / data.pageSize)) : 1;
 
   return (
@@ -160,8 +142,8 @@ function TransactionsInner() {
         action={
           tab === 'ledger' ? (
             <div className="flex flex-wrap items-center gap-2">
-              <Button variant="outline" size="sm" onClick={exportCsv} className="hidden sm:inline-flex">
-                <Download className="h-4 w-4" /> Export
+              <Button variant="outline" size="sm" onClick={() => setExportImportOpen(true)} className="hidden sm:inline-flex">
+                <Download className="h-4 w-4" /> Export / Import
               </Button>
               <Button
                 variant="outline"
@@ -223,6 +205,10 @@ function TransactionsInner() {
             <option key={a.id} value={a.id}>{a.name}</option>
           ))}
         </Select>
+        {/* Mobile export button */}
+        <Button variant="outline" size="sm" onClick={() => setExportImportOpen(true)} className="sm:hidden">
+          <Download className="h-4 w-4" />
+        </Button>
       </div>
 
       {isLoading && displayItems.length === 0 ? (
@@ -235,7 +221,12 @@ function TransactionsInner() {
         />
       ) : (
         <>
-          <TransactionList items={displayItems} onEdit={(tx) => { setEditing(tx); setFormOpen(true); }} onDelete={remove} />
+          <TransactionList
+            items={displayItems}
+            onView={(tx) => setViewing(tx)}
+            onEdit={(tx) => { setEditing(tx); setFormOpen(true); }}
+            onDelete={remove}
+          />
           {totalPages > 1 && (
             <div className="mt-6 flex items-center justify-center gap-3 text-sm">
               <Button variant="outline" size="sm" disabled={page <= 1} onClick={() => setPage((p) => p - 1)}>
@@ -260,6 +251,16 @@ function TransactionsInner() {
         open={transferOpen}
         onClose={() => setTransferOpen(false)}
         onSaved={() => void mutate()}
+      />
+      <TransactionDetailModal
+        transaction={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={(tx) => { setViewing(null); setEditing(tx); setFormOpen(true); }}
+        onDelete={(tx) => { setViewing(null); void remove(tx); }}
+      />
+      <ExportImportModal
+        open={exportImportOpen}
+        onClose={() => setExportImportOpen(false)}
       />
         </>
       )}

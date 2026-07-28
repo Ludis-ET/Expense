@@ -6,7 +6,7 @@
 const STORAGE_KEY = "santim-app-lock";
 const UNLOCKED_SESSION_KEY = "santim-app-lock-unlocked";
 
-export type AutoLockMinutes = 0 | 1 | 2 | 5 | 15;
+export type AutoLockMinutes = 0 | 1 | 2 | 5 | 15 | 30 | 60;
 
 export interface AppLockConfig {
   enabled: boolean;

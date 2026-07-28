@@ -41,12 +41,13 @@ function PendingChip({ status }: { status: NonNullable<Transaction['pending']> }
 interface TransactionListProps {
   items: Transaction[];
   compact?: boolean;
+  onView?: (tx: Transaction) => void;
   onEdit?: (tx: Transaction) => void;
   onDelete?: (tx: Transaction) => void;
 }
 
 /** Day-grouped transaction rows with always-visible mobile actions. */
-export function TransactionList({ items, compact, onEdit, onDelete }: TransactionListProps) {
+export function TransactionList({ items, compact, onView, onEdit, onDelete }: TransactionListProps) {
   const { signedMoney, hidden } = useMoney();
   const groups: { day: string; items: Transaction[]; net: number }[] = [];
   for (const tx of items) {
@@ -90,9 +91,11 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
               return (
                 <li
                   key={tx.id}
+                  onClick={() => onView?.(tx)}
                   className={cn(
                     'flex items-center gap-2 border-b border-border px-3 py-3 last:border-b-0 sm:gap-3 sm:px-4',
                     tx.pending && 'bg-primary/[0.03]',
+                    onView && 'cursor-pointer hover:bg-surface-muted/60 transition-colors',
                   )}
                 >
                   <span
@@ -123,7 +126,7 @@ export function TransactionList({ items, compact, onEdit, onDelete }: Transactio
                     {signedMoney(tx.amount, tx.kind, tx.currency)}
                   </span>
                   {(onEdit || onDelete) && (
-                    <span className="flex shrink-0 items-center gap-0.5">
+                    <span className="flex shrink-0 items-center gap-0.5" onClick={(e) => e.stopPropagation()}>
                       {onEdit && !isTransfer && (
                         <button
                           type="button"

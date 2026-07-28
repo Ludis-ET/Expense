@@ -23,6 +23,8 @@ const AUTO_LOCK_OPTIONS: { value: AutoLockMinutes; label: string }[] = [
   { value: 2, label: "After 2 minutes idle" },
   { value: 5, label: "After 5 minutes idle" },
   { value: 15, label: "After 15 minutes idle" },
+  { value: 30, label: "After 30 minutes idle" },
+  { value: 60, label: "After 1 hour idle" },
 ];
 
 export function AppLockPanel() {

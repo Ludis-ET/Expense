@@ -1,4 +1,5 @@
 import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
+import { InfoHint } from '@/components/ui/info-hint';
 import { cn } from '@/lib/utils';
 
 export { Select } from '@/components/ui/select';
@@ -32,12 +33,26 @@ export function Label({ className, ...props }: React.LabelHTMLAttributes<HTMLLab
   return <label className={cn('mb-1.5 block text-sm font-medium text-foreground', className)} {...props} />;
 }
 
-export function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+/**
+ * Label + control. A `hint` rides behind an `i` icon on the label row instead
+ * of adding another line of grey copy under every input.
+ */
+export function Field({
+  label,
+  children,
+  hint,
+}: {
+  label: string;
+  children: React.ReactNode;
+  hint?: React.ReactNode;
+}) {
   return (
     <div>
-      <Label>{label}</Label>
+      <div className="mb-1.5 flex items-center gap-1.5">
+        <Label className="mb-0">{label}</Label>
+        {hint && <InfoHint label={`About ${label}`}>{hint}</InfoHint>}
+      </div>
       {children}
-      {hint && <p className="mt-1 text-xs text-muted">{hint}</p>}
     </div>
   );
 }

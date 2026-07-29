@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { ArchiveRestore, CalendarClock, CircleEllipsis, Repeat, Wallet } from 'lucide-react';
 import { financeIcon } from './icons';
+import { InfoHint } from '@/components/ui/info-hint';
 import { useMoney } from '@/lib/amount-visibility';
 import { cn } from '@/lib/utils';
 import type { BudgetHealth, BudgetRow } from '@/lib/types';
@@ -192,14 +193,17 @@ function UnplannedCard({ plan }: { plan: BudgetRow }) {
         </span>
         <div className="min-w-0 flex-1">
           <div className="flex items-start justify-between gap-2">
-            <h3 className="truncate font-semibold leading-snug">{plan.name}</h3>
+            <div className="flex min-w-0 items-center gap-1.5">
+              <h3 className="truncate font-semibold leading-snug">{plan.name}</h3>
+              <InfoHint label="About Unplanned">
+                Spending you never set money aside for. It comes straight out of whichever account
+                you pick - no pot, no reservation.
+              </InfoHint>
+            </div>
             <span className="shrink-0 rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
               Always here
             </span>
           </div>
-          <p className="mt-0.5 text-xs text-muted">
-            Spending you never set money aside for
-          </p>
         </div>
       </div>
 
@@ -208,9 +212,6 @@ function UnplannedCard({ plan }: { plan: BudgetRow }) {
           <span className="text-xl font-bold tabular-nums">{money(plan.spentAmount)}</span>
           <span className="text-xs text-muted">spent unplanned</span>
         </div>
-        <p className="text-xs text-muted">
-          Comes straight out of whichever account you pick - no pot, no reservation.
-        </p>
       </div>
     </Link>
   );

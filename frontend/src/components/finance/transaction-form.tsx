@@ -356,7 +356,10 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
         )}
 
         {isUnplanned && (
-          <Field label="Take it out of" hint="Unplanned has no pot of its own">
+          <Field
+            label="Take it out of"
+            hint="Unplanned has no pot of its own. The money comes straight out of the account you pick, from whatever is left after your other plans."
+          >
             <Select
               value={drawFromId}
               onChange={(e) => setDrawFromId(e.target.value)}
@@ -381,16 +384,6 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
                 <> · charged to {selectedPlan.sources[0].account.name}</>
               )}
               . It can&apos;t go below zero.
-            </span>
-          </p>
-        )}
-
-        {isUnplanned && (
-          <p className="-mt-2 flex items-start gap-2 rounded-xl bg-surface-muted/60 px-3 py-2 text-xs text-muted">
-            <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-            <span>
-              Money you did not set aside in advance. It comes straight out of the account
-              you picked, from whatever is left after your other plans.
             </span>
           </p>
         )}

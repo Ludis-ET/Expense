@@ -6,6 +6,7 @@ import Link from 'next/link';
 import { Flame, Lightbulb, PiggyBank, TrendingDown, TrendingUp, BarChart3, ArrowRight } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { PageHeader, ProgressBar, Skeleton, EmptyState } from '@/components/ui/misc';
+import { InfoHint } from '@/components/ui/info-hint';
 import { HeroBalance } from '@/components/finance/hero-balance';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { FinancialHealth } from '@/components/finance/financial-health';
@@ -218,7 +219,12 @@ export default function DashboardPage() {
 
           <Card>
             <CardHeader>
-              <CardTitle>Set aside</CardTitle>
+              <div className="flex items-center gap-1.5">
+                <CardTitle>Set aside</CardTitle>
+                <InfoHint label="About set aside">
+                  Every balance on this page is shown after this money is taken out.
+                </InfoHint>
+              </div>
               <Link href="/budgets" className="text-xs font-medium text-primary hover:underline">All plans</Link>
             </CardHeader>
             <CardContent className="space-y-3">
@@ -241,9 +247,6 @@ export default function DashboardPage() {
                   <dd className="font-semibold tabular-nums">{money(data.budgetTotals.spent)}</dd>
                 </div>
               </dl>
-              <p className="text-xs text-muted">
-                Every balance on this page is shown after this money is taken out.
-              </p>
             </CardContent>
           </Card>
         </div>

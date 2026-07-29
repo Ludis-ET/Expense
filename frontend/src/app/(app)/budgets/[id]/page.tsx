@@ -12,34 +12,34 @@ import {
   Archive,
   ArchiveRestore,
   CalendarClock,
-  ChevronDown,
   CircleEllipsis,
-  History,
   Pencil,
   Repeat,
   ShoppingBag,
+  SlidersHorizontal,
   Trash2,
   Wallet,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { EmptyState, PageLoader } from '@/components/ui/misc';
+import { InfoHint } from '@/components/ui/info-hint';
 import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
 import { HEALTH_META } from '@/components/finance/budget-plan-card';
-import { BudgetPlanForm, FundPlanModal } from '@/components/finance/budget-plan-modals';
+import { AdjustPlanModal, BudgetPlanForm, FundPlanModal } from '@/components/finance/budget-plan-modals';
+import { AdjustmentChip, BudgetCycleSections } from '@/components/finance/budget-cycles';
 import { BudgetTransactions } from '@/components/finance/budget-transactions';
 import { TransactionDetailModal } from '@/components/finance/transaction-detail-modal';
 import { TransactionForm } from '@/components/finance/transaction-form';
-import { TransactionList } from '@/components/finance/transaction-list';
 import { CalendarDate } from '@/components/calendar-date';
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import { cn } from '@/lib/utils';
 import type {
+  BudgetAdjustment as BudgetAdjustmentEntry,
   BudgetAllocation,
-  BudgetCycleSnapshot,
   BudgetDetail,
   BudgetTimelineEntry,
   BudgetTransaction,
@@ -55,6 +55,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
   const { data: plan, mutate, isLoading, error } = useSWR<BudgetDetail>(`/budgets/${id}`);
 
   const [editOpen, setEditOpen] = useState(false);
+  const [adjustOpen, setAdjustOpen] = useState(false);
   const [moveMode, setMoveMode] = useState<'fund' | 'release' | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
   const [editingTx, setEditingTx] = useState<Transaction | null>(null);
@@ -160,6 +161,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
           busy={busy}
           onFund={() => setMoveMode('fund')}
           onRelease={() => setMoveMode('release')}
+          onAdjust={() => setAdjustOpen(true)}
           onEdit={() => setEditOpen(true)}
           onClose={() => act('close', 'Plan closed')}
           onReopen={() => act('reopen', 'Plan reopened')}
@@ -228,7 +230,13 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
       {!unplanned && plan.sources.length > 0 && (
         <Card>
           <CardContent className="p-4 sm:p-5">
-            <h2 className="mb-3 text-sm font-semibold">Money held per account</h2>
+            <div className="mb-3 flex items-center gap-1.5">
+              <h2 className="text-sm font-semibold">Money held per account</h2>
+              <InfoHint label="About money held per account">
+                This money is still physically in these accounts - it just doesn&apos;t count as
+                available until you spend it here or give it back.
+              </InfoHint>
+            </div>
             <ul className="space-y-2">
               {plan.sources.map((s) => (
                 <li
@@ -245,20 +253,20 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
                 </li>
               ))}
             </ul>
-            <p className="mt-3 text-xs text-muted">
-              This money is still physically in these accounts - it just doesn&apos;t count as
-              available until you spend it here or give it back.
-            </p>
           </CardContent>
         </Card>
       )}
 
-      {/* ---- Transactions (searchable, filterable, paginated) --------- */}
-      <Card>
-        <CardContent className="p-4 sm:p-5">
-          <BudgetTransactions plan={plan} onView={(tx) => setViewing(tx)} />
-        </CardContent>
-      </Card>
+      {/* A recurring plan reads period by period; everything else is one list. */}
+      {plan.kind === 'RECURRING' ? (
+        <BudgetCycleSections plan={plan} onViewTx={(tx) => setViewing(tx)} />
+      ) : (
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <BudgetTransactions plan={plan} onView={(tx) => setViewing(tx)} />
+          </CardContent>
+        </Card>
+      )}
 
       {/* ---- Recent movements ----------------------------------------- */}
       {!unplanned && (
@@ -283,18 +291,6 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* ---- Past cycles ----------------------------------------------- */}
-      {plan.cycles.length > 0 && (
-        <div className="space-y-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold">
-            <History className="h-4 w-4 text-muted" /> Past {plan.periodNoun ?? 'cycle'}s
-          </h2>
-          {plan.cycles.map((c) => (
-            <CycleSnapshot key={c.index} cycle={c} planId={plan.id} onView={setViewing} />
-          ))}
-        </div>
-      )}
-
       <BudgetPlanForm
         open={editOpen}
         editing={plan}
@@ -302,6 +298,15 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         onClose={() => setEditOpen(false)}
         onSaved={() => {
           void mutate();
+          void refreshLinked();
+        }}
+      />
+
+      <AdjustPlanModal
+        plan={adjustOpen ? plan : null}
+        onClose={() => setAdjustOpen(false)}
+        onSaved={(updated) => {
+          void mutate(updated, { revalidate: false });
           void refreshLinked();
         }}
       />
@@ -345,6 +350,7 @@ function PlanHero({
   busy,
   onFund,
   onRelease,
+  onAdjust,
   onEdit,
   onClose,
   onReopen,
@@ -354,6 +360,7 @@ function PlanHero({
   busy: boolean;
   onFund: () => void;
   onRelease: () => void;
+  onAdjust: () => void;
   onEdit: () => void;
   onClose: () => void;
   onReopen: () => void;
@@ -426,6 +433,11 @@ function PlanHero({
               <ArrowDownLeft className="h-4 w-4" /> Give back
             </Button>
           )}
+          {!closed && (
+            <Button size="sm" variant="outline" onClick={onAdjust}>
+              <SlidersHorizontal className="h-4 w-4" /> Add / Deduct
+            </Button>
+          )}
           <Button size="sm" variant="outline" onClick={onEdit}>
             <Pencil className="h-4 w-4" /> Edit
           </Button>
@@ -467,6 +479,16 @@ function PlanHero({
           <strong className="text-foreground">{money(plan.spentAmount)}</strong> of it
           {Number(plan.fillable) > 0 && !closed && <> · {money(plan.fillable)} can still go in</>}.
         </p>
+
+        {/* The opening figure only differs once you've raised or cut the plan. */}
+        {Number(plan.adjustedThisCycle) !== 0 && (
+          <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted">
+            <span>
+              Opened this {plan.periodNoun ?? 'cycle'} at {money(plan.openingPlanned)}
+            </span>
+            <AdjustmentChip amount={plan.adjustedThisCycle} />
+          </p>
+        )}
       </div>
     </div>
   );
@@ -485,15 +507,15 @@ function UnplannedHero({ plan }: { plan: BudgetDetail }) {
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
             <h1 className="truncate text-2xl font-bold tracking-tight">{plan.name}</h1>
+            <InfoHint label="About Unplanned">
+              Everything you spend without setting money aside first lands here. It has no pot of its
+              own - each expense comes straight out of the account you choose, from whatever is left
+              after your other plans.
+            </InfoHint>
             <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
               Built in
             </span>
           </div>
-          <p className="mt-1 max-w-prose text-sm text-muted">
-            Everything you spend without setting money aside first lands here. It has no pot of its
-            own - each expense comes straight out of the account you choose, from whatever is left
-            after your other plans.
-          </p>
         </div>
       </div>
 
@@ -537,12 +559,24 @@ function Timeline({
       {entries.map((e, i) => {
         const isSpend = e.type === 'spend';
         const isRelease = e.type === 'release';
-        const tone = isSpend
-          ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
-          : isRelease
-            ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
-            : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
-        const EntryIcon = isSpend ? ShoppingBag : isRelease ? ArrowDownLeft : ArrowUpRight;
+        // A raise or cut changes the plan's size, not its pot - it gets its own
+        // colour so it never reads as money moving in or out.
+        const isAdjust = e.type === 'adjust';
+        const adjustUp = isAdjust && Number(e.entry.amount) > 0;
+        const tone = isAdjust
+          ? 'bg-indigo-500/15 text-indigo-600 dark:text-indigo-400'
+          : isSpend
+            ? 'bg-rose-500/15 text-rose-600 dark:text-rose-400'
+            : isRelease
+              ? 'bg-amber-500/15 text-amber-600 dark:text-amber-400'
+              : 'bg-emerald-500/15 text-emerald-600 dark:text-emerald-400';
+        const EntryIcon = isAdjust
+          ? SlidersHorizontal
+          : isSpend
+            ? ShoppingBag
+            : isRelease
+              ? ArrowDownLeft
+              : ArrowUpRight;
 
         return (
           <li key={`${e.type}-${e.entry.id}-${i}`} className="relative pb-5 last:pb-0">
@@ -558,13 +592,15 @@ function Timeline({
             <div className="flex flex-wrap items-start justify-between gap-2">
               <div className="min-w-0">
                 <p className="text-sm font-medium">
-                  {isSpend
-                    ? ((e.entry as BudgetTransaction).payee ??
-                      (e.entry as BudgetTransaction).note ??
-                      'Expense')
-                    : isRelease
-                      ? `Returned to ${(e.entry as BudgetAllocation).account?.name ?? 'account'}`
-                      : `Filled from ${(e.entry as BudgetAllocation).account?.name ?? 'account'}`}
+                  {isAdjust
+                    ? `Plan amount ${adjustUp ? 'raised' : 'cut'}`
+                    : isSpend
+                      ? ((e.entry as BudgetTransaction).payee ??
+                        (e.entry as BudgetTransaction).note ??
+                        'Expense')
+                      : isRelease
+                        ? `Returned to ${(e.entry as BudgetAllocation).account?.name ?? 'account'}`
+                        : `Filled from ${(e.entry as BudgetAllocation).account?.name ?? 'account'}`}
                 </p>
                 <p className="mt-0.5 flex flex-wrap items-center gap-x-1.5 text-xs text-muted">
                   <CalendarDate value={e.at} />
@@ -574,7 +610,10 @@ function Timeline({
                   {isSpend && (e.entry as BudgetTransaction).account && (
                     <>· from {(e.entry as BudgetTransaction).account!.name}</>
                   )}
-                  {!isSpend && (e.entry as BudgetAllocation).note && (
+                  {isAdjust && (e.entry as BudgetAdjustmentEntry).reason && (
+                    <>· {(e.entry as BudgetAdjustmentEntry).reason}</>
+                  )}
+                  {!isSpend && !isAdjust && (e.entry as BudgetAllocation).note && (
                     <>· {(e.entry as BudgetAllocation).note}</>
                   )}
                   {e.cycleIndex !== currentCycle && <>· earlier cycle</>}
@@ -583,12 +622,14 @@ function Timeline({
               <span
                 className={cn(
                   'shrink-0 text-sm font-semibold tabular-nums',
-                  isSpend || isRelease
-                    ? 'text-rose-600 dark:text-rose-400'
-                    : 'text-emerald-600 dark:text-emerald-400',
+                  isAdjust
+                    ? 'text-indigo-600 dark:text-indigo-400'
+                    : isSpend || isRelease
+                      ? 'text-rose-600 dark:text-rose-400'
+                      : 'text-emerald-600 dark:text-emerald-400',
                 )}
               >
-                {isSpend || isRelease ? '−' : '+'}
+                {isAdjust ? (adjustUp ? '+' : '−') : isSpend || isRelease ? '−' : '+'}
                 {money(Math.abs(Number(e.entry.amount)))}
               </span>
             </div>
@@ -599,88 +640,3 @@ function Timeline({
   );
 }
 
-/**
- * A frozen cycle: what was planned, filled, spent, and what rolled forward.
- * Its transactions are fetched only when you open it.
- */
-function CycleSnapshot({
-  cycle,
-  planId,
-  onView,
-}: {
-  cycle: BudgetCycleSnapshot;
-  planId: string;
-  onView: (tx: Transaction) => void;
-}) {
-  const { money } = useMoney();
-  const [open, setOpen] = useState(false);
-  const { data } = useSWR<{ items: Transaction[] }>(
-    open && cycle.txCount > 0
-      ? `/transactions?budgetId=${planId}&budgetCycle=${cycle.index}&pageSize=100&sort=date_desc`
-      : null,
-  );
-  const planned = Math.max(Number(cycle.plannedAmount), 0.01);
-  const spentPct = Math.min(100, (Number(cycle.spentAmount) / planned) * 100);
-
-  return (
-    <Card>
-      <CardContent className="p-4">
-        <button
-          type="button"
-          onClick={() => setOpen((v) => !v)}
-          className="flex w-full items-start justify-between gap-3 text-left"
-          aria-expanded={open}
-        >
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 font-semibold">
-              <ChevronDown
-                className={cn('h-4 w-4 text-muted transition-transform', open && 'rotate-180')}
-              />
-              {cycle.label}
-            </p>
-            <p className="mt-0.5 pl-5 text-xs text-muted">
-              filled {money(cycle.fundedAmount)} · spent {money(cycle.spentAmount)} · {cycle.txCount}{' '}
-              transaction{cycle.txCount === 1 ? '' : 's'}
-            </p>
-          </div>
-          <div className="shrink-0 text-right">
-            <p className="text-sm font-semibold tabular-nums">{money(cycle.leftoverAmount)}</p>
-            <p className="text-[11px] text-muted">carried forward</p>
-          </div>
-        </button>
-
-        <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-          <div className="h-full rounded-full bg-foreground/30" style={{ width: `${spentPct}%` }} />
-        </div>
-
-        {open && (
-          <div className="mt-4 space-y-3 border-t border-border pt-3">
-            <dl className="grid grid-cols-2 gap-3 text-xs sm:grid-cols-4">
-              <Stat label="Planned" value={money(cycle.plannedAmount)} />
-              <Stat label="Carried in" value={money(cycle.carriedIn)} />
-              <Stat label="Filled" value={money(cycle.fundedAmount)} />
-              <Stat label="Spent" value={money(cycle.spentAmount)} />
-            </dl>
-
-            {cycle.txCount === 0 ? (
-              <p className="text-xs text-muted">No spending in this cycle.</p>
-            ) : !data ? (
-              <p className="text-xs text-muted">Loading transactions…</p>
-            ) : (
-              <TransactionList items={data.items} compact onView={onView} />
-            )}
-          </div>
-        )}
-      </CardContent>
-    </Card>
-  );
-}
-
-function Stat({ label, value }: { label: string; value: string }) {
-  return (
-    <div>
-      <dt className="text-muted">{label}</dt>
-      <dd className="font-semibold tabular-nums">{value}</dd>
-    </div>
-  );
-}

@@ -3,6 +3,7 @@ import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
 import {
+  adjustBudgetSchema,
   budgetIdParam,
   budgetSourcesQuery,
   createBudgetSchema,
@@ -73,6 +74,15 @@ budgetsRouter.post(
   validate({ params: budgetIdParam, body: releaseBudgetSchema }),
   asyncHandler(async (req, res) => {
     res.json(await budgets.release(req.user!, req.params.id!, req.body));
+  }),
+);
+
+/** Raise or cut the plan amount, tracked as a movement instead of an edit. */
+budgetsRouter.post(
+  '/:id/adjust',
+  validate({ params: budgetIdParam, body: adjustBudgetSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.adjust(req.user!, req.params.id!, req.body));
   }),
 );
 

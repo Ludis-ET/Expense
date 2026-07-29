@@ -61,6 +61,17 @@ export const fundBudgetSchema = z.object({
   note: z.string().max(200).nullish(),
 });
 
+/**
+ * Raise or cut the plan amount. The direction is explicit rather than a signed
+ * number so a stray minus sign can never turn a top-up into a cut.
+ */
+export const adjustBudgetSchema = z.object({
+  direction: z.enum(['ADD', 'DEDUCT']),
+  amount: money,
+  reason: z.string().trim().max(200).nullish(),
+  date: z.coerce.date().optional(),
+});
+
 export const releaseBudgetSchema = z.object({
   /** Defaults to the account with the largest share of the pot. */
   accountId: z.string().min(1).optional(),
@@ -83,5 +94,6 @@ export const budgetIdParam = z.object({ id: z.string().min(1) });
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
 export type UpdateBudgetInput = z.infer<typeof updateBudgetSchema>;
 export type FundBudgetInput = z.infer<typeof fundBudgetSchema>;
+export type AdjustBudgetInput = z.infer<typeof adjustBudgetSchema>;
 export type ReleaseBudgetInput = z.infer<typeof releaseBudgetSchema>;
 export type ListBudgetsQuery = z.infer<typeof listBudgetsQuery>;

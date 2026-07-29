@@ -9,6 +9,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Field, Input } from '@/components/ui/input';
 import { Avatar } from '@/components/ui/misc';
+import { InfoHint } from '@/components/ui/info-hint';
 import { api, ApiError } from '@/lib/api';
 import { useConfirm } from '@/components/ui/confirm-dialog';
 import type { Account, HouseholdOverview } from '@/lib/types';
@@ -139,12 +140,12 @@ export function HouseholdPanel() {
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="font-semibold">{household.name}</p>
+            <div className="flex items-center justify-between gap-3">
+              <div className="min-w-0">
+                <p className="truncate font-semibold">{household.name}</p>
                 <p className="text-xs text-muted">You are the {household.role.toLowerCase()}</p>
               </div>
-              <Button variant="outline" size="sm" onClick={leaveHousehold}>
+              <Button variant="outline" size="sm" className="shrink-0" onClick={leaveHousehold}>
                 <LogOut className="h-4 w-4" /> Leave
               </Button>
             </div>
@@ -154,12 +155,12 @@ export function HouseholdPanel() {
               <ul className="space-y-2">
                 {household.members.map((m) => (
                   <li key={m.id} className="flex items-center gap-3 rounded-lg bg-surface-muted/50 px-3 py-2">
-                    <Avatar name={m.name} className="h-8 w-8 text-[10px]" />
-                    <div className="flex-1">
-                      <p className="text-sm font-medium">{m.isYou ? `${m.name} (you)` : m.name}</p>
-                      <p className="text-xs text-muted">{m.email}</p>
+                    <Avatar name={m.name} className="h-8 w-8 shrink-0 text-[10px]" />
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium">{m.isYou ? `${m.name} (you)` : m.name}</p>
+                      <p className="truncate text-xs text-muted">{m.email}</p>
                     </div>
-                    <span className="text-xs text-muted capitalize">{m.role.toLowerCase()}</span>
+                    <span className="shrink-0 text-xs text-muted capitalize">{m.role.toLowerCase()}</span>
                   </li>
                 ))}
               </ul>
@@ -179,8 +180,12 @@ export function HouseholdPanel() {
             )}
 
             <div>
-              <p className="mb-2 text-sm font-medium">Share accounts</p>
-              <p className="mb-3 text-xs text-muted">Shared accounts are visible to all household members.</p>
+              <div className="mb-3 flex items-center gap-1.5">
+                <p className="text-sm font-medium">Share accounts</p>
+                <InfoHint label="About shared accounts">
+                  Shared accounts are visible to all household members.
+                </InfoHint>
+              </div>
               <ul className="space-y-2">
                 {(accountsData?.items ?? []).filter((a) => !a.archived).map((a) => (
                   <li key={a.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2.5">

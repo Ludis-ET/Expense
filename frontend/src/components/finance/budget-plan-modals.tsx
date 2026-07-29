@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
-import { ArrowDownLeft, ArrowUpRight, Repeat, Zap } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, Minus, Plus, Repeat, Zap } from 'lucide-react';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select, Textarea, DateInput } from '@/components/ui/input';
@@ -123,7 +123,9 @@ export function BudgetPlanForm({
       recurrenceUnit: kind === 'RECURRING' ? unit : null,
       recurrenceInterval: Number(interval) || 1,
       startsAt: startsAt || undefined,
-      plannedAmount: Number(plannedAmount),
+      // Editing never touches the amount - Add/Deduct owns that, so the change
+      // lands on the right cycle instead of silently restating history.
+      ...(editing ? {} : { plannedAmount: Number(plannedAmount) }),
       categoryId: categoryId || null,
       icon,
       color,
@@ -257,24 +259,34 @@ export function BudgetPlanForm({
         )}
 
         <div className="grid grid-cols-2 gap-3">
-          <Field
-            label={
-              kind === 'RECURRING'
-                ? `Plan to spend per ${nounFor(unit, Math.max(1, Number(interval) || 1))} (${currency})`
-                : `Plan to spend (${currency})`
-            }
-            hint="Also the most you can put in"
-          >
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={plannedAmount}
-              onChange={(e) => setPlannedAmount(e.target.value)}
-              placeholder="0.00"
-            />
-          </Field>
+          {/* On an existing plan the amount is changed with Add/Deduct instead,
+              so the change is dated and attributed to a cycle. */}
+          {editing ? (
+            <Field label={`Plan to spend (${currency})`} hint="Change this with Add / Deduct on the plan, so the raise or cut is recorded against the cycle it happened in.">
+              <div className="flex h-10 items-center rounded-xl border border-dashed border-border bg-surface-muted/40 px-3.5 text-sm font-semibold tabular-nums">
+                {Number(plannedAmount || 0).toFixed(2)}
+              </div>
+            </Field>
+          ) : (
+            <Field
+              label={
+                kind === 'RECURRING'
+                  ? `Plan to spend per ${nounFor(unit, Math.max(1, Number(interval) || 1))} (${currency})`
+                  : `Plan to spend (${currency})`
+              }
+              hint="Also the most you can put in"
+            >
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={plannedAmount}
+                onChange={(e) => setPlannedAmount(e.target.value)}
+                placeholder="0.00"
+              />
+            </Field>
+          )}
           <Field
             label="Starts on"
             hint={kind === 'RECURRING' ? 'first cycle begins here' : 'spendable from this date'}
@@ -531,6 +543,179 @@ export function FundPlanModal({
             ) : (
               <>
                 <ArrowUpRight className="h-4 w-4" /> Set aside
+              </>
+            )}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
+
+/**
+ * Raise or cut what a plan is meant to hold.
+ *
+ * Deliberately not an edit of the planned amount: the change is filed against
+ * the cycle it happens in, so a recurring plan's earlier periods keep the
+ * figure they were actually run with.
+ */
+export function AdjustPlanModal({
+  plan,
+  onClose,
+  onSaved,
+}: {
+  plan: BudgetDetail | null;
+  onClose: () => void;
+  onSaved: (plan: BudgetDetail) => void;
+}) {
+  const { money } = useMoney();
+  const [direction, setDirection] = useState<'ADD' | 'DEDUCT'>('ADD');
+  const [amount, setAmount] = useState('');
+  const [reason, setReason] = useState('');
+  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    if (!plan) return;
+    setDirection('ADD');
+    setAmount('');
+    setReason('');
+    setDate(new Date().toISOString().slice(0, 10));
+  }, [plan]);
+
+  if (!plan) return null;
+
+  const current = Number(plan.plannedAmount);
+  const delta = Number(amount) || 0;
+  const next = direction === 'ADD' ? current + delta : current - delta;
+  // Cutting below what is already in the pot would strand money there.
+  const floor = Number(plan.fundedAmount);
+  const tooLow = delta > 0 && direction === 'DEDUCT' && next < floor;
+
+  async function submit(e: React.FormEvent) {
+    e.preventDefault();
+    if (!plan) return;
+    setSaving(true);
+    try {
+      const updated = await api.post<BudgetDetail>(`/budgets/${plan.id}/adjust`, {
+        direction,
+        amount: Number(amount),
+        reason: reason || null,
+        date,
+      });
+      toast.success(
+        direction === 'ADD' ? 'Added to the plan amount' : 'Deducted from the plan amount',
+      );
+      onSaved(updated);
+      onClose();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed');
+    } finally {
+      setSaving(false);
+    }
+  }
+
+  return (
+    <Modal
+      open={!!plan}
+      onClose={onClose}
+      title={`Change what "${plan.name}" holds`}
+      description={
+        plan.kind === 'RECURRING'
+          ? `Kept as a movement, not an edit. This ${plan.periodNoun ?? 'cycle'} shows the change against the ${money(plan.openingPlanned)} it opened with; earlier ones keep their own figures.`
+          : 'Kept as a movement, not an edit, so you can see what the plan started at and what you changed later.'
+      }
+    >
+      <form onSubmit={submit} className="space-y-4">
+        <div className="grid grid-cols-2 gap-2">
+          {(
+            [
+              { value: 'ADD' as const, label: 'Add to plan', icon: Plus, blurb: 'Room for more spending' },
+              { value: 'DEDUCT' as const, label: 'Deduct', icon: Minus, blurb: 'Trim it back down' },
+            ]
+          ).map((d) => {
+            const Icon = d.icon;
+            return (
+              <button
+                key={d.value}
+                type="button"
+                onClick={() => setDirection(d.value)}
+                className={cn(
+                  'flex flex-col gap-1 rounded-xl border p-3 text-left transition-colors',
+                  direction === d.value
+                    ? 'border-primary bg-primary/5'
+                    : 'border-border hover:bg-surface-muted',
+                )}
+              >
+                <span className="flex items-center gap-1.5 text-sm font-semibold">
+                  <Icon className="h-4 w-4 text-primary" /> {d.label}
+                </span>
+                <span className="text-xs text-muted">{d.blurb}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        <Field label={`Amount (${plan.currency})`}>
+          <Input
+            type="number"
+            step="0.01"
+            min="0"
+            required
+            autoFocus
+            value={amount}
+            onChange={(e) => setAmount(e.target.value)}
+            placeholder="0.00"
+          />
+        </Field>
+
+        <div className="grid grid-cols-2 gap-3">
+          <Field label="Date">
+            <DateInput maxToday value={date} onChange={(e) => setDate(e.target.value)} />
+          </Field>
+          <Field label="Reason" hint="optional - shows next to the change">
+            <Input
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder="Rent went up"
+            />
+          </Field>
+        </div>
+
+        <div
+          className={cn(
+            'rounded-xl px-3 py-2.5 text-xs',
+            tooLow ? 'bg-danger/10 text-danger' : 'bg-surface-muted/60 text-muted',
+          )}
+        >
+          {tooLow ? (
+            <>
+              This plan already holds {money(plan.fundedAmount)}. Give money back to an account
+              before cutting it to {money(next)}.
+            </>
+          ) : (
+            <>
+              {money(current)} → <strong className="text-foreground">{money(next)}</strong>
+              {plan.kind === 'RECURRING' && (
+                <> for this {plan.periodNoun ?? 'cycle'} and the ones after it</>
+              )}
+              .
+            </>
+          )}
+        </div>
+
+        <div className="flex justify-end gap-2">
+          <Button type="button" variant="outline" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={saving} disabled={tooLow || delta <= 0}>
+            {direction === 'ADD' ? (
+              <>
+                <Plus className="h-4 w-4" /> Add to plan
+              </>
+            ) : (
+              <>
+                <Minus className="h-4 w-4" /> Deduct
               </>
             )}
           </Button>

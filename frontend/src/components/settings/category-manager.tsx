@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
@@ -76,8 +77,9 @@ export function CategoryManager() {
               >
                 <Icon className="h-3.5 w-3.5" style={{ color: c.color }} />
                 {c.name}
+                {/* Touch screens have no hover, so the bin stays visible there. */}
                 <Trash2
-                  className="h-3 w-3 text-muted opacity-0 transition-opacity hover:text-danger group-hover:opacity-100"
+                  className="h-3 w-3 text-muted opacity-60 transition-opacity hover:text-danger [@media(hover:hover)]:opacity-0 [@media(hover:hover)]:group-hover:opacity-100"
                   onClick={(e) => { e.stopPropagation(); void remove(c); }}
                 />
               </button>
@@ -91,9 +93,9 @@ export function CategoryManager() {
   return (
     <Card>
       <CardHeader>
-        <div>
+        <div className="flex items-center gap-1.5">
           <CardTitle>Categories</CardTitle>
-          <CardDescription>Organize your income and spending. Click one to edit.</CardDescription>
+          <InfoHint label="About categories">Organize your income and spending. Click one to edit.</InfoHint>
         </div>
         <Button size="sm" variant="outline" onClick={() => { setEditing(null); setModalOpen(true); }}>
           <Plus className="h-4 w-4" /> Add

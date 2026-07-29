@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { toast } from 'sonner';
 import { useTheme } from 'next-themes';
 import {
@@ -20,6 +20,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { Avatar } from '@/components/ui/misc';
+import { InfoHint } from '@/components/ui/info-hint';
 import { ExchangeRatesPanel } from '@/components/settings/exchange-rates-panel';
 import { AiProviders } from '@/components/settings/ai-providers';
 import { CategoryManager } from '@/components/settings/category-manager';
@@ -71,10 +72,51 @@ function useActiveSection() {
   return active;
 }
 
+/**
+ * Keeps the horizontal nav strip usable on a phone: the item for the section
+ * you are reading is pulled into view, and the edge fades say which way there
+ * is more to swipe. All of it is inert once the rail goes vertical at `lg`.
+ */
+function useNavScroller(active: string) {
+  const scrollerRef = useRef<HTMLDivElement>(null);
+  const itemRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+  const [atStart, setAtStart] = useState(true);
+  const [atEnd, setAtEnd] = useState(true);
+
+  const updateEdges = useCallback(() => {
+    const box = scrollerRef.current;
+    if (!box) return;
+    const max = box.scrollWidth - box.clientWidth;
+    setAtStart(box.scrollLeft <= 1);
+    setAtEnd(box.scrollLeft >= max - 1);
+  }, []);
+
+  useEffect(() => {
+    updateEdges();
+    window.addEventListener('resize', updateEdges);
+    return () => window.removeEventListener('resize', updateEdges);
+  }, [updateEdges]);
+
+  // Centre the active chip. Scrolling the container directly (rather than
+  // scrollIntoView) keeps the page itself from jumping.
+  useEffect(() => {
+    const box = scrollerRef.current;
+    const el = itemRefs.current[active];
+    if (!box || !el || box.scrollWidth <= box.clientWidth) return;
+    box.scrollTo({
+      left: el.offsetLeft - box.clientWidth / 2 + el.offsetWidth / 2,
+      behavior: 'smooth',
+    });
+  }, [active]);
+
+  return { scrollerRef, itemRefs, atStart, atEnd, updateEdges };
+}
+
 export default function SettingsPage() {
   const { user, refreshUser } = useAuth();
   const { theme, setTheme } = useTheme();
   const active = useActiveSection();
+  const { scrollerRef, itemRefs, atStart, atEnd, updateEdges } = useNavScroller(active);
   const [form, setForm] = useState({
     name: user?.name ?? '',
     locale: user?.locale ?? 'en',
@@ -132,34 +174,60 @@ export default function SettingsPage() {
       </div>
 
       <div className="mt-6 grid gap-8 lg:grid-cols-[220px_1fr]">
-        {/* Section nav */}
-        <nav className="sticky top-14 z-10 -mx-3 bg-background/85 px-3 py-2 backdrop-blur sm:top-16 lg:top-20 lg:mx-0 lg:self-start lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
-          <div className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-col lg:overflow-visible [&::-webkit-scrollbar]:hidden">
-            {SECTIONS.map((s) => {
-              const isActive = active === s.id;
-              return (
-                <button
-                  key={s.id}
-                  type="button"
-                  onClick={() => scrollTo(s.id)}
-                  className={cn(
-                    'flex shrink-0 items-center gap-2.5 rounded-xl px-3 py-2 text-sm font-medium transition-colors',
-                    isActive
-                      ? 'bg-primary/10 text-primary'
-                      : 'text-muted hover:bg-surface-muted hover:text-foreground',
-                  )}
-                >
-                  <s.icon className="h-4 w-4" />
-                  {s.label}
-                </button>
-              );
-            })}
+        {/* Section nav: a rail on desktop, a swipeable strip on phones. */}
+        <nav className="sticky top-14 z-10 -mx-3 bg-background/85 px-3 py-2 backdrop-blur sm:-mx-4 sm:px-4 lg:top-20 lg:mx-0 lg:self-start lg:bg-transparent lg:px-0 lg:py-0 lg:backdrop-blur-none">
+          <div className="relative">
+            <div
+              ref={scrollerRef}
+              onScroll={updateEdges}
+              className="flex gap-1 overflow-x-auto rounded-2xl border border-border bg-surface p-1.5 [-ms-overflow-style:none] [scrollbar-width:none] lg:flex-col lg:overflow-visible [&::-webkit-scrollbar]:hidden"
+            >
+              {SECTIONS.map((s) => {
+                const isActive = active === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    ref={(el) => {
+                      itemRefs.current[s.id] = el;
+                    }}
+                    type="button"
+                    onClick={() => scrollTo(s.id)}
+                    aria-current={isActive ? 'true' : undefined}
+                    className={cn(
+                      'flex shrink-0 items-center gap-2 rounded-xl px-2.5 py-2 text-sm font-medium transition-colors sm:gap-2.5 sm:px-3 lg:w-full',
+                      isActive
+                        ? 'bg-primary/10 text-primary'
+                        : 'text-muted hover:bg-surface-muted hover:text-foreground',
+                    )}
+                  >
+                    <s.icon className="h-4 w-4 shrink-0" />
+                    {s.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            {/* Fades tell you the strip keeps going; desktop stacks instead. */}
+            <div
+              aria-hidden
+              className={cn(
+                'pointer-events-none absolute inset-y-px left-px w-6 rounded-l-2xl bg-gradient-to-r from-surface to-transparent transition-opacity lg:hidden',
+                atStart && 'opacity-0',
+              )}
+            />
+            <div
+              aria-hidden
+              className={cn(
+                'pointer-events-none absolute inset-y-px right-px w-6 rounded-r-2xl bg-gradient-to-l from-surface to-transparent transition-opacity lg:hidden',
+                atEnd && 'opacity-0',
+              )}
+            />
           </div>
         </nav>
 
         {/* Content */}
         <div className="min-w-0 space-y-6">
-          <section id="profile" className="scroll-mt-24">
+          <section id="profile" className="scroll-mt-32 lg:scroll-mt-24">
             <SectionHeader icon={User} title="Profile" description="Your details and money preferences." />
             <Card>
               <CardContent className="pt-6">
@@ -210,7 +278,7 @@ export default function SettingsPage() {
             </Card>
           </section>
 
-          <section id="appearance" className="scroll-mt-24">
+          <section id="appearance" className="scroll-mt-32 lg:scroll-mt-24">
             <SectionHeader icon={Palette} title="Appearance" description="Choose how Santim looks to you." />
             <Card>
               <CardContent className="pt-6">
@@ -239,23 +307,23 @@ export default function SettingsPage() {
             </Card>
           </section>
 
-          <section id="security" className="scroll-mt-24">
+          <section id="security" className="scroll-mt-32 lg:scroll-mt-24">
             <AppLockPanel />
           </section>
 
-          <section id="currencies" className="scroll-mt-24">
+          <section id="currencies" className="scroll-mt-32 lg:scroll-mt-24">
             <ExchangeRatesPanel />
           </section>
 
-          <section id="household" className="scroll-mt-24">
+          <section id="household" className="scroll-mt-32 lg:scroll-mt-24">
             <HouseholdPanel />
           </section>
 
-          <section id="categories" className="scroll-mt-24">
+          <section id="categories" className="scroll-mt-32 lg:scroll-mt-24">
             <CategoryManager />
           </section>
 
-          <section id="ai" className="scroll-mt-24">
+          <section id="ai" className="scroll-mt-32 lg:scroll-mt-24">
             <AiProviders />
           </section>
         </div>
@@ -270,9 +338,9 @@ function SectionHeader({ icon: Icon, title, description }: { icon: LucideIcon; t
       <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 text-primary">
         <Icon className="h-4.5 w-4.5" />
       </span>
-      <div>
+      <div className="flex items-center gap-1.5">
         <h2 className="font-semibold leading-tight">{title}</h2>
-        <p className="text-xs text-muted">{description}</p>
+        <InfoHint label={`About ${title}`}>{description}</InfoHint>
       </div>
     </div>
   );

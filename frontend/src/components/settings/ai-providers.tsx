@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { ArrowDown, ArrowUp, Check, ExternalLink, X } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Spinner } from '@/components/ui/misc';
@@ -113,11 +114,11 @@ export function AiProviders() {
   return (
     <Card>
       <CardHeader>
-        <div>
+        <div className="flex items-center gap-1.5">
           <CardTitle>AI providers</CardTitle>
-          <CardDescription>
+          <InfoHint label="About AI providers">
             Add keys for one or more providers. They&apos;re tried top-to-bottom - if the first fails, the next is used.
-          </CardDescription>
+          </InfoHint>
         </div>
       </CardHeader>
       <CardContent className="space-y-3">
@@ -128,7 +129,7 @@ export function AiProviders() {
               key={r.id}
               className={cn('rounded-xl border border-border p-4', r.enabled ? 'bg-surface' : 'bg-surface-muted/40')}
             >
-              <div className="flex items-center gap-3">
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
                 <div className="flex flex-col">
                   <button
                     onClick={() => move(i, -1)}
@@ -150,8 +151,8 @@ export function AiProviders() {
                 <span className="flex h-6 w-6 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold text-primary">
                   {i + 1}
                 </span>
-                <div className="flex-1">
-                  <div className="flex items-center gap-2">
+                <div className="min-w-0 flex-1 basis-40">
+                  <div className="flex flex-wrap items-center gap-x-2">
                     <span className="font-medium">{r.label}</span>
                     {r.hasKey && (
                       <span className="flex items-center gap-1 text-xs text-emerald-500">
@@ -170,7 +171,7 @@ export function AiProviders() {
                     </a>
                   )}
                 </div>
-                <label className="flex cursor-pointer items-center gap-2 text-sm">
+                <label className="flex shrink-0 cursor-pointer items-center gap-2 text-sm">
                   <input
                     type="checkbox"
                     checked={r.enabled}

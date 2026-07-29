@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  adjustBudgetSchema,
   createBudgetSchema,
   fundBudgetSchema,
   releaseBudgetSchema,
@@ -109,5 +110,36 @@ describe('expenses paid from a plan', () => {
     expect(
       createTransactionSchema.safeParse({ kind: 'INCOME', ...base, budgetId: 'b1' }).success,
     ).toBe(false);
+  });
+});
+
+describe('adjustBudgetSchema', () => {
+  it('takes a direction and a positive amount', () => {
+    const parsed = adjustBudgetSchema.parse({ direction: 'ADD', amount: '250' });
+    expect(parsed.direction).toBe('ADD');
+    expect(parsed.amount).toBe(250);
+  });
+
+  it('rejects a signed amount - direction carries the sign', () => {
+    expect(adjustBudgetSchema.safeParse({ direction: 'DEDUCT', amount: -250 }).success).toBe(false);
+  });
+
+  it('rejects a zero change', () => {
+    expect(adjustBudgetSchema.safeParse({ direction: 'ADD', amount: 0 }).success).toBe(false);
+  });
+
+  it('needs a direction', () => {
+    expect(adjustBudgetSchema.safeParse({ amount: 100 }).success).toBe(false);
+  });
+
+  it('keeps an optional reason and date', () => {
+    const parsed = adjustBudgetSchema.parse({
+      direction: 'DEDUCT',
+      amount: 40,
+      reason: '  rent dropped  ',
+      date: '2026-07-29',
+    });
+    expect(parsed.reason).toBe('rent dropped');
+    expect(parsed.date).toBeInstanceOf(Date);
   });
 });

@@ -119,10 +119,7 @@ export function WishlistPanel() {
 
   return (
     <div className="animate-in space-y-5">
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          Things you want, with no money attached. Plan one when you are ready to act on it.
-        </p>
+      <div className="flex flex-wrap items-center justify-end gap-3">
         <Button
           size="sm"
           className="min-h-10 shrink-0"

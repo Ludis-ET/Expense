@@ -36,9 +36,14 @@ type Sort = (typeof SORTS)[number]['value'];
 export function BudgetTransactions({
   plan,
   onView,
+  lockedCycle,
+  heading,
 }: {
   plan: BudgetDetail;
   onView?: (tx: Transaction) => void;
+  /** Pin the list to one cycle (the cycle modal) - hides the cycle filter. */
+  lockedCycle?: number;
+  heading?: string;
 }) {
   const { money } = useMoney();
   const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
@@ -46,7 +51,9 @@ export function BudgetTransactions({
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [cycle, setCycle] = useState<string>('all');
+  const [cycle, setCycle] = useState<string>(
+    lockedCycle === undefined ? 'all' : String(lockedCycle),
+  );
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [sort, setSort] = useState<Sort>('date_desc');
@@ -59,10 +66,11 @@ export function BudgetTransactions({
     return () => clearTimeout(t);
   }, [q]);
 
+  // The pinned cycle is the modal's subject, not a filter the user chose.
   const activeFilters =
     (debouncedQ ? 1 : 0) +
     (categoryId ? 1 : 0) +
-    (cycle !== 'all' ? 1 : 0) +
+    (lockedCycle === undefined && cycle !== 'all' ? 1 : 0) +
     (from ? 1 : 0) +
     (to ? 1 : 0);
 
@@ -99,7 +107,7 @@ export function BudgetTransactions({
   function reset() {
     setQ('');
     setCategoryId('');
-    setCycle('all');
+    if (lockedCycle === undefined) setCycle('all');
     setFrom('');
     setTo('');
     setSort('date_desc');
@@ -109,7 +117,7 @@ export function BudgetTransactions({
     <div className="space-y-4">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 className="text-sm font-semibold">Transactions</h2>
+          <h2 className="text-sm font-semibold">{heading ?? 'Transactions'}</h2>
           <p className="text-xs text-muted">
             {isLoading
               ? 'Loading…'
@@ -169,7 +177,7 @@ export function BudgetTransactions({
             </Select>
           </label>
 
-          {cycles.length > 0 && (
+          {lockedCycle === undefined && cycles.length > 0 && (
             <label className="text-xs font-medium text-muted">
               {plan.periodNoun ? `${plan.periodNoun}` : 'Cycle'}
               <Select className="mt-1" value={cycle} onChange={(e) => setCycle(e.target.value)}>

@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { BrandMark } from '@/components/brand';
+import { InfoHint } from '@/components/ui/info-hint';
 import { cn } from '@/lib/utils';
 import { initials } from '@/lib/format';
 
@@ -146,7 +147,8 @@ export function PageHeader({
   badge,
 }: {
   title: string;
-  description?: string;
+  /** Shown behind an `i` icon beside the title rather than as a subtitle. */
+  description?: ReactNode;
   action?: ReactNode;
   badge?: ReactNode;
 }) {
@@ -155,9 +157,9 @@ export function PageHeader({
       <div className="min-w-0">
         <div className="flex flex-wrap items-center gap-2">
           <h1 className="text-2xl font-bold tracking-tight md:text-3xl">{title}</h1>
+          {description && <InfoHint label={`About ${title}`}>{description}</InfoHint>}
           {badge}
         </div>
-        {description && <p className="mt-1 max-w-prose text-sm text-muted">{description}</p>}
       </div>
       {action && <div className="shrink-0">{action}</div>}
     </div>

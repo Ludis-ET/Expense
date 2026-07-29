@@ -4,7 +4,7 @@ import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { ArrowDownUp, PiggyBank, Plus, Sparkles, Wallet, Search, X } from 'lucide-react';
+import { ArrowDownUp, Filter, PiggyBank, Plus, Sparkles, Wallet, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
@@ -43,7 +43,16 @@ function BudgetsInner() {
     <div>
       <PageHeader
         title="Budgets"
-        description={currencyScopeHint(activeCurrency)}
+        description={
+          <>
+            <span className="block text-foreground">
+              {tab === 'plans'
+                ? 'Envelopes you fill from your accounts, then spend only from.'
+                : 'Things you want, with no money attached. Plan one when you are ready to act on it.'}
+            </span>
+            <span className="mt-2 block">{currencyScopeHint(activeCurrency)}</span>
+          </>
+        }
         badge={<CurrencyBadge />}
       />
 
@@ -90,7 +99,12 @@ function PlansPanel() {
   const [formOpen, setFormOpen] = useState(false);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState<'open' | 'closed' | 'all'>('open');
+  const [kind, setKind] = useState<'all' | 'ONE_TIME' | 'RECURRING'>('all');
   const [sort, setSort] = useState<'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress'>('priority');
+  const [showFilters, setShowFilters] = useState(false);
+
+  // Sort is a preference, not a filter, so it stays out of the badge count.
+  const activeFilters = (q ? 1 : 0) + (status !== 'open' ? 1 : 0) + (kind !== 'all' ? 1 : 0);
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
   const unplanned = items.find((b) => b.isUnplanned);
@@ -102,6 +116,7 @@ function PlansPanel() {
         if (b.isUnplanned) return false;
         if (status === 'open' && b.state !== 'ACTIVE') return false;
         if (status === 'closed' && b.state !== 'CLOSED') return false;
+        if (kind !== 'all' && b.kind !== kind) return false;
         if (q && !b.name.toLowerCase().includes(q.toLowerCase())) return false;
         return true;
       })
@@ -117,7 +132,7 @@ function PlansPanel() {
         if (sort === 'progress') return b.pctSpentOfFunded - a.pctSpentOfFunded;
         return 0;
       });
-  }, [items, status, q, sort]);
+  }, [items, status, kind, q, sort]);
 
   const cardTotals = useMemo(() => {
     if (!data?.totals) return null;
@@ -139,10 +154,7 @@ function PlansPanel() {
 
   return (
     <div className="animate-in space-y-5">
-      <div className="flex items-center justify-between gap-3">
-        <p className="text-sm text-muted">
-          Envelopes you fill from your accounts, then spend only from.
-        </p>
+      <div className="flex items-center justify-end gap-3">
         <Button size="sm" className="min-h-10 shrink-0" onClick={() => setFormOpen(true)}>
           <Plus className="h-4 w-4" /> New plan
         </Button>
@@ -150,92 +162,112 @@ function PlansPanel() {
 
       {hasActive && (
         <div className="space-y-3">
-          {/* Search bar */}
-          <div className="relative">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-            <input
-              type="search"
-              placeholder="Search plans…"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-              className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-9 text-sm transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-            />
-            {q && (
-              <button
-                type="button"
-                onClick={() => setQ('')}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
-                aria-label="Clear search"
-              >
-                <X className="h-3.5 w-3.5" />
-              </button>
-            )}
-          </div>
-
-          {/* Status pills + Sort row */}
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Status toggle group */}
-            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-muted/40 p-1">
-              {(['open', 'closed', 'all'] as const).map((s) => (
+          {/* Search + one button; everything else lives behind it. */}
+          <div className="flex items-center gap-2">
+            <div className="relative min-w-0 flex-1">
+              <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+              <input
+                type="search"
+                placeholder="Search plans…"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+                className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-9 text-sm transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              />
+              {q && (
                 <button
-                  key={s}
                   type="button"
-                  onClick={() => setStatus(s)}
-                  className={cn(
-                    'rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-all',
-                    status === s
-                      ? s === 'closed'
-                        ? 'bg-slate-500 text-white shadow-sm'
-                        : s === 'all'
-                          ? 'bg-foreground text-background shadow-sm'
-                          : 'bg-primary text-primary-foreground shadow-sm'
-                      : 'text-muted hover:text-foreground',
-                  )}
+                  onClick={() => setQ('')}
+                  className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
+                  aria-label="Clear search"
                 >
-                  {s === 'open' ? 'Active' : s === 'closed' ? 'Closed' : 'All'}
+                  <X className="h-3.5 w-3.5" />
                 </button>
-              ))}
+              )}
             </div>
 
-            {/* Sort selector */}
-            <div className="flex h-9 items-center gap-1 rounded-xl border border-border bg-surface-muted/40 pl-2.5 pr-1 transition-colors focus-within:border-primary/40">
-              <ArrowDownUp className="h-3.5 w-3.5 shrink-0 text-muted" />
-              <Select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
-                variant="ghost"
-                size="sm"
-                aria-label="Sort plans"
-                className="w-auto"
-              >
-                <option value="priority">Active first</option>
-                <option value="name">Name (A-Z)</option>
-                <option value="spent">Most spent</option>
-                <option value="planned">Highest planned</option>
-                <option value="remaining">Most remaining</option>
-                <option value="progress">Progress</option>
-              </Select>
-            </div>
+            <Button
+              type="button"
+              variant={showFilters || activeFilters > 0 ? 'primary' : 'outline'}
+              size="sm"
+              className="min-h-10 shrink-0"
+              onClick={() => setShowFilters((v) => !v)}
+            >
+              <Filter className="h-4 w-4" />
+              Filters
+              {activeFilters > 0 && (
+                <span className="ml-0.5 rounded-full bg-background/25 px-1.5 text-[10px] font-bold">
+                  {activeFilters}
+                </span>
+              )}
+            </Button>
 
-            {/* Active filter chip */}
-            {(q || status !== 'open') && (
-              <button
-                type="button"
-                onClick={() => { setQ(''); setStatus('open'); setSort('priority'); }}
-                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/8 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
-              >
-                <X className="h-3 w-3" />
-                Reset filters
-              </button>
-            )}
-
-            {/* Match count badge */}
             {!isLoading && (
-              <span className="ml-auto text-xs text-muted">
+              <span className="shrink-0 text-xs text-muted">
                 {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
               </span>
             )}
           </div>
+
+          {showFilters && (
+            <div className="grid gap-3 rounded-xl border border-border bg-surface-muted/40 p-3 sm:grid-cols-3">
+              <label className="text-xs font-medium text-muted">
+                Status
+                <Select
+                  className="mt-1"
+                  size="sm"
+                  value={status}
+                  onChange={(e) => setStatus(e.target.value as 'open' | 'closed' | 'all')}
+                >
+                  <option value="open">Active</option>
+                  <option value="closed">Closed</option>
+                  <option value="all">All</option>
+                </Select>
+              </label>
+
+              <label className="text-xs font-medium text-muted">
+                Type
+                <Select
+                  className="mt-1"
+                  size="sm"
+                  value={kind}
+                  onChange={(e) => setKind(e.target.value as 'all' | 'ONE_TIME' | 'RECURRING')}
+                >
+                  <option value="all">All types</option>
+                  <option value="ONE_TIME">One-time</option>
+                  <option value="RECURRING">Recurring</option>
+                </Select>
+              </label>
+
+              <label className="text-xs font-medium text-muted">
+                <span className="inline-flex items-center gap-1">
+                  <ArrowDownUp className="h-3 w-3" /> Sort
+                </span>
+                <Select
+                  className="mt-1"
+                  size="sm"
+                  value={sort}
+                  onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
+                >
+                  <option value="priority">Active first</option>
+                  <option value="name">Name (A-Z)</option>
+                  <option value="spent">Most spent</option>
+                  <option value="planned">Highest planned</option>
+                  <option value="remaining">Most remaining</option>
+                  <option value="progress">Progress</option>
+                </Select>
+              </label>
+
+              {activeFilters > 0 && (
+                <button
+                  type="button"
+                  onClick={() => { setQ(''); setStatus('open'); setKind('all'); setSort('priority'); }}
+                  className="inline-flex items-center justify-center gap-1 self-end rounded-lg border border-border px-3 py-2 text-xs font-medium text-muted hover:bg-surface-muted"
+                >
+                  <X className="h-3 w-3" /> Clear filters
+                </button>
+              )}
+            </div>
+          )}
         </div>
       )}
 

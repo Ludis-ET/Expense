@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { Plus, Trash2 } from 'lucide-react';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { InfoHint } from '@/components/ui/info-hint';
 import { Button } from '@/components/ui/button';
 import { Field, Input, Select } from '@/components/ui/input';
 import { api, ApiError } from '@/lib/api';
@@ -64,10 +65,12 @@ export function ExchangeRatesPanel() {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Exchange rates</CardTitle>
-        <CardDescription>
-          Santim never mixes currencies without a rate you set. Use these to convert totals in your default currency ({data?.baseCurrency ?? 'ETB'}).
-        </CardDescription>
+        <div className="flex items-center gap-1.5">
+          <CardTitle>Exchange rates</CardTitle>
+          <InfoHint label="About exchange rates">
+            Santim never mixes currencies without a rate you set. Use these to convert totals in your default currency ({data?.baseCurrency ?? 'ETB'}).
+          </InfoHint>
+        </div>
       </CardHeader>
       <CardContent className="space-y-4">
         <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">

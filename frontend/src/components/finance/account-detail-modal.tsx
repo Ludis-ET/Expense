@@ -5,6 +5,7 @@ import useSWR from 'swr';
 import { Modal } from '@/components/ui/modal';
 import { Button } from '@/components/ui/button';
 import { EmptyState } from '@/components/ui/misc';
+import { InfoHint } from '@/components/ui/info-hint';
 import { TransactionList } from '@/components/finance/transaction-list';
 import { financeIcon } from '@/components/finance/icons';
 import { useMoney } from '@/lib/amount-visibility';
@@ -123,9 +124,11 @@ export function AccountDetailModal({
           </div>
 
           <div className="space-y-3 rounded-2xl border border-border bg-surface p-4">
-            <div>
+            <div className="flex items-center gap-1.5">
               <h4 className="text-sm font-semibold">Plans using this account</h4>
-              <p className="text-xs text-muted">Budget plan activity pulled from the transactions above</p>
+              <InfoHint label="About plans using this account">
+                Budget plan activity pulled from the transactions above.
+              </InfoHint>
             </div>
             {planRows.length === 0 ? (
               <EmptyState title="No linked plans" description="No budget plans have charged this account yet." />

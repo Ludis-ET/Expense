@@ -3,13 +3,15 @@
 import { useEffect, useState, type ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import { X } from 'lucide-react';
+import { InfoHint } from '@/components/ui/info-hint';
 import { cn } from '@/lib/utils';
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   title: string;
-  description?: string;
+  /** Shown behind an `i` icon beside the title rather than as a subtitle. */
+  description?: ReactNode;
   children: ReactNode;
   className?: string;
 }
@@ -64,11 +66,11 @@ export function Modal({ open, onClose, title, description, children, className }
         </div>
 
         <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-5 pb-3.5 pt-2 sm:py-4">
-          <div className="min-w-0">
-            <h2 id="modal-title" className="text-lg font-semibold tracking-tight">
+          <div className="flex min-w-0 items-center gap-1.5">
+            <h2 id="modal-title" className="truncate text-lg font-semibold tracking-tight">
               {title}
             </h2>
-            {description && <p className="mt-0.5 text-sm text-muted">{description}</p>}
+            {description && <InfoHint label={`About ${title}`}>{description}</InfoHint>}
           </div>
           <button
             type="button"

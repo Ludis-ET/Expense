@@ -6,11 +6,11 @@ import { Fingerprint, Lock, LockOpen, ShieldCheck, Timer } from "lucide-react";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { InfoHint } from "@/components/ui/info-hint";
 import { Field, Input, Select } from "@/components/ui/input";
 import { Modal } from "@/components/ui/modal";
 import { useAppLock } from "@/lib/app-lock-context";
@@ -38,16 +38,16 @@ export function AppLockPanel() {
   return (
     <Card>
       <CardHeader>
-        <div>
+        <div className="flex items-center gap-1.5">
           <CardTitle className="flex items-center gap-2">
             <ShieldCheck className="h-5 w-5 text-primary" />
             App lock
           </CardTitle>
-          <CardDescription>
+          <InfoHint label="About app lock">
             PIN and biometrics (Face ID, Touch ID, Windows Hello, fingerprint)
             keep Santim private on this device. Secrets never leave your
             browser.
-          </CardDescription>
+          </InfoHint>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
@@ -119,18 +119,18 @@ export function AppLockPanel() {
 
             <div className="rounded-xl border border-border p-4">
               <div className="flex items-start justify-between gap-3">
-                <div>
+                <div className="flex items-center gap-1.5">
                   <p className="flex items-center gap-2 text-sm font-medium">
                     <Fingerprint className="h-4 w-4 text-primary" />
                     Biometrics
                   </p>
-                  <p className="mt-1 text-xs text-muted">
+                  <InfoHint label="About biometrics">
                     {lock.hasBiometric
                       ? "Face ID / fingerprint / Windows Hello is enrolled on this device."
                       : lock.biometricAvailable
                         ? "Use Face ID, Touch ID, Windows Hello, or device fingerprint for faster unlock."
                         : "Platform biometrics are not available in this browser. PIN still works."}
-                  </p>
+                  </InfoHint>
                 </div>
                 {lock.hasBiometric ? (
                   <Button

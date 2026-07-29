@@ -30,6 +30,7 @@ import type { AuthUser } from '../../core/context.js';
 import { notify } from '../notifications/notifications.service.js';
 import { addRecurrence, cycleLabel, periodNoun, recurrenceLabel } from './budgets.periods.js';
 import type {
+  AdjustBudgetInput,
   CreateBudgetInput,
   FundBudgetInput,
   ListBudgetsQuery,
@@ -65,6 +66,7 @@ export async function ensureUnplanned(userId: string, currency = 'ETB') {
       name: UNPLANNED_NAME,
       kind: BudgetKind.UNPLANNED,
       plannedAmount: 0,
+      cycleOpeningPlanned: 0,
       currency: currency.toUpperCase(),
       icon: 'circle-ellipsis',
       color: '#64748b',
@@ -98,10 +100,12 @@ interface Totals {
   allocatedThisCycle: Prisma.Decimal;
   /** Spent during the current cycle only. */
   spentThisCycle: Prisma.Decimal;
+  /** Net raises/cuts to the plan amount during the current cycle. */
+  adjustedThisCycle: Prisma.Decimal;
 }
 
 async function totalsFor(budgetId: string, cycleIndex: number): Promise<Totals> {
-  const [allocAll, allocCycle, spentAll, spentCycle] = await Promise.all([
+  const [allocAll, allocCycle, spentAll, spentCycle, adjCycle] = await Promise.all([
     prisma.budgetAllocation.aggregate({ where: { budgetId }, _sum: { amount: true } }),
     prisma.budgetAllocation.aggregate({ where: { budgetId, cycleIndex }, _sum: { amount: true } }),
     prisma.transaction.aggregate({
@@ -112,12 +116,14 @@ async function totalsFor(budgetId: string, cycleIndex: number): Promise<Totals> 
       where: { budgetId, kind: TxKind.EXPENSE, budgetCycle: cycleIndex },
       _sum: { amount: true },
     }),
+    prisma.budgetAdjustment.aggregate({ where: { budgetId, cycleIndex }, _sum: { amount: true } }),
   ]);
   return {
     allocated: allocAll._sum.amount ?? zero,
     spent: spentAll._sum.amount ?? zero,
     allocatedThisCycle: allocCycle._sum.amount ?? zero,
     spentThisCycle: spentCycle._sum.amount ?? zero,
+    adjustedThisCycle: adjCycle._sum.amount ?? zero,
   };
 }
 
@@ -131,12 +137,13 @@ async function totalsForMany(budgets: Budget[]): Promise<Map<string, Totals>> {
       spent: zero,
       allocatedThisCycle: zero,
       spentThisCycle: zero,
+      adjustedThisCycle: zero,
     });
   }
   if (ids.length === 0) return map;
 
   const cycleOf = new Map(budgets.map((b) => [b.id, b.cycleIndex]));
-  const [allocs, spends] = await Promise.all([
+  const [allocs, spends, adjustments] = await Promise.all([
     prisma.budgetAllocation.groupBy({
       by: ['budgetId', 'cycleIndex'],
       where: { budgetId: { in: ids } },
@@ -145,6 +152,11 @@ async function totalsForMany(budgets: Budget[]): Promise<Map<string, Totals>> {
     prisma.transaction.groupBy({
       by: ['budgetId', 'budgetCycle'],
       where: { budgetId: { in: ids }, kind: TxKind.EXPENSE },
+      _sum: { amount: true },
+    }),
+    prisma.budgetAdjustment.groupBy({
+      by: ['budgetId', 'cycleIndex'],
+      where: { budgetId: { in: ids } },
       _sum: { amount: true },
     }),
   ]);
@@ -162,6 +174,13 @@ async function totalsForMany(budgets: Budget[]): Promise<Map<string, Totals>> {
     const amt = row._sum.amount ?? zero;
     t.spent = t.spent.add(amt);
     if (row.budgetCycle === cycleOf.get(row.budgetId)) t.spentThisCycle = t.spentThisCycle.add(amt);
+  }
+  for (const row of adjustments) {
+    const t = map.get(row.budgetId);
+    if (!t) continue;
+    if (row.cycleIndex === cycleOf.get(row.budgetId)) {
+      t.adjustedThisCycle = t.adjustedThisCycle.add(row._sum.amount ?? zero);
+    }
   }
   return map;
 }
@@ -239,6 +258,10 @@ function serialize(budget: BudgetWithCategory, t: Totals) {
     closedAt: budget.closedAt ? budget.closedAt.toISOString() : null,
 
     plannedAmount: budget.plannedAmount.toFixed(2),
+    /** What the plan was set to when this cycle opened, before any raise or cut. */
+    openingPlanned: budget.cycleOpeningPlanned.toFixed(2),
+    /** Net raises (+) and cuts (-) made to the plan amount during this cycle. */
+    adjustedThisCycle: t.adjustedThisCycle.toFixed(2),
     /** Filled into the pot this cycle, including money carried over. */
     fundedAmount: d.funded.toFixed(2),
     /** Carried over from the previous cycle. */
@@ -407,10 +430,11 @@ export async function rollDueCycles(userId: string): Promise<void> {
       const endedAt = b.nextResetAt;
 
       // A fast cadence (hourly, daily) left dormant would otherwise mint a
-      // snapshot per empty cycle. Only cycles where money actually moved are
-      // worth keeping; the rest just advance the clock. Leftovers still carry,
-      // because the pot balance is cumulative and never touched here.
-      const hadActivity = !t.allocatedThisCycle.isZero() || !d.spent.isZero();
+      // snapshot per empty cycle. Only cycles where something actually happened
+      // are worth keeping; the rest just advance the clock. Leftovers still
+      // carry, because the pot balance is cumulative and never touched here.
+      const hadActivity =
+        !t.allocatedThisCycle.isZero() || !d.spent.isZero() || !t.adjustedThisCycle.isZero();
       if (hadActivity) {
         await prisma.budgetCycle.upsert({
           where: { budgetId_index: { budgetId: b.id, index: b.cycleIndex } },
@@ -420,6 +444,8 @@ export async function rollDueCycles(userId: string): Promise<void> {
             startedAt: b.cycleStartedAt,
             endedAt,
             label: cycleLabel(b.recurrenceUnit, b.recurrenceInterval, b.cycleStartedAt, endedAt),
+            openingPlanned: b.cycleOpeningPlanned,
+            adjustedAmount: t.adjustedThisCycle,
             plannedAmount: b.plannedAmount,
             carriedIn: d.carriedIn,
             fundedAmount: d.funded,
@@ -429,6 +455,8 @@ export async function rollDueCycles(userId: string): Promise<void> {
           },
           update: {
             endedAt,
+            adjustedAmount: t.adjustedThisCycle,
+            plannedAmount: b.plannedAmount,
             fundedAmount: d.funded,
             spentAmount: d.spent,
             leftoverAmount: d.balance,
@@ -445,6 +473,9 @@ export async function rollDueCycles(userId: string): Promise<void> {
         data: {
           cycleIndex: b.cycleIndex + 1,
           cycleStartedAt: endedAt,
+          // The new cycle opens at whatever the plan is set to now, adjustments
+          // and all - that figure is what the next cycle will be measured against.
+          cycleOpeningPlanned: b.plannedAmount,
           nextResetAt: finished
             ? null
             : addRecurrence(b.recurrenceUnit!, b.recurrenceInterval, endedAt),
@@ -584,7 +615,8 @@ export async function getById(user: AuthUser, id: string) {
   if (!budget) throw new NotFoundError('Budget plan not found');
 
   const t = await totalsFor(budget.id, budget.cycleIndex);
-  const [allocations, recentTx, cycles, sources, txCount, firstTx] = await Promise.all([
+  const [allocations, recentTx, cycles, sources, txCount, cycleTxCount, firstTx, adjustments] =
+    await Promise.all([
     prisma.budgetAllocation.findMany({
       where: { budgetId: budget.id },
       include: { account: { select: accountSelect } },
@@ -603,10 +635,20 @@ export async function getById(user: AuthUser, id: string) {
     prisma.budgetCycle.findMany({ where: { budgetId: budget.id }, orderBy: { index: 'desc' } }),
     sourcesFor(budget.id),
     prisma.transaction.count({ where: { budgetId: budget.id } }),
+    prisma.transaction.count({
+      where: { budgetId: budget.id, kind: TxKind.EXPENSE, budgetCycle: budget.cycleIndex },
+    }),
     prisma.transaction.findFirst({
       where: { budgetId: budget.id },
       orderBy: { date: 'asc' },
       select: { date: true },
+    }),
+    // Raises and cuts are rare next to transactions, so the whole history is
+    // cheap to send and lets every cycle section show its own.
+    prisma.budgetAdjustment.findMany({
+      where: { budgetId: budget.id },
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      take: 500,
     }),
   ]);
 
@@ -633,6 +675,22 @@ export async function getById(user: AuthUser, id: string) {
     cycleIndex: a.cycleIndex,
   });
 
+  const serializeAdjustment = (a: (typeof adjustments)[number]) => ({
+    id: a.id,
+    /** Signed: a raise is positive, a cut negative. */
+    amount: a.amount.toFixed(2),
+    date: a.date.toISOString(),
+    reason: a.reason,
+    cycleIndex: a.cycleIndex,
+  });
+
+  const adjustmentsByCycle = new Map<number, ReturnType<typeof serializeAdjustment>[]>();
+  for (const a of adjustments) {
+    const row = adjustmentsByCycle.get(a.cycleIndex) ?? [];
+    row.push(serializeAdjustment(a));
+    adjustmentsByCycle.set(a.cycleIndex, row);
+  }
+
   // One chronological stream of everything that recently moved money.
   const timeline = [
     ...allocations.map((a) => ({
@@ -647,6 +705,12 @@ export async function getById(user: AuthUser, id: string) {
       cycleIndex: tx.budgetCycle ?? budget.cycleIndex,
       entry: serializeTx(tx),
     })),
+    ...adjustments.map((a) => ({
+      type: 'adjust' as const,
+      at: a.date.toISOString(),
+      cycleIndex: a.cycleIndex,
+      entry: serializeAdjustment(a),
+    })),
   ]
     .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
     .slice(0, TIMELINE_LIMIT);
@@ -656,18 +720,28 @@ export async function getById(user: AuthUser, id: string) {
     timeline,
     timelineTruncated: txCount + allocations.length > TIMELINE_LIMIT,
     allocations: allocations.filter((a) => a.cycleIndex === budget.cycleIndex).map(serializeAlloc),
+    /** Raises and cuts made during the cycle that is open right now. */
+    adjustments: adjustmentsByCycle.get(budget.cycleIndex) ?? [],
+    /** Expenses charged to the cycle that is open right now. */
+    cycleTxCount,
     sources: sources.map((s) => ({ account: s.account, available: s.available.toFixed(2) })),
     cycles: cycles.map((c) => ({
       index: c.index,
       label: c.label,
       startedAt: c.startedAt.toISOString(),
       endedAt: c.endedAt.toISOString(),
+      /** What the plan was set to when the cycle opened. */
+      openingPlanned: c.openingPlanned.toFixed(2),
+      /** Net of the raises and cuts made during it. */
+      adjustedAmount: c.adjustedAmount.toFixed(2),
+      /** Closing figure: opening + adjusted. */
       plannedAmount: c.plannedAmount.toFixed(2),
       carriedIn: c.carriedIn.toFixed(2),
       fundedAmount: c.fundedAmount.toFixed(2),
       spentAmount: c.spentAmount.toFixed(2),
       leftoverAmount: c.leftoverAmount.toFixed(2),
       txCount: c.txCount,
+      adjustments: adjustmentsByCycle.get(c.index) ?? [],
     })),
     lifetime: {
       allocated: t.allocated.toFixed(2),
@@ -722,6 +796,7 @@ export async function create(user: AuthUser, input: CreateBudgetInput) {
       categoryId: input.categoryId ?? null,
       kind: recurring ? BudgetKind.RECURRING : BudgetKind.ONE_TIME,
       plannedAmount: input.plannedAmount,
+      cycleOpeningPlanned: input.plannedAmount,
       currency: input.currency.toUpperCase(),
       icon: input.icon ?? null,
       color: input.color ?? null,
@@ -746,6 +821,9 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
   if (input.categoryId) await assertCategory(input.categoryId, user.id);
 
   // Shrinking the plan below what is already in the pot would strand money.
+  // A direct edit restates the figure the cycle opened with, so the invariant
+  // `opening + adjustments = planned` still holds afterwards.
+  let openingPlanned: Prisma.Decimal | undefined;
   if (input.plannedAmount !== undefined) {
     const t = await totalsFor(existing.id, existing.cycleIndex);
     const { funded } = derive(existing, t);
@@ -754,6 +832,7 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
         `This plan already holds ${funded.toFixed(2)} ${existing.currency}. Give money back to an account before lowering the planned amount.`,
       );
     }
+    openingPlanned = dec(input.plannedAmount).sub(t.adjustedThisCycle);
   }
 
   const nextKind = input.kind ?? existing.kind;
@@ -776,7 +855,9 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
     data: {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
-      ...(input.plannedAmount !== undefined ? { plannedAmount: input.plannedAmount } : {}),
+      ...(input.plannedAmount !== undefined
+        ? { plannedAmount: input.plannedAmount, cycleOpeningPlanned: openingPlanned! }
+        : {}),
       ...(input.icon !== undefined ? { icon: input.icon } : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
       ...(input.note !== undefined ? { note: input.note } : {}),
@@ -806,6 +887,55 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
   });
 
   return serialize(budget, await totalsFor(budget.id, budget.cycleIndex));
+}
+
+/**
+ * Raise or cut what a plan is meant to hold, keeping the change as a movement.
+ *
+ * This is the sanctioned way to change the amount: the cycle keeps the figure
+ * it opened with, and the delta is filed against the cycle it happened in, so
+ * "what did I plan for March, and what did I change mid-month" both survive.
+ */
+export async function adjust(user: AuthUser, id: string, input: AdjustBudgetInput) {
+  const budget = await assertOwned(id, user.id);
+  refuseIfUnplanned(budget, 'adjusted');
+  if (budget.state === BudgetState.CLOSED) {
+    throw new BadRequestError('This plan is closed. Reopen it before changing its amount.');
+  }
+
+  const delta = input.direction === 'DEDUCT' ? dec(input.amount).neg() : dec(input.amount);
+  const next = budget.plannedAmount.add(delta);
+
+  if (next.lte(0)) {
+    throw new BadRequestError(
+      `That would take "${budget.name}" down to ${next.toFixed(2)} ${budget.currency}. A plan has to be worth something - close it instead.`,
+    );
+  }
+
+  // Cutting below what is already in the pot would strand money there.
+  const t = await totalsFor(budget.id, budget.cycleIndex);
+  const { funded } = derive(budget, t);
+  if (next.lt(funded)) {
+    throw new BadRequestError(
+      `"${budget.name}" already holds ${funded.toFixed(2)} ${budget.currency}. Give money back to an account before cutting it to ${next.toFixed(2)}.`,
+    );
+  }
+
+  await prisma.$transaction([
+    prisma.budgetAdjustment.create({
+      data: {
+        userId: user.id,
+        budgetId: budget.id,
+        amount: delta,
+        cycleIndex: budget.cycleIndex,
+        reason: input.reason ?? null,
+        date: input.date ?? new Date(),
+      },
+    }),
+    prisma.budget.update({ where: { id: budget.id }, data: { plannedAmount: next } }),
+  ]);
+
+  return getById(user, budget.id);
 }
 
 export async function remove(user: AuthUser, id: string) {

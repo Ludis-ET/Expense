@@ -121,6 +121,7 @@ model User {
   recurringRules    RecurringRule[]
   budgets           Budget[]
   budgetAllocations BudgetAllocation[]
+  budgetAdjustments BudgetAdjustment[]
   notifications     Notification[]
   aiSetting         AiSetting?
   householdMembers  HouseholdMember[]
@@ -325,7 +326,10 @@ model Budget {
   categoryId     String? // optional hint, auto-selected when spending
   category       Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   kind           BudgetKind   @default(ONE_TIME)
-  plannedAmount  Decimal      @db.Decimal(14, 2) // how much you plan to spend per cycle
+  plannedAmount  Decimal      @db.Decimal(14, 2) // how much you plan to spend per cycle, after adjustments
+  // What plannedAmount was when the current cycle opened. Frozen per cycle so a
+  // mid-cycle top-up or cut shows as a movement instead of rewriting history.
+  cycleOpeningPlanned Decimal @default(0) @db.Decimal(14, 2)
 
   // RECURRING only: "every <interval> <unit>".
   recurrenceUnit     RecurrenceUnit?
@@ -348,6 +352,7 @@ model Budget {
   endDate        DateTime? // stop recurring after this
 
   allocations   BudgetAllocation[]
+  adjustments   BudgetAdjustment[]
   cycles        BudgetCycle[]
   transactions  Transaction[]
   wishlistItems WishlistItem[]
@@ -382,6 +387,26 @@ model BudgetAllocation {
   @@map("budget_allocations")
 }
 
+// A raise or a cut to a plan's amount, kept as a movement rather than an edit.
+// Editing plannedAmount in place would silently rewrite what past cycles were
+// meant to hold; this records the delta against the cycle it happened in.
+model BudgetAdjustment {
+  id         String   @id @default(cuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetId   String
+  budget     Budget   @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+  amount     Decimal  @db.Decimal(14, 2) // signed: raise > 0, cut < 0
+  cycleIndex Int      @default(0)
+  reason     String?
+  date       DateTime @default(now())
+
+  createdAt DateTime @default(now())
+
+  @@index([budgetId, cycleIndex])
+  @@map("budget_adjustments")
+}
+
 // Frozen record of a finished cycle of a recurring plan.
 model BudgetCycle {
   id       String @id @default(cuid())
@@ -393,6 +418,10 @@ model BudgetCycle {
   endedAt   DateTime
   label     String
 
+  // What the plan was set to when this cycle opened, and the net of any raises
+  // or cuts made during it. plannedAmount is the closing figure of the two.
+  openingPlanned Decimal @default(0) @db.Decimal(14, 2)
+  adjustedAmount Decimal @default(0) @db.Decimal(14, 2)
   plannedAmount Decimal @db.Decimal(14, 2)
   carriedIn     Decimal @db.Decimal(14, 2) // pot balance when the cycle opened
   fundedAmount  Decimal @db.Decimal(14, 2) // carriedIn + fills during the cycle

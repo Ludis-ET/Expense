@@ -148,6 +148,10 @@ export interface BudgetRow {
 
   /** How much you plan to spend per cycle - also the fill-up ceiling. */
   plannedAmount: string;
+  /** What the plan was set to when this cycle opened, before any raise or cut. */
+  openingPlanned: string;
+  /** Net of the raises (+) and cuts (-) made to the amount during this cycle. */
+  adjustedThisCycle: string;
   /** Put into the pot this cycle, including money carried over. */
   fundedAmount: string;
   /** Carried over from the previous cycle. */
@@ -215,9 +219,20 @@ export interface BudgetTransaction {
   budgetCycle: number | null;
 }
 
+/** A raise or a cut to the plan amount, filed against the cycle it happened in. */
+export interface BudgetAdjustment {
+  id: string;
+  /** Signed: a raise is positive, a cut negative. */
+  amount: string;
+  date: string;
+  reason?: string | null;
+  cycleIndex: number;
+}
+
 export type BudgetTimelineEntry =
   | { type: 'fund' | 'release'; at: string; cycleIndex: number; entry: BudgetAllocation }
-  | { type: 'spend'; at: string; cycleIndex: number; entry: BudgetTransaction };
+  | { type: 'spend'; at: string; cycleIndex: number; entry: BudgetTransaction }
+  | { type: 'adjust'; at: string; cycleIndex: number; entry: BudgetAdjustment };
 
 /** A finished cycle of a recurring plan, frozen at the moment it rolled over. */
 export interface BudgetCycleSnapshot {
@@ -225,12 +240,18 @@ export interface BudgetCycleSnapshot {
   label: string;
   startedAt: string;
   endedAt: string;
+  /** What the plan was set to when the cycle opened. */
+  openingPlanned: string;
+  /** Net of the raises and cuts made during it. */
+  adjustedAmount: string;
+  /** Closing figure: opening + adjusted. */
   plannedAmount: string;
   carriedIn: string;
   fundedAmount: string;
   spentAmount: string;
   leftoverAmount: string;
   txCount: number;
+  adjustments: BudgetAdjustment[];
 }
 
 export interface BudgetSource {
@@ -243,6 +264,10 @@ export interface BudgetDetail extends BudgetRow {
   timeline: BudgetTimelineEntry[];
   timelineTruncated: boolean;
   allocations: BudgetAllocation[];
+  /** Raises and cuts made during the cycle that is open right now. */
+  adjustments: BudgetAdjustment[];
+  /** Expenses charged to the cycle that is open right now. */
+  cycleTxCount: number;
   sources: BudgetSource[];
   cycles: BudgetCycleSnapshot[];
   lifetime: {

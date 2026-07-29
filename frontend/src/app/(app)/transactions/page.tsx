@@ -53,8 +53,8 @@ function TransactionsInner() {
     if (fromUrl) setAccountId(fromUrl);
   }, [params]);
 
-  const { data: accountsData } = useSWR<{ items: Account[] }>('/accounts');
-  const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories');
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>('/categories');
 
   const { from, to } = monthBounds(month);
   const query = useMemo(() => {
@@ -193,13 +193,13 @@ function TransactionsInner() {
           <option value="INCOME">Income</option>
           <option value="TRANSFER">Transfer</option>
         </Select>
-        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-auto">
+        <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} className="w-auto" loading={categoriesLoading}>
           <option value="">All categories</option>
           {(categoriesData?.items ?? []).filter((c) => !c.archived).map((c) => (
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </Select>
-        <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-auto">
+        <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-auto" loading={accountsLoading}>
           <option value="">All accounts</option>
           {(accountsData?.items ?? []).map((a) => (
             <option key={a.id} value={a.id}>{a.name}</option>

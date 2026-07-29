@@ -80,6 +80,8 @@ interface SelectProps extends Omit<
   placeholder?: string;
   /** `ghost`   minimal chrome for dense headers */
   variant?: "default" | "ghost";
+  /** Show a shimmer skeleton instead of the trigger while backend data loads. */
+  loading?: boolean;
 }
 
 /**
@@ -99,6 +101,7 @@ export function Select({
   placeholder,
   "aria-label": ariaLabel,
   variant = "default",
+  loading = false,
 }: SelectProps) {
   const generatedId = useId();
   const selectId = id ?? generatedId;
@@ -312,41 +315,66 @@ export function Select({
         onChange={() => undefined}
       />
 
-      <button
-        ref={triggerRef}
-        type="button"
-        disabled={disabled}
-        aria-haspopup="listbox"
-        aria-expanded={open}
-        aria-label={ariaLabel}
-        aria-controls={`${selectId}-list`}
-        onClick={() => !disabled && setOpen((o) => !o)}
-        onKeyDown={onTriggerKey}
-        className={cn(
-          "flex w-full items-center justify-between gap-2 text-left text-sm text-foreground transition-all duration-200",
-          "focus:outline-none disabled:pointer-events-none disabled:opacity-50",
-          variant === "default" &&
-            cn(
-              "h-10 rounded-xl border border-border bg-surface px-3.5 shadow-sm hover:border-primary/30",
-              "focus:ring-2 focus:ring-ring/50 focus:border-ring",
-              open && "border-ring ring-2 ring-ring/50",
-            ),
-          variant === "ghost" &&
-            cn(
-              "h-8 rounded-lg border-0 bg-transparent px-1.5 font-semibold tabular-nums shadow-none hover:bg-transparent",
-              "focus:ring-0",
-            ),
-          !selected && value === "" && "text-muted",
-        )}
-      >
-        <span className="min-w-0 flex-1 truncate">{display}</span>
-        <ChevronDown
+      {loading ? (
+        <div
+          aria-hidden
           className={cn(
-            "h-4 w-4 shrink-0 text-muted transition-transform duration-200",
-            open && "rotate-180",
+            "relative overflow-hidden border border-border bg-surface shadow-sm",
+            variant === "default" && "h-10 rounded-xl",
+            variant === "ghost" && "h-8 rounded-lg",
           )}
-        />
-      </button>
+        >
+          {/* shimmer sweep */}
+          <div
+            className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10"
+          />
+          {/* content placeholder row */}
+          <div className="flex h-full items-center gap-2 px-3.5">
+            <div className="h-2.5 w-24 rounded-full bg-surface-muted/80" />
+            <div className="ml-auto flex gap-1">
+              <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted/50 [animation-delay:0ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted/50 [animation-delay:120ms]" />
+              <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted/50 [animation-delay:240ms]" />
+            </div>
+          </div>
+        </div>
+      ) : (
+        <button
+          ref={triggerRef}
+          type="button"
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+          aria-label={ariaLabel}
+          aria-controls={`${selectId}-list`}
+          onClick={() => !disabled && setOpen((o) => !o)}
+          onKeyDown={onTriggerKey}
+          className={cn(
+            "flex w-full items-center justify-between gap-2 text-left text-sm text-foreground transition-all duration-200",
+            "focus:outline-none disabled:pointer-events-none disabled:opacity-50",
+            variant === "default" &&
+              cn(
+                "h-10 rounded-xl border border-border bg-surface px-3.5 shadow-sm hover:border-primary/30",
+                "focus:ring-2 focus:ring-ring/50 focus:border-ring",
+                open && "border-ring ring-2 ring-ring/50",
+              ),
+            variant === "ghost" &&
+              cn(
+                "h-8 rounded-lg border-0 bg-transparent px-1.5 font-semibold tabular-nums shadow-none hover:bg-transparent",
+                "focus:ring-0",
+              ),
+            !selected && value === "" && "text-muted",
+          )}
+        >
+          <span className="min-w-0 flex-1 truncate">{display}</span>
+          <ChevronDown
+            className={cn(
+              "h-4 w-4 shrink-0 text-muted transition-transform duration-200",
+              open && "rotate-180",
+            )}
+          />
+        </button>
+      )}
 
       {menu}
     </div>

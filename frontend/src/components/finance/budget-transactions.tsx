@@ -42,8 +42,8 @@ export function BudgetTransactions({
   onView?: (tx: Transaction) => void;
 }) {
   const { money } = useMoney();
-  const { data: categoriesData } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
-  const { data: accountsData } = useSWR<{ items: Account[] }>('/accounts');
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
 
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
@@ -165,6 +165,7 @@ export function BudgetTransactions({
               className="mt-1"
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
+              loading={categoriesLoading}
             >
               <option value="">All categories</option>
               {categories.map((c) => (
@@ -181,6 +182,7 @@ export function BudgetTransactions({
               className="mt-1"
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
+              loading={accountsLoading}
             >
               <option value="">All accounts</option>
               {accounts.map((a) => (

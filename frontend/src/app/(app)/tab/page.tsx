@@ -281,9 +281,9 @@ function EntryForm({
   const [sourceAccountId, setSourceAccountId] = useState('');
   const [saving, setSaving] = useState(false);
 
-  const { data: accounts } = useSWR<{ items: Account[] }>('/accounts');
-  const { data: incomeCats } = useSWR<{ items: Category[] }>('/categories?kind=INCOME');
-  const { data: expenseCats } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
+  const { data: accounts, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
+  const { data: incomeCats, isLoading: incomeCatsLoading } = useSWR<{ items: Category[] }>('/categories?kind=INCOME');
+  const { data: expenseCats, isLoading: expenseCatsLoading } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
 
   const currencyAccounts = (accounts?.items ?? []).filter(
     (a) => !a.archived && a.currency === activeCurrency,
@@ -385,7 +385,11 @@ function EntryForm({
         </div>
         {(kind === 'EXPECTED_IN' || kind === 'EXPECTED_OUT') && (
           <Field label={kind === 'EXPECTED_IN' ? 'Income category' : 'Expense category'}>
-            <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+            <Select
+              value={categoryId}
+              onChange={(e) => setCategoryId(e.target.value)}
+              loading={kind === 'EXPECTED_IN' ? incomeCatsLoading : expenseCatsLoading}
+            >
               <option value="">Pick when {kind === 'EXPECTED_IN' ? 'received' : 'paid'}…</option>
               {(kind === 'EXPECTED_IN' ? incomeCats : expenseCats)?.items.filter((c) => !c.archived).map((c) => (
                 <option key={c.id} value={c.id}>{c.name}</option>
@@ -411,7 +415,7 @@ function EntryForm({
             </label>
             {recordMovement && (
               <Field label="Account">
-                <Select required value={sourceAccountId} onChange={(e) => setSourceAccountId(e.target.value)}>
+                <Select required value={sourceAccountId} onChange={(e) => setSourceAccountId(e.target.value)} loading={accountsLoading}>
                   <option value="">Select account…</option>
                   {currencyAccounts.map((a) => (
                     <option key={a.id} value={a.id}>{a.name}</option>
@@ -450,11 +454,12 @@ function PaymentModal({
   const [recordTransaction, setRecordTransaction] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  const { data: accounts } = useSWR<{ items: Account[] }>('/accounts');
+  const { data: accounts, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
   const isExpense = entry?.kind === 'BORROWED' || entry?.kind === 'EXPECTED_OUT';
   const incomeCats = useSWR<{ items: Category[] }>(!isExpense && entry ? '/categories?kind=INCOME' : null);
   const expenseCats = useSWR<{ items: Category[] }>(isExpense && entry ? '/categories?kind=EXPENSE' : null);
   const categories = isExpense ? expenseCats.data : incomeCats.data;
+  const catsLoading = isExpense ? expenseCats.isLoading : incomeCats.isLoading;
 
   useEffect(() => {
     if (!entry) return;
@@ -523,7 +528,7 @@ function PaymentModal({
         {recordTransaction && (
           <>
             <Field label="Account">
-              <Select required value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <Select required value={accountId} onChange={(e) => setAccountId(e.target.value)} loading={accountsLoading}>
                 <option value="">Select account…</option>
                 {(accounts?.items ?? []).filter((a) => !a.archived).map((a) => (
                   <option key={a.id} value={a.id}>{a.name}</option>
@@ -531,7 +536,7 @@ function PaymentModal({
               </Select>
             </Field>
             <Field label="Category">
-              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+              <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} loading={catsLoading}>
                 <option value="">Auto-pick</option>
                 {(categories?.items ?? []).filter((c) => !c.archived).map((c) => (
                   <option key={c.id} value={c.id}>{c.name}</option>

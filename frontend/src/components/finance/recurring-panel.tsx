@@ -156,9 +156,9 @@ const PLAN_TYPES: { id: PlanType; label: string; hint: string }[] = [
 
 function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; editing: RecurringRule | null; onClose: () => void; onSaved: () => void }) {
   const { activeCurrency } = useCurrencyView();
-  const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
-  const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
-  const { data: wishlistData } = useSWR<{ items: WishlistItem[] }>(
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
+  const { data: wishlistData, isLoading: wishlistLoading } = useSWR<{ items: WishlistItem[] }>(
     open ? `/wishlist?currency=${encodeURIComponent(activeCurrency)}` : null,
   );
   const [planType, setPlanType] = useState<PlanType>('transaction');
@@ -281,12 +281,12 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
         </div>
 
         <div className="grid grid-cols-2 gap-3">
-          <Field label={isSavings ? 'From account' : 'Account'}><Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
+          <Field label={isSavings ? 'From account' : 'Account'}><Select value={accountId} onChange={(e) => setAccountId(e.target.value)} loading={open && accountsLoading}>{accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}</Select></Field>
           {planType === 'transaction' && (
-            <Field label="Category"><Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}><option value="">Select…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
+            <Field label="Category"><Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} loading={open && categoriesLoading}><option value="">Select…</option>{categories.map((c) => <option key={c.id} value={c.id}>{c.name}</option>)}</Select></Field>
           )}
           {planType === 'wishlist' && (
-            <Field label="Wishlist item"><Select value={wishlistItemId} onChange={(e) => setWishlistItemId(e.target.value)}><option value="">Select…</option>{wants.map((w) => <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>)}</Select></Field>
+            <Field label="Wishlist item"><Select value={wishlistItemId} onChange={(e) => setWishlistItemId(e.target.value)} loading={open && wishlistLoading}><option value="">Select…</option>{wants.map((w) => <option key={w.id} value={w.id}>{w.emoji} {w.name}</option>)}</Select></Field>
           )}
         </div>
 

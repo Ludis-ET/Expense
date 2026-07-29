@@ -40,9 +40,9 @@ const KINDS: { value: Exclude<TxKind, 'TRANSFER'>; label: string }[] = [
 ];
 
 export function TransactionForm({ open, onClose, onSaved, editing }: TransactionFormProps) {
-  const { data: accountsData } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { data: categoriesData } = useSWR<{ items: Category[] }>(open ? '/categories' : null);
-  const { data: plansData } = useSWR<BudgetSourcesResponse>(open ? '/budgets/sources' : null);
+  const { data: plansData, isLoading: plansLoading } = useSWR<BudgetSourcesResponse>(open ? '/budgets/sources' : null);
   const { saveTransaction, updateTransaction } = useOffline();
 
   const [kind, setKind] = useState<Exclude<TxKind, 'TRANSFER'>>('EXPENSE');
@@ -314,7 +314,11 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
             label="Pay from"
             hint="every expense belongs to a plan; pick Unplanned if you did not set money aside"
           >
-            <Select value={source} onChange={(e) => pickSource(e.target.value)}>
+            <Select
+              value={source}
+              onChange={(e) => pickSource(e.target.value)}
+              loading={open && plansLoading}
+            >
               {plans.some((p) => !p.isUnplanned) && (
                 <optgroup label="Budget plans">
                   {plans
@@ -337,7 +341,11 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
           </Field>
         ) : (
           <Field label="Deposit to">
-            <Select value={source} onChange={(e) => setSource(e.target.value)}>
+            <Select
+              value={source}
+              onChange={(e) => setSource(e.target.value)}
+              loading={open && accountsLoading}
+            >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} - {Number(a.balance).toFixed(2)} {a.currency} available
@@ -349,7 +357,11 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
 
         {isUnplanned && (
           <Field label="Take it out of" hint="Unplanned has no pot of its own">
-            <Select value={drawFromId} onChange={(e) => setDrawFromId(e.target.value)}>
+            <Select
+              value={drawFromId}
+              onChange={(e) => setDrawFromId(e.target.value)}
+              loading={open && accountsLoading}
+            >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} - {Number(a.balance).toFixed(2)} {a.currency} available

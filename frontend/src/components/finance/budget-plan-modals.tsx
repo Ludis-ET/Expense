@@ -76,7 +76,7 @@ export function BudgetPlanForm({
   onClose: () => void;
   onSaved: (plan: BudgetRow) => void;
 }) {
-  const { data: categoriesData } = useSWR<{ items: Category[] }>(
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>(
     open ? '/categories?kind=EXPENSE' : null,
   );
 
@@ -292,7 +292,7 @@ export function BudgetPlanForm({
         </div>
 
         <Field label="Category" hint="optional - pre-selected when you spend from this plan">
-          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+          <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)} loading={open && categoriesLoading}>
             <option value="">No category</option>
             {categories.map((c) => (
               <option key={c.id} value={c.id}>
@@ -369,7 +369,7 @@ export function FundPlanModal({
   onSaved: (plan: BudgetDetail) => void;
 }) {
   const { money } = useMoney();
-  const { data: accountsData } = useSWR<{ items: Account[] }>(plan ? '/accounts' : null);
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(plan ? '/accounts' : null);
   const [accountId, setAccountId] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
@@ -460,7 +460,7 @@ export function FundPlanModal({
         ) : (
           <>
             <Field label={releasing ? 'Return to' : 'Take from'}>
-              <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+              <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} loading={!releasing && accountsLoading}>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
                     {o.name} - {Number(o.available).toFixed(2)} {plan.currency}

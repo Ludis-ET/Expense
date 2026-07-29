@@ -20,7 +20,7 @@ export function TransferModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { data } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
+  const { data, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(open ? '/accounts' : null);
   const { saveTransfer } = useOffline();
   const accounts = useMemo(
     () => data?.items.filter((a) => !a.archived) ?? [],
@@ -92,14 +92,14 @@ export function TransferModal({
       <form onSubmit={submit} className="space-y-4">
         <div className="grid grid-cols-2 gap-3">
           <Field label="From">
-            <Select value={from} onChange={(e) => setFrom(e.target.value)}>
+            <Select value={from} onChange={(e) => setFrom(e.target.value)} loading={open && accountsLoading}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}
             </Select>
           </Field>
           <Field label="To">
-            <Select value={to} onChange={(e) => setTo(e.target.value)}>
+            <Select value={to} onChange={(e) => setTo(e.target.value)} loading={open && accountsLoading}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>{a.name}</option>
               ))}

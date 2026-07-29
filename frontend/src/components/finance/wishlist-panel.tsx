@@ -433,10 +433,10 @@ function PurchaseModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { data: accountsData } = useSWR<{ items: Account[] }>(
+  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(
     item ? "/accounts" : null,
   );
-  const { data: categoriesData } = useSWR<{ items: Category[] }>(
+  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>(
     item ? "/categories" : null,
   );
   const [accountId, setAccountId] = useState("");
@@ -532,6 +532,7 @@ function PurchaseModal({
             <Select
               value={accountId}
               onChange={(e) => setAccountId(e.target.value)}
+              loading={!!item && accountsLoading}
             >
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
@@ -544,6 +545,7 @@ function PurchaseModal({
             <Select
               value={categoryId}
               onChange={(e) => setCategoryId(e.target.value)}
+              loading={!!item && categoriesLoading}
             >
               <option value="">Choose…</option>
               {categories.map((c) => (

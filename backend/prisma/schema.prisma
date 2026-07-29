@@ -97,9 +97,10 @@ enum LedgerStatus {
   CANCELLED
 }
 
+// A want moves WANTING -> PLANNED once it has a budget plan behind it.
 enum WishlistStatus {
   WANTING
-  SAVING
+  PLANNED
   BOUGHT
   DROPPED
 }
@@ -296,18 +297,12 @@ model RecurringRule {
   active     Boolean   @default(true)
   lastRunAt  DateTime?
 
-  // Auto-save plan target. When set, firing the rule funds the want instead of
-  // posting a transaction.
-  wishlistItemId String?
-  wishlistItem   WishlistItem? @relation("WishlistPlans", fields: [wishlistItemId], references: [id], onDelete: SetNull)
-
   transactions Transaction[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, active, nextRun])
-  @@index([wishlistItemId])
   @@map("recurring_rules")
 }
 
@@ -351,9 +346,10 @@ model Budget {
   nextResetAt    DateTime? // RECURRING only
   endDate        DateTime? // stop recurring after this
 
-  allocations  BudgetAllocation[]
-  cycles       BudgetCycle[]
-  transactions Transaction[]
+  allocations   BudgetAllocation[]
+  cycles        BudgetCycle[]
+  transactions  Transaction[]
+  wishlistItems WishlistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -477,27 +473,31 @@ model LedgerPayment {
   @@map("ledger_payments")
 }
 
-// Creative wishlist - wants with priority and save progress.
+// Creative wishlist - just the idea of a thing you want. No money lives here:
+// a want holds no cost and no savings. When you are ready to act on one you
+// "plan" it, which creates a Budget and links the two.
 model WishlistItem {
-  id            String         @id @default(cuid())
-  userId        String
-  user          User           @relation(fields: [userId], references: [id], onDelete: Cascade)
-  name          String
-  estimatedCost Decimal        @db.Decimal(14, 2)
-  currency      String         @default("ETB")
-  priority      Int            @default(3) // 1 = dream-now, 5 = someday
-  status        WishlistStatus @default(WANTING)
-  note          String?
-  link          String?
-  emoji         String?
-  savedAmount   Decimal        @default(0) @db.Decimal(14, 2)
-  recurringRules RecurringRule[] @relation("WishlistPlans")
+  id       String         @id @default(cuid())
+  userId   String
+  user     User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name     String
+  priority Int            @default(3) // 1 = dream-now, 5 = someday
+  status   WishlistStatus @default(WANTING)
+  note     String?
+  link     String?
+  emoji    String?
+
+  // The plan created from this want, if it has been planned.
+  budgetId String?
+  budget   Budget?   @relation(fields: [budgetId], references: [id], onDelete: SetNull)
+  plannedAt DateTime?
+  boughtAt  DateTime?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, status])
-  @@index([userId, currency])
+  @@index([budgetId])
   @@map("wishlist_items")
 }
 

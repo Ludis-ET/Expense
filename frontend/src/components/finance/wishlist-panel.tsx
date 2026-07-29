@@ -1,336 +1,288 @@
-"use client";
+'use client';
 
-import { useEffect, useMemo, useState } from "react";
-import useSWR, { useSWRConfig } from "swr";
-import { toast } from "sonner";
+import { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
+import useSWR, { useSWRConfig } from 'swr';
+import { toast } from 'sonner';
 import {
-  Sparkles,
-  Plus,
-  Trash2,
-  ExternalLink,
-  Star,
-  PiggyBank,
-  ShoppingBag,
   Check,
-} from "lucide-react";
-import { Skeleton, EmptyState, ProgressBar } from "@/components/ui/misc";
-import { Modal } from "@/components/ui/modal";
-import { Button } from "@/components/ui/button";
-import { DateInput, Field, Input, Select, Textarea } from "@/components/ui/input";
-import { api, ApiError } from "@/lib/api";
-import { useMoney } from "@/lib/amount-visibility";
-import { useCurrencyView } from "@/lib/currency-view-context";
-import { useConfirm } from "@/components/ui/confirm-dialog";
-import { cn } from "@/lib/utils";
-import type {
-  Account,
-  Category,
-  WishlistItem,
-  WishlistResponse,
-  WishlistStatus,
-} from "@/lib/types";
+  ExternalLink,
+  PiggyBank,
+  Plus,
+  Search,
+  Sparkles,
+  Star,
+  Wallet,
+  X,
+} from 'lucide-react';
+import { Skeleton, EmptyState } from '@/components/ui/misc';
+import { Button } from '@/components/ui/button';
+import { Input, Select } from '@/components/ui/input';
+import { DEFAULT_WISH_EMOJI } from '@/components/finance/wish-emoji';
+import {
+  PRIORITY_LABEL,
+  PlanWishModal,
+  STATUS_META,
+  WishDetailModal,
+  WishForm,
+} from '@/components/finance/wish-modals';
+import { api, ApiError } from '@/lib/api';
+import { useConfirm } from '@/components/ui/confirm-dialog';
+import { cn } from '@/lib/utils';
+import type { WishlistItem, WishlistResponse, WishlistStatus } from '@/lib/types';
 
-const EMOJIS = [
-  "✨",
-  "🎧",
-  "👟",
-  "📱",
-  "✈️",
-  "📚",
-  "🎮",
-  "☕",
-  "🎸",
-  "🏠",
-  "🚲",
-  "📷",
-];
-const PRIORITY_LABEL = ["", "Must have", "Soon", "Nice", "Someday", "Dream"];
+const SORTS = [
+  { value: 'priority', label: 'Priority' },
+  { value: 'newest', label: 'Newest' },
+  { value: 'oldest', label: 'Oldest' },
+  { value: 'name', label: 'A to Z' },
+] as const;
+
+type Sort = (typeof SORTS)[number]['value'];
+type Tab = 'all' | WishlistStatus;
 
 export function WishlistPanel() {
   const confirm = useConfirm();
-  const { activeCurrency } = useCurrencyView();
-  const { money } = useMoney();
   const { mutate: globalMutate } = useSWRConfig();
-  const { data, mutate, isLoading } = useSWR<WishlistResponse>(
-    `/wishlist?currency=${encodeURIComponent(activeCurrency)}`,
-  );
-  const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<WishlistItem | null>(null);
-  const [funding, setFunding] = useState<WishlistItem | null>(null);
-  const [buying, setBuying] = useState<WishlistItem | null>(null);
-  const [filter, setFilter] = useState<"open" | WishlistStatus | "all">("open");
 
-  // After money moves, refresh anything downstream (dashboard, accounts, plans, locks).
+  const [tab, setTab] = useState<Tab>('WANTING');
+  const [q, setQ] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [priority, setPriority] = useState('');
+  const [sort, setSort] = useState<Sort>('priority');
+
+  const [formOpen, setFormOpen] = useState(false);
+  const [editing, setEditing] = useState<WishlistItem | null>(null);
+  const [viewing, setViewing] = useState<WishlistItem | null>(null);
+  const [planning, setPlanning] = useState<WishlistItem | null>(null);
+
+  // Typing shouldn't fire a request per keystroke.
+  useEffect(() => {
+    const t = setTimeout(() => setDebouncedQ(q.trim()), 300);
+    return () => clearTimeout(t);
+  }, [q]);
+
+  const key = useMemo(() => {
+    const p = new URLSearchParams({ sort });
+    if (tab !== 'all') p.set('status', tab);
+    if (priority) p.set('priority', priority);
+    if (debouncedQ) p.set('q', debouncedQ);
+    return `/wishlist?${p.toString()}`;
+  }, [tab, priority, debouncedQ, sort]);
+
+  const { data, mutate, isLoading } = useSWR<WishlistResponse>(key);
+
+  /** Planning a want creates a budget, which moves every balance downstream. */
   const refreshLinked = () =>
     globalMutate(
-      (key) =>
-        typeof key === "string" &&
-        (key.startsWith("/dashboard") ||
-          key.startsWith("/accounts") ||
-          key.startsWith("/budgets") ||
-          key.startsWith("/recurring")),
+      (k) =>
+        typeof k === 'string' &&
+        (k.startsWith('/dashboard') || k.startsWith('/accounts') || k.startsWith('/budgets')),
     );
 
-  const items = (data?.items ?? []).filter((i) => {
-    if (filter === "all") return true;
-    if (filter === "open")
-      return i.status === "WANTING" || i.status === "SAVING";
-    return i.status === filter;
-  });
+  const items = data?.items ?? [];
+  const stats = data?.stats;
+  const activeFilters = (debouncedQ ? 1 : 0) + (priority ? 1 : 0);
+
+  const TABS: { id: Tab; label: string; count?: number }[] = [
+    { id: 'WANTING', label: 'Wanting', count: stats?.wanting },
+    { id: 'PLANNED', label: 'Planned', count: stats?.planned },
+    { id: 'BOUGHT', label: 'Bought', count: stats?.bought },
+    { id: 'DROPPED', label: 'Dropped', count: stats?.dropped },
+    { id: 'all', label: 'All', count: stats?.total },
+  ];
+
+  function clearFilters() {
+    setQ('');
+    setPriority('');
+  }
 
   async function remove(item: WishlistItem) {
     const ok = await confirm({
-      title: "Drop from wishlist?",
-      description: `"${item.name}" will be removed.`,
-      confirmLabel: "Remove",
-      tone: "danger",
+      title: 'Remove this want?',
+      description: item.plan
+        ? `"${item.name}" will be removed. Its plan "${item.plan.name}" stays, along with any money in it.`
+        : `"${item.name}" will be removed from your wishlist.`,
+      confirmLabel: 'Remove',
+      tone: 'danger',
     });
     if (!ok) return;
     try {
       await api.del(`/wishlist/${item.id}`);
-      toast.success("Removed");
+      toast.success('Removed');
+      setViewing(null);
       void mutate();
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed");
-    }
-  }
-
-  async function startSaving(item: WishlistItem) {
-    try {
-      await api.put(`/wishlist/${item.id}`, { status: "SAVING" });
-      void mutate();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed");
+      toast.error(err instanceof ApiError ? err.message : 'Failed');
     }
   }
 
   return (
     <div className="animate-in space-y-5">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <p className="text-sm text-muted">
-          Park the things you want and see when you can actually afford them.
+          Things you want, with no money attached. Plan one when you are ready to act on it.
         </p>
         <Button
           size="sm"
           className="min-h-10 shrink-0"
           onClick={() => {
             setEditing(null);
-            setOpen(true);
+            setFormOpen(true);
           }}
         >
           <Plus className="h-4 w-4" /> Add want
         </Button>
       </div>
 
-      {data?.stats && (
-        <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-amber-50 via-rose-50 to-violet-100 p-5 dark:from-amber-950/40 dark:via-rose-950/30 dark:to-violet-950/40 sm:p-6">
-          <div className="pointer-events-none absolute right-4 top-4 text-5xl opacity-30">
-            ✨
-          </div>
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted">
-            Dream board · {activeCurrency}
-          </p>
-          <div className="mt-3 grid grid-cols-2 gap-4 sm:grid-cols-4">
-            <div>
-              <p className="text-2xl font-bold tabular-nums">
-                {money(data.stats.dreamTotal)}
-              </p>
-              <p className="text-xs text-muted">total wants</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold tabular-nums text-emerald-600 dark:text-emerald-400">
-                {money(data.stats.savedTotal)}
-              </p>
-              <p className="text-xs text-muted">saved toward</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold">
-                {data.stats.wanting + data.stats.saving}
-              </p>
-              <p className="text-xs text-muted">active dreams</p>
-            </div>
-            <div>
-              <p className="text-2xl font-bold text-emerald-600 dark:text-emerald-400">
-                {data.stats.affordable}
-              </p>
-              <p className="text-xs text-muted">you can afford now</p>
-            </div>
-          </div>
-        </div>
-      )}
-
+      {/* ---- Status tabs --------------------------------------------- */}
       <div className="flex gap-1 overflow-x-auto rounded-xl border border-border p-1">
-        {[
-          { id: "open" as const, label: "Active" },
-          { id: "WANTING" as const, label: "Wanting" },
-          { id: "SAVING" as const, label: "Saving" },
-          { id: "BOUGHT" as const, label: "Bought" },
-          { id: "all" as const, label: "All" },
-        ].map((f) => (
+        {TABS.map((t) => (
           <button
-            key={f.id}
+            key={t.id}
             type="button"
-            onClick={() => setFilter(f.id)}
+            onClick={() => setTab(t.id)}
             className={cn(
-              "min-h-10 shrink-0 rounded-lg px-3 py-1.5 text-xs font-medium",
-              filter === f.id
-                ? "bg-primary text-primary-foreground"
-                : "text-muted hover:text-foreground",
+              'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
+              tab === t.id
+                ? 'bg-primary text-primary-foreground'
+                : 'text-muted hover:bg-surface-muted hover:text-foreground',
             )}
           >
-            {f.label}
+            {t.label}
+            {t.count !== undefined && t.count > 0 && (
+              <span
+                className={cn(
+                  'rounded-full px-1.5 text-[10px] font-bold',
+                  tab === t.id ? 'bg-background/25' : 'bg-surface-muted',
+                )}
+              >
+                {t.count}
+              </span>
+            )}
           </button>
         ))}
       </div>
 
+      {/* ---- Search, priority, sort ---------------------------------- */}
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-40 flex-1">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+          <Input
+            value={q}
+            onChange={(e) => setQ(e.target.value)}
+            placeholder="Search wants…"
+            className="pl-9"
+            aria-label="Search wants"
+          />
+        </div>
+        <div className="w-36">
+          <Select
+            value={priority}
+            onChange={(e) => setPriority(e.target.value)}
+            aria-label="Filter by priority"
+          >
+            <option value="">Any priority</option>
+            {[1, 2, 3, 4, 5].map((p) => (
+              <option key={p} value={String(p)}>
+                {PRIORITY_LABEL[p]}
+              </option>
+            ))}
+          </Select>
+        </div>
+        <div className="w-36">
+          <Select
+            value={sort}
+            onChange={(e) => setSort(e.target.value as Sort)}
+            aria-label="Sort wants"
+          >
+            {SORTS.map((s) => (
+              <option key={s.value} value={s.value}>
+                {s.label}
+              </option>
+            ))}
+          </Select>
+        </div>
+        {activeFilters > 0 && (
+          <button
+            type="button"
+            onClick={clearFilters}
+            className="inline-flex min-h-10 items-center gap-1 rounded-xl border border-border px-3 text-xs font-medium text-muted hover:bg-surface-muted"
+          >
+            <X className="h-3 w-3" /> Clear
+          </button>
+        )}
+      </div>
+
+      {/* ---- Grid ------------------------------------------------------ */}
       {isLoading ? (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {Array.from({ length: 4 }).map((_, i) => (
-            <Skeleton key={i} className="h-44" />
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {Array.from({ length: 6 }).map((_, i) => (
+            <Skeleton key={i} className="h-36" />
           ))}
         </div>
       ) : items.length === 0 ? (
         <EmptyState
           icon={<Sparkles className="h-5 w-5" />}
-          title="Wishlist is empty"
-          description="Park the things you want   phones, trips, tools   and track how close you are."
-          action={<Button onClick={() => setOpen(true)}>Add first want</Button>}
+          title={activeFilters > 0 ? 'Nothing matches' : 'Nothing here yet'}
+          description={
+            activeFilters > 0
+              ? 'Try a different search or priority.'
+              : 'Park the things you want - phones, trips, tools - and plan them when you are ready.'
+          }
+          action={
+            activeFilters > 0 ? (
+              <Button variant="outline" onClick={clearFilters}>
+                Clear filters
+              </Button>
+            ) : (
+              <Button onClick={() => setFormOpen(true)}>Add your first want</Button>
+            )
+          }
         />
       ) : (
-        <div className="grid gap-4 sm:grid-cols-2">
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {items.map((item) => (
-            <article
+            <WishCard
               key={item.id}
-              className={cn(
-                "card relative flex flex-col overflow-hidden p-4",
-                item.status === "BOUGHT" && "opacity-70",
-              )}
-            >
-              {item.affordable && (
-                <span className="absolute right-3 top-3 inline-flex items-center gap-1 rounded-full bg-emerald-500/15 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
-                  <Check className="h-3 w-3" /> Can afford
-                </span>
-              )}
-              <div className="flex items-start gap-3">
-                <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-2xl">
-                  {item.emoji || "✨"}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex items-start justify-between gap-2">
-                    <h3 className="font-semibold leading-snug">{item.name}</h3>
-                    <button
-                      type="button"
-                      onClick={() => remove(item)}
-                      className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg text-muted hover:bg-surface-muted hover:text-danger"
-                      aria-label="Remove"
-                    >
-                      <Trash2 className="h-3.5 w-3.5" />
-                    </button>
-                  </div>
-                  <p className="mt-0.5 flex flex-wrap items-center gap-x-1 gap-y-0.5 text-xs text-muted">
-                    <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
-                    {PRIORITY_LABEL[item.priority] ?? "Someday"}
-                  </p>
-                </div>
-              </div>
-
-              <div className="mt-4">
-                <div className="mb-1 flex justify-between text-sm">
-                  <span className="font-bold tabular-nums">
-                    {money(item.estimatedCost)}
-                  </span>
-                  <span className="text-xs text-muted">{item.pct}% saved</span>
-                </div>
-                <ProgressBar
-                  value={item.pct}
-                  tone={item.pct >= 100 ? "success" : "primary"}
-                />
-                <p className="mt-1 text-xs text-muted">
-                  {money(item.savedAmount)} in · {money(item.remaining)} to go
-                </p>
-              </div>
-
-              <div className="mt-4 flex flex-wrap gap-2">
-                {item.status !== "BOUGHT" && (
-                  <>
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      className="min-h-9"
-                      onClick={() => setFunding(item)}
-                    >
-                      <PiggyBank className="h-3.5 w-3.5" /> Fund
-                    </Button>
-                    {item.status === "WANTING" && (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="min-h-9"
-                        onClick={() => startSaving(item)}
-                      >
-                        Start saving
-                      </Button>
-                    )}
-                    <Button
-                      size="sm"
-                      className="min-h-9"
-                      onClick={() => setBuying(item)}
-                    >
-                      <ShoppingBag className="h-3.5 w-3.5" /> Buy
-                    </Button>
-                  </>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="min-h-9"
-                  onClick={() => {
-                    setEditing(item);
-                    setOpen(true);
-                  }}
-                >
-                  Edit
-                </Button>
-                {item.link && (
-                  <a
-                    href={item.link}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="inline-flex min-h-9 items-center gap-1 rounded-lg border border-border px-3 text-xs font-medium text-muted hover:bg-surface-muted"
-                  >
-                    <ExternalLink className="h-3.5 w-3.5" /> Link
-                  </a>
-                )}
-              </div>
-            </article>
+              item={item}
+              onOpen={() => setViewing(item)}
+              onPlan={() => setPlanning(item)}
+            />
           ))}
         </div>
       )}
 
       <WishForm
-        open={open}
+        open={formOpen}
         editing={editing}
-        currency={activeCurrency}
         onClose={() => {
-          setOpen(false);
+          setFormOpen(false);
           setEditing(null);
         }}
         onSaved={() => void mutate()}
       />
 
-      <FundModal
-        item={funding}
-        onClose={() => setFunding(null)}
-        onSaved={() => {
-          void mutate();
-          void refreshLinked();
+      <WishDetailModal
+        wish={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={(w) => {
+          setViewing(null);
+          setEditing(w);
+          setFormOpen(true);
         }}
+        onPlan={(w) => {
+          setViewing(null);
+          setPlanning(w);
+        }}
+        onChanged={() => void mutate()}
+        onDelete={remove}
       />
 
-      <PurchaseModal
-        item={buying}
-        onClose={() => setBuying(null)}
-        onSaved={() => {
+      <PlanWishModal
+        wish={planning}
+        onClose={() => setPlanning(null)}
+        onPlanned={() => {
           void mutate();
           void refreshLinked();
         }}
@@ -339,389 +291,85 @@ export function WishlistPanel() {
   );
 }
 
-function FundModal({
+/** One want: a face, a name, how badly you want it, and where it stands. */
+function WishCard({
   item,
-  onClose,
-  onSaved,
+  onOpen,
+  onPlan,
 }: {
-  item: WishlistItem | null;
-  onClose: () => void;
-  onSaved: () => void;
+  item: WishlistItem;
+  onOpen: () => void;
+  onPlan: () => void;
 }) {
-  const { money } = useMoney();
-  const [amount, setAmount] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (item) setAmount("");
-  }, [item]);
-
-  if (!item) return null;
-  const remaining = Number(item.remaining);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!item) return;
-    setSaving(true);
-    try {
-      await api.post(`/wishlist/${item.id}/fund`, { amount: Number(amount) });
-      toast.success("Saved toward it");
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  }
+  const meta = STATUS_META[item.status];
+  const dimmed = item.status === 'BOUGHT' || item.status === 'DROPPED';
 
   return (
-    <Modal
-      open={!!item}
-      onClose={onClose}
-      title={`Fund "${item.name}"`}
-      description={`${money(item.remaining)} left to reach ${money(item.estimatedCost)}.`}
-    >
-      <form onSubmit={submit} className="space-y-4">
-        <Field label={`Amount to set aside (${item.currency})`}>
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            autoFocus
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder={remaining > 0 ? String(remaining) : "0"}
-          />
-        </Field>
-        {remaining > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {[0.25, 0.5, 1].map((f) => (
-              <button
-                key={f}
-                type="button"
-                onClick={() =>
-                  setAmount(String(Math.round(remaining * f * 100) / 100))
-                }
-                className="rounded-lg border border-border px-3 py-1 text-xs font-medium text-muted hover:bg-surface-muted"
-              >
-                {f === 1 ? "Fund the rest" : `${f * 100}%`}
-              </button>
-            ))}
-          </div>
-        )}
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
-          </Button>
-          <Button type="submit" loading={saving}>
-            Set aside
-          </Button>
-        </div>
-      </form>
-    </Modal>
-  );
-}
-
-function PurchaseModal({
-  item,
-  onClose,
-  onSaved,
-}: {
-  item: WishlistItem | null;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>(
-    item ? "/accounts" : null,
-  );
-  const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>(
-    item ? "/categories" : null,
-  );
-  const [accountId, setAccountId] = useState("");
-  const [categoryId, setCategoryId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
-  const [saving, setSaving] = useState(false);
-
-  const accounts = useMemo(
-    () =>
-      (accountsData?.items ?? []).filter(
-        (a) => !a.archived && (!item || a.currency === item.currency),
-      ),
-    [accountsData, item],
-  );
-  const categories = useMemo(
-    () =>
-      (categoriesData?.items ?? []).filter(
-        (c) => c.kind === "EXPENSE" && !c.archived,
-      ),
-    [categoriesData],
-  );
-
-  useEffect(() => {
-    if (!item) return;
-    setAmount(String(Number(item.estimatedCost)));
-    setDate(new Date().toISOString().slice(0, 10));
-    setAccountId("");
-    setCategoryId("");
-  }, [item]);
-
-  useEffect(() => {
-    if (accounts.length && !accountId)
-      setAccountId(accounts.find((a) => a.isDefault)?.id ?? accounts[0].id);
-  }, [accounts, accountId]);
-
-  if (!item) return null;
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    if (!item) return;
-    if (!accountId || !categoryId) {
-      toast.error("Pick an account and category");
-      return;
-    }
-    setSaving(true);
-    try {
-      await api.post(`/wishlist/${item.id}/purchase`, {
-        accountId,
-        categoryId,
-        amount: Number(amount),
-        date,
-      });
-      toast.success("Recorded the purchase 🛍️");
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      open={!!item}
-      onClose={onClose}
-      title={`Buy "${item.name}"`}
-      description="Logs a real expense against an account and marks the want bought. Any reserve for it is released."
-    >
-      {accounts.length === 0 ? (
-        <p className="rounded-lg bg-surface-muted p-3 text-sm text-muted">
-          No {item.currency} account found. Add one first.
-        </p>
-      ) : (
-        <form onSubmit={submit} className="space-y-4">
-          <div className="grid grid-cols-2 gap-3">
-            <Field label={`Amount (${item.currency})`}>
-              <Input
-                type="number"
-                step="0.01"
-                min="0"
-                required
-                value={amount}
-                onChange={(e) => setAmount(e.target.value)}
-              />
-            </Field>
-            <Field label="Date">
-              <DateInput maxToday value={date} onChange={(e) => setDate(e.target.value)} />
-            </Field>
-          </div>
-          <Field label="Pay from">
-            <Select
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              loading={!!item && accountsLoading}
-            >
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <Field label="Category">
-            <Select
-              value={categoryId}
-              onChange={(e) => setCategoryId(e.target.value)}
-              loading={!!item && categoriesLoading}
-            >
-              <option value="">Choose…</option>
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </Select>
-          </Field>
-          <div className="flex justify-end gap-2">
-            <Button type="button" variant="outline" onClick={onClose}>
-              Cancel
-            </Button>
-            <Button type="submit" loading={saving}>
-              Record purchase
-            </Button>
-          </div>
-        </form>
+    <article
+      onClick={onOpen}
+      className={cn(
+        'card group flex cursor-pointer flex-col gap-3 p-4 transition-all hover:-translate-y-0.5 hover:shadow-md',
+        dimmed && 'opacity-70',
       )}
-    </Modal>
-  );
-}
-
-function WishForm({
-  open,
-  editing,
-  currency,
-  onClose,
-  onSaved,
-}: {
-  open: boolean;
-  editing: WishlistItem | null;
-  currency: string;
-  onClose: () => void;
-  onSaved: () => void;
-}) {
-  const [name, setName] = useState("");
-  const [estimatedCost, setEstimatedCost] = useState("");
-  const [savedAmount, setSavedAmount] = useState("0");
-  const [priority, setPriority] = useState("3");
-  const [emoji, setEmoji] = useState("✨");
-  const [note, setNote] = useState("");
-  const [link, setLink] = useState("");
-  const [saving, setSaving] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    setName(editing?.name ?? "");
-    setEstimatedCost(editing ? String(Number(editing.estimatedCost)) : "");
-    setSavedAmount(editing ? String(Number(editing.savedAmount)) : "0");
-    setPriority(String(editing?.priority ?? 3));
-    setEmoji(editing?.emoji ?? "✨");
-    setNote(editing?.note ?? "");
-    setLink(editing?.link ?? "");
-  }, [open, editing]);
-
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
-    setSaving(true);
-    const payload = {
-      name,
-      estimatedCost: Number(estimatedCost),
-      currency,
-      priority: Number(priority),
-      emoji,
-      note: note || undefined,
-      link: link || undefined,
-      savedAmount: Number(savedAmount) || 0,
-      status: Number(savedAmount) > 0 ? ("SAVING" as const) : undefined,
-    };
-    try {
-      if (editing) await api.put(`/wishlist/${editing.id}`, payload);
-      else await api.post("/wishlist", payload);
-      toast.success(editing ? "Updated" : "Added to wishlist");
-      onSaved();
-      onClose();
-    } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : "Failed");
-    } finally {
-      setSaving(false);
-    }
-  }
-
-  return (
-    <Modal
-      open={open}
-      onClose={onClose}
-      title={editing ? "Edit want" : "New want"}
-      description="Park it here so it stops living only in your head."
     >
-      <form onSubmit={submit} className="space-y-4">
-        <Field label="Emoji">
-          <div className="flex flex-wrap gap-1.5">
-            {EMOJIS.map((e) => (
-              <button
-                key={e}
-                type="button"
-                onClick={() => setEmoji(e)}
-                className={cn(
-                  "flex h-10 w-10 items-center justify-center rounded-xl text-lg transition-colors",
-                  emoji === e
-                    ? "bg-primary/15 ring-2 ring-primary"
-                    : "bg-surface-muted hover:bg-surface-muted/80",
-                )}
-              >
-                {e}
-              </button>
-            ))}
+      <div className="flex items-start gap-3">
+        <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-2xl transition-transform group-hover:scale-110">
+          {item.emoji || DEFAULT_WISH_EMOJI}
+        </span>
+        <div className="min-w-0 flex-1">
+          <div className="flex items-start justify-between gap-2">
+            <h3 className="truncate font-semibold leading-snug">{item.name}</h3>
+            <span
+              className={cn(
+                'shrink-0 rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                meta.chip,
+              )}
+            >
+              {meta.label}
+            </span>
           </div>
-        </Field>
-        <Field label="What do you want?">
-          <Input
-            required
-            value={name}
-            onChange={(e) => setName(e.target.value)}
-            placeholder="Noise-cancelling headphones"
-          />
-        </Field>
-        <div className="grid grid-cols-2 gap-3">
-          <Field label={`Cost (${currency})`}>
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              required
-              value={estimatedCost}
-              onChange={(e) => setEstimatedCost(e.target.value)}
-            />
-          </Field>
-          <Field label="Already saved">
-            <Input
-              type="number"
-              step="0.01"
-              min="0"
-              value={savedAmount}
-              onChange={(e) => setSavedAmount(e.target.value)}
-            />
-          </Field>
+          <p className="mt-0.5 flex items-center gap-1 text-xs text-muted">
+            <Star className="h-3 w-3 fill-amber-400 text-amber-400" />
+            {PRIORITY_LABEL[item.priority] ?? 'Someday'}
+          </p>
         </div>
-        <Field label="Priority">
-          <Select
-            value={priority}
-            onChange={(e) => setPriority(e.target.value)}
+      </div>
+
+      {item.note && <p className="line-clamp-2 text-xs text-muted">{item.note}</p>}
+
+      <div
+        className="mt-auto flex flex-wrap items-center gap-2"
+        onClick={(e) => e.stopPropagation()}
+      >
+        {item.plan ? (
+          <Link
+            href={`/budgets/${item.plan.id}`}
+            className="inline-flex min-h-8 items-center gap-1.5 rounded-lg bg-primary/10 px-2.5 text-xs font-medium text-primary hover:bg-primary/15"
           >
-            {[1, 2, 3, 4, 5].map((p) => (
-              <option key={p} value={p}>
-                {PRIORITY_LABEL[p]}
-              </option>
-            ))}
-          </Select>
-        </Field>
-        <Field label="Link (optional)">
-          <Input
-            type="url"
-            value={link}
-            onChange={(e) => setLink(e.target.value)}
-            placeholder="https://…"
-          />
-        </Field>
-        <Field label="Note">
-          <Textarea
-            rows={2}
-            value={note}
-            onChange={(e) => setNote(e.target.value)}
-            placeholder="Why you want it…"
-          />
-        </Field>
-        <div className="flex justify-end gap-2">
-          <Button type="button" variant="outline" onClick={onClose}>
-            Cancel
+            <Wallet className="h-3.5 w-3.5" />
+            <span className="max-w-32 truncate">{item.plan.name}</span>
+          </Link>
+        ) : item.status === 'BOUGHT' ? (
+          <span className="inline-flex items-center gap-1 text-xs font-medium text-emerald-600 dark:text-emerald-400">
+            <Check className="h-3.5 w-3.5" /> Owned
+          </span>
+        ) : (
+          <Button size="sm" variant="outline" className="min-h-8" onClick={onPlan}>
+            <PiggyBank className="h-3.5 w-3.5" /> Plan this
           </Button>
-          <Button type="submit" loading={saving}>
-            {editing ? "Save" : "Add want"}
-          </Button>
-        </div>
-      </form>
-    </Modal>
+        )}
+
+        {item.link && (
+          <a
+            href={item.link}
+            target="_blank"
+            rel="noreferrer"
+            className="inline-flex min-h-8 items-center gap-1 rounded-lg border border-border px-2.5 text-xs font-medium text-muted hover:bg-surface-muted"
+          >
+            <ExternalLink className="h-3.5 w-3.5" /> Link
+          </a>
+        )}
+      </div>
+    </article>
   );
 }

@@ -4,8 +4,9 @@ import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { PiggyBank, Plus, Sparkles, Wallet, Search, ArrowUpDown, X } from 'lucide-react';
+import { PiggyBank, Plus, Sparkles, Wallet, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { Select } from '@/components/ui/input';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { BudgetPlanCard } from '@/components/finance/budget-plan-card';
@@ -197,21 +198,18 @@ function PlansPanel() {
             </div>
 
             {/* Sort selector */}
-            <div className="relative flex items-center">
-              <ArrowUpDown className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
-              <select
-                value={sort}
-                onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
-                className="h-9 appearance-none rounded-xl border border-border bg-background pl-8 pr-3 text-xs font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
-              >
-                <option value="priority">Active first</option>
-                <option value="name">Name (A-Z)</option>
-                <option value="spent">Most spent</option>
-                <option value="planned">Highest planned</option>
-                <option value="remaining">Most remaining</option>
-                <option value="progress">Progress</option>
-              </select>
-            </div>
+            <Select
+              value={sort}
+              onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
+              className="text-xs"
+            >
+              <option value="priority">Active first</option>
+              <option value="name">Name (A-Z)</option>
+              <option value="spent">Most spent</option>
+              <option value="planned">Highest planned</option>
+              <option value="remaining">Most remaining</option>
+              <option value="progress">Progress</option>
+            </Select>
 
             {/* Active filter chip */}
             {(q || status !== 'open') && (

@@ -143,7 +143,7 @@ export default function DashboardPage() {
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
         <SpendingStreaks data={data.spendingStreak} money={money} />
         <TabWidget tab={data.tab} money={money} />
-        <WishlistWidget wishlist={data.wishlist} money={money} />
+        <WishlistWidget wishlist={data.wishlist} />
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">

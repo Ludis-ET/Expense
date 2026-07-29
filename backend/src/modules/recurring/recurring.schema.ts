@@ -11,9 +11,6 @@ export const createRecurringSchema = z
     currency: z.string().length(3).toUpperCase().default('ETB'),
     accountId: z.string().min(1),
     categoryId: z.string().min(1).optional(),
-    // Auto-save target. When set, the rule funds the want instead of posting a
-    // transaction, and a category is not required.
-    wishlistItemId: z.string().min(1).optional(),
     payee: z.string().max(200).optional(),
     note: z.string().max(2000).optional(),
     frequency: z.nativeEnum(Frequency),
@@ -23,8 +20,8 @@ export const createRecurringSchema = z
     endDate: z.coerce.date().optional(),
     autoPost: z.boolean().default(true),
   })
-  .refine((d) => !!d.wishlistItemId || !!d.categoryId, {
-    message: 'Pick a category, or target a wishlist item',
+  .refine((d) => !!d.categoryId, {
+    message: 'Pick a category',
     path: ['categoryId'],
   });
 
@@ -35,7 +32,6 @@ export const updateRecurringSchema = z.object({
   currency: z.string().length(3).toUpperCase().optional(),
   accountId: z.string().min(1).optional(),
   categoryId: z.string().min(1).nullable().optional(),
-  wishlistItemId: z.string().min(1).nullable().optional(),
   payee: z.string().max(200).nullable().optional(),
   note: z.string().max(2000).nullable().optional(),
   frequency: z.nativeEnum(Frequency).optional(),

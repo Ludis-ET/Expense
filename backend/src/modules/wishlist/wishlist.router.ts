@@ -4,9 +4,8 @@ import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
 import {
   createWishlistSchema,
-  fundWishlistSchema,
   listWishlistQuery,
-  purchaseWishlistSchema,
+  planWishlistSchema,
   updateWishlistSchema,
   wishlistIdParam,
 } from './wishlist.schema.js';
@@ -21,6 +20,14 @@ wishlistRouter.get(
   validate({ query: listWishlistQuery }),
   asyncHandler(async (req, res) => {
     res.json(await wishlist.list(req.user!, req.query as never));
+  }),
+);
+
+wishlistRouter.get(
+  '/:id',
+  validate({ params: wishlistIdParam }),
+  asyncHandler(async (req, res) => {
+    res.json(await wishlist.getById(req.user!, req.params.id!));
   }),
 );
 
@@ -40,19 +47,28 @@ wishlistRouter.put(
   }),
 );
 
+/** Turn a want into a budget plan and link the two. */
 wishlistRouter.post(
-  '/:id/fund',
-  validate({ params: wishlistIdParam, body: fundWishlistSchema }),
+  '/:id/plan',
+  validate({ params: wishlistIdParam, body: planWishlistSchema }),
   asyncHandler(async (req, res) => {
-    res.json(await wishlist.fund(req.user!, req.params.id!, req.body));
+    res.status(201).json(await wishlist.plan(req.user!, req.params.id!, req.body));
   }),
 );
 
 wishlistRouter.post(
-  '/:id/purchase',
-  validate({ params: wishlistIdParam, body: purchaseWishlistSchema }),
+  '/:id/unlink-plan',
+  validate({ params: wishlistIdParam }),
   asyncHandler(async (req, res) => {
-    res.status(201).json(await wishlist.purchase(req.user!, req.params.id!, req.body));
+    res.json(await wishlist.unlinkPlan(req.user!, req.params.id!));
+  }),
+);
+
+wishlistRouter.post(
+  '/:id/bought',
+  validate({ params: wishlistIdParam }),
+  asyncHandler(async (req, res) => {
+    res.json(await wishlist.markBought(req.user!, req.params.id!));
   }),
 );
 

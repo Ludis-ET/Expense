@@ -103,9 +103,6 @@ export interface RecurringRule {
   autoPost: boolean;
   active: boolean;
   postedCount: number;
-  planType: 'transaction' | 'wishlist';
-  wishlistItemId?: string | null;
-  wishlistItem?: { id: string; name: string; emoji?: string | null } | null;
 }
 
 /** The step a recurring plan advances by; paired with an interval. */
@@ -428,37 +425,47 @@ export interface LedgerSummary {
   };
 }
 
-export type WishlistStatus = 'WANTING' | 'SAVING' | 'BOUGHT' | 'DROPPED';
+export type WishlistStatus = 'WANTING' | 'PLANNED' | 'BOUGHT' | 'DROPPED';
 
+/** The plan a want was turned into, if it has been planned. */
+export interface WishPlanRef {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  currency: string;
+  state: BudgetState;
+  kind: BudgetKind;
+  plannedAmount: string;
+}
+
+/** A want is just the idea of a thing: no cost, no savings. */
 export interface WishlistItem {
   id: string;
   name: string;
-  estimatedCost: string;
-  currency: string;
   priority: number;
   status: WishlistStatus;
   note?: string | null;
   link?: string | null;
   emoji?: string | null;
-  savedAmount: string;
-  remaining: string;
-  pct: number;
-  /** true = you can cover what's left out of unlocked money; null = closed/unknown. */
-  affordable: boolean | null;
+  /** Set once the want has been turned into a budget plan. */
+  budgetId?: string | null;
+  plan?: WishPlanRef | null;
+  plannedAt?: string | null;
+  boughtAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
 
 export interface WishlistResponse {
   items: WishlistItem[];
+  /** Counts over the whole list, so tabs do not move while you search. */
   stats: {
     wanting: number;
-    saving: number;
+    planned: number;
     bought: number;
-    affordable: number;
-    dreamTotal: string;
-    savedTotal: string;
-    currency: string | null;
+    dropped: number;
+    total: number;
   };
 }
 
@@ -496,10 +503,8 @@ export interface GuidesOverview {
 }
 
 export interface WishlistDigest {
-  currency: string;
   activeCount: number;
-  affordableCount: number;
-  dreamTotal: string;
+  plannedCount: number;
   top: WishlistItem[];
 }
 

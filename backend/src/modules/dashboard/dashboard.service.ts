@@ -213,7 +213,7 @@ export async function overview(user: AuthUser) {
       familySupport(user),
       household.overview(user),
       ledger.summary(user),
-      wishlist.dashboard(user, defaultCur),
+      wishlist.dashboard(user),
     ]);
 
   // Every balance below is the *available* figure: real money minus whatever

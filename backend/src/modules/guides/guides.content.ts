@@ -46,7 +46,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "4. Protect and plan",
-        body: "Filling a plan is what ring-fences money you refuse to touch - rent, school fees, an emergency buffer. The Wishlist, a tab under Budgets, parks the things you want and shows when you can actually afford them. Recurring turns any of this into an automatic habit.",
+        body: "Filling a plan is what ring-fences money you refuse to touch - rent, school fees, an emergency buffer. The Wishlist, a tab under Budgets, parks the things you want; when you are ready to act on one, plan it and it becomes a budget plan you can fill over time. Recurring turns bills and income into an automatic habit.",
       },
     ],
   },
@@ -130,7 +130,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "Park it on your wishlist",
-        body: 'Instead of buying, add the item to your Wishlist. It gives the want a home, shows the cost, and tracks how close you are. When you can truly afford it, Santim marks it "Can afford"   buy it then, guilt-free.',
+        body: 'Instead of buying, add the item to your Wishlist. It gives the want a home without committing a birr. If it still matters in a week, plan it: that spins up a budget plan you can fill a little at a time, and you buy it once the plan is full.',
       },
       {
         heading: 'Name your "unnecessary" spending',

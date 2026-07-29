@@ -1,146 +1,170 @@
-import { Prisma, TxKind, WishlistStatus } from "../../core/prisma.js";
-import { prisma } from "../../core/db.js";
-import { BadRequestError, NotFoundError } from "../../core/errors.js";
-import type { AuthUser } from "../../core/context.js";
-import { notify } from "../notifications/notifications.service.js";
-import * as transactions from "../transactions/transactions.service.js";
-import { availableTotal } from "../accounts/accounts.service.js";
+/**
+ * The wishlist: things you want, with no money attached.
+ *
+ * A want is deliberately just an idea - emoji, name, priority, link, note.
+ * Acting on one means *planning* it, which spins up a budget plan and links
+ * the two; from then on the money lives in the plan, where it belongs.
+ */
+import { Prisma, WishlistStatus } from '../../core/prisma.js';
+import { prisma } from '../../core/db.js';
+import { BadRequestError, NotFoundError } from '../../core/errors.js';
+import type { AuthUser } from '../../core/context.js';
+import { notify } from '../notifications/notifications.service.js';
+import * as budgets from '../budgets/budgets.service.js';
 import type {
   CreateWishlistInput,
-  FundWishlistInput,
   ListWishlistQuery,
-  PurchaseWishlistInput,
+  PlanWishlistInput,
   UpdateWishlistInput,
-} from "./wishlist.schema.js";
+} from './wishlist.schema.js';
+
+const planSelect = {
+  id: true,
+  name: true,
+  icon: true,
+  color: true,
+  currency: true,
+  state: true,
+  kind: true,
+  plannedAmount: true,
+} as const;
 
 type ItemRow = {
   id: string;
   name: string;
-  estimatedCost: Prisma.Decimal;
-  currency: string;
   priority: number;
   status: WishlistStatus;
   note: string | null;
   link: string | null;
   emoji: string | null;
-  savedAmount: Prisma.Decimal;
+  budgetId: string | null;
+  plannedAt: Date | null;
+  boughtAt: Date | null;
   createdAt: Date;
   updatedAt: Date;
+  budget?: {
+    id: string;
+    name: string;
+    icon: string | null;
+    color: string | null;
+    currency: string;
+    state: string;
+    kind: string;
+    plannedAmount: Prisma.Decimal;
+  } | null;
 };
 
-/** `spendable` = money free to spend in the item's currency (or null when unknown). */
-function serialize(item: ItemRow, spendable?: number | null) {
-  const cost = Number(item.estimatedCost);
-  const saved = Number(item.savedAmount);
-  const remaining = Math.max(0, cost - saved);
-  const pct = cost > 0 ? Math.min(100, Math.round((saved / cost) * 100)) : 0;
-  const isActive =
-    item.status === WishlistStatus.WANTING ||
-    item.status === WishlistStatus.SAVING;
+function serialize(item: ItemRow) {
   return {
     id: item.id,
     name: item.name,
-    estimatedCost: item.estimatedCost.toFixed(2),
-    currency: item.currency,
     priority: item.priority,
     status: item.status,
     note: item.note,
     link: item.link,
     emoji: item.emoji,
-    savedAmount: item.savedAmount.toFixed(2),
-    remaining: remaining.toFixed(2),
-    pct,
-    // Can you cover what's left out of money that is free to spend?
-    affordable:
-      spendable == null || !isActive ? null : spendable + 0.001 >= remaining,
-    createdAt: item.createdAt,
-    updatedAt: item.updatedAt,
+    budgetId: item.budgetId,
+    plan: item.budget
+      ? {
+          id: item.budget.id,
+          name: item.budget.name,
+          icon: item.budget.icon,
+          color: item.budget.color,
+          currency: item.budget.currency,
+          state: item.budget.state,
+          kind: item.budget.kind,
+          plannedAmount: item.budget.plannedAmount.toFixed(2),
+        }
+      : null,
+    plannedAt: item.plannedAt ? item.plannedAt.toISOString() : null,
+    boughtAt: item.boughtAt ? item.boughtAt.toISOString() : null,
+    createdAt: item.createdAt.toISOString(),
+    updatedAt: item.updatedAt.toISOString(),
   };
 }
 
+export type SerializedWish = ReturnType<typeof serialize>;
+
+const include = { budget: { select: planSelect } } satisfies Prisma.WishlistItemInclude;
+
 async function assertOwned(id: string, userId: string) {
-  const item = await prisma.wishlistItem.findFirst({ where: { id, userId } });
-  if (!item) throw new NotFoundError("Wishlist item not found");
+  const item = await prisma.wishlistItem.findFirst({ where: { id, userId }, include });
+  if (!item) throw new NotFoundError('Wishlist item not found');
   return item as ItemRow;
 }
 
-/** Available-money-per-currency map for the currencies present in a set of items. */
-async function spendableByCurrency(userId: string, currencies: string[]) {
-  const uniq = [...new Set(currencies)];
-  const rows = await Promise.all(
-    uniq.map(
-      async (c) =>
-        [c, Number(await availableTotal(userId, c))] as const,
-    ),
-  );
-  return new Map(rows);
-}
+const ORDER: Record<
+  ListWishlistQuery['sort'],
+  Prisma.WishlistItemOrderByWithRelationInput[]
+> = {
+  priority: [{ priority: 'asc' }, { createdAt: 'desc' }],
+  newest: [{ createdAt: 'desc' }],
+  oldest: [{ createdAt: 'asc' }],
+  name: [{ name: 'asc' }],
+};
 
 export async function list(user: AuthUser, query: ListWishlistQuery) {
+  const q = query.q?.trim();
   const items = (await prisma.wishlistItem.findMany({
     where: {
       userId: user.id,
-      ...(query.currency ? { currency: query.currency.toUpperCase() } : {}),
       ...(query.status ? { status: query.status } : {}),
+      ...(query.priority ? { priority: query.priority } : {}),
+      ...(q
+        ? {
+            OR: [
+              { name: { contains: q, mode: 'insensitive' } },
+              { note: { contains: q, mode: 'insensitive' } },
+            ],
+          }
+        : {}),
     },
-    orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+    include,
+    orderBy: ORDER[query.sort],
   })) as ItemRow[];
 
-  const spendable = await spendableByCurrency(
-    user.id,
-    items.map((i) => i.currency),
-  );
-
-  const active = items.filter(
-    (i) =>
-      i.status === WishlistStatus.WANTING || i.status === WishlistStatus.SAVING,
-  );
-  const dreamTotal = active.reduce((s, i) => s + Number(i.estimatedCost), 0);
-  const savedTotal = active.reduce((s, i) => s + Number(i.savedAmount), 0);
-  const serialized = items.map((i) => serialize(i, spendable.get(i.currency)));
+  // Counts describe the whole list, not the filtered view, so the tabs do not
+  // jump around as you search.
+  const counts = await prisma.wishlistItem.groupBy({
+    by: ['status'],
+    where: { userId: user.id },
+    _count: true,
+  });
+  const countOf = (s: WishlistStatus) => counts.find((c) => c.status === s)?._count ?? 0;
 
   return {
-    items: serialized,
+    items: items.map(serialize),
     stats: {
-      wanting: items.filter((i) => i.status === WishlistStatus.WANTING).length,
-      saving: items.filter((i) => i.status === WishlistStatus.SAVING).length,
-      bought: items.filter((i) => i.status === WishlistStatus.BOUGHT).length,
-      affordable: serialized.filter((i) => i.affordable).length,
-      dreamTotal: dreamTotal.toFixed(2),
-      savedTotal: savedTotal.toFixed(2),
-      currency: query.currency?.toUpperCase() ?? null,
+      wanting: countOf(WishlistStatus.WANTING),
+      planned: countOf(WishlistStatus.PLANNED),
+      bought: countOf(WishlistStatus.BOUGHT),
+      dropped: countOf(WishlistStatus.DROPPED),
+      total: counts.reduce((s, c) => s + c._count, 0),
     },
   };
 }
 
-/** Compact wishlist digest for the dashboard: closest-to-owning active wants. */
-export async function dashboard(user: AuthUser, currency: string) {
-  const cur = currency.toUpperCase();
+/** Compact digest for the dashboard: the wants nearest the top of the pile. */
+export async function dashboard(user: AuthUser) {
   const items = (await prisma.wishlistItem.findMany({
     where: {
       userId: user.id,
-      currency: cur,
-      status: { in: [WishlistStatus.WANTING, WishlistStatus.SAVING] },
+      status: { in: [WishlistStatus.WANTING, WishlistStatus.PLANNED] },
     },
-    orderBy: [{ priority: "asc" }, { createdAt: "desc" }],
+    include,
+    orderBy: [{ priority: 'asc' }, { createdAt: 'desc' }],
   })) as ItemRow[];
-  const spendable = Number(await availableTotal(user.id, cur));
-  const serialized = items.map((i) => serialize(i, spendable));
 
+  const serialized = items.map(serialize);
   return {
-    currency: cur,
     activeCount: serialized.length,
-    affordableCount: serialized.filter((i) => i.affordable).length,
-    dreamTotal: items
-      .reduce((s, i) => s + Number(i.estimatedCost), 0)
-      .toFixed(2),
-    top: serialized
-      .slice()
-      .sort((a, b) =>
-        b.affordable === a.affordable ? b.pct - a.pct : a.affordable ? -1 : 1,
-      )
-      .slice(0, 3),
+    plannedCount: serialized.filter((i) => i.status === WishlistStatus.PLANNED).length,
+    top: serialized.slice(0, 3),
   };
+}
+
+export async function getById(user: AuthUser, id: string) {
+  return serialize(await assertOwned(id, user.id));
 }
 
 export async function create(user: AuthUser, input: CreateWishlistInput) {
@@ -148,147 +172,122 @@ export async function create(user: AuthUser, input: CreateWishlistInput) {
     data: {
       userId: user.id,
       name: input.name.trim(),
-      estimatedCost: input.estimatedCost,
-      currency: input.currency.toUpperCase(),
       priority: input.priority,
-      note: input.note,
+      note: input.note ?? null,
       link: input.link || null,
-      emoji: input.emoji,
+      emoji: input.emoji ?? null,
       status: input.status ?? WishlistStatus.WANTING,
-      savedAmount: input.savedAmount ?? 0,
     },
+    include,
   })) as ItemRow;
-
-  return serialize(
-    item,
-    Number(await availableTotal(user.id, item.currency)),
-  );
+  return serialize(item);
 }
 
-export async function update(
-  user: AuthUser,
-  id: string,
-  input: UpdateWishlistInput,
-) {
+export async function update(user: AuthUser, id: string, input: UpdateWishlistInput) {
   await assertOwned(id, user.id);
-
   const item = (await prisma.wishlistItem.update({
     where: { id },
     data: {
       ...(input.name !== undefined ? { name: input.name.trim() } : {}),
-      ...(input.estimatedCost !== undefined
-        ? { estimatedCost: input.estimatedCost }
-        : {}),
-      ...(input.currency !== undefined
-        ? { currency: input.currency.toUpperCase() }
-        : {}),
       ...(input.priority !== undefined ? { priority: input.priority } : {}),
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.link !== undefined ? { link: input.link || null } : {}),
       ...(input.emoji !== undefined ? { emoji: input.emoji } : {}),
       ...(input.status !== undefined ? { status: input.status } : {}),
-      ...(input.savedAmount !== undefined
-        ? { savedAmount: input.savedAmount }
-        : {}),
     },
+    include,
   })) as ItemRow;
-
-  return serialize(
-    item,
-    Number(await availableTotal(user.id, item.currency)),
-  );
-}
-
-/** Set aside money toward a want. Notifies once it is fully funded. */
-export async function fund(
-  user: AuthUser,
-  id: string,
-  input: FundWishlistInput,
-) {
-  const existing = await assertOwned(id, user.id);
-  if (
-    existing.status === WishlistStatus.BOUGHT ||
-    existing.status === WishlistStatus.DROPPED
-  ) {
-    throw new BadRequestError("This want is already closed");
-  }
-
-  const cost = existing.estimatedCost;
-  const nextSaved = Prisma.Decimal.min(
-    cost,
-    existing.savedAmount.add(input.amount),
-  );
-  const wasFunded = existing.savedAmount.gte(cost);
-
-  const item = (await prisma.wishlistItem.update({
-    where: { id },
-    data: {
-      savedAmount: nextSaved,
-      status:
-        existing.status === WishlistStatus.WANTING
-          ? WishlistStatus.SAVING
-          : existing.status,
-    },
-  })) as ItemRow;
-
-  if (!wasFunded && nextSaved.gte(cost)) {
-    await notify(
-      user.id,
-      "wishlist_funded",
-      `🎯 You've fully funded "${existing.name}"   ready to buy!`,
-      "/budgets?tab=wishlist",
-    );
-  }
-
-  return serialize(
-    item,
-    Number(await availableTotal(user.id, item.currency)),
-  );
+  return serialize(item);
 }
 
 /**
- * Buy the want: writes a real EXPENSE against the chosen account/category and
- * marks the item BOUGHT.
+ * Turn a want into a budget plan. Creates the plan, links it back, and moves
+ * the want to PLANNED. From here on the money is the plan's business.
  */
-export async function purchase(
-  user: AuthUser,
-  id: string,
-  input: PurchaseWishlistInput,
-) {
+export async function plan(user: AuthUser, id: string, input: PlanWishlistInput) {
   const existing = await assertOwned(id, user.id);
-  if (existing.status === WishlistStatus.BOUGHT)
-    throw new BadRequestError("Already marked bought");
+  if (existing.budgetId) {
+    throw new BadRequestError(`"${existing.name}" already has a plan behind it.`);
+  }
+  if (existing.status === WishlistStatus.BOUGHT) {
+    throw new BadRequestError('This want is already bought.');
+  }
 
-  const amount = input.amount ?? Number(existing.estimatedCost);
-
-  const tx = await transactions.create(user, {
-    kind: TxKind.EXPENSE,
-    amount,
-    currency: existing.currency,
-    date: input.date ?? new Date(),
-    accountId: input.accountId,
-    categoryId: input.categoryId,
-    payee: existing.name,
-    note: input.note ?? `Wishlist purchase`,
-    tags: ["wishlist"],
+  const created = await budgets.create(user, {
+    name: (input.name ?? existing.name).trim(),
+    kind: input.kind,
+    recurrenceUnit: input.recurrenceUnit ?? null,
+    recurrenceInterval: input.recurrenceInterval,
+    plannedAmount: input.plannedAmount,
+    currency: input.currency,
+    categoryId: input.categoryId ?? null,
+    // Carry the want's own face onto the plan so the two read as one thing.
+    icon: 'sparkles',
+    color: input.color ?? '#a855f7',
+    note: existing.note ?? `Saving up for ${existing.name}`,
+    alertThreshold: input.alertThreshold,
+    startsAt: input.startsAt,
+    endDate: input.endDate ?? null,
   } as never);
 
   const item = (await prisma.wishlistItem.update({
     where: { id },
-    data: { status: WishlistStatus.BOUGHT },
+    data: {
+      budgetId: created.id,
+      status: WishlistStatus.PLANNED,
+      plannedAt: new Date(),
+    },
+    include,
   })) as ItemRow;
 
   await notify(
     user.id,
-    "wishlist_bought",
-    `🛍️ You bought "${existing.name}". Enjoy it!`,
-    "/transactions",
+    'wishlist_planned',
+    `"${existing.name}" now has a plan. Put money in it whenever you like.`,
+    `/budgets/${created.id}`,
   );
 
-  return { item: serialize(item, null), transaction: tx };
+  return { item: serialize(item), plan: created };
+}
+
+/** Break the link without deleting the plan, sending the want back to WANTING. */
+export async function unlinkPlan(user: AuthUser, id: string) {
+  const existing = await assertOwned(id, user.id);
+  if (!existing.budgetId) throw new BadRequestError('This want has no plan linked.');
+
+  const item = (await prisma.wishlistItem.update({
+    where: { id },
+    data: {
+      budgetId: null,
+      plannedAt: null,
+      status:
+        existing.status === WishlistStatus.PLANNED ? WishlistStatus.WANTING : existing.status,
+    },
+    include,
+  })) as ItemRow;
+  return serialize(item);
+}
+
+/**
+ * Mark it owned. Spending happens through the plan, so this only records the
+ * milestone.
+ */
+export async function markBought(user: AuthUser, id: string) {
+  const existing = await assertOwned(id, user.id);
+  if (existing.status === WishlistStatus.BOUGHT) return serialize(existing);
+
+  const item = (await prisma.wishlistItem.update({
+    where: { id },
+    data: { status: WishlistStatus.BOUGHT, boughtAt: new Date() },
+    include,
+  })) as ItemRow;
+
+  await notify(user.id, 'wishlist_bought', `You got "${existing.name}". Enjoy it!`, '/budgets?tab=wishlist');
+  return serialize(item);
 }
 
 export async function remove(user: AuthUser, id: string) {
   await assertOwned(id, user.id);
+  // The plan, if any, outlives the want: it may already hold money.
   await prisma.wishlistItem.delete({ where: { id } });
 }

@@ -1,9 +1,4 @@
-import {
-  Frequency,
-  Prisma,
-  WishlistStatus,
-  type RecurringRule,
-} from "../../core/prisma.js";
+import { Frequency, Prisma, type RecurringRule } from "../../core/prisma.js";
 import { prisma } from "../../core/db.js";
 import { logger } from "../../core/logger.js";
 import { notify } from "../notifications/notifications.service.js";
@@ -58,57 +53,15 @@ export function advanceNextRun(
   }
 }
 
-export type OccurrenceKind = "transaction" | "wishlist";
+export type OccurrenceKind = "transaction";
 
-/**
- * Materialize one occurrence of a rule inside an open DB transaction:
- * - auto-save plan targeting a wishlist item → funds the want, matching the
- *   manual Fund flow.
- * - otherwise → posts a normal transaction.
- */
+/** Materialize one occurrence of a rule inside an open DB transaction. */
 export async function applyOccurrence(
   dbTx: Prisma.TransactionClient,
   userId: string,
   rule: RecurringRule,
   date: Date,
 ): Promise<OccurrenceKind> {
-  if (rule.wishlistItemId) {
-    const item = await dbTx.wishlistItem.findUnique({
-      where: { id: rule.wishlistItemId },
-    });
-    if (
-      item &&
-      item.status !== WishlistStatus.BOUGHT &&
-      item.status !== WishlistStatus.DROPPED
-    ) {
-      const cost = item.estimatedCost;
-      const wasFunded = item.savedAmount.gte(cost);
-      const nextSaved = Prisma.Decimal.min(
-        cost,
-        item.savedAmount.add(rule.amount),
-      );
-      await dbTx.wishlistItem.update({
-        where: { id: item.id },
-        data: {
-          savedAmount: nextSaved,
-          status:
-            item.status === WishlistStatus.WANTING
-              ? WishlistStatus.SAVING
-              : item.status,
-        },
-      });
-      if (!wasFunded && nextSaved.gte(cost)) {
-        await notify(
-          userId,
-          "wishlist_funded",
-          `🎯 Auto-save fully funded "${item.name}"   ready to buy!`,
-          "/budgets?tab=wishlist",
-        );
-      }
-    }
-    return "wishlist";
-  }
-
   await dbTx.transaction.create({
     data: {
       userId,
@@ -124,10 +77,6 @@ export async function applyOccurrence(
     },
   });
   return "transaction";
-}
-
-function reminderLink(rule: RecurringRule): string {
-  return rule.wishlistItemId ? "/budgets?tab=wishlist" : "/recurring";
 }
 
 /**
@@ -158,7 +107,7 @@ export async function catchUpUser(userId: string): Promise<void> {
             userId,
             "recurring_due",
             `Reminder: ${rule.name} (${rule.amount.toFixed(2)} ${rule.currency}) is due.`,
-            reminderLink(rule),
+            "/recurring",
           );
         }
 

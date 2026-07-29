@@ -1,44 +1,59 @@
 import { z } from 'zod';
-import { WishlistStatus } from '../../core/prisma.js';
+import { BudgetKind, RecurrenceUnit, WishlistStatus } from '../../core/prisma.js';
 
-const money = z.coerce.number().min(0).max(1_000_000_000);
-const currency = z.string().length(3).toUpperCase();
+const money = z.coerce.number().positive().max(1_000_000_000);
 
+/** A want is just an idea: no cost, no savings, no currency. */
 export const createWishlistSchema = z.object({
-  name: z.string().min(1).max(120),
-  estimatedCost: money.refine((n) => n > 0, 'Cost must be positive'),
-  currency: currency.default('ETB'),
+  name: z.string().trim().min(1, 'Give it a name').max(120),
   priority: z.coerce.number().int().min(1).max(5).default(3),
-  note: z.string().max(2000).optional(),
-  link: z.string().url().max(500).optional().or(z.literal('')),
-  emoji: z.string().max(8).optional(),
+  note: z.string().max(2000).nullish(),
+  link: z.string().url().max(500).nullish().or(z.literal('')),
+  emoji: z.string().max(8).nullish(),
   status: z.nativeEnum(WishlistStatus).optional(),
-  savedAmount: money.optional(),
 });
 
 export const updateWishlistSchema = createWishlistSchema.partial();
 
 export const listWishlistQuery = z.object({
-  currency: currency.optional(),
   status: z.nativeEnum(WishlistStatus).optional(),
+  priority: z.coerce.number().int().min(1).max(5).optional(),
+  q: z.string().max(200).optional(),
+  sort: z
+    .enum(['priority', 'newest', 'oldest', 'name'])
+    .default('priority'),
 });
 
-export const fundWishlistSchema = z.object({
-  amount: money.refine((n) => n > 0, 'Amount must be positive'),
-});
-
-export const purchaseWishlistSchema = z.object({
-  accountId: z.string().min(1),
-  categoryId: z.string().min(1),
-  amount: money.optional(), // defaults to estimatedCost
-  date: z.coerce.date().optional(),
-  note: z.string().max(2000).optional(),
-});
+/**
+ * Turning a want into a plan. Everything a Budget needs that a want does not
+ * already carry; the name and icon default to the want's own.
+ */
+export const planWishlistSchema = z
+  .object({
+    name: z.string().trim().min(1).max(80).optional(),
+    plannedAmount: money,
+    currency: z.string().length(3).default('ETB'),
+    kind: z.enum([BudgetKind.ONE_TIME, BudgetKind.RECURRING]).default(BudgetKind.ONE_TIME),
+    recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
+    recurrenceInterval: z.coerce.number().int().min(1).max(365).default(1),
+    categoryId: z.string().min(1).nullish(),
+    color: z.string().max(20).nullish(),
+    alertThreshold: z.coerce.number().int().min(1).max(100).default(80),
+    startsAt: z.coerce.date().optional(),
+    endDate: z.coerce.date().nullish(),
+  })
+  .refine((d) => d.kind !== BudgetKind.RECURRING || !!d.recurrenceUnit, {
+    message: 'Pick how often this plan repeats',
+    path: ['recurrenceUnit'],
+  })
+  .refine((d) => !(d.startsAt && d.endDate) || d.endDate >= d.startsAt, {
+    message: 'End date must be on or after the start date',
+    path: ['endDate'],
+  });
 
 export const wishlistIdParam = z.object({ id: z.string().min(1) });
 
 export type CreateWishlistInput = z.infer<typeof createWishlistSchema>;
 export type UpdateWishlistInput = z.infer<typeof updateWishlistSchema>;
 export type ListWishlistQuery = z.infer<typeof listWishlistQuery>;
-export type FundWishlistInput = z.infer<typeof fundWishlistSchema>;
-export type PurchaseWishlistInput = z.infer<typeof purchaseWishlistSchema>;
+export type PlanWishlistInput = z.infer<typeof planWishlistSchema>;

@@ -28,7 +28,7 @@ async function snapshot(user: AuthUser) {
   const [
     monthRows,
     txCount,
-    savingsPlans,
+    unplannedWants,
     budgetList,
     wishDigest,
     unnecessary,
@@ -44,11 +44,11 @@ async function snapshot(user: AuthUser) {
       _sum: { amount: true },
     }),
     prisma.transaction.count({ where: { userId: user.id } }),
-    prisma.recurringRule.count({
-      where: { userId: user.id, active: true, wishlistItemId: { not: null } },
+    prisma.wishlistItem.count({
+      where: { userId: user.id, status: 'WANTING' },
     }),
     budgets.list(user),
-    wishlist.dashboard(user, cur),
+    wishlist.dashboard(user),
     analytics.unnecessary(user, undefined, cur),
   ]);
 
@@ -65,7 +65,7 @@ async function snapshot(user: AuthUser) {
     currency: cur,
     txCount,
     savingsRate,
-    savingsPlans,
+    unplannedWants,
     budgetCount: budgetList.items.length,
     budgetsUnfunded: budgetList.items.filter(
       (b) => b.state === "ACTIVE" && Number(b.fundedAmount) <= 0,
@@ -74,7 +74,7 @@ async function snapshot(user: AuthUser) {
       (b) => b.health === "low" || b.health === "drained",
     ).length,
     activeWants: wishDigest.activeCount,
-    affordableWants: wishDigest.affordableCount,
+    plannedWants: wishDigest.plannedCount,
     unnecessary: Number(unnecessary.total),
   };
 }
@@ -132,23 +132,23 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
     });
   }
 
-  if (s.activeWants > 0 && s.savingsPlans === 0) {
+  if (s.unplannedWants > 0) {
     add(60, {
-      id: "automate",
-      title: "Automate saving for a want",
-      body: "Your wishlist relies on remembering to set money aside. An auto-save plan moves money for you every period.",
+      id: "plan-a-want",
+      title: `${s.unplannedWants} want${s.unplannedWants === 1 ? " has" : "s have"} no plan yet`,
+      body: "A want is only a wish until money is set aside for it. Planning one turns it into a budget plan you can fill a little at a time.",
       tone: "tip",
-      guideId: "automate-saving",
-      href: "/recurring",
-      cta: "Create a plan",
+      guideId: "budget-basics",
+      href: "/budgets?tab=wishlist",
+      cta: "Plan a want",
     });
   }
 
-  if (s.affordableWants > 0) {
+  if (s.plannedWants > 0) {
     add(55, {
-      id: "affordable",
-      title: `You can afford ${s.affordableWants} want${s.affordableWants === 1 ? "" : "s"} now`,
-      body: "You have saved enough (after locks and budget plans) to buy them guilt-free.",
+      id: "planned-wants",
+      title: `${s.plannedWants} want${s.plannedWants === 1 ? " is" : "s are"} being saved for`,
+      body: "Top the plans up whenever money comes in, and buy guilt-free once they are full.",
       tone: "success",
       guideId: "budget-basics",
       href: "/budgets?tab=wishlist",

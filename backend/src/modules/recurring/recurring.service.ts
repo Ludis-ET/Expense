@@ -8,20 +8,17 @@ import type { CreateRecurringInput, UpdateRecurringInput } from './recurring.sch
 const ruleInclude = {
   category: { select: { id: true, name: true, icon: true, color: true } },
   account: { select: { id: true, name: true, type: true } },
-  wishlistItem: { select: { id: true, name: true, emoji: true } },
   _count: { select: { transactions: true } },
 } as const;
 
 function serialize(
   rule: {
     amount: { toFixed(n: number): string };
-    wishlistItemId: string | null;
     _count: { transactions: number };
   } & Record<string, unknown>,
 ) {
   const { _count, ...rest } = rule;
-  const planType = rule.wishlistItemId ? 'wishlist' : 'transaction';
-  return { ...rest, amount: rule.amount.toFixed(2), postedCount: _count.transactions, planType };
+  return { ...rest, amount: rule.amount.toFixed(2), postedCount: _count.transactions };
 }
 
 async function assertOwnedRule(id: string, userId: string) {
@@ -33,7 +30,7 @@ async function assertOwnedRule(id: string, userId: string) {
 async function assertRefsOwned(
   userId: string,
   kind: TxKind,
-  input: { accountId?: string; categoryId?: string | null; wishlistItemId?: string | null },
+  input: { accountId?: string; categoryId?: string | null },
 ) {
   if (input.accountId) {
     const account = await prisma.account.findFirst({ where: { id: input.accountId, userId } });
@@ -47,10 +44,6 @@ async function assertRefsOwned(
       throw new BadRequestError(`"${category.name}" is a ${category.kind.toLowerCase()} category`);
     }
   }
-  if (input.wishlistItemId) {
-    const item = await prisma.wishlistItem.findFirst({ where: { id: input.wishlistItemId, userId } });
-    if (!item) throw new NotFoundError('Wishlist item not found');
-  }
 }
 
 export async function list(user: AuthUser) {
@@ -63,9 +56,7 @@ export async function list(user: AuthUser) {
 }
 
 export async function create(user: AuthUser, input: CreateRecurringInput) {
-  // Auto-save plans clear the category; wishlist funding doesn't use one.
-  const isSavings = !!input.wishlistItemId;
-  const data = { ...input, categoryId: isSavings ? null : (input.categoryId ?? null) };
+  const data = { ...input, categoryId: input.categoryId ?? null };
   await assertRefsOwned(user.id, input.kind, data);
   const rule = await prisma.recurringRule.create({
     data: { ...data, userId: user.id },

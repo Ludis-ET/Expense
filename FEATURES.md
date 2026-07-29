@@ -84,11 +84,13 @@ Its **transactions** section is built for plans with a lot of history (Unplanned
 
 ### Wishlist
 
-A creative **dream board** for things you want (phones, trips, gear):
+A **dream board** for things you want (phones, trips, gear). Deliberately money-free: a want is just an idea, so writing one down commits nothing.
 
-- Priority, emoji, optional product link, and progress toward the cost.
-- Statuses: wanting → saving → bought.
-- Shows "Can afford" once what's left is covered by your genuinely spendable money.
+- Emoji (a large, searchable set), name, priority, an optional link and a note. No cost, no savings.
+- **Plan this wish** is how a want becomes real: it asks for the few things a plan needs (how much, one-time or a repeating cadence, start date, optional category and colour), creates a **budget plan**, and links the two. The want flips to **Planned** with a link straight to its plan, which you then fill a little at a time like any other.
+- Statuses: wanting, planned, bought, dropped. Marking bought is just a milestone; the actual spending happens through the plan.
+- Click any want for a **detail view** with everything on it: the note, the link, its plan and what that plan is for, plus every action (edit, plan, unlink, drop, mark bought, delete).
+- Search across names and notes, filter by status or priority, and sort by priority, date or name. Tab counts cover the whole list, so they stay put while you search.
 
 ## Recurring (`/recurring`)
 

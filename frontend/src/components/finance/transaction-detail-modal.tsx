@@ -36,13 +36,13 @@ function DetailRow({ icon: Icon, label, value, valueClass }: {
   valueClass?: string;
 }) {
   return (
-    <div className="flex items-start gap-3 py-3 border-b border-border last:border-0">
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-muted">
+    <div className="flex min-h-14 items-center gap-3 border-b border-border px-4 py-3 last:border-0">
+      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg bg-surface-muted text-muted self-start">
         <Icon className="h-4 w-4" />
       </span>
-      <div className="min-w-0 flex-1">
-        <p className="text-xs text-muted mb-0.5">{label}</p>
-        <p className={cn('text-sm font-medium', valueClass)}>{value}</p>
+      <div className="min-w-0 flex-1 py-0.5">
+        <p className="mb-0.5 text-xs leading-none text-muted">{label}</p>
+        <p className={cn('text-sm font-medium leading-snug', valueClass)}>{value}</p>
       </div>
     </div>
   );
@@ -81,7 +81,7 @@ export function TransactionDetailModal({
     <Modal open={!!transaction} onClose={onClose} title="Transaction Details" className="sm:max-w-2xl">
       <div className="space-y-5">
         <div
-          className="overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface-muted/90 via-surface to-surface-muted/40 p-5 shadow-sm"
+          className="overflow-hidden rounded-3xl border border-border bg-linear-to-br from-surface-muted/90 via-surface to-surface-muted/40 p-5 shadow-sm"
           style={{
             backgroundImage: `radial-gradient(circle at top right, ${iconColor}18, transparent 38%), radial-gradient(circle at bottom left, ${iconColor}12, transparent 34%)`,
           }}

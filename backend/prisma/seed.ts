@@ -3,9 +3,9 @@ import {
   AccountType,
   BudgetAllocationKind,
   BudgetKind,
-  BudgetPeriod,
   Frequency,
   PrismaClient,
+  RecurrenceUnit,
   TxKind,
 } from '../generated/client/index.js';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/default-categories.js';
@@ -251,12 +251,14 @@ async function main() {
       name: 'Monthly groceries',
       categoryId: cat('Food & Groceries').id,
       kind: BudgetKind.RECURRING,
-      period: BudgetPeriod.MONTHLY,
+      recurrenceUnit: RecurrenceUnit.MONTH,
+      recurrenceInterval: 1,
       plannedAmount: 10000,
       currency: 'ETB',
       icon: 'shopping-cart',
       color: '#10b981',
       alertThreshold: 80,
+      startsAt: startOfMonth(),
       cycleStartedAt: startOfMonth(),
       nextResetAt: startOfNextMonth(),
     },
@@ -274,6 +276,28 @@ async function main() {
       note: 'Saving up before the old one dies.',
       alertThreshold: 90,
     },
+  });
+
+  // The built-in catch-all plan, and every demo expense that was not spent
+  // from a funded pot gets filed under it.
+  const unplanned = await prisma.budget.create({
+    data: {
+      id: `unplanned_${user.id}`,
+      userId: user.id,
+      name: 'Unplanned',
+      kind: BudgetKind.UNPLANNED,
+      plannedAmount: 0,
+      currency: 'ETB',
+      icon: 'circle-ellipsis',
+      color: '#64748b',
+      note: 'Everything you spend without setting money aside first.',
+      alertThreshold: 100,
+    },
+  });
+
+  await prisma.transaction.updateMany({
+    where: { userId: user.id, kind: TxKind.EXPENSE, budgetId: null },
+    data: { budgetId: unplanned.id, budgetCycle: 0 },
   });
 
   await prisma.budgetAllocation.createMany({

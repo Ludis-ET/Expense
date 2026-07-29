@@ -51,9 +51,19 @@ Budgets are **envelopes**, not just limits. The page has two tabs: **Plans** and
 
 A plan is something you name yourself - "Weekend food", "New laptop", "School fees". A category is **optional**: if you attach one, it is pre-selected whenever you spend from the plan.
 
-- Choose **one-time** or **recurring** (weekly / monthly / quarterly / yearly), and say how much you **plan to spend**. That figure is also the ceiling on how much money the plan will accept.
+- Choose **one-time** or **recurring**, and say how much you **plan to spend**. That figure is also the ceiling on how much money the plan will accept.
+- **Any cadence you like.** Recurring plans repeat *every N* hours, days, weeks, months, quarters or years - one tap for the common ones (daily, weekly, fortnightly, monthly, quarterly, yearly), or dial in something like "every 6 hours" or "every 10 days".
+- **You pick the start date.** A plan does not silently begin the moment you create it: set when it starts, and it is marked *Scheduled* until then. You can fill it in advance, but nothing can be spent from it early.
 - A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, the overdraw guard). This is also how you ring-fence money you refuse to touch — rent, fees, an emergency buffer.
 - **Give back** any unspent money to the account it came from at any time.
+
+### Unplanned - the built-in catch-all
+
+Every account has one plan it did not create: **Unplanned**, pinned to the top of the Plans tab and impossible to delete, close or fund.
+
+It is where spending goes when you never set money aside for it. It has **no pot of its own** - each expense comes straight out of whichever account you choose, from whatever is genuinely free after your other plans have taken their share. Pick it in the "Pay from" dropdown and a second dropdown appears asking which account the money actually leaves.
+
+It behaves like any other plan everywhere else: its own detail page, its own searchable transaction history, and a running total of how much slipped through unplanned. Watching that number is the point - a recurring expense showing up there is a plan waiting to be made.
 
 ### Spending from a plan
 
@@ -65,10 +75,12 @@ On the transaction form, the "Pay from" dropdown lists your accounts **and** any
 
 ### Plan detail page (`/budgets/:id`)
 
-Everything about one plan on its own page: what's left, a bar reading spent → still in the pot → not yet filled, which accounts the money is held in, and a **timeline** of every fill, give-back and expense.
+Everything about one plan on its own page: what's left, a bar reading spent → still in the pot → not yet filled, which accounts the money is held in, and a **timeline** of recent fills, give-backs and expenses.
+
+Its **transactions** section is built for plans with a lot of history (Unplanned especially): full-text search over payee and note, filters for category, account, cycle and date range, four sort orders, and paging - all resolved on the server, so nothing slows down as the list grows. Click any row for the full detail, edit or delete it in place.
 
 - **One-time plans** close themselves once the pot is empty *and* something has been spent from them. Closed plans stay listed and keep their history, but no longer appear when you add a transaction. **Reopen** them any time.
-- **Recurring plans** snapshot each finished cycle - planned, carried in, filled, spent, leftover, and the transactions in it - then carry any leftover money forward into the new cycle and start accepting fills again.
+- **Recurring plans** snapshot each finished cycle - planned, carried in, filled, spent, leftover - then carry any leftover money forward into the new cycle and start accepting fills again. Open a past cycle to load the transactions that were in it. Cycles where nothing happened are skipped rather than stored, so a fast cadence left alone for a week does not bury you in empty records.
 
 ### Wishlist
 

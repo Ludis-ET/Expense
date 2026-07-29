@@ -1,9 +1,10 @@
 import bcrypt from 'bcryptjs';
-import { AccountType } from '../../core/prisma.js';
+import { AccountType, BudgetKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { ConflictError, UnauthorizedError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
 import { DEFAULT_CATEGORIES } from '../categories/default-categories.js';
+import { UNPLANNED_NAME, unplannedId } from '../budgets/budgets.service.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from './jwt.js';
 import type { LoginInput, RegisterInput } from './auth.schema.js';
 
@@ -45,6 +46,23 @@ export async function register(input: RegisterInput) {
         type: AccountType.CASH,
         icon: 'banknote',
         isDefault: true,
+      },
+    });
+
+    // The built-in catch-all plan, so spending has somewhere to land from day
+    // one. Its id is derived from the user id, keeping it unique per account.
+    await tx.budget.create({
+      data: {
+        id: unplannedId(created.id),
+        userId: created.id,
+        name: UNPLANNED_NAME,
+        kind: BudgetKind.UNPLANNED,
+        plannedAmount: 0,
+        currency: created.currency,
+        icon: 'circle-ellipsis',
+        color: '#64748b',
+        note: 'Everything you spend without setting money aside first.',
+        alertThreshold: 100,
       },
     });
 

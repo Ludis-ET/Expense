@@ -108,10 +108,13 @@ export interface RecurringRule {
   wishlistItem?: { id: string; name: string; emoji?: string | null } | null;
 }
 
-export type BudgetPeriod = 'WEEKLY' | 'MONTHLY' | 'QUARTERLY' | 'YEARLY';
-export type BudgetKind = 'ONE_TIME' | 'RECURRING';
+/** The step a recurring plan advances by; paired with an interval. */
+export type RecurrenceUnit = 'HOUR' | 'DAY' | 'WEEK' | 'MONTH' | 'QUARTER' | 'YEAR';
+export type BudgetKind = 'ONE_TIME' | 'RECURRING' | 'UNPLANNED';
 export type BudgetState = 'ACTIVE' | 'CLOSED';
 export type BudgetHealth =
+  | 'unplanned'
+  | 'scheduled'
   | 'empty'
   | 'partly-funded'
   | 'ready'
@@ -130,7 +133,13 @@ export interface BudgetRow {
   categoryId: string | null;
   category: BudgetCategory | null;
   kind: BudgetKind;
-  period: BudgetPeriod | null;
+  /** The built-in catch-all plan: no pot, never funded, cannot be deleted. */
+  isUnplanned: boolean;
+  recurrenceUnit: RecurrenceUnit | null;
+  recurrenceInterval: number;
+  /** "monthly", "every 6 hours" - ready to print. */
+  recurrenceLabel: string | null;
+  /** The noun one cycle is measured in: "month", "6 hours". */
   periodNoun: string | null;
   currency: string;
   icon?: string | null;
@@ -159,6 +168,9 @@ export interface BudgetRow {
   health: BudgetHealth;
 
   cycleIndex: number;
+  /** When the user said this plan begins; not spendable before it. */
+  startsAt: string;
+  started: boolean;
   cycleStartedAt: string;
   nextResetAt: string | null;
   endDate: string | null;
@@ -175,6 +187,8 @@ export interface BudgetsResponse {
     funded: string;
     spent: string;
     locked: string;
+    /** Spending that never went through a funded plan, this cycle. */
+    unplannedSpent: string;
     activeCount: number;
     closedCount: number;
   };
@@ -220,8 +234,6 @@ export interface BudgetCycleSnapshot {
   spentAmount: string;
   leftoverAmount: string;
   txCount: number;
-  transactions: BudgetTransaction[];
-  allocations: BudgetAllocation[];
 }
 
 export interface BudgetSource {
@@ -230,12 +242,19 @@ export interface BudgetSource {
 }
 
 export interface BudgetDetail extends BudgetRow {
+  /** Most recent movements only - the full list is paginated separately. */
   timeline: BudgetTimelineEntry[];
-  transactions: BudgetTransaction[];
+  timelineTruncated: boolean;
   allocations: BudgetAllocation[];
   sources: BudgetSource[];
   cycles: BudgetCycleSnapshot[];
-  lifetime: { allocated: string; spent: string; cycleCount: number };
+  lifetime: {
+    allocated: string;
+    spent: string;
+    txCount: number;
+    firstTxAt: string | null;
+    cycleCount: number;
+  };
 }
 
 /** A plan offered as a "pay from" option on the transaction form. */
@@ -248,6 +267,8 @@ export interface BudgetSpendSource {
   color?: string | null;
   categoryId: string | null;
   category: BudgetCategory | null;
+  /** Unplanned has no pot: the caller picks any account to draw on. */
+  isUnplanned: boolean;
   sources: BudgetSource[];
 }
 

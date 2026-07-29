@@ -10,6 +10,11 @@
  *
  *   pot balance   = SUM(allocations) - SUM(plan expenses)
  *   account lock  = SUM(allocations from that account) - SUM(plan expenses on it)
+ *
+ * The one exception is the built-in UNPLANNED plan. It is never funded: it just
+ * labels spending you did straight from an account without reserving first.
+ * It must therefore be excluded from every reservation aggregate, or its
+ * expenses would cancel out real reservations on the same account.
  */
 import {
   BudgetAllocationKind,
@@ -23,7 +28,7 @@ import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
 import { notify } from '../notifications/notifications.service.js';
-import { addPeriod, cycleLabel, PERIOD_NOUN } from './budgets.periods.js';
+import { addRecurrence, cycleLabel, periodNoun, recurrenceLabel } from './budgets.periods.js';
 import type {
   CreateBudgetInput,
   FundBudgetInput,
@@ -39,6 +44,46 @@ const dec = (v: Prisma.Decimal | number | string) => new Prisma.Decimal(v);
 
 const categorySelect = { id: true, name: true, icon: true, color: true, kind: true } as const;
 const accountSelect = { id: true, name: true, type: true, currency: true, color: true, icon: true } as const;
+
+export const UNPLANNED_NAME = 'Unplanned';
+
+/** Deterministic id, so the primary key alone guarantees one per user. */
+export const unplannedId = (userId: string) => `unplanned_${userId}`;
+
+/**
+ * The built-in catch-all plan. Created on demand so existing users, seeded
+ * users and brand-new signups all converge on the same row.
+ */
+export async function ensureUnplanned(userId: string, currency = 'ETB') {
+  const id = unplannedId(userId);
+  return prisma.budget.upsert({
+    where: { id },
+    update: {},
+    create: {
+      id,
+      userId,
+      name: UNPLANNED_NAME,
+      kind: BudgetKind.UNPLANNED,
+      plannedAmount: 0,
+      currency: currency.toUpperCase(),
+      icon: 'circle-ellipsis',
+      color: '#64748b',
+      note: 'Everything you spend without setting money aside first.',
+      alertThreshold: 100,
+    },
+  });
+}
+
+/**
+ * Reservation aggregates must never see UNPLANNED expenses - those spend real
+ * account money that was never set aside, so counting them would wrongly
+ * release other plans' reservations on the same account.
+ */
+const RESERVED_EXPENSES = {
+  kind: TxKind.EXPENSE,
+  budgetId: { not: null },
+  budget: { is: { kind: { not: BudgetKind.UNPLANNED } } },
+} satisfies Prisma.TransactionWhereInput;
 
 // ---------------------------------------------------------------------------
 // Aggregates
@@ -138,10 +183,26 @@ function derive(budget: Budget, t: Totals) {
   return { balance, carriedIn, funded, fillable, spent, pctOfPlan, pctFunded, pctSpentOfFunded };
 }
 
-type Health = 'empty' | 'partly-funded' | 'ready' | 'spending' | 'low' | 'drained' | 'closed';
+type Health =
+  | 'unplanned'
+  | 'scheduled'
+  | 'empty'
+  | 'partly-funded'
+  | 'ready'
+  | 'spending'
+  | 'low'
+  | 'drained'
+  | 'closed';
+
+/** A plan cannot be spent from before the start date the user chose. */
+export function hasStarted(budget: Pick<Budget, 'startsAt'>, at = new Date()): boolean {
+  return budget.startsAt <= at;
+}
 
 function health(budget: Budget, d: ReturnType<typeof derive>): Health {
+  if (budget.kind === BudgetKind.UNPLANNED) return 'unplanned';
   if (budget.state === BudgetState.CLOSED) return 'closed';
+  if (!hasStarted(budget)) return 'scheduled';
   if (d.funded.lte(0)) return 'empty';
   if (d.balance.lte(0)) return 'drained';
   if (d.spent.lte(0)) return d.fillable.gt(0) ? 'partly-funded' : 'ready';
@@ -158,8 +219,17 @@ function serialize(budget: BudgetWithCategory, t: Totals) {
     categoryId: budget.categoryId,
     category: budget.category ?? null,
     kind: budget.kind,
-    period: budget.period,
-    periodNoun: budget.period ? PERIOD_NOUN[budget.period] : null,
+    isUnplanned: budget.kind === BudgetKind.UNPLANNED,
+    recurrenceUnit: budget.recurrenceUnit,
+    recurrenceInterval: budget.recurrenceInterval,
+    /** "monthly", "every 6 hours" - ready to print. */
+    recurrenceLabel: budget.recurrenceUnit
+      ? recurrenceLabel(budget.recurrenceUnit, budget.recurrenceInterval)
+      : null,
+    /** The noun one cycle is measured in: "month", "6 hours". */
+    periodNoun: budget.recurrenceUnit
+      ? periodNoun(budget.recurrenceUnit, budget.recurrenceInterval)
+      : null,
     currency: budget.currency,
     icon: budget.icon,
     color: budget.color,
@@ -186,11 +256,18 @@ function serialize(budget: BudgetWithCategory, t: Totals) {
     health: health(budget, d),
 
     cycleIndex: budget.cycleIndex,
+    startsAt: budget.startsAt.toISOString(),
+    started: hasStarted(budget),
     cycleStartedAt: budget.cycleStartedAt.toISOString(),
     nextResetAt: budget.nextResetAt ? budget.nextResetAt.toISOString() : null,
     endDate: budget.endDate ? budget.endDate.toISOString() : null,
-    cycleLabel: budget.period
-      ? cycleLabel(budget.period, budget.cycleStartedAt, budget.nextResetAt ?? budget.cycleStartedAt)
+    cycleLabel: budget.recurrenceUnit
+      ? cycleLabel(
+          budget.recurrenceUnit,
+          budget.recurrenceInterval,
+          budget.cycleStartedAt,
+          budget.nextResetAt ?? budget.cycleStartedAt,
+        )
       : null,
 
     createdAt: budget.createdAt.toISOString(),
@@ -207,6 +284,9 @@ export type SerializedBudget = ReturnType<typeof serialize>;
 /**
  * How much of each account's balance is currently tied up in plans.
  * `SUM(allocations from the account) - SUM(plan expenses charged to it)`.
+ *
+ * UNPLANNED expenses are deliberately excluded: they were never reserved, so
+ * counting them here would release other plans' money on the same account.
  */
 export async function lockedByAccount(userId: string): Promise<Map<string, Prisma.Decimal>> {
   const [allocs, spends] = await Promise.all([
@@ -217,7 +297,7 @@ export async function lockedByAccount(userId: string): Promise<Map<string, Prism
     }),
     prisma.transaction.groupBy({
       by: ['accountId'],
-      where: { userId, kind: TxKind.EXPENSE, budgetId: { not: null } },
+      where: { userId, ...RESERVED_EXPENSES },
       _sum: { amount: true },
     }),
   ]);
@@ -276,8 +356,11 @@ export async function sourcesFor(budgetId: string) {
 // Recurring cycles
 // ---------------------------------------------------------------------------
 
-/** Runaway guard when catching up a long-dormant plan. */
-const MAX_ROLLS = 60;
+/**
+ * Runaway guard when catching up a long-dormant plan. Generous because an
+ * hourly plan legitimately rolls 24x a day; quiet cycles are cheap (skipped).
+ */
+const MAX_ROLLS = 800;
 
 /**
  * Close out every cycle of a recurring plan whose reset time has passed:
@@ -299,6 +382,8 @@ export async function rollDueCycles(userId: string): Promise<void> {
   for (const budget of due) {
     let b = budget;
     let rolls = 0;
+    let carriedForward = zero;
+    let skipped = 0;
 
     while (b.nextResetAt && b.nextResetAt <= now && rolls < MAX_ROLLS) {
       const t = await totalsFor(b.id, b.cycleIndex);
@@ -308,29 +393,39 @@ export async function rollDueCycles(userId: string): Promise<void> {
       });
 
       const endedAt = b.nextResetAt;
-      await prisma.budgetCycle.upsert({
-        where: { budgetId_index: { budgetId: b.id, index: b.cycleIndex } },
-        create: {
-          budgetId: b.id,
-          index: b.cycleIndex,
-          startedAt: b.cycleStartedAt,
-          endedAt,
-          label: cycleLabel(b.period, b.cycleStartedAt, endedAt),
-          plannedAmount: b.plannedAmount,
-          carriedIn: d.carriedIn,
-          fundedAmount: d.funded,
-          spentAmount: d.spent,
-          leftoverAmount: d.balance,
-          txCount,
-        },
-        update: {
-          endedAt,
-          fundedAmount: d.funded,
-          spentAmount: d.spent,
-          leftoverAmount: d.balance,
-          txCount,
-        },
-      });
+
+      // A fast cadence (hourly, daily) left dormant would otherwise mint a
+      // snapshot per empty cycle. Only cycles where money actually moved are
+      // worth keeping; the rest just advance the clock. Leftovers still carry,
+      // because the pot balance is cumulative and never touched here.
+      const hadActivity = !t.allocatedThisCycle.isZero() || !d.spent.isZero();
+      if (hadActivity) {
+        await prisma.budgetCycle.upsert({
+          where: { budgetId_index: { budgetId: b.id, index: b.cycleIndex } },
+          create: {
+            budgetId: b.id,
+            index: b.cycleIndex,
+            startedAt: b.cycleStartedAt,
+            endedAt,
+            label: cycleLabel(b.recurrenceUnit, b.recurrenceInterval, b.cycleStartedAt, endedAt),
+            plannedAmount: b.plannedAmount,
+            carriedIn: d.carriedIn,
+            fundedAmount: d.funded,
+            spentAmount: d.spent,
+            leftoverAmount: d.balance,
+            txCount,
+          },
+          update: {
+            endedAt,
+            fundedAmount: d.funded,
+            spentAmount: d.spent,
+            leftoverAmount: d.balance,
+            txCount,
+          },
+        });
+      } else {
+        skipped += 1;
+      }
 
       const finished = b.endDate ? endedAt >= b.endDate : false;
       b = await prisma.budget.update({
@@ -338,21 +433,28 @@ export async function rollDueCycles(userId: string): Promise<void> {
         data: {
           cycleIndex: b.cycleIndex + 1,
           cycleStartedAt: endedAt,
-          nextResetAt: finished ? null : addPeriod(b.period!, endedAt),
+          nextResetAt: finished
+            ? null
+            : addRecurrence(b.recurrenceUnit!, b.recurrenceInterval, endedAt),
           ...(finished ? { state: BudgetState.CLOSED, closedAt: now } : {}),
         },
       });
 
-      if (Number(d.balance) > 0) {
-        await notify(
-          userId,
-          'budget_cycle_rolled',
-          `"${b.name}" started a new ${PERIOD_NOUN[b.period!]} with ${d.balance.toFixed(2)} ${b.currency} carried over.`,
-          `/budgets/${b.id}`,
-        );
-      }
+      carriedForward = d.balance;
       rolls += 1;
       if (finished) break;
+    }
+
+    // One notification for the whole catch-up, not one per skipped cycle.
+    if (rolls > 0 && carriedForward.gt(0)) {
+      await notify(
+        userId,
+        'budget_cycle_rolled',
+        `"${b.name}" started a new ${periodNoun(b.recurrenceUnit!, b.recurrenceInterval)} with ${carriedForward.toFixed(2)} ${b.currency} carried over${
+          skipped > 0 ? ` (${skipped} quiet ${skipped === 1 ? 'cycle' : 'cycles'} skipped)` : ''
+        }.`,
+        `/budgets/${b.id}`,
+      );
     }
   }
 }
@@ -362,6 +464,7 @@ export async function rollDueCycles(userId: string): Promise<void> {
 // ---------------------------------------------------------------------------
 
 export async function list(user: AuthUser, query: ListBudgetsQuery = {}) {
+  await ensureUnplanned(user.id);
   await rollDueCycles(user.id);
 
   const budgets = await prisma.budget.findMany({
@@ -375,28 +478,40 @@ export async function list(user: AuthUser, query: ListBudgetsQuery = {}) {
   });
 
   const totals = await totalsForMany(budgets);
-  const items = budgets.map((b) => serialize(b, totals.get(b.id)!));
-  const active = items.filter((i) => i.state === BudgetState.ACTIVE);
+  const items = budgets
+    .map((b) => serialize(b, totals.get(b.id)!))
+    // Unplanned is the home base: always first, whatever the sort.
+    .sort((a, b) => Number(b.isUnplanned) - Number(a.isUnplanned));
 
-  const sum = (pick: (i: SerializedBudget) => string) =>
-    active.reduce((s, i) => s.add(dec(pick(i))), zero).toFixed(2);
+  const real = items.filter((i) => !i.isUnplanned);
+  const active = real.filter((i) => i.state === BudgetState.ACTIVE);
+
+  const sum = (rows: SerializedBudget[], pick: (i: SerializedBudget) => string) =>
+    rows.reduce((s, i) => s.add(dec(pick(i))), zero).toFixed(2);
 
   return {
     items,
     totals: {
-      planned: sum((i) => i.plannedAmount),
-      funded: sum((i) => i.fundedAmount),
-      spent: sum((i) => i.spentAmount),
+      planned: sum(active, (i) => i.plannedAmount),
+      funded: sum(active, (i) => i.fundedAmount),
+      spent: sum(active, (i) => i.spentAmount),
       /** Money locked away in plans right now. */
-      locked: sum((i) => i.balance),
+      locked: sum(active, (i) => i.balance),
+      /** Spending that never went through a plan, this cycle. */
+      unplannedSpent: sum(items.filter((i) => i.isUnplanned), (i) => i.spentAmount),
       activeCount: active.length,
-      closedCount: items.length - active.length,
+      closedCount: real.length - active.length,
     },
   };
 }
 
-/** Plans that still hold money - the extra "pay from" options on a transaction. */
+/**
+ * The extra "pay from" options on a transaction: every plan that still holds
+ * money, plus Unplanned, which is always offered because it has no pot - it
+ * spends whatever the chosen account has free.
+ */
 export async function spendableSources(user: AuthUser, currency?: string) {
+  await ensureUnplanned(user.id);
   await rollDueCycles(user.id);
 
   const budgets = await prisma.budget.findMany({
@@ -410,12 +525,13 @@ export async function spendableSources(user: AuthUser, currency?: string) {
   });
 
   const totals = await totalsForMany(budgets);
-  const withMoney = budgets
+  const offered = budgets
     .map((b) => serialize(b, totals.get(b.id)!))
-    .filter((b) => Number(b.balance) > 0);
+    .filter((b) => b.isUnplanned || (b.started && Number(b.balance) > 0))
+    .sort((a, b) => Number(b.isUnplanned) - Number(a.isUnplanned));
 
   const items = await Promise.all(
-    withMoney.map(async (b) => ({
+    offered.map(async (b) => ({
       id: b.id,
       name: b.name,
       currency: b.currency,
@@ -424,16 +540,28 @@ export async function spendableSources(user: AuthUser, currency?: string) {
       color: b.color,
       categoryId: b.categoryId,
       category: b.category,
-      sources: (await sourcesFor(b.id))
-        .filter((s) => s.available.gt(0))
-        .map((s) => ({ account: s.account, available: s.available.toFixed(2) })),
+      isUnplanned: b.isUnplanned,
+      // Unplanned draws on any account, so the caller picks one; funded plans
+      // can only be charged to the accounts that actually filled them.
+      sources: b.isUnplanned
+        ? []
+        : (await sourcesFor(b.id))
+            .filter((s) => s.available.gt(0))
+            .map((s) => ({ account: s.account, available: s.available.toFixed(2) })),
     })),
   );
 
   return { items };
 }
 
-/** Everything the plan detail page shows. */
+/** How many timeline entries the detail page gets up front. */
+const TIMELINE_LIMIT = 40;
+
+/**
+ * The plan detail page's summary. Transactions are deliberately *not* all
+ * returned - Unplanned alone can hold years of them. The page pulls those from
+ * `/transactions?budgetId=...`, which already paginates, searches and filters.
+ */
 export async function getById(user: AuthUser, id: string) {
   await rollDueCycles(user.id);
 
@@ -444,11 +572,12 @@ export async function getById(user: AuthUser, id: string) {
   if (!budget) throw new NotFoundError('Budget plan not found');
 
   const t = await totalsFor(budget.id, budget.cycleIndex);
-  const [allocations, transactions, cycles, sources] = await Promise.all([
+  const [allocations, recentTx, cycles, sources, txCount, firstTx] = await Promise.all([
     prisma.budgetAllocation.findMany({
       where: { budgetId: budget.id },
       include: { account: { select: accountSelect } },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      take: TIMELINE_LIMIT,
     }),
     prisma.transaction.findMany({
       where: { budgetId: budget.id },
@@ -457,20 +586,19 @@ export async function getById(user: AuthUser, id: string) {
         account: { select: accountSelect },
       },
       orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
+      take: TIMELINE_LIMIT,
     }),
     prisma.budgetCycle.findMany({ where: { budgetId: budget.id }, orderBy: { index: 'desc' } }),
     sourcesFor(budget.id),
+    prisma.transaction.count({ where: { budgetId: budget.id } }),
+    prisma.transaction.findFirst({
+      where: { budgetId: budget.id },
+      orderBy: { date: 'asc' },
+      select: { date: true },
+    }),
   ]);
 
-  const txByCycle = new Map<number, typeof transactions>();
-  for (const tx of transactions) {
-    const key = tx.budgetCycle ?? budget.cycleIndex;
-    const bucket = txByCycle.get(key) ?? [];
-    bucket.push(tx);
-    txByCycle.set(key, bucket);
-  }
-
-  const serializeTx = (tx: (typeof transactions)[number]) => ({
+  const serializeTx = (tx: (typeof recentTx)[number]) => ({
     id: tx.id,
     amount: tx.amount.toFixed(2),
     currency: tx.currency,
@@ -493,7 +621,7 @@ export async function getById(user: AuthUser, id: string) {
     cycleIndex: a.cycleIndex,
   });
 
-  // One chronological stream of everything that moved money in or out.
+  // One chronological stream of everything that recently moved money.
   const timeline = [
     ...allocations.map((a) => ({
       type: a.kind === BudgetAllocationKind.FUND ? ('fund' as const) : ('release' as const),
@@ -501,18 +629,20 @@ export async function getById(user: AuthUser, id: string) {
       cycleIndex: a.cycleIndex,
       entry: serializeAlloc(a),
     })),
-    ...transactions.map((tx) => ({
+    ...recentTx.map((tx) => ({
       type: 'spend' as const,
       at: tx.date.toISOString(),
       cycleIndex: tx.budgetCycle ?? budget.cycleIndex,
       entry: serializeTx(tx),
     })),
-  ].sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0));
+  ]
+    .sort((a, b) => (a.at < b.at ? 1 : a.at > b.at ? -1 : 0))
+    .slice(0, TIMELINE_LIMIT);
 
   return {
     ...serialize(budget, t),
     timeline,
-    transactions: (txByCycle.get(budget.cycleIndex) ?? []).map(serializeTx),
+    timelineTruncated: txCount + allocations.length > TIMELINE_LIMIT,
     allocations: allocations.filter((a) => a.cycleIndex === budget.cycleIndex).map(serializeAlloc),
     sources: sources.map((s) => ({ account: s.account, available: s.available.toFixed(2) })),
     cycles: cycles.map((c) => ({
@@ -526,12 +656,12 @@ export async function getById(user: AuthUser, id: string) {
       spentAmount: c.spentAmount.toFixed(2),
       leftoverAmount: c.leftoverAmount.toFixed(2),
       txCount: c.txCount,
-      transactions: (txByCycle.get(c.index) ?? []).map(serializeTx),
-      allocations: allocations.filter((a) => a.cycleIndex === c.index).map(serializeAlloc),
     })),
     lifetime: {
       allocated: t.allocated.toFixed(2),
       spent: t.spent.toFixed(2),
+      txCount,
+      firstTxAt: firstTx?.date.toISOString() ?? null,
       cycleCount: cycles.length + 1,
     },
   };
@@ -553,29 +683,43 @@ async function assertCategory(categoryId: string, userId: string) {
   return category;
 }
 
+/** The built-in plan is structural: it cannot be funded, closed or deleted. */
+function refuseIfUnplanned(budget: Budget, action: string): void {
+  if (budget.kind === BudgetKind.UNPLANNED) {
+    throw new BadRequestError(
+      `"${budget.name}" is the built-in catch-all plan and cannot be ${action}. It has no pot — it simply labels spending you did straight from an account.`,
+    );
+  }
+}
+
 export async function create(user: AuthUser, input: CreateBudgetInput) {
   if (input.categoryId) await assertCategory(input.categoryId, user.id);
-  if (input.kind === BudgetKind.RECURRING && !input.period) {
+  const recurring = input.kind === BudgetKind.RECURRING;
+  if (recurring && !input.recurrenceUnit) {
     throw new BadRequestError('Pick how often this plan repeats');
   }
 
-  const startedAt = input.startDate ?? new Date();
+  // The user chooses when the plan begins; it is not spendable before then.
+  const startsAt = input.startsAt ?? new Date();
+  const interval = input.recurrenceInterval ?? 1;
+
   const budget = await prisma.budget.create({
     data: {
       userId: user.id,
       name: input.name.trim(),
       categoryId: input.categoryId ?? null,
-      kind: input.kind,
-      period: input.kind === BudgetKind.RECURRING ? input.period : null,
+      kind: recurring ? BudgetKind.RECURRING : BudgetKind.ONE_TIME,
       plannedAmount: input.plannedAmount,
       currency: input.currency.toUpperCase(),
       icon: input.icon ?? null,
       color: input.color ?? null,
       note: input.note ?? null,
       alertThreshold: input.alertThreshold,
-      cycleStartedAt: startedAt,
-      nextResetAt:
-        input.kind === BudgetKind.RECURRING ? addPeriod(input.period!, startedAt) : null,
+      recurrenceUnit: recurring ? input.recurrenceUnit : null,
+      recurrenceInterval: interval,
+      startsAt,
+      cycleStartedAt: startsAt,
+      nextResetAt: recurring ? addRecurrence(input.recurrenceUnit!, interval, startsAt) : null,
       endDate: input.endDate ?? null,
     },
     include: { category: { select: categorySelect } },
@@ -586,6 +730,7 @@ export async function create(user: AuthUser, input: CreateBudgetInput) {
 
 export async function update(user: AuthUser, id: string, input: UpdateBudgetInput) {
   const existing = await assertOwned(id, user.id);
+  refuseIfUnplanned(existing, 'edited');
   if (input.categoryId) await assertCategory(input.categoryId, user.id);
 
   // Shrinking the plan below what is already in the pot would strand money.
@@ -600,10 +745,19 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
   }
 
   const nextKind = input.kind ?? existing.kind;
-  const nextPeriod = input.period ?? existing.period;
-  if (nextKind === BudgetKind.RECURRING && !nextPeriod) {
+  const nextUnit = input.recurrenceUnit ?? existing.recurrenceUnit;
+  const nextInterval = input.recurrenceInterval ?? existing.recurrenceInterval;
+  if (nextKind === BudgetKind.RECURRING && !nextUnit) {
     throw new BadRequestError('Pick how often this plan repeats');
   }
+
+  // Moving the start date re-anchors the current cycle, as long as the plan has
+  // not already banked a finished one.
+  const nextStartsAt = input.startsAt ?? existing.startsAt;
+  const reanchor =
+    input.startsAt !== undefined &&
+    existing.cycleIndex === 0 &&
+    nextStartsAt.getTime() !== existing.startsAt.getTime();
 
   const budget = await prisma.budget.update({
     where: { id },
@@ -616,13 +770,22 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
       ...(input.note !== undefined ? { note: input.note } : {}),
       ...(input.alertThreshold !== undefined ? { alertThreshold: input.alertThreshold } : {}),
       ...(input.endDate !== undefined ? { endDate: input.endDate } : {}),
-      ...(input.kind !== undefined || input.period !== undefined
+      ...(reanchor ? { startsAt: nextStartsAt, cycleStartedAt: nextStartsAt } : {}),
+      ...(input.kind !== undefined ||
+      input.recurrenceUnit !== undefined ||
+      input.recurrenceInterval !== undefined ||
+      reanchor
         ? {
             kind: nextKind,
-            period: nextKind === BudgetKind.RECURRING ? nextPeriod : null,
+            recurrenceUnit: nextKind === BudgetKind.RECURRING ? nextUnit : null,
+            recurrenceInterval: nextInterval,
             nextResetAt:
               nextKind === BudgetKind.RECURRING
-                ? (existing.nextResetAt ?? addPeriod(nextPeriod!, existing.cycleStartedAt))
+                ? addRecurrence(
+                    nextUnit!,
+                    nextInterval,
+                    reanchor ? nextStartsAt : existing.cycleStartedAt,
+                  )
                 : null,
           }
         : {}),
@@ -635,6 +798,7 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
 
 export async function remove(user: AuthUser, id: string) {
   const budget = await assertOwned(id, user.id);
+  refuseIfUnplanned(budget, 'deleted');
   const t = await totalsFor(budget.id, budget.cycleIndex);
   const { balance } = derive(budget, t);
   if (balance.gt(0)) {
@@ -652,6 +816,7 @@ export async function remove(user: AuthUser, id: string) {
  */
 export async function fund(user: AuthUser, id: string, input: FundBudgetInput) {
   const budget = await assertOwned(id, user.id);
+  refuseIfUnplanned(budget, 'funded');
   if (budget.state === BudgetState.CLOSED) {
     throw new BadRequestError('This plan is closed. Reopen it before adding money.');
   }
@@ -734,6 +899,7 @@ export async function release(user: AuthUser, id: string, input: ReleaseBudgetIn
 
 export async function close(user: AuthUser, id: string) {
   const budget = await assertOwned(id, user.id);
+  refuseIfUnplanned(budget, 'closed');
   if (budget.state === BudgetState.CLOSED) return getById(user, id);
 
   const t = await totalsFor(budget.id, budget.cycleIndex);
@@ -753,16 +919,20 @@ export async function close(user: AuthUser, id: string) {
 
 export async function reopen(user: AuthUser, id: string) {
   const budget = await assertOwned(id, user.id);
+  const now = new Date();
   await prisma.budget.update({
     where: { id },
     data: {
       state: BudgetState.ACTIVE,
       closedAt: null,
       // A recurring plan that ran past its end date needs a fresh reset clock.
-      ...(budget.kind === BudgetKind.RECURRING && !budget.nextResetAt && budget.period
-        ? { cycleStartedAt: new Date(), nextResetAt: addPeriod(budget.period, new Date()) }
+      ...(budget.kind === BudgetKind.RECURRING && !budget.nextResetAt && budget.recurrenceUnit
+        ? {
+            cycleStartedAt: now,
+            nextResetAt: addRecurrence(budget.recurrenceUnit, budget.recurrenceInterval, now),
+          }
         : {}),
-      ...(budget.endDate && budget.endDate <= new Date() ? { endDate: null } : {}),
+      ...(budget.endDate && budget.endDate <= now ? { endDate: null } : {}),
     },
   });
   return getById(user, id);
@@ -775,6 +945,26 @@ export async function reopen(user: AuthUser, id: string) {
 export interface PlanCharge {
   budget: Budget;
   accountId: string;
+}
+
+/**
+ * Is this the built-in Unplanned plan? Returns it when so, `null` when the id
+ * belongs to an ordinary funded plan. Unplanned has no pot and no start gate:
+ * it spends whatever the chosen account has free, so the caller must supply
+ * the account and fall back to the normal overdraw guard.
+ */
+export async function assertUnplannedSpendable(
+  userId: string,
+  budgetId: string,
+): Promise<{ id: string; cycleIndex: number } | null> {
+  const budget = await prisma.budget.findFirst({
+    where: { id: budgetId, userId },
+    select: { id: true, cycleIndex: true, kind: true },
+  });
+  if (!budget) throw new NotFoundError('Budget plan not found');
+  return budget.kind === BudgetKind.UNPLANNED
+    ? { id: budget.id, cycleIndex: budget.cycleIndex }
+    : null;
 }
 
 /**
@@ -795,6 +985,11 @@ export async function assertSpendable(
   if (!budget) throw new NotFoundError('Budget plan not found');
   if (budget.state === BudgetState.CLOSED) {
     throw new BadRequestError(`"${budget.name}" is closed. Reopen it to spend from it.`);
+  }
+  if (!hasStarted(budget)) {
+    throw new BadRequestError(
+      `"${budget.name}" starts on ${budget.startsAt.toISOString().slice(0, 10)} — you cannot spend from it yet.`,
+    );
   }
 
   const spendWhere = { budgetId, kind: TxKind.EXPENSE, ...(excludeTxId ? { id: { not: excludeTxId } } : {}) };
@@ -851,6 +1046,7 @@ export async function afterSpend(userId: string, budgetId: string): Promise<void
   try {
     const budget = await prisma.budget.findFirst({ where: { id: budgetId, userId } });
     if (!budget || budget.state === BudgetState.CLOSED) return;
+    if (budget.kind === BudgetKind.UNPLANNED) return; // no pot to run low or close
 
     const t = await totalsFor(budget.id, budget.cycleIndex);
     const d = derive(budget, t);

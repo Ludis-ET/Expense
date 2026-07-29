@@ -1,5 +1,6 @@
 import { LedgerStatus, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
+import { recurrenceLabel } from '../budgets/budgets.periods.js';
 
 const zero = new Prisma.Decimal(0);
 
@@ -30,7 +31,9 @@ export async function buildFinanceSnapshot(userId: string) {
       select: {
         name: true,
         kind: true,
-        period: true,
+        recurrenceUnit: true,
+        recurrenceInterval: true,
+        startsAt: true,
         plannedAmount: true,
         currency: true,
         state: true,
@@ -122,7 +125,10 @@ export async function buildFinanceSnapshot(userId: string) {
         name: b.name,
         category: b.category?.name ?? null,
         kind: b.kind,
-        period: b.period,
+        repeats: b.recurrenceUnit
+          ? recurrenceLabel(b.recurrenceUnit, b.recurrenceInterval)
+          : null,
+        startsAt: b.startsAt.toISOString().slice(0, 10),
         currency: b.currency,
         state: b.state,
         plannedPerCycle: Number(b.plannedAmount),

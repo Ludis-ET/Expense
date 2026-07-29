@@ -39,19 +39,23 @@ enum Frequency {
   YEARLY
 }
 
-// How often a recurring budget plan starts a fresh cycle. QUARTERLY has no
-// Frequency equivalent, so budgets carry their own period enum.
-enum BudgetPeriod {
-  WEEKLY
-  MONTHLY
-  QUARTERLY
-  YEARLY
+// The step a recurring plan advances by. Paired with an interval, this spells
+// out any cadence the user wants: every 6 HOURs, every 3 DAYs, every 2 WEEKs...
+enum RecurrenceUnit {
+  HOUR
+  DAY
+  WEEK
+  MONTH
+  QUARTER
+  YEAR
 }
 
-// A plan either runs once until its money is gone, or renews every period.
+// A plan runs once until its money is gone, renews on a cadence, or is the
+// single built-in UNPLANNED plan that catches spending you never reserved for.
 enum BudgetKind {
   ONE_TIME
   RECURRING
+  UNPLANNED
 }
 
 enum BudgetState {
@@ -325,8 +329,11 @@ model Budget {
   categoryId     String? // optional hint, auto-selected when spending
   category       Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   kind           BudgetKind   @default(ONE_TIME)
-  period         BudgetPeriod? // RECURRING only
   plannedAmount  Decimal      @db.Decimal(14, 2) // how much you plan to spend per cycle
+
+  // RECURRING only: "every <interval> <unit>".
+  recurrenceUnit     RecurrenceUnit?
+  recurrenceInterval Int             @default(1)
   currency       String       @default("ETB")
   icon           String?
   color          String?
@@ -337,7 +344,9 @@ model Budget {
 
   // Recurring bookkeeping. cycleIndex is the current phase; completed phases
   // are snapshotted into BudgetCycle and leftover money carries forward.
+  // startsAt is chosen by the user - a plan is not spendable before it.
   cycleIndex     Int      @default(0)
+  startsAt       DateTime @default(now())
   cycleStartedAt DateTime @default(now())
   nextResetAt    DateTime? // RECURRING only
   endDate        DateTime? // stop recurring after this

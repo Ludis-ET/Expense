@@ -15,19 +15,52 @@ import type {
   Account,
   BudgetDetail,
   BudgetKind,
-  BudgetPeriod,
   BudgetRow,
   Category,
+  RecurrenceUnit,
 } from '@/lib/types';
 
-const PERIODS: { value: BudgetPeriod; label: string; noun: string }[] = [
-  { value: 'WEEKLY', label: 'Every week', noun: 'week' },
-  { value: 'MONTHLY', label: 'Every month', noun: 'month' },
-  { value: 'QUARTERLY', label: 'Every quarter', noun: 'quarter' },
-  { value: 'YEARLY', label: 'Every year', noun: 'year' },
+const UNITS: { value: RecurrenceUnit; one: string; many: string }[] = [
+  { value: 'HOUR', one: 'hour', many: 'hours' },
+  { value: 'DAY', one: 'day', many: 'days' },
+  { value: 'WEEK', one: 'week', many: 'weeks' },
+  { value: 'MONTH', one: 'month', many: 'months' },
+  { value: 'QUARTER', one: 'quarter', many: 'quarters' },
+  { value: 'YEAR', one: 'year', many: 'years' },
 ];
 
-const nounFor = (p: BudgetPeriod) => PERIODS.find((o) => o.value === p)?.noun ?? 'month';
+/** One-tap cadences that cover most real plans; anything else is hand-dialled. */
+const PRESETS: { label: string; unit: RecurrenceUnit; interval: number }[] = [
+  { label: 'Daily', unit: 'DAY', interval: 1 },
+  { label: 'Weekly', unit: 'WEEK', interval: 1 },
+  { label: 'Fortnightly', unit: 'WEEK', interval: 2 },
+  { label: 'Monthly', unit: 'MONTH', interval: 1 },
+  { label: 'Quarterly', unit: 'QUARTER', interval: 1 },
+  { label: 'Yearly', unit: 'YEAR', interval: 1 },
+];
+
+const unitMeta = (u: RecurrenceUnit) => UNITS.find((o) => o.value === u) ?? UNITS[3]!;
+
+/** "month" / "6 hours" - what one cycle is measured in. */
+function nounFor(unit: RecurrenceUnit, interval: number): string {
+  const m = unitMeta(unit);
+  return interval === 1 ? m.one : `${interval} ${m.many}`;
+}
+
+/** "monthly" / "every 6 hours" - how the cadence reads in a sentence. */
+function cadenceLabel(unit: RecurrenceUnit, interval: number): string {
+  if (interval !== 1) return `every ${interval} ${unitMeta(unit).many}`;
+  return (
+    {
+      HOUR: 'hourly',
+      DAY: 'daily',
+      WEEK: 'weekly',
+      MONTH: 'monthly',
+      QUARTER: 'quarterly',
+      YEAR: 'yearly',
+    } as const
+  )[unit];
+}
 
 /** Create or edit a plan. Category is optional and only pre-selects on spend. */
 export function BudgetPlanForm({
@@ -49,7 +82,9 @@ export function BudgetPlanForm({
 
   const [name, setName] = useState('');
   const [kind, setKind] = useState<BudgetKind>('ONE_TIME');
-  const [period, setPeriod] = useState<BudgetPeriod>('MONTHLY');
+  const [unit, setUnit] = useState<RecurrenceUnit>('MONTH');
+  const [interval, setInterval] = useState('1');
+  const [startsAt, setStartsAt] = useState('');
   const [plannedAmount, setPlannedAmount] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [icon, setIcon] = useState('wallet');
@@ -62,8 +97,12 @@ export function BudgetPlanForm({
   useEffect(() => {
     if (!open) return;
     setName(editing?.name ?? '');
-    setKind(editing?.kind ?? 'ONE_TIME');
-    setPeriod(editing?.period ?? 'MONTHLY');
+    setKind(editing?.kind === 'RECURRING' ? 'RECURRING' : 'ONE_TIME');
+    setUnit(editing?.recurrenceUnit ?? 'MONTH');
+    setInterval(String(editing?.recurrenceInterval ?? 1));
+    setStartsAt(
+      editing?.startsAt ? editing.startsAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+    );
     setPlannedAmount(editing ? String(Number(editing.plannedAmount)) : '');
     setCategoryId(editing?.categoryId ?? '');
     setIcon(editing?.icon ?? 'wallet');
@@ -81,7 +120,9 @@ export function BudgetPlanForm({
     const payload = {
       name,
       kind,
-      period: kind === 'RECURRING' ? period : null,
+      recurrenceUnit: kind === 'RECURRING' ? unit : null,
+      recurrenceInterval: Number(interval) || 1,
+      startsAt: startsAt || undefined,
       plannedAmount: Number(plannedAmount),
       categoryId: categoryId || null,
       icon,
@@ -151,22 +192,75 @@ export function BudgetPlanForm({
           })}
         </div>
 
+        {kind === 'RECURRING' && (
+          <div className="space-y-3 rounded-xl border border-border p-3">
+            <div className="flex flex-wrap gap-1.5">
+              {PRESETS.map((preset) => {
+                const active = unit === preset.unit && Number(interval) === preset.interval;
+                return (
+                  <button
+                    key={preset.label}
+                    type="button"
+                    onClick={() => {
+                      setUnit(preset.unit);
+                      setInterval(String(preset.interval));
+                    }}
+                    className={cn(
+                      'rounded-lg px-2.5 py-1.5 text-xs font-medium transition-colors',
+                      active
+                        ? 'bg-primary text-primary-foreground'
+                        : 'bg-surface-muted text-muted hover:text-foreground',
+                    )}
+                  >
+                    {preset.label}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div className="flex items-end gap-2">
+              <span className="pb-2.5 text-sm text-muted">Every</span>
+              <div className="w-20">
+                <Input
+                  type="number"
+                  min="1"
+                  max="365"
+                  value={interval}
+                  onChange={(e) => setInterval(e.target.value)}
+                  aria-label="Repeat interval"
+                />
+              </div>
+              <div className="flex-1">
+                <Select
+                  value={unit}
+                  onChange={(e) => setUnit(e.target.value as RecurrenceUnit)}
+                  aria-label="Repeat unit"
+                >
+                  {UNITS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {Number(interval) === 1 ? o.one : o.many}
+                    </option>
+                  ))}
+                </Select>
+              </div>
+            </div>
+
+            <p className="text-xs text-muted">
+              Resets{' '}
+              <strong className="text-foreground">
+                {cadenceLabel(unit, Math.max(1, Number(interval) || 1))}
+              </strong>
+              , carrying anything left over into the next{' '}
+              {nounFor(unit, Math.max(1, Number(interval) || 1))}.
+            </p>
+          </div>
+        )}
+
         <div className="grid grid-cols-2 gap-3">
-          {kind === 'RECURRING' && (
-            <Field label="Repeats">
-              <Select value={period} onChange={(e) => setPeriod(e.target.value as BudgetPeriod)}>
-                {PERIODS.map((o) => (
-                  <option key={o.value} value={o.value}>
-                    {o.label}
-                  </option>
-                ))}
-              </Select>
-            </Field>
-          )}
           <Field
             label={
               kind === 'RECURRING'
-                ? `Plan to spend per ${nounFor(period)} (${currency})`
+                ? `Plan to spend per ${nounFor(unit, Math.max(1, Number(interval) || 1))} (${currency})`
                 : `Plan to spend (${currency})`
             }
             hint="Also the most you can put in"
@@ -180,6 +274,12 @@ export function BudgetPlanForm({
               onChange={(e) => setPlannedAmount(e.target.value)}
               placeholder="0.00"
             />
+          </Field>
+          <Field
+            label="Starts on"
+            hint={kind === 'RECURRING' ? 'first cycle begins here' : 'spendable from this date'}
+          >
+            <DateInput value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
           </Field>
         </div>
 

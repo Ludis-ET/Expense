@@ -68,6 +68,7 @@ export const listTransactionsQuery = z.object({
   categoryId: z.string().optional(),
   accountId: z.string().optional(),
   budgetId: z.string().optional(),
+  budgetCycle: z.coerce.number().int().min(0).optional(),
   tag: z.string().optional(),
   q: z.string().max(200).optional(),
   min: z.coerce.number().optional(),

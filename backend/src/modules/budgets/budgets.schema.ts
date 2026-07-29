@@ -1,29 +1,40 @@
 import { z } from 'zod';
-import { BudgetKind, BudgetPeriod, BudgetState } from '../../core/prisma.js';
+import { BudgetKind, BudgetState, RecurrenceUnit } from '../../core/prisma.js';
 
 const money = z.coerce.number().positive().max(1_000_000_000);
+
+/**
+ * Users cannot create the built-in UNPLANNED plan - it is provisioned once per
+ * account - so only the two authorable kinds are accepted here.
+ */
+const authorableKind = z.enum([BudgetKind.ONE_TIME, BudgetKind.RECURRING]);
+
+/** "every N <unit>" - 6 hours, 3 days, 2 weeks, a quarter... */
+const recurrenceInterval = z.coerce.number().int().min(1).max(365);
 
 export const createBudgetSchema = z
   .object({
     name: z.string().trim().min(1, 'Give the plan a name').max(80),
     /** Optional - only pre-selects itself when you spend from the plan. */
     categoryId: z.string().min(1).nullish(),
-    kind: z.nativeEnum(BudgetKind).default(BudgetKind.ONE_TIME),
-    period: z.nativeEnum(BudgetPeriod).nullish(),
+    kind: authorableKind.default(BudgetKind.ONE_TIME),
+    recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
+    recurrenceInterval: recurrenceInterval.default(1),
     plannedAmount: money,
     currency: z.string().length(3).default('ETB'),
     icon: z.string().max(40).nullish(),
     color: z.string().max(20).nullish(),
     note: z.string().max(500).nullish(),
     alertThreshold: z.coerce.number().int().min(1).max(100).default(80),
-    startDate: z.coerce.date().optional(),
+    /** When the plan begins. Defaults to now, but the user picks. */
+    startsAt: z.coerce.date().optional(),
     endDate: z.coerce.date().nullish(),
   })
-  .refine((d) => d.kind !== BudgetKind.RECURRING || !!d.period, {
+  .refine((d) => d.kind !== BudgetKind.RECURRING || !!d.recurrenceUnit, {
     message: 'Pick how often this plan repeats',
-    path: ['period'],
+    path: ['recurrenceUnit'],
   })
-  .refine((d) => !(d.startDate && d.endDate) || d.endDate >= d.startDate, {
+  .refine((d) => !(d.startsAt && d.endDate) || d.endDate >= d.startsAt, {
     message: 'End date must be on or after the start date',
     path: ['endDate'],
   });
@@ -31,13 +42,15 @@ export const createBudgetSchema = z
 export const updateBudgetSchema = z.object({
   name: z.string().trim().min(1).max(80).optional(),
   categoryId: z.string().min(1).nullish(),
-  kind: z.nativeEnum(BudgetKind).optional(),
-  period: z.nativeEnum(BudgetPeriod).nullish(),
+  kind: authorableKind.optional(),
+  recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
+  recurrenceInterval: recurrenceInterval.optional(),
   plannedAmount: money.optional(),
   icon: z.string().max(40).nullish(),
   color: z.string().max(20).nullish(),
   note: z.string().max(500).nullish(),
   alertThreshold: z.coerce.number().int().min(1).max(100).optional(),
+  startsAt: z.coerce.date().optional(),
   endDate: z.coerce.date().nullish(),
 });
 

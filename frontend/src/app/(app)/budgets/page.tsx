@@ -90,8 +90,9 @@ function PlansPanel() {
   const [showClosed, setShowClosed] = useState(false);
 
   const items = data?.items ?? [];
-  const active = items.filter((b) => b.state === 'ACTIVE');
-  const closed = items.filter((b) => b.state === 'CLOSED');
+  const unplanned = items.find((b) => b.isUnplanned);
+  const active = items.filter((b) => !b.isUnplanned && b.state === 'ACTIVE');
+  const closed = items.filter((b) => !b.isUnplanned && b.state === 'CLOSED');
   const totals = data?.totals;
 
   return (
@@ -127,8 +128,8 @@ function PlansPanel() {
               <p className="text-xs text-muted">spent from plans</p>
             </div>
             <div>
-              <p className="text-2xl font-bold tabular-nums">{money(totals.planned)}</p>
-              <p className="text-xs text-muted">planned in total</p>
+              <p className="text-2xl font-bold tabular-nums">{money(totals.unplannedSpent)}</p>
+              <p className="text-xs text-muted">spent unplanned</p>
             </div>
           </div>
         </div>
@@ -140,19 +141,23 @@ function PlansPanel() {
             <Skeleton key={i} className="h-44" />
           ))}
         </div>
-      ) : active.length === 0 ? (
-        <EmptyState
-          icon={<PiggyBank className="h-5 w-5" />}
-          title="No budget plans yet"
-          description="Name a plan, say how much you intend to spend, then move money into it from an account."
-          action={<Button onClick={() => setFormOpen(true)}>Create your first plan</Button>}
-        />
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
+          {/* The catch-all is always first, and always there. */}
+          {unplanned && <BudgetPlanCard key={unplanned.id} plan={unplanned} />}
           {active.map((plan) => (
             <BudgetPlanCard key={plan.id} plan={plan} />
           ))}
         </div>
+      )}
+
+      {!isLoading && active.length === 0 && (
+        <EmptyState
+          icon={<PiggyBank className="h-5 w-5" />}
+          title="No budget plans yet"
+          description="Everything you spend lands in Unplanned until you make a plan. Name one, say how much you intend to spend, then move money into it from an account."
+          action={<Button onClick={() => setFormOpen(true)}>Create your first plan</Button>}
+        />
       )}
 
       {closed.length > 0 && (

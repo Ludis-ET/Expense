@@ -74,6 +74,7 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
       ? { OR: [{ accountId: query.accountId }, { transferAccountId: query.accountId }] }
       : {}),
     ...(query.budgetId ? { budgetId: query.budgetId } : {}),
+    ...(query.budgetCycle !== undefined ? { budgetCycle: query.budgetCycle } : {}),
     ...(query.currency ? { currency: query.currency } : {}),
     ...(query.tag ? { tags: { has: query.tag } } : {}),
     ...(query.q
@@ -137,15 +138,31 @@ export async function listTags(user: AuthUser) {
 export async function create(user: AuthUser, input: CreateTransactionInput) {
   const planId = input.kind === TxKind.EXPENSE ? input.budgetId : undefined;
 
-  // Spending from a plan: the plan's pot must cover it, and it decides which
-  // account the real money leaves from (the one that funded that share).
+  // Two shapes of plan spending:
+  //  - a funded plan: its pot must cover the spend, and it decides which
+  //    account the real money leaves from (the one that funded that share);
+  //  - the built-in Unplanned plan: no pot at all, so the caller says which
+  //    account to draw on and it goes through the ordinary balance guard.
   let plan: { id: string; cycleIndex: number } | null = null;
+  let fromPot = false;
   let accountId = input.accountId;
+
   if (planId) {
-    const { assertSpendable } = await import('../budgets/budgets.service.js');
-    const charge = await assertSpendable(user.id, planId, input.amount, input.accountId);
-    plan = { id: charge.budget.id, cycleIndex: charge.budget.cycleIndex };
-    accountId = charge.accountId;
+    const { assertSpendable, assertUnplannedSpendable } = await import(
+      '../budgets/budgets.service.js'
+    );
+    const unplanned = await assertUnplannedSpendable(user.id, planId);
+    if (unplanned) {
+      if (!accountId) {
+        throw new BadRequestError('Pick which account this unplanned expense comes out of');
+      }
+      plan = { id: unplanned.id, cycleIndex: unplanned.cycleIndex };
+    } else {
+      const charge = await assertSpendable(user.id, planId, input.amount, input.accountId);
+      plan = { id: charge.budget.id, cycleIndex: charge.budget.cycleIndex };
+      accountId = charge.accountId;
+      fromPot = true;
+    }
   }
 
   if (!accountId) throw new BadRequestError('Pick an account or a budget plan to pay from');
@@ -159,11 +176,11 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     categoryId = input.categoryId;
   }
 
-  // Money leaving an account may not push it negative. A plan expense is
-  // already covered by its own reservation, so it only needs the real balance.
-  if (input.kind === TxKind.TRANSFER || (input.kind === TxKind.EXPENSE && !plan)) {
-    await assertSufficientBalance(user.id, account.id, account.name, input.amount);
-  } else if (plan) {
+  // Money leaving an account may not push it negative. Spending out of a
+  // funded pot is already covered by its own reservation, so it only needs the
+  // real balance; everything else (including Unplanned) must fit in what is
+  // genuinely free after other plans have taken their share.
+  if (fromPot) {
     const { accountBalance } = await import('../accounts/accounts.service.js');
     const real = await accountBalance(user.id, account.id);
     if (new Prisma.Decimal(input.amount).gt(real)) {
@@ -171,6 +188,8 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
         `"${account.name}" only holds ${real.toFixed(2)} ${account.currency} right now.`,
       );
     }
+  } else if (input.kind === TxKind.TRANSFER || input.kind === TxKind.EXPENSE) {
+    await assertSufficientBalance(user.id, account.id, account.name, input.amount);
   }
 
   const tx = await prisma.transaction.create({
@@ -203,7 +222,18 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
 export async function update(user: AuthUser, id: string, input: UpdateTransactionInput) {
   const existing = await assertOwnedTransaction(id, user.id);
 
-  if (input.accountId && existing.budgetId && input.accountId !== existing.accountId) {
+  const { assertUnplannedSpendable } = await import('../budgets/budgets.service.js');
+  const unplanned = existing.budgetId
+    ? await assertUnplannedSpendable(user.id, existing.budgetId)
+    : null;
+
+  // A funded plan dictates its own source account; Unplanned does not.
+  if (
+    input.accountId &&
+    existing.budgetId &&
+    !unplanned &&
+    input.accountId !== existing.accountId
+  ) {
     throw new BadRequestError(
       'This expense is paid from a budget plan; the plan decides which account it comes out of.',
     );
@@ -229,8 +259,8 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
   // prior effect so an unchanged edit can't falsely trip.
   if (existing.kind === TxKind.EXPENSE || existing.kind === TxKind.TRANSFER) {
     const outflow = Number(input.amount ?? existing.amount);
-    if (existing.budgetId) {
-      // Plan expenses are capped by the plan's pot, not by free account money.
+    if (existing.budgetId && !unplanned) {
+      // Pot expenses are capped by the plan's pot, not by free account money.
       const { assertSpendable } = await import('../budgets/budgets.service.js');
       await assertSpendable(user.id, existing.budgetId, outflow, existing.accountId, id);
     } else {

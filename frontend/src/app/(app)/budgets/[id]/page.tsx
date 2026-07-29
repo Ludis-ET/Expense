@@ -11,6 +11,9 @@ import {
   ArrowUpRight,
   Archive,
   ArchiveRestore,
+  CalendarClock,
+  ChevronDown,
+  CircleEllipsis,
   History,
   Pencil,
   Repeat,
@@ -25,6 +28,10 @@ import { CategoryBadge } from '@/components/finance/category-badge';
 import { financeIcon } from '@/components/finance/icons';
 import { HEALTH_META } from '@/components/finance/budget-plan-card';
 import { BudgetPlanForm, FundPlanModal } from '@/components/finance/budget-plan-modals';
+import { BudgetTransactions } from '@/components/finance/budget-transactions';
+import { TransactionDetailModal } from '@/components/finance/transaction-detail-modal';
+import { TransactionForm } from '@/components/finance/transaction-form';
+import { TransactionList } from '@/components/finance/transaction-list';
 import { CalendarDate } from '@/components/calendar-date';
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
@@ -36,6 +43,7 @@ import type {
   BudgetDetail,
   BudgetTimelineEntry,
   BudgetTransaction,
+  Transaction,
 } from '@/lib/types';
 
 export default function BudgetDetailPage({ params }: { params: Promise<{ id: string }> }) {
@@ -48,6 +56,8 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
 
   const [editOpen, setEditOpen] = useState(false);
   const [moveMode, setMoveMode] = useState<'fund' | 'release' | null>(null);
+  const [viewing, setViewing] = useState<Transaction | null>(null);
+  const [editingTx, setEditingTx] = useState<Transaction | null>(null);
   const [busy, setBusy] = useState(false);
 
   /** Money moved: accounts, dashboard and the plan list are all stale now. */
@@ -78,12 +88,8 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
 
   if (isLoading || !plan) return <PageLoader rows={4} />;
 
-  const Icon = financeIcon(plan.icon ?? 'wallet');
-  const meta = HEALTH_META[plan.health];
+  const unplanned = plan.isUnplanned;
   const closed = plan.state === 'CLOSED';
-  const planned = Math.max(Number(plan.plannedAmount), 0.01);
-  const spentPct = Math.min(100, (Number(plan.spentAmount) / planned) * 100);
-  const balancePct = Math.min(100 - spentPct, (Number(plan.balance) / planned) * 100);
 
   async function act(path: string, successMsg: string) {
     setBusy(true);
@@ -96,6 +102,25 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
       toast.error(err instanceof ApiError ? err.message : 'Failed');
     } finally {
       setBusy(false);
+    }
+  }
+
+  async function removeTx(tx: Transaction) {
+    const ok = await confirm({
+      title: 'Delete this transaction?',
+      description: `${tx.payee ?? tx.note ?? 'This expense'} will be removed and the money returned to the plan.`,
+      confirmLabel: 'Delete',
+      tone: 'danger',
+    });
+    if (!ok) return;
+    try {
+      await api.del(`/transactions/${tx.id}`);
+      toast.success('Transaction deleted');
+      setViewing(null);
+      void mutate();
+      void refreshLinked();
+    } catch (err) {
+      toast.error(err instanceof ApiError ? err.message : 'Failed');
     }
   }
 
@@ -127,124 +152,20 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         <ArrowLeft className="h-4 w-4" /> Budgets
       </Link>
 
-      {/* ---- Hero ---------------------------------------------------- */}
-      <div
-        className="relative overflow-hidden rounded-2xl border border-border p-5 sm:p-6"
-        style={{
-          background: `linear-gradient(135deg, ${plan.color ?? '#6366f1'}1a, transparent 65%)`,
-        }}
-      >
-        <div className="flex flex-wrap items-start justify-between gap-4">
-          <div className="flex min-w-0 items-start gap-3">
-            <span
-              className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
-              style={{
-                backgroundColor: `${plan.color ?? '#6366f1'}26`,
-                color: plan.color ?? '#6366f1',
-              }}
-            >
-              <Icon className="h-7 w-7" />
-            </span>
-            <div className="min-w-0">
-              <div className="flex flex-wrap items-center gap-2">
-                <h1 className="truncate text-2xl font-bold tracking-tight">{plan.name}</h1>
-                <span
-                  className={cn(
-                    'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
-                    meta.chip,
-                  )}
-                >
-                  {meta.label}
-                </span>
-              </div>
-              <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
-                {plan.kind === 'RECURRING' ? (
-                  <span className="inline-flex items-center gap-1">
-                    <Repeat className="h-3.5 w-3.5" /> renews every {plan.periodNoun}
-                  </span>
-                ) : (
-                  <span>one-time plan</span>
-                )}
-                {plan.category && (
-                  <>
-                    <span>·</span>
-                    <CategoryBadge category={plan.category} />
-                  </>
-                )}
-                {plan.cycleLabel && <span>· {plan.cycleLabel}</span>}
-              </p>
-              {plan.note && <p className="mt-2 max-w-prose text-sm text-muted">{plan.note}</p>}
-            </div>
-          </div>
-
-          <div className="flex flex-wrap gap-2">
-            {!closed && (
-              <Button size="sm" onClick={() => setMoveMode('fund')}>
-                <ArrowUpRight className="h-4 w-4" /> Put money in
-              </Button>
-            )}
-            {Number(plan.balance) > 0 && (
-              <Button size="sm" variant="outline" onClick={() => setMoveMode('release')}>
-                <ArrowDownLeft className="h-4 w-4" /> Give back
-              </Button>
-            )}
-            <Button size="sm" variant="outline" onClick={() => setEditOpen(true)}>
-              <Pencil className="h-4 w-4" /> Edit
-            </Button>
-            {closed ? (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={busy}
-                onClick={() => act('reopen', 'Plan reopened')}
-              >
-                <ArchiveRestore className="h-4 w-4" /> Reopen
-              </Button>
-            ) : (
-              <Button
-                size="sm"
-                variant="outline"
-                loading={busy}
-                onClick={() => act('close', 'Plan closed')}
-              >
-                <Archive className="h-4 w-4" /> Close
-              </Button>
-            )}
-            <Button size="sm" variant="ghost" onClick={removePlan} aria-label="Delete plan">
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
-        </div>
-
-        {/* ---- The one number that matters --------------------------- */}
-        <div className="mt-6">
-          <p className="text-xs font-semibold uppercase tracking-widest text-muted">
-            Left in this plan
-          </p>
-          <p className="mt-1 text-4xl font-bold tabular-nums">{money(plan.balance)}</p>
-
-          <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
-            <div
-              className="h-full bg-foreground/25 transition-all duration-700"
-              style={{ width: `${spentPct}%` }}
-            />
-            <div
-              className={cn('h-full transition-all duration-700', meta.bar)}
-              style={{ width: `${Math.max(0, balancePct)}%` }}
-            />
-          </div>
-          <p className="mt-2 text-sm text-muted">
-            You planned to spend <strong className="text-foreground">{money(plan.plannedAmount)}</strong>,
-            filled <strong className="text-foreground">{money(plan.fundedAmount)}</strong> from your
-            accounts, and have spent{' '}
-            <strong className="text-foreground">{money(plan.spentAmount)}</strong> of it
-            {Number(plan.fillable) > 0 && !closed && (
-              <> · {money(plan.fillable)} can still go in</>
-            )}
-            .
-          </p>
-        </div>
-      </div>
+      {unplanned ? (
+        <UnplannedHero plan={plan} />
+      ) : (
+        <PlanHero
+          plan={plan}
+          busy={busy}
+          onFund={() => setMoveMode('fund')}
+          onRelease={() => setMoveMode('release')}
+          onEdit={() => setEditOpen(true)}
+          onClose={() => act('close', 'Plan closed')}
+          onReopen={() => act('reopen', 'Plan reopened')}
+          onDelete={removePlan}
+        />
+      )}
 
       {closed && (
         <div className="rounded-xl border border-border bg-surface-muted/50 px-4 py-3 text-sm text-muted">
@@ -253,21 +174,56 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         </div>
       )}
 
-      {/* ---- Stat strip ---------------------------------------------- */}
-      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        <StatTile label="Planned" value={money(plan.plannedAmount)} />
-        <StatTile label="Filled this cycle" value={money(plan.fundedAmount)} sub={
-          Number(plan.carriedIn) > 0 ? `incl. ${money(plan.carriedIn)} carried over` : undefined
-        } />
-        <StatTile label="Spent this cycle" value={money(plan.spentAmount)} sub={`${plan.pctSpentOfFunded}% of what's in`} />
-        <StatTile
-          label="Lifetime"
-          value={money(plan.lifetime.spent)}
-          sub={`spent across ${plan.lifetime.cycleCount} cycle${plan.lifetime.cycleCount === 1 ? '' : 's'}`}
-        />
-      </div>
+      {!unplanned && !plan.started && (
+        <div className="flex items-start gap-2 rounded-xl border border-indigo-500/25 bg-indigo-500/5 px-4 py-3 text-sm text-muted">
+          <CalendarClock className="mt-0.5 h-4 w-4 shrink-0 text-indigo-500" />
+          <span>
+            This plan starts on{' '}
+            <strong className="text-foreground">
+              {new Date(plan.startsAt).toLocaleDateString()}
+            </strong>
+            . You can fill it now, but nothing can be spent from it until then.
+          </span>
+        </div>
+      )}
 
-      {/* ---- Where the money came from -------------------------------- */}
+      {/* ---- Stat strip ---------------------------------------------- */}
+      {unplanned ? (
+        <div className="grid gap-3 sm:grid-cols-3">
+          <StatTile label="Spent unplanned" value={money(plan.spentAmount)} />
+          <StatTile label="All time" value={money(plan.lifetime.spent)} sub={`${plan.lifetime.txCount} transactions`} />
+          <StatTile
+            label="Since"
+            value={
+              plan.lifetime.firstTxAt
+                ? new Date(plan.lifetime.firstTxAt).toLocaleDateString()
+                : '—'
+            }
+            sub="first unplanned expense"
+          />
+        </div>
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+          <StatTile label="Planned" value={money(plan.plannedAmount)} />
+          <StatTile
+            label="Filled this cycle"
+            value={money(plan.fundedAmount)}
+            sub={Number(plan.carriedIn) > 0 ? `incl. ${money(plan.carriedIn)} carried over` : undefined}
+          />
+          <StatTile
+            label="Spent this cycle"
+            value={money(plan.spentAmount)}
+            sub={`${plan.pctSpentOfFunded}% of what's in`}
+          />
+          <StatTile
+            label="Lifetime"
+            value={money(plan.lifetime.spent)}
+            sub={`across ${plan.lifetime.cycleCount} cycle${plan.lifetime.cycleCount === 1 ? '' : 's'}`}
+          />
+        </div>
+      )}
+
+      {/* ---- Where the money is held ---------------------------------- */}
       {plan.sources.length > 0 && (
         <Card>
           <CardContent className="p-4 sm:p-5">
@@ -296,21 +252,35 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
         </Card>
       )}
 
-      {/* ---- Timeline -------------------------------------------------- */}
+      {/* ---- Transactions (searchable, filterable, paginated) --------- */}
       <Card>
         <CardContent className="p-4 sm:p-5">
-          <h2 className="mb-4 text-sm font-semibold">Everything that moved</h2>
-          {plan.timeline.length === 0 ? (
-            <EmptyState
-              icon={<Wallet className="h-5 w-5" />}
-              title="Nothing yet"
-              description="Put money in from an account to get this plan going."
-            />
-          ) : (
-            <Timeline entries={plan.timeline} currentCycle={plan.cycleIndex} />
-          )}
+          <BudgetTransactions plan={plan} onView={(tx) => setViewing(tx)} />
         </CardContent>
       </Card>
+
+      {/* ---- Recent movements ----------------------------------------- */}
+      {!unplanned && (
+        <Card>
+          <CardContent className="p-4 sm:p-5">
+            <div className="mb-4 flex items-center justify-between gap-2">
+              <h2 className="text-sm font-semibold">Recent movements</h2>
+              {plan.timelineTruncated && (
+                <span className="text-xs text-muted">latest {plan.timeline.length}</span>
+              )}
+            </div>
+            {plan.timeline.length === 0 ? (
+              <EmptyState
+                icon={<Wallet className="h-5 w-5" />}
+                title="Nothing yet"
+                description="Put money in from an account to get this plan going."
+              />
+            ) : (
+              <Timeline entries={plan.timeline} currentCycle={plan.cycleIndex} />
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       {/* ---- Past cycles ----------------------------------------------- */}
       {plan.cycles.length > 0 && (
@@ -319,7 +289,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
             <History className="h-4 w-4 text-muted" /> Past {plan.periodNoun ?? 'cycle'}s
           </h2>
           {plan.cycles.map((c) => (
-            <CycleSnapshot key={c.index} cycle={c} />
+            <CycleSnapshot key={c.index} cycle={c} planId={plan.id} onView={setViewing} />
           ))}
         </div>
       )}
@@ -344,6 +314,199 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
           void refreshLinked();
         }}
       />
+
+      <TransactionDetailModal
+        transaction={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={(tx) => {
+          setViewing(null);
+          setEditingTx(tx);
+        }}
+        onDelete={removeTx}
+      />
+
+      <TransactionForm
+        open={!!editingTx}
+        editing={editingTx}
+        onClose={() => setEditingTx(null)}
+        onSaved={() => {
+          void mutate();
+          void refreshLinked();
+        }}
+      />
+    </div>
+  );
+}
+
+/** The headline for an ordinary funded plan: what's left, and how it got there. */
+function PlanHero({
+  plan,
+  busy,
+  onFund,
+  onRelease,
+  onEdit,
+  onClose,
+  onReopen,
+  onDelete,
+}: {
+  plan: BudgetDetail;
+  busy: boolean;
+  onFund: () => void;
+  onRelease: () => void;
+  onEdit: () => void;
+  onClose: () => void;
+  onReopen: () => void;
+  onDelete: () => void;
+}) {
+  const { money } = useMoney();
+  const Icon = financeIcon(plan.icon ?? 'wallet');
+  const meta = HEALTH_META[plan.health];
+  const closed = plan.state === 'CLOSED';
+  const planned = Math.max(Number(plan.plannedAmount), 0.01);
+  const spentPct = Math.min(100, (Number(plan.spentAmount) / planned) * 100);
+  const balancePct = Math.min(100 - spentPct, (Number(plan.balance) / planned) * 100);
+
+  return (
+    <div
+      className="relative overflow-hidden rounded-2xl border border-border p-5 sm:p-6"
+      style={{ background: `linear-gradient(135deg, ${plan.color ?? '#6366f1'}1a, transparent 65%)` }}
+    >
+      <div className="flex flex-wrap items-start justify-between gap-4">
+        <div className="flex min-w-0 items-start gap-3">
+          <span
+            className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl"
+            style={{
+              backgroundColor: `${plan.color ?? '#6366f1'}26`,
+              color: plan.color ?? '#6366f1',
+            }}
+          >
+            <Icon className="h-7 w-7" />
+          </span>
+          <div className="min-w-0">
+            <div className="flex flex-wrap items-center gap-2">
+              <h1 className="truncate text-2xl font-bold tracking-tight">{plan.name}</h1>
+              <span
+                className={cn(
+                  'rounded-full px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide',
+                  meta.chip,
+                )}
+              >
+                {meta.label}
+              </span>
+            </div>
+            <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted">
+              {plan.kind === 'RECURRING' ? (
+                <span className="inline-flex items-center gap-1">
+                  <Repeat className="h-3.5 w-3.5" /> resets {plan.recurrenceLabel}
+                </span>
+              ) : (
+                <span>one-time plan</span>
+              )}
+              {plan.category && (
+                <>
+                  <span>·</span>
+                  <CategoryBadge category={plan.category} />
+                </>
+              )}
+              {plan.cycleLabel && <span>· {plan.cycleLabel}</span>}
+            </p>
+            {plan.note && <p className="mt-2 max-w-prose text-sm text-muted">{plan.note}</p>}
+          </div>
+        </div>
+
+        <div className="flex flex-wrap gap-2">
+          {!closed && (
+            <Button size="sm" onClick={onFund}>
+              <ArrowUpRight className="h-4 w-4" /> Put money in
+            </Button>
+          )}
+          {Number(plan.balance) > 0 && (
+            <Button size="sm" variant="outline" onClick={onRelease}>
+              <ArrowDownLeft className="h-4 w-4" /> Give back
+            </Button>
+          )}
+          <Button size="sm" variant="outline" onClick={onEdit}>
+            <Pencil className="h-4 w-4" /> Edit
+          </Button>
+          {closed ? (
+            <Button size="sm" variant="outline" loading={busy} onClick={onReopen}>
+              <ArchiveRestore className="h-4 w-4" /> Reopen
+            </Button>
+          ) : (
+            <Button size="sm" variant="outline" loading={busy} onClick={onClose}>
+              <Archive className="h-4 w-4" /> Close
+            </Button>
+          )}
+          <Button size="sm" variant="ghost" onClick={onDelete} aria-label="Delete plan">
+            <Trash2 className="h-4 w-4" />
+          </Button>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted">
+          Left in this plan
+        </p>
+        <p className="mt-1 text-4xl font-bold tabular-nums">{money(plan.balance)}</p>
+
+        <div className="mt-4 flex h-2.5 w-full overflow-hidden rounded-full bg-surface-muted">
+          <div
+            className="h-full bg-foreground/25 transition-all duration-700"
+            style={{ width: `${spentPct}%` }}
+          />
+          <div
+            className={cn('h-full transition-all duration-700', meta.bar)}
+            style={{ width: `${Math.max(0, balancePct)}%` }}
+          />
+        </div>
+        <p className="mt-2 text-sm text-muted">
+          You planned to spend <strong className="text-foreground">{money(plan.plannedAmount)}</strong>,
+          filled <strong className="text-foreground">{money(plan.fundedAmount)}</strong> from your
+          accounts, and have spent{' '}
+          <strong className="text-foreground">{money(plan.spentAmount)}</strong> of it
+          {Number(plan.fillable) > 0 && !closed && <> · {money(plan.fillable)} can still go in</>}.
+        </p>
+      </div>
+    </div>
+  );
+}
+
+/** The catch-all has no pot, so its headline is what leaked out through it. */
+function UnplannedHero({ plan }: { plan: BudgetDetail }) {
+  const { money } = useMoney();
+
+  return (
+    <div className="relative overflow-hidden rounded-2xl border border-dashed border-border bg-surface-muted/30 p-5 sm:p-6">
+      <div className="flex min-w-0 items-start gap-3">
+        <span className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-surface-muted text-muted">
+          <CircleEllipsis className="h-7 w-7" />
+        </span>
+        <div className="min-w-0">
+          <div className="flex flex-wrap items-center gap-2">
+            <h1 className="truncate text-2xl font-bold tracking-tight">{plan.name}</h1>
+            <span className="rounded-full bg-surface-muted px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-muted">
+              Built in
+            </span>
+          </div>
+          <p className="mt-1 max-w-prose text-sm text-muted">
+            Everything you spend without setting money aside first lands here. It has no pot of its
+            own — each expense comes straight out of the account you choose, from whatever is left
+            after your other plans.
+          </p>
+        </div>
+      </div>
+
+      <div className="mt-6">
+        <p className="text-xs font-semibold uppercase tracking-widest text-muted">
+          Spent unplanned
+        </p>
+        <p className="mt-1 text-4xl font-bold tabular-nums">{money(plan.spentAmount)}</p>
+        <p className="mt-2 text-sm text-muted">
+          {plan.lifetime.txCount} transaction{plan.lifetime.txCount === 1 ? '' : 's'} all told,
+          worth <strong className="text-foreground">{money(plan.lifetime.spent)}</strong>. Turning a
+          recurring one of these into a real plan is how the number comes down.
+        </p>
+      </div>
     </div>
   );
 }
@@ -384,7 +547,7 @@ function Timeline({
           <li key={`${e.type}-${e.entry.id}-${i}`} className="relative pb-5 last:pb-0">
             <span
               className={cn(
-                'absolute -left-[2.1rem] flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-surface',
+                'absolute left-[-2.1rem] flex h-7 w-7 items-center justify-center rounded-full ring-4 ring-surface',
                 tone,
               )}
             >
@@ -435,10 +598,26 @@ function Timeline({
   );
 }
 
-/** A frozen cycle: what was planned, filled, spent, and what rolled forward. */
-function CycleSnapshot({ cycle }: { cycle: BudgetCycleSnapshot }) {
+/**
+ * A frozen cycle: what was planned, filled, spent, and what rolled forward.
+ * Its transactions are fetched only when you open it.
+ */
+function CycleSnapshot({
+  cycle,
+  planId,
+  onView,
+}: {
+  cycle: BudgetCycleSnapshot;
+  planId: string;
+  onView: (tx: Transaction) => void;
+}) {
   const { money } = useMoney();
   const [open, setOpen] = useState(false);
+  const { data } = useSWR<{ items: Transaction[] }>(
+    open && cycle.txCount > 0
+      ? `/transactions?budgetId=${planId}&budgetCycle=${cycle.index}&pageSize=100&sort=date_desc`
+      : null,
+  );
   const planned = Math.max(Number(cycle.plannedAmount), 0.01);
   const spentPct = Math.min(100, (Number(cycle.spentAmount) / planned) * 100);
 
@@ -449,27 +628,28 @@ function CycleSnapshot({ cycle }: { cycle: BudgetCycleSnapshot }) {
           type="button"
           onClick={() => setOpen((v) => !v)}
           className="flex w-full items-start justify-between gap-3 text-left"
+          aria-expanded={open}
         >
           <div className="min-w-0">
-            <p className="font-semibold">{cycle.label}</p>
-            <p className="mt-0.5 text-xs text-muted">
-              filled {money(cycle.fundedAmount)} · spent {money(cycle.spentAmount)} ·{' '}
-              {cycle.txCount} transaction{cycle.txCount === 1 ? '' : 's'}
+            <p className="flex items-center gap-1.5 font-semibold">
+              <ChevronDown
+                className={cn('h-4 w-4 text-muted transition-transform', open && 'rotate-180')}
+              />
+              {cycle.label}
+            </p>
+            <p className="mt-0.5 pl-5 text-xs text-muted">
+              filled {money(cycle.fundedAmount)} · spent {money(cycle.spentAmount)} · {cycle.txCount}{' '}
+              transaction{cycle.txCount === 1 ? '' : 's'}
             </p>
           </div>
           <div className="shrink-0 text-right">
-            <p className="text-sm font-semibold tabular-nums">
-              {money(cycle.leftoverAmount)}
-            </p>
+            <p className="text-sm font-semibold tabular-nums">{money(cycle.leftoverAmount)}</p>
             <p className="text-[11px] text-muted">carried forward</p>
           </div>
         </button>
 
         <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-surface-muted">
-          <div
-            className="h-full rounded-full bg-foreground/30"
-            style={{ width: `${spentPct}%` }}
-          />
+          <div className="h-full rounded-full bg-foreground/30" style={{ width: `${spentPct}%` }} />
         </div>
 
         {open && (
@@ -481,25 +661,12 @@ function CycleSnapshot({ cycle }: { cycle: BudgetCycleSnapshot }) {
               <Stat label="Spent" value={money(cycle.spentAmount)} />
             </dl>
 
-            {cycle.transactions.length === 0 ? (
+            {cycle.txCount === 0 ? (
               <p className="text-xs text-muted">No spending in this cycle.</p>
+            ) : !data ? (
+              <p className="text-xs text-muted">Loading transactions…</p>
             ) : (
-              <ul className="space-y-1.5">
-                {cycle.transactions.map((tx) => (
-                  <li
-                    key={tx.id}
-                    className="flex items-center justify-between gap-3 rounded-lg bg-surface-muted/50 px-3 py-2 text-sm"
-                  >
-                    <span className="min-w-0 truncate">
-                      {tx.payee ?? tx.note ?? tx.category?.name ?? 'Expense'}
-                      <span className="ml-2 text-xs text-muted">
-                        <CalendarDate value={tx.date} />
-                      </span>
-                    </span>
-                    <span className="shrink-0 tabular-nums">{money(tx.amount)}</span>
-                  </li>
-                ))}
-              </ul>
+              <TransactionList items={data.items} compact onView={onView} />
             )}
           </div>
         )}

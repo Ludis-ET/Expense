@@ -10,12 +10,13 @@ describe('createBudgetSchema', () => {
   it('accepts a one-time plan with no category', () => {
     const parsed = createBudgetSchema.parse({ name: 'New laptop', plannedAmount: 60000 });
     expect(parsed.kind).toBe('ONE_TIME');
-    expect(parsed.period).toBeUndefined();
+    expect(parsed.recurrenceUnit).toBeUndefined();
+    expect(parsed.recurrenceInterval).toBe(1);
     expect(parsed.currency).toBe('ETB');
     expect(parsed.alertThreshold).toBe(80);
   });
 
-  it('requires a period for a recurring plan', () => {
+  it('requires a cadence for a recurring plan', () => {
     const result = createBudgetSchema.safeParse({
       name: 'Groceries',
       kind: 'RECURRING',
@@ -24,14 +25,34 @@ describe('createBudgetSchema', () => {
     expect(result.success).toBe(false);
   });
 
-  it('accepts a recurring plan with a period', () => {
+  it('accepts any every-N-units cadence', () => {
     const parsed = createBudgetSchema.parse({
-      name: 'Groceries',
+      name: 'Coffee run',
       kind: 'RECURRING',
-      period: 'MONTHLY',
-      plannedAmount: 5000,
+      recurrenceUnit: 'HOUR',
+      recurrenceInterval: 6,
+      plannedAmount: 200,
     });
-    expect(parsed.period).toBe('MONTHLY');
+    expect(parsed.recurrenceUnit).toBe('HOUR');
+    expect(parsed.recurrenceInterval).toBe(6);
+  });
+
+  it('refuses to author the built-in Unplanned kind', () => {
+    const result = createBudgetSchema.safeParse({
+      name: 'Sneaky',
+      kind: 'UNPLANNED',
+      plannedAmount: 10,
+    });
+    expect(result.success).toBe(false);
+  });
+
+  it('takes a user-chosen start date', () => {
+    const parsed = createBudgetSchema.parse({
+      name: 'School fees',
+      plannedAmount: 5000,
+      startsAt: '2026-09-01',
+    });
+    expect(parsed.startsAt?.toISOString().slice(0, 10)).toBe('2026-09-01');
   });
 
   it('rejects a non-positive planned amount', () => {
@@ -42,7 +63,7 @@ describe('createBudgetSchema', () => {
     const result = createBudgetSchema.safeParse({
       name: 'Trip',
       plannedAmount: 100,
-      startDate: '2026-08-01',
+      startsAt: '2026-08-01',
       endDate: '2026-07-01',
     });
     expect(result.success).toBe(false);

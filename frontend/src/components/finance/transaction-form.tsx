@@ -49,6 +49,8 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
   const [amount, setAmount] = useState('');
   /** Either an account id, or `plan:<budgetId>`. */
   const [source, setSource] = useState('');
+  /** Only used when the chosen source is the pot-less Unplanned plan. */
+  const [drawFromId, setDrawFromId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [payee, setPayee] = useState('');
@@ -71,7 +73,12 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
   const selectedPlan = source.startsWith(PLAN_PREFIX)
     ? plans.find((p) => p.id === source.slice(PLAN_PREFIX.length))
     : undefined;
-  const accountId = selectedPlan ? undefined : source;
+  const isUnplanned = selectedPlan?.isUnplanned ?? false;
+
+  // A funded plan charges the account that filled it; Unplanned draws on
+  // whichever account the user points at.
+  const accountId = !selectedPlan ? source : isUnplanned ? drawFromId : undefined;
+  const drawAccount = accounts.find((a) => a.id === drawFromId);
 
   // Seed the form when opening (either blank or from the editing target).
   useEffect(() => {
@@ -80,6 +87,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       setKind(editing.kind === 'INCOME' ? 'INCOME' : 'EXPENSE');
       setAmount(String(Number(editing.amount)));
       setSource(editing.budgetId ? `${PLAN_PREFIX}${editing.budgetId}` : editing.accountId);
+      setDrawFromId(editing.accountId);
       setCategoryId(editing.categoryId ?? '');
       setDate(editing.date.slice(0, 10));
       setPayee(editing.payee ?? '');
@@ -102,6 +110,14 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       setSource((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
     }
   }, [open, editing, source, accounts]);
+
+  // Keep the Unplanned draw-from account valid and defaulted.
+  useEffect(() => {
+    if (!isUnplanned || accounts.length === 0) return;
+    if (!accounts.some((a) => a.id === drawFromId)) {
+      setDrawFromId((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
+    }
+  }, [isUnplanned, accounts, drawFromId]);
 
   // Switching to income drops any plan selection - plans only pay expenses.
   useEffect(() => {
@@ -150,9 +166,15 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     e.preventDefault();
     if (!source) return toast.error('Pick an account or plan');
     if (!categoryId) return toast.error('Pick a category');
-    if (selectedPlan && Number(amount) > Number(selectedPlan.balance)) {
+    if (isUnplanned && !drawFromId) return toast.error('Pick which account this comes out of');
+    if (selectedPlan && !isUnplanned && Number(amount) > Number(selectedPlan.balance)) {
       return toast.error(
         `"${selectedPlan.name}" only has ${Number(selectedPlan.balance).toFixed(2)} ${selectedPlan.currency} left.`,
+      );
+    }
+    if (isUnplanned && drawAccount && Number(amount) > Number(drawAccount.balance)) {
+      return toast.error(
+        `"${drawAccount.name}" only has ${Number(drawAccount.balance).toFixed(2)} ${drawAccount.currency} available.`,
       );
     }
     setSaving(true);
@@ -160,7 +182,11 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     const payload = {
       kind,
       amount: Number(amount),
-      ...(selectedPlan ? { budgetId: selectedPlan.id } : { accountId }),
+      // Unplanned sends both: the plan it is filed under, and the account it
+      // actually comes out of.
+      ...(selectedPlan
+        ? { budgetId: selectedPlan.id, ...(isUnplanned ? { accountId: drawFromId } : {}) }
+        : { accountId }),
       categoryId,
       date,
       payee: payee || undefined,
@@ -278,19 +304,40 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
                 </option>
               ))}
             </optgroup>
-            {plans.length > 0 && (
+            {plans.some((p) => !p.isUnplanned) && (
               <optgroup label="Budget plans">
-                {plans.map((p) => (
-                  <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
-                    {p.name} — {Number(p.balance).toFixed(2)} {p.currency} left
-                  </option>
-                ))}
+                {plans
+                  .filter((p) => !p.isUnplanned)
+                  .map((p) => (
+                    <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
+                      {p.name} — {Number(p.balance).toFixed(2)} {p.currency} left
+                    </option>
+                  ))}
               </optgroup>
             )}
+            {plans
+              .filter((p) => p.isUnplanned)
+              .map((p) => (
+                <optgroup key={p.id} label="Not set aside">
+                  <option value={`${PLAN_PREFIX}${p.id}`}>{p.name}</option>
+                </optgroup>
+              ))}
           </Select>
         </Field>
 
-        {selectedPlan && (
+        {isUnplanned && (
+          <Field label="Take it out of" hint="Unplanned has no pot of its own">
+            <Select value={drawFromId} onChange={(e) => setDrawFromId(e.target.value)}>
+              {accounts.map((a) => (
+                <option key={a.id} value={a.id}>
+                  {a.name} — {Number(a.balance).toFixed(2)} {a.currency} available
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
+        {selectedPlan && !isUnplanned && (
           <p className="-mt-2 flex items-start gap-2 rounded-xl bg-primary/5 px-3 py-2 text-xs text-muted">
             <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <span>
@@ -300,6 +347,16 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
                 <> · charged to {selectedPlan.sources[0].account.name}</>
               )}
               . It can&apos;t go below zero.
+            </span>
+          </p>
+        )}
+
+        {isUnplanned && (
+          <p className="-mt-2 flex items-start gap-2 rounded-xl bg-surface-muted/60 px-3 py-2 text-xs text-muted">
+            <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            <span>
+              Money you did not set aside in advance. It comes straight out of the account
+              you picked, from whatever is left after your other plans.
             </span>
           </p>
         )}

@@ -141,7 +141,7 @@ export default function DashboardPage() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
-        <SpendingStreaks data={data.spendingStreak} money={money} />
+        <SpendingStreaks data={data.spendingStreak} />
         <TabWidget tab={data.tab} money={money} />
         <WishlistWidget wishlist={data.wishlist} />
       </div>

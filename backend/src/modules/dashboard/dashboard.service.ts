@@ -1,4 +1,4 @@
-import { CategoryKind, TxKind } from '../../core/prisma.js';
+import { CategoryKind } from '../../core/prisma.js';
 import type { AuthUser } from '../../core/context.js';
 import { prisma } from '../../core/db.js';
 import * as accounts from '../accounts/accounts.service.js';
@@ -9,96 +9,8 @@ import { FAMILY_SUPPORT_CATEGORY_NAME } from '../categories/default-categories.j
 import * as household from '../household/household.service.js';
 import * as ledger from '../ledger/ledger.service.js';
 import * as wishlist from '../wishlist/wishlist.service.js';
+import * as weeks from '../analytics/analytics.weeks.js';
 import * as currency from '../../core/currency.service.js';
-
-function weekBounds(firstDayOfWeek: number) {
-  const now = new Date();
-  const day = now.getDay();
-  const diff = (day - firstDayOfWeek + 7) % 7;
-  const weekStart = new Date(now);
-  weekStart.setHours(0, 0, 0, 0);
-  weekStart.setDate(weekStart.getDate() - diff);
-  const weekEnd = new Date(weekStart);
-  weekEnd.setDate(weekEnd.getDate() + 7);
-  const prevStart = new Date(weekStart);
-  prevStart.setDate(prevStart.getDate() - 7);
-  return { weekStart, weekEnd, prevStart };
-}
-
-async function sumRange(userId: string, start: Date, end: Date) {
-  const rows = await prisma.transaction.groupBy({
-    by: ['kind'],
-    where: { userId, date: { gte: start, lt: end }, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
-    _sum: { amount: true },
-  });
-  const income = Number(rows.find((r) => r.kind === TxKind.INCOME)?._sum.amount ?? 0);
-  const expense = Number(rows.find((r) => r.kind === TxKind.EXPENSE)?._sum.amount ?? 0);
-  return { income, expense, net: income - expense };
-}
-
-async function weeklySnapshot(user: AuthUser) {
-  const u = await prisma.user.findUnique({ where: { id: user.id }, select: { firstDayOfWeek: true } });
-  const { weekStart, weekEnd, prevStart } = weekBounds(u?.firstDayOfWeek ?? 1);
-  const [current, previous] = await Promise.all([
-    sumRange(user.id, weekStart, weekEnd),
-    sumRange(user.id, prevStart, weekStart),
-  ]);
-  const delta = (now: number, before: number) =>
-    before > 0 ? Number((((now - before) / before) * 100).toFixed(1)) : null;
-
-  return {
-    weekStart: weekStart.toISOString().slice(0, 10),
-    income: current.income.toFixed(2),
-    expense: current.expense.toFixed(2),
-    net: current.net.toFixed(2),
-    prevIncome: previous.income.toFixed(2),
-    prevExpense: previous.expense.toFixed(2),
-    incomeDeltaPct: delta(current.income, previous.income),
-    expenseDeltaPct: delta(current.expense, previous.expense),
-  };
-}
-
-async function spendingStreak(user: AuthUser) {
-  const summary = await analytics.summary(user);
-  const avgDaily = Number(summary.avgDailySpend) || 0;
-  const maxDays = 60;
-  const start = new Date();
-  start.setDate(start.getDate() - maxDays);
-  start.setHours(0, 0, 0, 0);
-
-  const rows = await prisma.transaction.findMany({
-    where: { userId: user.id, kind: TxKind.EXPENSE, date: { gte: start } },
-    select: { amount: true, date: true },
-  });
-
-  const byDay = new Map<string, number>();
-  for (const r of rows) {
-    const key = r.date.toISOString().slice(0, 10);
-    byDay.set(key, (byDay.get(key) ?? 0) + Number(r.amount));
-  }
-
-  let streak = 0;
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  for (let i = 0; i < maxDays; i++) {
-    const d = new Date(today);
-    d.setDate(d.getDate() - i);
-    const key = d.toISOString().slice(0, 10);
-    const spent = byDay.get(key) ?? 0;
-    if (avgDaily > 0 && spent <= avgDaily * 1.05) streak++;
-    else if (avgDaily === 0 && spent === 0) streak++;
-    else break;
-  }
-
-  const bestStreak = Math.max(streak, streak > 0 ? streak : 0);
-  return {
-    currentDays: streak,
-    label: streak >= 7 ? 'On fire!' : streak >= 3 ? 'Building momentum' : streak > 0 ? 'Keep going' : 'Start today',
-    avgDailyLimit: avgDaily.toFixed(2),
-    bestStreak,
-  };
-}
 
 async function categoryHeatAlerts(user: AuthUser) {
   const { start, end } = monthRange();
@@ -207,8 +119,8 @@ export async function overview(user: AuthUser) {
         take: 5,
         include: { category: { select: { name: true, icon: true, color: true } } },
       }),
-      weeklySnapshot(user),
-      spendingStreak(user),
+      weeks.weeklySnapshot(user, defaultCur),
+      weeks.spendingStreak(user, defaultCur),
       categoryHeatAlerts(user),
       familySupport(user),
       household.overview(user),

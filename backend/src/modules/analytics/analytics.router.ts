@@ -6,18 +6,40 @@ import { recurringCatchUp } from '../recurring/recurring.middleware.js';
 import {
   burnRateQuery,
   categoriesQuery,
+  dailySpendQuery,
   heatmapQuery,
   incomeVsExpenseQuery,
   payeesQuery,
   seriesQuery,
   summaryQuery,
   unnecessaryQuery,
+  weeklySnapshotQuery,
 } from './analytics.schema.js';
 import * as analytics from './analytics.service.js';
+import * as weeks from './analytics.weeks.js';
 
 export const analyticsRouter = Router();
 
 analyticsRouter.use(requireAuth, recurringCatchUp);
+
+/** Per-day spend for a month (or the last 30 days), with streak maths done. */
+analyticsRouter.get(
+  '/daily',
+  validate({ query: dailySpendQuery }),
+  asyncHandler(async (req, res) => {
+    const q = req.query as { month?: string; currency?: string };
+    res.json(await weeks.dailySpending(req.user!, q));
+  }),
+);
+
+/** This week against last week, from the stored Sunday-boundary snapshots. */
+analyticsRouter.get(
+  '/weekly-snapshot',
+  validate({ query: weeklySnapshotQuery }),
+  asyncHandler(async (req, res) => {
+    res.json(await weeks.weeklySnapshot(req.user!, req.query.currency as string | undefined));
+  }),
+);
 
 analyticsRouter.get(
   '/summary',

@@ -128,6 +128,7 @@ model User {
   ledgerEntries     LedgerEntry[]
   exchangeRates     ExchangeRate[]
   wishlistItems     WishlistItem[]
+  weekSnapshots     WeekSnapshot[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -499,6 +500,37 @@ model WishlistItem {
   @@index([userId, status])
   @@index([budgetId])
   @@map("wishlist_items")
+}
+
+// A frozen record of one week's money, taken at the Sunday-midnight boundary.
+// Only the current and previous week are kept per user: this is a comparison
+// aid, not an archive, and older weeks are always derivable from transactions.
+model WeekSnapshot {
+  id        String   @id @default(cuid())
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  weekStart DateTime // Sunday 00:00 UTC
+  weekEnd   DateTime // the following Sunday 00:00 UTC
+  currency  String
+
+  income        Decimal @db.Decimal(14, 2)
+  expense       Decimal @db.Decimal(14, 2)
+  net           Decimal @db.Decimal(14, 2)
+  avgDailySpend Decimal @db.Decimal(14, 2)
+  txCount       Int     @default(0)
+  // Biggest spending category that week, for the comparison blurb.
+  topCategory       String?
+  topCategoryAmount Decimal? @db.Decimal(14, 2)
+
+  // False while the week is still running, true once it has closed.
+  sealed Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, currency, weekStart])
+  @@index([userId, weekStart])
+  @@map("week_snapshots")
 }
 
 // User-defined conversion rates (e.g. 1 USD = 56.5 ETB). Never merge currencies without these.

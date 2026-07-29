@@ -25,6 +25,13 @@ export const incomeVsExpenseQuery = z.object({
   currency: currencyStr,
 });
 
+export const dailySpendQuery = z.object({
+  month: monthStr.optional(),
+  currency: currencyStr,
+});
+
+export const weeklySnapshotQuery = z.object({ currency: currencyStr });
+
 export const heatmapQuery = z.object({
   year: z.coerce.number().int().min(2000).max(2100).optional(),
   currency: currencyStr,

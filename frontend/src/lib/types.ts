@@ -322,22 +322,75 @@ export interface UnnecessaryStats {
   count: number;
 }
 
-export interface WeeklySnapshot {
+/** One week's frozen totals, taken at the Sunday-midnight boundary. */
+export interface WeekTotals {
   weekStart: string;
+  weekEnd: string;
   income: string;
   expense: string;
   net: string;
-  prevIncome: string;
-  prevExpense: string;
-  incomeDeltaPct: number | null;
-  expenseDeltaPct: number | null;
+  avgDailySpend: string;
+  txCount: number;
+  topCategory: string | null;
+  topCategoryAmount: string | null;
+  /** False while the week is still running. */
+  sealed: boolean;
+}
+
+export interface WeeklySnapshot {
+  currency: string;
+  current: WeekTotals;
+  previous: WeekTotals;
+  delta: {
+    income: number | null;
+    expense: number | null;
+    net: number | null;
+    netAmount: string;
+    expenseAmount: string;
+  };
+}
+
+/** One day on the spending strip. */
+export interface SpendDay {
+  date: string;
+  amount: string;
+  spent: boolean;
+  under: boolean;
 }
 
 export interface SpendingStreak {
-  currentDays: number;
+  currency: string;
   label: string;
-  avgDailyLimit: string;
+  /** Average daily spend across the window - the pace to stay under. */
+  avgDailySpend: string;
+  currentDays: number;
   bestStreak: number;
+  daysUnder: number;
+  dayCount: number;
+  total: string;
+  /** The whole window, including the days that broke the run. */
+  days: SpendDay[];
+}
+
+export interface DailySpending {
+  currency: string;
+  label: string;
+  isMonth: boolean;
+  month: string | null;
+  start: string;
+  end: string;
+  days: SpendDay[];
+  stats: {
+    total: string;
+    pace: string;
+    dayCount: number;
+    daysUnder: number;
+    daysOver: number;
+    noSpendDays: number;
+    currentStreak: number;
+    bestStreak: number;
+    biggestDay: { date: string; amount: string } | null;
+  };
 }
 
 export interface CategoryHeatAlert {

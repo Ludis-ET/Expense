@@ -11,7 +11,7 @@ import {
   TrendingUp,
 } from 'lucide-react';
 import { ProgressBar } from '@/components/ui/misc';
-import { formatDate } from '@/lib/format';
+import { formatDate, type MoneyFormatOpts } from '@/lib/format';
 import type { LedgerEntry, LedgerSummary } from '@/lib/types';
 import { cn } from '@/lib/utils';
 
@@ -27,7 +27,7 @@ export function TabWidget({
   money,
 }: {
   tab: LedgerSummary | null | undefined;
-  money: (v: number | string) => string;
+  money: (v: number | string, opts?: MoneyFormatOpts) => string;
 }) {
   if (!tab || tab.openCount === 0) {
     return (
@@ -63,26 +63,31 @@ export function TabWidget({
       {tab.forecast && (
         <div className="mt-3 flex items-center gap-2 rounded-xl bg-primary/8 px-3 py-2.5 text-sm">
           <TrendingUp className="h-4 w-4 shrink-0 text-primary" />
-          <p className="leading-snug">
+          <p className="min-w-0 leading-snug">
             If due tabs settle this month:{' '}
-            <span className={cn('font-bold tabular-nums', forecastNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}>
-              {forecastNet >= 0 ? '+' : ''}{money(forecastNet)}
+            <span
+              title={money(forecastNet, { decimals: true })}
+              className={cn('font-bold tabular-nums', forecastNet >= 0 ? 'text-emerald-600 dark:text-emerald-400' : 'text-amber-600 dark:text-amber-400')}
+            >
+              {forecastNet >= 0 ? '+' : ''}{money(forecastNet, { compact: true })}
             </span>
           </p>
         </div>
       )}
 
       <div className="mt-4 grid grid-cols-2 gap-2 sm:grid-cols-4">
-        <MiniStat label="Owed to you" value={money(tab.receivable)} tone="emerald" />
-        <MiniStat label="Incoming" value={money(tab.expectedIn)} tone="sky" />
-        <MiniStat label="You owe" value={money(tab.payable)} tone="amber" />
-        <MiniStat label="Outgoing" value={money(tab.expectedOut)} tone="violet" />
+        <MiniStat label="Owed to you" amount={tab.receivable} money={money} tone="emerald" />
+        <MiniStat label="Incoming" amount={tab.expectedIn} money={money} tone="sky" />
+        <MiniStat label="You owe" amount={tab.payable} money={money} tone="amber" />
+        <MiniStat label="Outgoing" amount={tab.expectedOut} money={money} tone="violet" />
       </div>
 
       {tab.overdueCount > 0 && (
         <p className="mt-3 flex items-center gap-1.5 text-xs text-warning">
-          <AlertTriangle className="h-3.5 w-3.5" />
-          {tab.overdueCount} overdue · net {money(tab.netPosition)}
+          <AlertTriangle className="h-3.5 w-3.5 shrink-0" />
+          <span className="min-w-0 truncate" title={money(tab.netPosition, { decimals: true })}>
+            {tab.overdueCount} overdue · net {money(tab.netPosition, { compact: true })}
+          </span>
         </p>
       )}
 
@@ -95,7 +100,18 @@ export function TabWidget({
   );
 }
 
-function MiniStat({ label, value, tone }: { label: string; value: string; tone: 'emerald' | 'sky' | 'amber' | 'violet' }) {
+/** Compact figure so a long amount cannot spill past the tile; full value on hover. */
+function MiniStat({
+  label,
+  amount,
+  money,
+  tone,
+}: {
+  label: string;
+  amount: string;
+  money: (v: number | string, opts?: MoneyFormatOpts) => string;
+  tone: 'emerald' | 'sky' | 'amber' | 'violet';
+}) {
   const toneClass = {
     emerald: 'text-emerald-600 dark:text-emerald-400',
     sky: 'text-sky-600 dark:text-sky-400',
@@ -103,14 +119,25 @@ function MiniStat({ label, value, tone }: { label: string; value: string; tone: 
     violet: 'text-violet-600 dark:text-violet-400',
   }[tone];
   return (
-    <div className="rounded-xl bg-surface-muted/50 px-2 py-2 text-center">
-      <p className="text-[10px] font-medium uppercase tracking-wide text-muted">{label}</p>
-      <p className={cn('mt-0.5 text-sm font-bold tabular-nums', toneClass)}>{value}</p>
+    <div className="min-w-0 rounded-xl bg-surface-muted/50 px-2 py-2 text-center">
+      <p className="truncate text-[10px] font-medium uppercase tracking-wide text-muted">{label}</p>
+      <p
+        title={money(amount, { decimals: true })}
+        className={cn('mt-0.5 truncate text-sm font-bold tabular-nums', toneClass)}
+      >
+        {money(amount, { compact: true })}
+      </p>
     </div>
   );
 }
 
-function MiniRow({ entry, money }: { entry: LedgerEntry; money: (v: number | string) => string }) {
+function MiniRow({
+  entry,
+  money,
+}: {
+  entry: LedgerEntry;
+  money: (v: number | string, opts?: MoneyFormatOpts) => string;
+}) {
   const meta = kindMeta[entry.kind];
   const Icon = meta.icon;
   return (
@@ -122,7 +149,12 @@ function MiniRow({ entry, money }: { entry: LedgerEntry; money: (v: number | str
         <p className="truncate text-sm font-medium">{entry.counterparty}</p>
         <p className="text-[10px] text-muted">{meta.label}{entry.dueDate ? ` · ${formatDate(entry.dueDate)}` : ''}</p>
       </div>
-      <span className="shrink-0 text-sm font-semibold tabular-nums">{money(entry.remaining)}</span>
+      <span
+        title={money(entry.remaining, { decimals: true })}
+        className="max-w-24 shrink-0 truncate text-sm font-semibold tabular-nums"
+      >
+        {money(entry.remaining, { compact: true })}
+      </span>
     </li>
   );
 }

@@ -71,7 +71,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       cachedUser.set(fresh);
       setUser(fresh);
     } catch (err) {
-      // Only sign out on a real auth rejection — never just because we're offline.
+      // Only sign out on a real auth rejection - never just because we're offline.
       if (err instanceof ApiError && (err.status === 401 || err.status === 403)) {
         tokens.clear();
         cachedUser.clear();

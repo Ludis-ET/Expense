@@ -74,7 +74,7 @@ export function TransferModal({
     };
     try {
       const { queued } = await saveTransfer(payload, optimistic);
-      toast.success(queued ? 'Transfer saved offline — will sync later' : 'Transfer recorded');
+      toast.success(queued ? 'Transfer saved offline - will sync later' : 'Transfer recorded');
       onSaved();
       onClose();
       setAmount('');
@@ -118,7 +118,7 @@ export function TransferModal({
           />
         </Field>
         <Field label="Date">
-          <DateInput value={date} onChange={(e) => setDate(e.target.value)} required />
+          <DateInput value={date} onChange={(e) => setDate(e.target.value)} required maxToday />
         </Field>
         <Field label="Note">
           <Textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} placeholder="Optional…" />

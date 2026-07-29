@@ -142,7 +142,7 @@ export function TransactionDetailModal({
           <DetailRow
             icon={CreditCard}
             label="Account"
-            value={tx.account?.name ?? '—'}
+            value={tx.account?.name ?? 'Unknown'}
           />
 
           {tx.note && (

@@ -1,9 +1,9 @@
 import { forwardRef, type InputHTMLAttributes, type TextareaHTMLAttributes } from 'react';
-import { Calendar } from 'lucide-react';
 import { cn } from '@/lib/utils';
 
 export { Select } from '@/components/ui/select';
 export type { SelectOption } from '@/components/ui/select';
+export { DateField, DateRangeField, todayISO } from '@/components/ui/date-field';
 
 const base =
   'w-full rounded-xl border border-border bg-surface px-3.5 text-sm text-foreground shadow-sm ' +
@@ -15,20 +15,11 @@ export const Input = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputE
 );
 Input.displayName = 'Input';
 
-export const DateInput = forwardRef<HTMLInputElement, InputHTMLAttributes<HTMLInputElement>>(
-  ({ className, ...props }, ref) => (
-    <div className="relative">
-      <Calendar className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
-      <input
-        ref={ref}
-        type="date"
-        className={cn(base, 'h-10 pl-10 [color-scheme:light] dark:[color-scheme:dark]', className)}
-        {...props}
-      />
-    </div>
-  ),
-);
-DateInput.displayName = 'DateInput';
+/**
+ * Kept as the name every form already imports; `DateField` is the real
+ * implementation, so existing call sites pick up the new look for free.
+ */
+export { DateField as DateInput } from '@/components/ui/date-field';
 
 export const Textarea = forwardRef<HTMLTextAreaElement, TextareaHTMLAttributes<HTMLTextAreaElement>>(
   ({ className, ...props }, ref) => (

@@ -160,10 +160,10 @@ function ExportTab() {
         {range === 'custom' && (
           <div className="mt-3 grid grid-cols-2 gap-3">
             <Field label="From">
-              <DateInput value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />
+              <DateInput maxToday max={custom.to || undefined} value={custom.from} onChange={(e) => setCustom((c) => ({ ...c, from: e.target.value }))} />
             </Field>
             <Field label="To">
-              <DateInput value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />
+              <DateInput maxToday min={custom.from || undefined} value={custom.to} onChange={(e) => setCustom((c) => ({ ...c, to: e.target.value }))} />
             </Field>
           </div>
         )}
@@ -195,7 +195,7 @@ function ExportTab() {
       {done && (
         <div className="flex items-center gap-2 rounded-xl bg-emerald-500/10 px-4 py-3 text-sm text-emerald-700 dark:text-emerald-400">
           <CheckCircle2 className="h-4 w-4 shrink-0" />
-          Export complete — check your downloads!
+          Export complete - check your downloads!
         </div>
       )}
 
@@ -365,7 +365,7 @@ function ImportTab() {
       toast.info(`Skipped ${summary.skipped} duplicate${summary.skipped !== 1 ? 's' : ''}`);
     }
     if (summary.failed > 0) {
-      toast.error(`${summary.failed} row${summary.failed !== 1 ? 's' : ''} failed — see details below`);
+      toast.error(`${summary.failed} row${summary.failed !== 1 ? 's' : ''} failed - see details below`);
     }
   }, [accounts, categories]);
 
@@ -410,7 +410,7 @@ function ImportTab() {
         </span>
         <div>
           <p className="font-semibold">Drop your CSV here</p>
-          <p className="text-sm text-muted mt-0.5">or click to browse — .csv files only</p>
+          <p className="text-sm text-muted mt-0.5">or click to browse - .csv files only</p>
         </div>
       </div>
 
@@ -477,7 +477,7 @@ function ImportTab() {
         <div className="rounded-xl border border-border bg-surface-muted/30 p-4 text-xs text-muted space-y-1">
           <p className="font-medium text-foreground text-sm mb-2">Import notes</p>
           <p>• Rows with an existing <code className="font-mono bg-surface-muted px-1 rounded">id</code> are skipped (no duplicates)</p>
-          <p>• Account and category matched by name — create them first if needed</p>
+          <p>• Account and category matched by name - create them first if needed</p>
           <p>• Use the Export feature to get the correct column format</p>
         </div>
       )}

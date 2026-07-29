@@ -160,7 +160,7 @@ export async function forYou(user: AuthUser): Promise<Suggestion[]> {
     add(50, {
       id: "first-budget",
       title: "Create your first budget plan",
-      body: "A plan is an envelope you fill from your accounts. Once money is in it, it drops out of your available balance and can only be spent on that plan — the simplest way to ring-fence rent, fees or an emergency buffer.",
+      body: "A plan is an envelope you fill from your accounts. Once money is in it, it drops out of your available balance and can only be spent on that plan - the simplest way to ring-fence rent, fees or an emergency buffer.",
       tone: "tip",
       guideId: "budget-basics",
       href: "/budgets",

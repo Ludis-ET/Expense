@@ -43,7 +43,7 @@ function isNetworkError(err: unknown): boolean {
 interface OfflineContextValue {
   online: boolean;
   syncing: boolean;
-  /** Briefly true right after a successful drain — drives the "synced" flourish. */
+  /** Briefly true right after a successful drain - drives the "synced" flourish. */
   justSynced: boolean;
   lastSyncedAt: number | null;
   ops: OutboxOp[];
@@ -143,7 +143,7 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     let anySynced = false;
     try {
       for (const op of queue) {
-        if (!navigator.onLine) break; // dropped offline mid-drain — stop cleanly
+        if (!navigator.onLine) break; // dropped offline mid-drain - stop cleanly
         await putOp({ ...op, status: 'syncing' });
         setOps(await allOps());
         try {
@@ -152,11 +152,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           anySynced = true;
         } catch (err) {
           if (isNetworkError(err)) {
-            // Connection lost — requeue as pending and stop; we'll retry later.
+            // Connection lost - requeue as pending and stop; we'll retry later.
             await putOp({ ...op, status: 'pending' });
             break;
           }
-          // Server rejected it (validation/business rule) — park as error for the user.
+          // Server rejected it (validation/business rule) - park as error for the user.
           await putOp({
             ...op,
             status: 'error',

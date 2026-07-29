@@ -2,6 +2,7 @@
 
 import {
   Children,
+  Fragment,
   isValidElement,
   useEffect,
   useId,
@@ -22,25 +23,45 @@ export interface SelectOption {
   value: string;
   label: ReactNode;
   disabled?: boolean;
+  /** Heading this option sits under. Set automatically from <optgroup label>. */
+  group?: string;
 }
 
-function optionsFromChildren(children: ReactNode): SelectOption[] {
+/**
+ * Flatten `<option>` children into options, descending into `<optgroup>` and
+ * carrying its label down so the menu can render headings. Fragments are
+ * walked too, so conditional lists behave.
+ */
+export function optionsFromChildren(children: ReactNode, group?: string): SelectOption[] {
   const out: SelectOption[] = [];
   Children.forEach(children, (child) => {
     if (
       !isValidElement<{
         value?: string | number;
         disabled?: boolean;
+        label?: string;
         children?: ReactNode;
       }>(child)
     )
       return;
+
+    if (child.type === "optgroup") {
+      out.push(...optionsFromChildren(child.props.children, child.props.label));
+      return;
+    }
+    // Fragments and arrays: keep walking without changing the group.
+    if (typeof child.type !== "string" && !("value" in (child.props ?? {}))) {
+      out.push(...optionsFromChildren(child.props?.children, group));
+      return;
+    }
     if (typeof child.type === "string" && child.type !== "option") return;
+
     if (child.type === "option" || (child.props && "value" in child.props)) {
       out.push({
         value: String(child.props.value ?? ""),
         label: child.props.children,
         disabled: !!child.props.disabled,
+        group,
       });
     }
   });
@@ -230,28 +251,43 @@ export function Select({
               options.map((opt, i) => {
                 const isSelected = opt.value === value;
                 const isActive = i === activeIndex;
+                // A heading whenever the group changes, so grouped menus read
+                // like the native <optgroup> they came from.
+                const startsGroup = !!opt.group && opt.group !== options[i - 1]?.group;
                 return (
-                  <li
-                    key={`${opt.value}-${i}`}
-                    role="option"
-                    aria-selected={isSelected}
-                    data-index={i}
-                    aria-disabled={opt.disabled || undefined}
-                    className={cn(
-                      "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
-                      opt.disabled && "pointer-events-none opacity-40",
-                      isSelected && "bg-primary/10 font-medium text-primary",
-                      !isSelected && isActive && "bg-surface-muted",
-                      !isSelected && !isActive && "hover:bg-surface-muted",
+                  <Fragment key={`${opt.value}-${i}`}>
+                    {startsGroup && (
+                      <li
+                        role="presentation"
+                        className={cn(
+                          "px-3 pb-1 text-[10px] font-semibold uppercase tracking-widest text-muted",
+                          i > 0 && "mt-1 border-t border-border pt-2",
+                        )}
+                      >
+                        {opt.group}
+                      </li>
                     )}
-                    onMouseEnter={() => setActiveIndex(i)}
-                    onClick={() => !opt.disabled && commit(opt.value)}
-                  >
-                    <span className="min-w-0 flex-1 truncate">{opt.label}</span>
-                    {isSelected && (
-                      <Check className="h-4 w-4 shrink-0 text-primary" />
-                    )}
-                  </li>
+                    <li
+                      role="option"
+                      aria-selected={isSelected}
+                      data-index={i}
+                      aria-disabled={opt.disabled || undefined}
+                      className={cn(
+                        "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        opt.disabled && "pointer-events-none opacity-40",
+                        isSelected && "bg-primary/10 font-medium text-primary",
+                        !isSelected && isActive && "bg-surface-muted",
+                        !isSelected && !isActive && "hover:bg-surface-muted",
+                      )}
+                      onMouseEnter={() => setActiveIndex(i)}
+                      onClick={() => !opt.disabled && commit(opt.value)}
+                    >
+                      <span className="min-w-0 flex-1 truncate">{opt.label}</span>
+                      {isSelected && (
+                        <Check className="h-4 w-4 shrink-0 text-primary" />
+                      )}
+                    </li>
+                  </Fragment>
                 );
               })
             )}

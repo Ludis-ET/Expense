@@ -322,8 +322,20 @@ export async function lockedTotal(userId: string, currency: string): Promise<Pri
   return accounts.reduce((s, a) => s.add(byAccount.get(a.id) ?? zero), zero);
 }
 
-/** Per-account remaining share of one plan's pot, largest first. */
+/**
+ * Per-account remaining share of one plan's pot, largest first.
+ *
+ * Meaningless for UNPLANNED, which is never filled: subtracting its spending
+ * from zero allocations would report negative "held" amounts. It holds no
+ * money, so it has no sources.
+ */
 export async function sourcesFor(budgetId: string) {
+  const budget = await prisma.budget.findUnique({
+    where: { id: budgetId },
+    select: { kind: true },
+  });
+  if (!budget || budget.kind === BudgetKind.UNPLANNED) return [];
+
   const [allocs, spends] = await Promise.all([
     prisma.budgetAllocation.groupBy({
       by: ['accountId'],
@@ -687,7 +699,7 @@ async function assertCategory(categoryId: string, userId: string) {
 function refuseIfUnplanned(budget: Budget, action: string): void {
   if (budget.kind === BudgetKind.UNPLANNED) {
     throw new BadRequestError(
-      `"${budget.name}" is the built-in catch-all plan and cannot be ${action}. It has no pot — it simply labels spending you did straight from an account.`,
+      `"${budget.name}" is the built-in catch-all plan and cannot be ${action}. It has no pot - it simply labels spending you did straight from an account.`,
     );
   }
 }
@@ -988,7 +1000,7 @@ export async function assertSpendable(
   }
   if (!hasStarted(budget)) {
     throw new BadRequestError(
-      `"${budget.name}" starts on ${budget.startsAt.toISOString().slice(0, 10)} — you cannot spend from it yet.`,
+      `"${budget.name}" starts on ${budget.startsAt.toISOString().slice(0, 10)} - you cannot spend from it yet.`,
     );
   }
 
@@ -1038,7 +1050,7 @@ export async function assertSpendable(
  * low, and retire a one-time plan whose money is fully spent.
  *
  * Awaited by the caller so the ACTIVE -> CLOSED transition is part of the
- * write's outcome — nothing else reconciles it, so a dropped call would leave a
+ * write's outcome - nothing else reconciles it, so a dropped call would leave a
  * drained plan open forever. Everything here is best-effort internally, so
  * awaiting it can never fail the transaction.
  */
@@ -1080,7 +1092,7 @@ export async function afterSpend(userId: string, budgetId: string): Promise<void
       await notify(
         userId,
         'budget_alert',
-        `You've used ${Math.round(d.pctSpentOfFunded)}% of "${budget.name}" — ${d.balance.toFixed(2)} ${budget.currency} left.`,
+        `You've used ${Math.round(d.pctSpentOfFunded)}% of "${budget.name}" - ${d.balance.toFixed(2)} ${budget.currency} left.`,
         `/budgets/${budget.id}`,
       );
     }

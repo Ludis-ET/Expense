@@ -22,7 +22,7 @@ const offlineUrl = `${swBase}/~offline`;
 
 // Serve the last-seen version of a page / API response when the network is
 // unavailable, so the installed app opens and shows data offline. Mutations
-// (POST/PUT/DELETE) are never cached — the app queues those in its own outbox.
+// (POST/PUT/DELETE) are never cached - the app queues those in its own outbox.
 const runtimeCaching: RuntimeCaching[] = [
   {
     // Full-page navigations: try network briefly, else the cached page.

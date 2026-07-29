@@ -135,7 +135,7 @@ export function BudgetPlanForm({
       const saved = editing
         ? await api.put<BudgetRow>(`/budgets/${editing.id}`, payload)
         : await api.post<BudgetRow>('/budgets', { ...payload, currency });
-      toast.success(editing ? 'Plan updated' : 'Plan created — now put money in it');
+      toast.success(editing ? 'Plan updated' : 'Plan created - now put money in it');
       onSaved(saved);
       onClose();
     } catch (err) {
@@ -279,11 +279,19 @@ export function BudgetPlanForm({
             label="Starts on"
             hint={kind === 'RECURRING' ? 'first cycle begins here' : 'spendable from this date'}
           >
-            <DateInput value={startsAt} onChange={(e) => setStartsAt(e.target.value)} />
+            <DateInput
+              value={startsAt}
+              max={endDate || undefined}
+              onChange={(e) => {
+                const next = e.target.value;
+                setStartsAt(next);
+                if (next && endDate && next > endDate) setEndDate(next);
+              }}
+            />
           </Field>
         </div>
 
-        <Field label="Category" hint="optional — pre-selected when you spend from this plan">
+        <Field label="Category" hint="optional - pre-selected when you spend from this plan">
           <Select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
             <option value="">No category</option>
             {categories.map((c) => (
@@ -315,7 +323,13 @@ export function BudgetPlanForm({
           </Field>
           {kind === 'RECURRING' && (
             <Field label="Stop after" hint="optional">
-              <DateInput value={endDate} onChange={(e) => setEndDate(e.target.value)} />
+              <DateInput
+                value={endDate}
+                min={startsAt || undefined}
+                clearable
+                onClear={() => setEndDate('')}
+                onChange={(e) => setEndDate(e.target.value)}
+              />
             </Field>
           )}
         </div>
@@ -449,7 +463,7 @@ export function FundPlanModal({
               <Select value={accountId} onChange={(e) => setAccountId(e.target.value)}>
                 {options.map((o) => (
                   <option key={o.id} value={o.id}>
-                    {o.name} — {Number(o.available).toFixed(2)} {plan.currency}
+                    {o.name} - {Number(o.available).toFixed(2)} {plan.currency}
                   </option>
                 ))}
               </Select>
@@ -485,7 +499,7 @@ export function FundPlanModal({
 
             <div className="grid grid-cols-2 gap-3">
               <Field label="Date">
-                <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
+                <DateInput maxToday value={date} onChange={(e) => setDate(e.target.value)} />
               </Field>
               <Field label="Note" hint="optional">
                 <Input

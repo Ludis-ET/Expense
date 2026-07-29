@@ -124,7 +124,7 @@ function TransactionsInner() {
     if (!ok) return;
     try {
       const { queued } = await deleteTransaction(tx.id);
-      toast.success(queued ? 'Delete queued — will sync when online' : 'Deleted');
+      toast.success(queued ? 'Delete queued - will sync when online' : 'Deleted');
       void mutate();
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to delete');

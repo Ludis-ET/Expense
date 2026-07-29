@@ -511,7 +511,7 @@ function PaymentModal({
           <Input type="number" step="0.01" min="0" required value={amount} onChange={(e) => setAmount(e.target.value)} />
         </Field>
         <Field label="Date">
-          <DateInput value={date} onChange={(e) => setDate(e.target.value)} />
+          <DateInput maxToday value={date} onChange={(e) => setDate(e.target.value)} />
         </Field>
         <label className="flex items-start gap-2 text-sm">
           <input type="checkbox" className="mt-1" checked={recordTransaction} onChange={(e) => setRecordTransaction(e.target.checked)} />

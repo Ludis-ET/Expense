@@ -10,7 +10,7 @@ export interface OutboxOp {
   /** Client id. For create/transfer this doubles as the optimistic transaction id. */
   id: string;
   kind: OutboxKind;
-  /** Request body (create/transfer/update) — undefined for delete. */
+  /** Request body (create/transfer/update) - undefined for delete. */
   payload?: Record<string, unknown>;
   /** Server transaction id the op acts on (update/delete). */
   targetId?: string;

@@ -169,7 +169,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
 
       {closed && (
         <div className="rounded-xl border border-border bg-surface-muted/50 px-4 py-3 text-sm text-muted">
-          This plan is closed — it no longer appears when you add a transaction. Its history is kept
+          This plan is closed - it no longer appears when you add a transaction. Its history is kept
           below, and you can reopen it any time.
         </div>
       )}
@@ -197,7 +197,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
             value={
               plan.lifetime.firstTxAt
                 ? new Date(plan.lifetime.firstTxAt).toLocaleDateString()
-                : '—'
+                : 'None yet'
             }
             sub="first unplanned expense"
           />
@@ -224,7 +224,8 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
       )}
 
       {/* ---- Where the money is held ---------------------------------- */}
-      {plan.sources.length > 0 && (
+      {/* Unplanned never holds anything, so it never shows this. */}
+      {!unplanned && plan.sources.length > 0 && (
         <Card>
           <CardContent className="p-4 sm:p-5">
             <h2 className="mb-3 text-sm font-semibold">Money held per account</h2>
@@ -245,7 +246,7 @@ export default function BudgetDetailPage({ params }: { params: Promise<{ id: str
               ))}
             </ul>
             <p className="mt-3 text-xs text-muted">
-              This money is still physically in these accounts — it just doesn&apos;t count as
+              This money is still physically in these accounts - it just doesn&apos;t count as
               available until you spend it here or give it back.
             </p>
           </CardContent>
@@ -490,7 +491,7 @@ function UnplannedHero({ plan }: { plan: BudgetDetail }) {
           </div>
           <p className="mt-1 max-w-prose text-sm text-muted">
             Everything you spend without setting money aside first lands here. It has no pot of its
-            own — each expense comes straight out of the account you choose, from whatever is left
+            own - each expense comes straight out of the account you choose, from whatever is left
             after your other plans.
           </p>
         </div>

@@ -46,7 +46,7 @@ export const GUIDES: Guide[] = [
       },
       {
         heading: "4. Protect and plan",
-        body: "Filling a plan is what ring-fences money you refuse to touch — rent, school fees, an emergency buffer. The Wishlist, a tab under Budgets, parks the things you want and shows when you can actually afford them. Recurring turns any of this into an automatic habit.",
+        body: "Filling a plan is what ring-fences money you refuse to touch - rent, school fees, an emergency buffer. The Wishlist, a tab under Budgets, parks the things you want and shows when you can actually afford them. Recurring turns any of this into an automatic habit.",
       },
     ],
   },

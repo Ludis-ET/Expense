@@ -16,7 +16,7 @@ import {
 import { Skeleton, EmptyState, ProgressBar } from "@/components/ui/misc";
 import { Modal } from "@/components/ui/modal";
 import { Button } from "@/components/ui/button";
-import { Field, Input, Select, Textarea } from "@/components/ui/input";
+import { DateInput, Field, Input, Select, Textarea } from "@/components/ui/input";
 import { api, ApiError } from "@/lib/api";
 import { useMoney } from "@/lib/amount-visibility";
 import { useCurrencyView } from "@/lib/currency-view-context";
@@ -525,11 +525,7 @@ function PurchaseModal({
               />
             </Field>
             <Field label="Date">
-              <Input
-                type="date"
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-              />
+              <DateInput maxToday value={date} onChange={(e) => setDate(e.target.value)} />
             </Field>
           </div>
           <Field label="Pay from">

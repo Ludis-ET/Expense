@@ -231,7 +231,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
         : await saveTransaction(payload, optimistic);
       toast.success(
         queued
-          ? 'Saved offline — will sync when you reconnect'
+          ? 'Saved offline - will sync when you reconnect'
           : editing
             ? 'Transaction updated'
             : 'Transaction added',
@@ -288,7 +288,12 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
             />
           </Field>
           <Field label="Date">
-            <DateInput required value={date} onChange={(e) => setDate(e.target.value)} />
+            <DateInput
+              required
+              maxToday
+              value={date}
+              onChange={(e) => setDate(e.target.value)}
+            />
           </Field>
         </div>
 
@@ -300,7 +305,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
             <optgroup label="Accounts">
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} — {Number(a.balance).toFixed(2)} {a.currency} available
+                  {a.name} - {Number(a.balance).toFixed(2)} {a.currency} available
                 </option>
               ))}
             </optgroup>
@@ -310,7 +315,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
                   .filter((p) => !p.isUnplanned)
                   .map((p) => (
                     <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
-                      {p.name} — {Number(p.balance).toFixed(2)} {p.currency} left
+                      {p.name} - {Number(p.balance).toFixed(2)} {p.currency} left
                     </option>
                   ))}
               </optgroup>
@@ -330,7 +335,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
             <Select value={drawFromId} onChange={(e) => setDrawFromId(e.target.value)}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
-                  {a.name} — {Number(a.balance).toFixed(2)} {a.currency} available
+                  {a.name} - {Number(a.balance).toFixed(2)} {a.currency} available
                 </option>
               ))}
             </Select>

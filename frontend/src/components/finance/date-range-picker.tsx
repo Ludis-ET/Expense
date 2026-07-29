@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { CalendarRange } from 'lucide-react';
-import { DateInput } from '@/components/ui/input';
+import { DateRangeField } from '@/components/ui/input';
 import { cn } from '@/lib/utils';
 import {
   type DatePreset,
@@ -69,21 +69,15 @@ export function DateRangePicker({ value, onChange, loading }: DateRangePickerPro
       </div>
 
       <div className="flex flex-wrap items-end gap-3 px-5 py-4">
-        <div className="w-40">
-          <label className="mb-1.5 block text-xs font-medium text-muted">From</label>
-          <DateInput
-            value={customFrom}
-            onChange={(e) => setCustomFrom(e.target.value)}
-            max={customTo}
-          />
-        </div>
-        <div className="w-40">
-          <label className="mb-1.5 block text-xs font-medium text-muted">To</label>
-          <DateInput
-            value={customTo}
-            onChange={(e) => setCustomTo(e.target.value)}
-            min={customFrom}
-            max={new Date().toISOString().slice(0, 10)}
+        <div className="min-w-64 flex-1">
+          <label className="mb-1.5 block text-xs font-medium text-muted">Custom range</label>
+          <DateRangeField
+            from={customFrom}
+            to={customTo}
+            onFrom={setCustomFrom}
+            onTo={setCustomTo}
+            maxToday
+            disabled={loading}
           />
         </div>
         <button

@@ -209,7 +209,7 @@ function UnplannedCard({ plan }: { plan: BudgetRow }) {
           <span className="text-xs text-muted">spent unplanned</span>
         </div>
         <p className="text-xs text-muted">
-          Comes straight out of whichever account you pick — no pot, no reservation.
+          Comes straight out of whichever account you pick - no pot, no reservation.
         </p>
       </div>
     </Link>

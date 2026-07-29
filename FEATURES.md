@@ -54,7 +54,7 @@ A plan is something you name yourself - "Weekend food", "New laptop", "School fe
 - Choose **one-time** or **recurring**, and say how much you **plan to spend**. That figure is also the ceiling on how much money the plan will accept.
 - **Any cadence you like.** Recurring plans repeat *every N* hours, days, weeks, months, quarters or years - one tap for the common ones (daily, weekly, fortnightly, monthly, quarterly, yearly), or dial in something like "every 6 hours" or "every 10 days".
 - **You pick the start date.** A plan does not silently begin the moment you create it: set when it starts, and it is marked *Scheduled* until then. You can fill it in advance, but nothing can be spent from it early.
-- A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, the overdraw guard). This is also how you ring-fence money you refuse to touch — rent, fees, an emergency buffer.
+- A new plan starts **empty**. You fill it from your accounts - this is *not* a transaction, it is a reservation: the cash stays physically in the account but stops counting as available anywhere in Santim (accounts page, dashboard, the overdraw guard). This is also how you ring-fence money you refuse to touch - rent, fees, an emergency buffer.
 - **Give back** any unspent money to the account it came from at any time.
 
 ### Unplanned - the built-in catch-all

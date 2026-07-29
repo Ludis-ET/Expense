@@ -17,7 +17,7 @@ async function assertOwnedAccount(id: string, userId: string) {
  * opening + income − expense − transfers-out + transfers-in.
  *
  * `lockedAmount` is the slice of it reserved by budget plans. `balance` is what
- * is left over — the figure every "available to spend" surface should use.
+ * is left over - the figure every "available to spend" surface should use.
  */
 export async function list(user: AuthUser) {
   const accounts = await prisma.account.findMany({

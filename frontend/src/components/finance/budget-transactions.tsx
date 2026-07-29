@@ -3,7 +3,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { ArrowDownWideNarrow, Filter, Search, X } from 'lucide-react';
-import { Input, Select, DateInput } from '@/components/ui/input';
+import { Input, Select, DateRangeField } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Skeleton, EmptyState } from '@/components/ui/misc';
 import { TransactionList } from '@/components/finance/transaction-list';
@@ -32,7 +32,7 @@ type Sort = (typeof SORTS)[number]['value'];
 /**
  * Every expense filed under a plan, searchable and filterable. Fetched
  * separately from the plan summary because Unplanned alone can hold years of
- * rows — the server paginates and filters, we never load them all.
+ * rows - the server paginates and filters, we never load them all.
  */
 export function BudgetTransactions({
   plan,
@@ -206,15 +206,17 @@ export function BudgetTransactions({
             </label>
           )}
 
-          <label className="text-xs font-medium text-muted">
-            From
-            <DateInput className="mt-1" value={from} onChange={(e) => setFrom(e.target.value)} />
-          </label>
-
-          <label className="text-xs font-medium text-muted">
-            To
-            <DateInput className="mt-1" value={to} onChange={(e) => setTo(e.target.value)} />
-          </label>
+          <div className="text-xs font-medium text-muted sm:col-span-2">
+            Date range
+            <DateRangeField
+              className="mt-1"
+              from={from}
+              to={to}
+              onFrom={setFrom}
+              onTo={setTo}
+              maxToday
+            />
+          </div>
 
           <label className="text-xs font-medium text-muted">
             <span className="inline-flex items-center gap-1">

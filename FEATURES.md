@@ -63,11 +63,11 @@ Every account has one plan it did not create: **Unplanned**, pinned to the top o
 
 It is where spending goes when you never set money aside for it. It has **no pot of its own** - each expense comes straight out of whichever account you choose, from whatever is genuinely free after your other plans have taken their share. Pick it in the "Pay from" dropdown and a second dropdown appears asking which account the money actually leaves.
 
-It behaves like any other plan everywhere else: its own detail page, its own searchable transaction history, and a running total of how much slipped through unplanned. Watching that number is the point - a recurring expense showing up there is a plan waiting to be made.
+Because expenses are always filed against a plan, Unplanned is also the way to spend straight from an account: pick it, then say which account. It behaves like any other plan everywhere else: its own detail page, its own searchable transaction history, and a running total of how much slipped through unplanned. Watching that number is the point - a recurring expense showing up there is a plan waiting to be made.
 
 ### Spending from a plan
 
-On the transaction form, the "Pay from" dropdown lists your accounts **and** any plan that still holds money. Pick a plan and:
+On the transaction form, the "Pay from" dropdown lists **plans, not accounts** - every expense belongs to one. It shows any plan that still holds money, plus Unplanned. Pick a plan and:
 
 - its category is auto-selected (if it has one),
 - the expense comes out of the plan's pot **and** the real account balance at the same moment, so nothing is double-counted,

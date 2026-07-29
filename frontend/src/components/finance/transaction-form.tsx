@@ -47,9 +47,13 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
 
   const [kind, setKind] = useState<Exclude<TxKind, 'TRANSFER'>>('EXPENSE');
   const [amount, setAmount] = useState('');
-  /** Either an account id, or `plan:<budgetId>`. */
+  /**
+   * For an expense this is always `plan:<budgetId>` - spending goes through a
+   * plan, and Unplanned is the plan you pick when you did not set money aside.
+   * For income it is a plain account id, since plans only ever pay out.
+   */
   const [source, setSource] = useState('');
-  /** Only used when the chosen source is the pot-less Unplanned plan. */
+  /** Which account the money really leaves, when the plan has no pot. */
   const [drawFromId, setDrawFromId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
@@ -63,11 +67,13 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     () => accountsData?.items.filter((a) => !a.archived) ?? [],
     [accountsData?.items],
   );
-  // Plans are a spend source for expenses only, and only while they hold money.
+  // Plans are a spend source for expenses only, and only while they hold money
+  // (Unplanned is always offered, since it has no pot to run out of).
   const plans = useMemo(
     () => (kind === 'EXPENSE' ? (plansData?.items ?? []) : []),
     [kind, plansData?.items],
   );
+  const unplannedPlan = plans.find((p) => p.isUnplanned);
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived && c.kind === kind);
 
   const selectedPlan = source.startsWith(PLAN_PREFIX)
@@ -76,8 +82,9 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
   const isUnplanned = selectedPlan?.isUnplanned ?? false;
 
   // A funded plan charges the account that filled it; Unplanned draws on
-  // whichever account the user points at.
-  const accountId = !selectedPlan ? source : isUnplanned ? drawFromId : undefined;
+  // whichever account the user points at; income lands straight in an account.
+  const isPlanSource = source.startsWith(PLAN_PREFIX);
+  const accountId = !isPlanSource ? source : isUnplanned ? drawFromId : undefined;
   const drawAccount = accounts.find((a) => a.id === drawFromId);
 
   // Seed the form when opening (either blank or from the editing target).
@@ -104,12 +111,21 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     }
   }, [open, editing]);
 
-  // Default the source to the user's default account once accounts load.
+  // An expense always starts on Unplanned: the honest default, and the one
+  // that lets you just pick an account and move on. This also repairs an older
+  // expense that carries no plan at all.
   useEffect(() => {
-    if (open && !editing && !source && accounts.length > 0) {
+    if (!open || kind !== 'EXPENSE' || !unplannedPlan) return;
+    if (!source.startsWith(PLAN_PREFIX)) setSource(`${PLAN_PREFIX}${unplannedPlan.id}`);
+  }, [open, kind, source, unplannedPlan]);
+
+  // Income has no plan to go through, so it names an account directly.
+  useEffect(() => {
+    if (kind !== 'INCOME' || accounts.length === 0) return;
+    if (!accounts.some((a) => a.id === source)) {
       setSource((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
     }
-  }, [open, editing, source, accounts]);
+  }, [kind, source, accounts]);
 
   // Keep the Unplanned draw-from account valid and defaulted.
   useEffect(() => {
@@ -118,13 +134,6 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       setDrawFromId((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
     }
   }, [isUnplanned, accounts, drawFromId]);
-
-  // Switching to income drops any plan selection - plans only pay expenses.
-  useEffect(() => {
-    if (kind === 'INCOME' && source.startsWith(PLAN_PREFIX)) {
-      setSource((accounts.find((a) => a.isDefault) ?? accounts[0])?.id ?? '');
-    }
-  }, [kind, source, accounts]);
 
   /** Picking a plan that has a category pre-selects it, as promised. */
   function pickSource(value: string) {
@@ -164,7 +173,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!source) return toast.error('Pick an account or plan');
+    if (!source) return toast.error(kind === 'EXPENSE' ? 'Pick a plan' : 'Pick an account');
     if (!categoryId) return toast.error('Pick a category');
     if (isUnplanned && !drawFromId) return toast.error('Pick which account this comes out of');
     if (selectedPlan && !isUnplanned && Number(amount) > Number(selectedPlan.balance)) {
@@ -184,8 +193,11 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       amount: Number(amount),
       // Unplanned sends both: the plan it is filed under, and the account it
       // actually comes out of.
-      ...(selectedPlan
-        ? { budgetId: selectedPlan.id, ...(isUnplanned ? { accountId: drawFromId } : {}) }
+      ...(isPlanSource
+        ? {
+            budgetId: source.slice(PLAN_PREFIX.length),
+            ...(isUnplanned ? { accountId: drawFromId } : {}),
+          }
         : { accountId }),
       categoryId,
       date,
@@ -297,38 +309,43 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
           </Field>
         </div>
 
-        <Field
-          label="Pay from"
-          hint={plans.length > 0 ? 'accounts or a funded budget plan' : undefined}
-        >
-          <Select value={source} onChange={(e) => pickSource(e.target.value)}>
-            <optgroup label="Accounts">
+        {kind === 'EXPENSE' ? (
+          <Field
+            label="Pay from"
+            hint="every expense belongs to a plan; pick Unplanned if you did not set money aside"
+          >
+            <Select value={source} onChange={(e) => pickSource(e.target.value)}>
+              {plans.some((p) => !p.isUnplanned) && (
+                <optgroup label="Budget plans">
+                  {plans
+                    .filter((p) => !p.isUnplanned)
+                    .map((p) => (
+                      <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
+                        {p.name} - {Number(p.balance).toFixed(2)} {p.currency} left
+                      </option>
+                    ))}
+                </optgroup>
+              )}
+              {unplannedPlan && (
+                <optgroup label="Not set aside">
+                  <option value={`${PLAN_PREFIX}${unplannedPlan.id}`}>
+                    {unplannedPlan.name}
+                  </option>
+                </optgroup>
+              )}
+            </Select>
+          </Field>
+        ) : (
+          <Field label="Deposit to">
+            <Select value={source} onChange={(e) => setSource(e.target.value)}>
               {accounts.map((a) => (
                 <option key={a.id} value={a.id}>
                   {a.name} - {Number(a.balance).toFixed(2)} {a.currency} available
                 </option>
               ))}
-            </optgroup>
-            {plans.some((p) => !p.isUnplanned) && (
-              <optgroup label="Budget plans">
-                {plans
-                  .filter((p) => !p.isUnplanned)
-                  .map((p) => (
-                    <option key={p.id} value={`${PLAN_PREFIX}${p.id}`}>
-                      {p.name} - {Number(p.balance).toFixed(2)} {p.currency} left
-                    </option>
-                  ))}
-              </optgroup>
-            )}
-            {plans
-              .filter((p) => p.isUnplanned)
-              .map((p) => (
-                <optgroup key={p.id} label="Not set aside">
-                  <option value={`${PLAN_PREFIX}${p.id}`}>{p.name}</option>
-                </optgroup>
-              ))}
-          </Select>
-        </Field>
+            </Select>
+          </Field>
+        )}
 
         {isUnplanned && (
           <Field label="Take it out of" hint="Unplanned has no pot of its own">

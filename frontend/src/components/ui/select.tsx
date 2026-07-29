@@ -183,10 +183,18 @@ export function Select({
 
   useEffect(() => {
     if (!open || !listRef.current) return;
-    const el = listRef.current.querySelector<HTMLElement>(
-      `[data-index="${activeIndex}"]`,
-    );
-    el?.scrollIntoView({ block: "nearest" });
+    const list = listRef.current;
+    const el = list.querySelector<HTMLElement>(`[data-index="${activeIndex}"]`);
+    if (!el) return;
+    const top = el.offsetTop;
+    const bottom = top + el.offsetHeight;
+    const viewTop = list.scrollTop;
+    const viewBottom = viewTop + list.clientHeight;
+    if (top < viewTop) {
+      list.scrollTop = Math.max(0, top - 6);
+    } else if (bottom > viewBottom) {
+      list.scrollTop = Math.max(0, bottom - list.clientHeight + 6);
+    }
   }, [activeIndex, open]);
 
   function commit(next: string) {
@@ -244,7 +252,7 @@ export function Select({
             onKeyDown={onListKey}
             style={menuStyle}
             className={cn(
-              "overflow-auto rounded-xl border border-border bg-surface p-1.5 shadow-[var(--shadow-elevated)]",
+              "overflow-auto rounded-xl border border-border bg-surface p-1.5",
               "origin-top animate-in",
             )}
           >
@@ -318,15 +326,20 @@ export function Select({
       {loading ? (
         <div
           aria-hidden
+          style={{ boxShadow: 'var(--shadow-elevated)' }}
           className={cn(
-            "relative overflow-hidden border border-border bg-surface shadow-sm",
+            "relative overflow-hidden border border-border bg-surface",
             variant === "default" && "h-10 rounded-xl",
             variant === "ghost" && "h-8 rounded-lg",
           )}
         >
           {/* shimmer sweep */}
           <div
-            className="absolute inset-0 -translate-x-full animate-shimmer bg-gradient-to-r from-transparent via-white/40 to-transparent dark:via-white/10"
+            className="absolute inset-0 -translate-x-full animate-shimmer"
+            style={{
+              backgroundImage:
+                'linear-gradient(90deg, transparent 0%, rgba(255,255,255,0.4) 50%, transparent 100%)',
+            }}
           />
           {/* content placeholder row */}
           <div className="flex h-full items-center gap-2 px-3.5">

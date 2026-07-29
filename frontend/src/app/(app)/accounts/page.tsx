@@ -2,7 +2,6 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import { ArrowLeftRight, Plus, Trash2 } from 'lucide-react';
@@ -15,6 +14,7 @@ import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-
 import { TransferModal } from '@/components/finance/transfer-modal';
 import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { financeIcon } from '@/components/finance/icons';
+import { AccountDetailModal } from '@/components/finance/account-detail-modal';
 import { api, ApiError } from '@/lib/api';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
@@ -90,7 +90,6 @@ function useAccountSparkline(accountId: string, openingBalance: string) {
 }
 
 export default function AccountsPage() {
-  const router = useRouter();
   const { user } = useAuth();
   const confirm = useConfirm();
   const { activeCurrency } = useCurrencyView();
@@ -100,6 +99,7 @@ export default function AccountsPage() {
   const [formOpen, setFormOpen] = useState(false);
   const [transferOpen, setTransferOpen] = useState(false);
   const [editing, setEditing] = useState<Account | null>(null);
+  const [viewing, setViewing] = useState<Account | null>(null);
 
   const accounts = data?.items ?? [];
   const activeAccounts = accounts.filter((a) => !a.archived && a.currency === activeCurrency);
@@ -129,10 +129,6 @@ export default function AccountsPage() {
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to delete');
     }
-  }
-
-  function goToTransactions(accountId: string) {
-    router.push(`/transactions?accountId=${accountId}`);
   }
 
   return (
@@ -182,7 +178,7 @@ export default function AccountsPage() {
                 account={a}
                 onEdit={() => { setEditing(a); setFormOpen(true); }}
                 onDelete={() => remove(a)}
-                onClick={() => goToTransactions(a.id)}
+                onClick={() => setViewing(a)}
               />
             ))}
           </div>
@@ -197,6 +193,12 @@ export default function AccountsPage() {
         onSaved={() => void mutate()}
       />
       <TransferModal open={transferOpen} onClose={() => setTransferOpen(false)} onSaved={() => void mutate()} />
+      <AccountDetailModal
+        account={viewing}
+        onClose={() => setViewing(null)}
+        onEdit={(account) => { setViewing(null); setEditing(account); setFormOpen(true); }}
+        onDelete={(account) => { setViewing(null); void remove(account); }}
+      />
     </div>
   );
 }
@@ -356,7 +358,7 @@ function AccountForm({
         </Field>
         {editing && (
           <label className="flex items-center gap-2 text-sm">
-            <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} className="h-4 w-4 accent-[var(--primary)]" />
+            <input type="checkbox" checked={archived} onChange={(e) => setArchived(e.target.checked)} className="h-4 w-4 accent-primary" />
             Archived
           </label>
         )}

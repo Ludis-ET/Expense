@@ -56,8 +56,8 @@ export function TransactionDetailModal({
 }: {
   transaction: Transaction | null;
   onClose: () => void;
-  onEdit: (tx: Transaction) => void;
-  onDelete: (tx: Transaction) => void;
+  onEdit?: (tx: Transaction) => void;
+  onDelete?: (tx: Transaction) => void;
 }) {
   const { signedMoney } = useMoney();
 
@@ -78,33 +78,76 @@ export function TransactionDetailModal({
   }).format(new Date(tx.date));
 
   return (
-    <Modal open={!!transaction} onClose={onClose} title="Transaction Details">
-      <div className="space-y-0">
-        {/* Hero amount section */}
-        <div className="flex flex-col items-center py-6 mb-2 rounded-2xl bg-surface-muted/50">
-          <span
-            className="flex h-16 w-16 items-center justify-center rounded-2xl mb-3 shadow-sm"
-            style={{ backgroundColor: `${iconColor}22`, color: iconColor }}
-          >
-            <CategoryIcon className="h-8 w-8" />
-          </span>
-          <p className={cn('text-3xl font-bold tabular-nums', config.color)}>
-            {signedMoney(tx.amount, tx.kind, tx.currency)}
-          </p>
-          <span className={cn(
-            'mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
-            config.bg,
-            config.color,
-          )}>
-            <KindIcon className="h-3 w-3" />
-            {config.label}
-          </span>
-          {tx.pending && (
-            <span className="mt-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
-              ⏳ {tx.pending === 'pending' ? 'Queued (offline)' : tx.pending === 'syncing' ? 'Syncing…' : 'Sync failed'}
+    <Modal open={!!transaction} onClose={onClose} title="Transaction Details" className="sm:max-w-2xl">
+      <div className="space-y-5">
+        <div
+          className="overflow-hidden rounded-3xl border border-border bg-gradient-to-br from-surface-muted/90 via-surface to-surface-muted/40 p-5 shadow-sm"
+          style={{
+            backgroundImage: `radial-gradient(circle at top right, ${iconColor}18, transparent 38%), radial-gradient(circle at bottom left, ${iconColor}12, transparent 34%)`,
+          }}
+        >
+          <div className="flex flex-col items-center text-center">
+            <span
+              className="mb-3 flex h-16 w-16 items-center justify-center rounded-2xl shadow-sm ring-1 ring-border/60"
+              style={{ backgroundColor: `${iconColor}22`, color: iconColor }}
+            >
+              <CategoryIcon className="h-8 w-8" />
             </span>
-          )}
+            <p className={cn('text-3xl font-bold tabular-nums', config.color)}>
+              {signedMoney(tx.amount, tx.kind, tx.currency)}
+            </p>
+            <span className={cn(
+              'mt-2 inline-flex items-center gap-1.5 rounded-full px-3 py-1 text-xs font-semibold',
+              config.bg,
+              config.color,
+            )}>
+              <KindIcon className="h-3 w-3" />
+              {config.label}
+            </span>
+            {tx.pending && (
+              <span className="mt-2 rounded-full bg-amber-500/10 px-2 py-0.5 text-[11px] font-medium text-amber-600 dark:text-amber-400">
+                ⏳ {tx.pending === 'pending' ? 'Queued (offline)' : tx.pending === 'syncing' ? 'Syncing…' : 'Sync failed'}
+              </span>
+            )}
+          </div>
         </div>
+
+        {tx.budget && (
+          <div className="overflow-hidden rounded-2xl border border-border bg-surface">
+            <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <span
+                className="flex h-10 w-10 items-center justify-center rounded-xl"
+                style={{ backgroundColor: `${tx.budget.color ?? '#6366f1'}22`, color: tx.budget.color ?? '#6366f1' }}
+              >
+                <ArrowLeftRight className="h-4.5 w-4.5" />
+              </span>
+              <div className="min-w-0 flex-1">
+                <p className="text-xs uppercase tracking-widest text-muted">Parent plan</p>
+                <p className="truncate font-semibold">{tx.budget.name}</p>
+              </div>
+              <div className="text-right">
+                <p className="text-sm font-semibold tabular-nums">{tx.budget.currency}</p>
+                <p className="text-xs text-muted">
+                  {tx.budgetCycle !== null && tx.budgetCycle !== undefined ? `Cycle ${tx.budgetCycle}` : 'Plan spend'}
+                </p>
+              </div>
+            </div>
+            <div className="grid gap-3 p-4 sm:grid-cols-3">
+              <div className="rounded-xl bg-surface-muted/60 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted">Plan</p>
+                <p className="mt-1 truncate text-sm font-medium">{tx.budget.name}</p>
+              </div>
+              <div className="rounded-xl bg-surface-muted/60 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted">Category</p>
+                <p className="mt-1 truncate text-sm font-medium">{tx.category?.name ?? 'Uncategorized'}</p>
+              </div>
+              <div className="rounded-xl bg-surface-muted/60 p-3">
+                <p className="text-[11px] uppercase tracking-wide text-muted">Account</p>
+                <p className="mt-1 truncate text-sm font-medium">{tx.account?.name ?? 'Unknown'}</p>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Detail rows */}
         <div className="rounded-xl border border-border overflow-hidden divide-y divide-border">
@@ -179,28 +222,31 @@ export function TransactionDetailModal({
           )}
         </div>
 
-        {/* Transaction ID (subtle) */}
-        <p className="pt-2 text-center text-[10px] text-muted/50 font-mono">{tx.id}</p>
+        <p className="pt-1 text-center font-mono text-[10px] text-muted/50">{tx.id}</p>
 
         {/* Actions */}
-        {!isTransfer && (
+        {!isTransfer && (onEdit || onDelete) && (
           <div className="flex gap-2 pt-4">
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1"
-              onClick={() => { onClose(); onEdit(tx); }}
-            >
-              Edit
-            </Button>
-            <Button
-              type="button"
-              variant="outline"
-              className="flex-1 text-danger hover:bg-danger/10"
-              onClick={() => { onClose(); onDelete(tx); }}
-            >
-              Delete
-            </Button>
+            {onEdit && (
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1"
+                onClick={() => { onClose(); onEdit(tx); }}
+              >
+                Edit
+              </Button>
+            )}
+            {onDelete && (
+              <Button
+                type="button"
+                variant="outline"
+                className="flex-1 text-danger hover:bg-danger/10"
+                onClick={() => { onClose(); onDelete(tx); }}
+              >
+                Delete
+              </Button>
+            )}
           </div>
         )}
       </div>

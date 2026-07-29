@@ -21,7 +21,7 @@ import { useConfirm } from '@/components/ui/confirm-dialog';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
-import type { Account, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
+import type { Account, BudgetRow, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
 
 function monthBounds(month: string) {
   const [y, m] = month.split('-').map(Number);
@@ -38,7 +38,7 @@ function TransactionsInner() {
   const [month, setMonth] = useState(currentMonth());
   const [kind, setKind] = useState<TxKind | ''>('');
   const [categoryId, setCategoryId] = useState('');
-  const [accountId, setAccountId] = useState(params.get('accountId') ?? '');
+  const [budgetId, setBudgetId] = useState(params.get('budgetId') ?? '');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
   const [formOpen, setFormOpen] = useState(false);
@@ -47,24 +47,27 @@ function TransactionsInner() {
   const [editing, setEditing] = useState<Transaction | null>(null);
   const [viewing, setViewing] = useState<Transaction | null>(null);
 
-  // Pre-fill accountId from URL (when navigating from accounts page)
+  // Pre-fill plan filter from URL (when navigating from plan details).
   useEffect(() => {
-    const fromUrl = params.get('accountId');
-    if (fromUrl) setAccountId(fromUrl);
+    const fromUrl = params.get('budgetId');
+    if (fromUrl) setBudgetId(fromUrl);
   }, [params]);
 
-  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
+  const { data: accountsData } = useSWR<{ items: Account[] }>('/accounts');
   const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>('/categories');
+  const { data: budgetsData, isLoading: budgetsLoading } = useSWR<{ items: BudgetRow[] }>(
+    tab === 'ledger' ? `/budgets?currency=${activeCurrency}` : null,
+  );
 
   const { from, to } = monthBounds(month);
   const query = useMemo(() => {
     const p = new URLSearchParams({ from, to, page: String(page), pageSize: '25', currency: activeCurrency });
     if (kind) p.set('kind', kind);
     if (categoryId) p.set('categoryId', categoryId);
-    if (accountId) p.set('accountId', accountId);
+    if (budgetId) p.set('budgetId', budgetId);
     if (q) p.set('q', q);
     return p.toString();
-  }, [from, to, page, kind, categoryId, accountId, q, activeCurrency]);
+  }, [from, to, page, kind, categoryId, budgetId, q, activeCurrency]);
 
   const { data, isLoading, mutate } = useSWR<TransactionPage>(`/transactions?${query}`);
   const { deleteTransaction, pendingCreates, pendingPatches, deletedIds } = useOffline();
@@ -81,14 +84,14 @@ function TransactionsInner() {
       if (day < from || day > to) return false;
       if (kind && t.kind !== kind) return false;
       if (categoryId && t.categoryId !== categoryId) return false;
-      if (accountId && t.accountId !== accountId && t.transferAccountId !== accountId) return false;
+      if (budgetId && t.budgetId !== budgetId) return false;
       if (q && !`${t.payee ?? ''} ${t.note ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     };
     const seen = new Set(base.map((t) => t.id));
     const extras = pendingCreates.filter((t) => !seen.has(t.id) && matches(t));
     return [...extras, ...base];
-  }, [data?.items, pendingCreates, pendingPatches, deletedIds, page, from, to, kind, categoryId, accountId, q]);
+  }, [data?.items, pendingCreates, pendingPatches, deletedIds, page, from, to, kind, categoryId, budgetId, q]);
 
   // Open the quick-add modal when arriving via ?add=1 (topbar / command palette).
   useEffect(() => {
@@ -112,7 +115,7 @@ function TransactionsInner() {
     return () => window.removeEventListener('keydown', onKey);
   }, []);
 
-  useEffect(() => setPage(1), [month, kind, categoryId, accountId, q, activeCurrency]);
+  useEffect(() => setPage(1), [month, kind, categoryId, budgetId, q, activeCurrency]);
 
   async function remove(tx: Transaction) {
     const ok = await confirm({
@@ -199,10 +202,10 @@ function TransactionsInner() {
             <option key={c.id} value={c.id}>{c.name}</option>
           ))}
         </Select>
-        <Select value={accountId} onChange={(e) => setAccountId(e.target.value)} className="w-auto" loading={accountsLoading}>
-          <option value="">All accounts</option>
-          {(accountsData?.items ?? []).map((a) => (
-            <option key={a.id} value={a.id}>{a.name}</option>
+        <Select value={budgetId} onChange={(e) => setBudgetId(e.target.value)} className="w-auto" loading={budgetsLoading}>
+          <option value="">All plans</option>
+          {(budgetsData?.items ?? []).map((plan) => (
+            <option key={plan.id} value={plan.id}>{plan.name}</option>
           ))}
         </Select>
         {/* Mobile export button */}

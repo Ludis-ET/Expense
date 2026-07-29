@@ -10,7 +10,6 @@ import { TransactionList } from '@/components/finance/transaction-list';
 import { useMoney } from '@/lib/amount-visibility';
 import { cn } from '@/lib/utils';
 import type {
-  Account,
   BudgetCycleSnapshot,
   BudgetDetail,
   Category,
@@ -43,12 +42,10 @@ export function BudgetTransactions({
 }) {
   const { money } = useMoney();
   const { data: categoriesData, isLoading: categoriesLoading } = useSWR<{ items: Category[] }>('/categories?kind=EXPENSE');
-  const { data: accountsData, isLoading: accountsLoading } = useSWR<{ items: Account[] }>('/accounts');
 
   const [q, setQ] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [accountId, setAccountId] = useState('');
   const [cycle, setCycle] = useState<string>('all');
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
@@ -65,7 +62,6 @@ export function BudgetTransactions({
   const activeFilters =
     (debouncedQ ? 1 : 0) +
     (categoryId ? 1 : 0) +
-    (accountId ? 1 : 0) +
     (cycle !== 'all' ? 1 : 0) +
     (from ? 1 : 0) +
     (to ? 1 : 0);
@@ -73,7 +69,7 @@ export function BudgetTransactions({
   // Any filter change puts you back on page 1.
   useEffect(() => {
     setPage(1);
-  }, [debouncedQ, categoryId, accountId, cycle, from, to, sort]);
+  }, [debouncedQ, categoryId, cycle, from, to, sort]);
 
   const key = useMemo(() => {
     const p = new URLSearchParams({
@@ -84,17 +80,15 @@ export function BudgetTransactions({
     });
     if (debouncedQ) p.set('q', debouncedQ);
     if (categoryId) p.set('categoryId', categoryId);
-    if (accountId) p.set('accountId', accountId);
     if (cycle !== 'all') p.set('budgetCycle', cycle);
     if (from) p.set('from', from);
     if (to) p.set('to', to);
     return `/transactions?${p.toString()}`;
-  }, [plan.id, page, sort, debouncedQ, categoryId, accountId, cycle, from, to]);
+  }, [plan.id, page, sort, debouncedQ, categoryId, cycle, from, to]);
 
   const { data, isLoading } = useSWR<TransactionPage>(key);
 
   const categories = (categoriesData?.items ?? []).filter((c) => !c.archived);
-  const accounts = (accountsData?.items ?? []).filter((a) => !a.archived);
   const items = data?.items ?? [];
   const total = data?.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / PAGE_SIZE));
@@ -105,7 +99,6 @@ export function BudgetTransactions({
   function reset() {
     setQ('');
     setCategoryId('');
-    setAccountId('');
     setCycle('all');
     setFrom('');
     setTo('');
@@ -171,23 +164,6 @@ export function BudgetTransactions({
               {categories.map((c) => (
                 <option key={c.id} value={c.id}>
                   {c.name}
-                </option>
-              ))}
-            </Select>
-          </label>
-
-          <label className="text-xs font-medium text-muted">
-            Account
-            <Select
-              className="mt-1"
-              value={accountId}
-              onChange={(e) => setAccountId(e.target.value)}
-              loading={accountsLoading}
-            >
-              <option value="">All accounts</option>
-              {accounts.map((a) => (
-                <option key={a.id} value={a.id}>
-                  {a.name}
                 </option>
               ))}
             </Select>

@@ -40,7 +40,7 @@ const navGroups = [
   {
     label: 'Plan',
     items: [
-      { href: '/budgets', label: 'Budgets', icon: PiggyBank },
+      { href: '/budgets', label: 'Budgets & Wishes', icon: PiggyBank },
       { href: '/tab', label: 'Money Tab', icon: HandCoins },
     ],
   },

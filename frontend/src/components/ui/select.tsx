@@ -72,7 +72,7 @@ type SelectChangeEvent = { target: { value: string } };
 
 interface SelectProps extends Omit<
   SelectHTMLAttributes<HTMLSelectElement>,
-  "onChange" | "value"
+  "onChange" | "value" | "size"
 > {
   value?: string;
   onChange?: (e: SelectChangeEvent) => void;
@@ -80,6 +80,8 @@ interface SelectProps extends Omit<
   placeholder?: string;
   /** `ghost`   minimal chrome for dense headers */
   variant?: "default" | "ghost";
+  /** `sm`   compact trigger and menu for filter/toolbar rows */
+  size?: "sm" | "md";
   /** Show a shimmer skeleton instead of the trigger while backend data loads. */
   loading?: boolean;
 }
@@ -101,8 +103,10 @@ export function Select({
   placeholder,
   "aria-label": ariaLabel,
   variant = "default",
+  size = "md",
   loading = false,
 }: SelectProps) {
+  const sm = size === "sm";
   const generatedId = useId();
   const selectId = id ?? generatedId;
   const rootRef = useRef<HTMLDivElement>(null);
@@ -284,7 +288,8 @@ export function Select({
                       data-index={i}
                       aria-disabled={opt.disabled || undefined}
                       className={cn(
-                        "flex cursor-pointer items-center gap-2 rounded-lg px-3 py-2 text-sm transition-colors",
+                        "flex cursor-pointer items-center gap-2 rounded-lg transition-colors",
+                        sm ? "px-2.5 py-1.5 text-xs" : "px-3 py-2 text-sm",
                         opt.disabled && "pointer-events-none opacity-40",
                         isSelected && "bg-primary/10 font-medium text-primary",
                         !isSelected && isActive && "bg-surface-muted",
@@ -295,7 +300,7 @@ export function Select({
                     >
                       <span className="min-w-0 flex-1 truncate">{opt.label}</span>
                       {isSelected && (
-                        <Check className="h-4 w-4 shrink-0 text-primary" />
+                        <Check className={cn("shrink-0 text-primary", sm ? "h-3.5 w-3.5" : "h-4 w-4")} />
                       )}
                     </li>
                   </Fragment>
@@ -329,8 +334,8 @@ export function Select({
           style={{ boxShadow: 'var(--shadow-elevated)' }}
           className={cn(
             "relative overflow-hidden border border-border bg-surface",
-            variant === "default" && "h-10 rounded-xl",
-            variant === "ghost" && "h-8 rounded-lg",
+            variant === "default" && (sm ? "h-8 rounded-lg" : "h-10 rounded-xl"),
+            variant === "ghost" && (sm ? "h-7 rounded-lg" : "h-8 rounded-lg"),
           )}
         >
           {/* shimmer sweep */}
@@ -342,7 +347,7 @@ export function Select({
             }}
           />
           {/* content placeholder row */}
-          <div className="flex h-full items-center gap-2 px-3.5">
+          <div className={cn("flex h-full items-center gap-2", sm ? "px-2.5" : "px-3.5")}>
             <div className="h-2.5 w-24 rounded-full bg-surface-muted/80" />
             <div className="ml-auto flex gap-1">
               <span className="h-1.5 w-1.5 animate-bounce-dot rounded-full bg-muted/50 [animation-delay:0ms]" />
@@ -363,17 +368,20 @@ export function Select({
           onClick={() => !disabled && setOpen((o) => !o)}
           onKeyDown={onTriggerKey}
           className={cn(
-            "flex w-full items-center justify-between gap-2 text-left text-sm text-foreground transition-all duration-200",
+            "flex w-full items-center justify-between gap-2 text-left text-foreground transition-all duration-200",
+            sm ? "text-xs" : "text-sm",
             "focus:outline-none disabled:pointer-events-none disabled:opacity-50",
             variant === "default" &&
               cn(
-                "h-10 rounded-xl border border-border bg-surface px-3.5 shadow-sm hover:border-primary/30",
+                sm ? "h-8 rounded-lg px-2.5" : "h-10 rounded-xl px-3.5",
+                "border border-border bg-surface shadow-sm hover:border-primary/30",
                 "focus:ring-2 focus:ring-ring/50 focus:border-ring",
                 open && "border-ring ring-2 ring-ring/50",
               ),
             variant === "ghost" &&
               cn(
-                "h-8 rounded-lg border-0 bg-transparent px-1.5 font-semibold tabular-nums shadow-none hover:bg-transparent",
+                sm ? "h-7 px-1" : "h-8 px-1.5",
+                "rounded-lg border-0 bg-transparent font-semibold tabular-nums shadow-none hover:bg-transparent",
                 "focus:ring-0",
               ),
             !selected && value === "" && "text-muted",
@@ -382,7 +390,8 @@ export function Select({
           <span className="min-w-0 flex-1 truncate">{display}</span>
           <ChevronDown
             className={cn(
-              "h-4 w-4 shrink-0 text-muted transition-transform duration-200",
+              "shrink-0 text-muted transition-transform duration-200",
+              sm ? "h-3.5 w-3.5" : "h-4 w-4",
               open && "rotate-180",
             )}
           />

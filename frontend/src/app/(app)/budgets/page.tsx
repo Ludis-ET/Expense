@@ -4,7 +4,7 @@ import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { PiggyBank, Plus, Sparkles, Wallet, Search, X } from 'lucide-react';
+import { ArrowDownUp, PiggyBank, Plus, Sparkles, Wallet, Search, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/input';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
@@ -198,18 +198,24 @@ function PlansPanel() {
             </div>
 
             {/* Sort selector */}
-            <Select
-              value={sort}
-              onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
-              className="text-xs"
-            >
-              <option value="priority">Active first</option>
-              <option value="name">Name (A-Z)</option>
-              <option value="spent">Most spent</option>
-              <option value="planned">Highest planned</option>
-              <option value="remaining">Most remaining</option>
-              <option value="progress">Progress</option>
-            </Select>
+            <div className="flex h-9 items-center gap-1 rounded-xl border border-border bg-surface-muted/40 pl-2.5 pr-1 transition-colors focus-within:border-primary/40">
+              <ArrowDownUp className="h-3.5 w-3.5 shrink-0 text-muted" />
+              <Select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
+                variant="ghost"
+                size="sm"
+                aria-label="Sort plans"
+                className="w-auto"
+              >
+                <option value="priority">Active first</option>
+                <option value="name">Name (A-Z)</option>
+                <option value="spent">Most spent</option>
+                <option value="planned">Highest planned</option>
+                <option value="remaining">Most remaining</option>
+                <option value="progress">Progress</option>
+              </Select>
+            </div>
 
             {/* Active filter chip */}
             {(q || status !== 'open') && (

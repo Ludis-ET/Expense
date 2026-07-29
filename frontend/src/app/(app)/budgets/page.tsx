@@ -4,7 +4,7 @@ import { Suspense, useState, useMemo } from 'react';
 import Link from 'next/link';
 import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
-import { PiggyBank, Plus, Sparkles, Wallet } from 'lucide-react';
+import { PiggyBank, Plus, Sparkles, Wallet, Search, ArrowUpDown, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
@@ -148,35 +148,90 @@ function PlansPanel() {
       </div>
 
       {hasActive && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <input
-            type="search"
-            placeholder="Search plans…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            className="h-9 w-full min-w-[200px] rounded-lg border border-border bg-background px-3 text-sm focus:border-primary focus:outline-none sm:w-auto sm:flex-1"
-          />
-          <select
-            value={status}
-            onChange={(e) => setStatus(e.target.value as 'open' | 'closed' | 'all')}
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:border-primary focus:outline-none"
-          >
-            <option value="open">Open (Active & Scheduled)</option>
-            <option value="closed">Closed</option>
-            <option value="all">All statuses</option>
-          </select>
-          <select
-            value={sort}
-            onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
-            className="h-9 rounded-lg border border-border bg-background px-3 text-sm focus:border-primary focus:outline-none"
-          >
-            <option value="priority">Sort: Active first</option>
-            <option value="name">Sort: Name (A-Z)</option>
-            <option value="spent">Sort: Spent (High to Low)</option>
-            <option value="planned">Sort: Planned (High to Low)</option>
-            <option value="remaining">Sort: Remaining (High to Low)</option>
-            <option value="progress">Sort: Progress (%)</option>
-          </select>
+        <div className="space-y-3">
+          {/* Search bar */}
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" />
+            <input
+              type="search"
+              placeholder="Search plans…"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+              className="h-10 w-full rounded-xl border border-border bg-background pl-9 pr-9 text-sm transition-colors placeholder:text-muted focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+            />
+            {q && (
+              <button
+                type="button"
+                onClick={() => setQ('')}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-muted transition-colors hover:text-foreground"
+                aria-label="Clear search"
+              >
+                <X className="h-3.5 w-3.5" />
+              </button>
+            )}
+          </div>
+
+          {/* Status pills + Sort row */}
+          <div className="flex flex-wrap items-center gap-2">
+            {/* Status toggle group */}
+            <div className="flex items-center gap-1 rounded-xl border border-border bg-surface-muted/40 p-1">
+              {(['open', 'closed', 'all'] as const).map((s) => (
+                <button
+                  key={s}
+                  type="button"
+                  onClick={() => setStatus(s)}
+                  className={cn(
+                    'rounded-lg px-3 py-1.5 text-xs font-semibold capitalize transition-all',
+                    status === s
+                      ? s === 'closed'
+                        ? 'bg-slate-500 text-white shadow-sm'
+                        : s === 'all'
+                          ? 'bg-foreground text-background shadow-sm'
+                          : 'bg-primary text-primary-foreground shadow-sm'
+                      : 'text-muted hover:text-foreground',
+                  )}
+                >
+                  {s === 'open' ? 'Active' : s === 'closed' ? 'Closed' : 'All'}
+                </button>
+              ))}
+            </div>
+
+            {/* Sort selector */}
+            <div className="relative flex items-center">
+              <ArrowUpDown className="pointer-events-none absolute left-2.5 top-1/2 h-3.5 w-3.5 -translate-y-1/2 text-muted" />
+              <select
+                value={sort}
+                onChange={(e) => setSort(e.target.value as 'priority' | 'name' | 'spent' | 'planned' | 'remaining' | 'progress')}
+                className="h-9 appearance-none rounded-xl border border-border bg-background pl-8 pr-3 text-xs font-medium text-foreground transition-colors focus:border-primary focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                <option value="priority">Active first</option>
+                <option value="name">Name (A-Z)</option>
+                <option value="spent">Most spent</option>
+                <option value="planned">Highest planned</option>
+                <option value="remaining">Most remaining</option>
+                <option value="progress">Progress</option>
+              </select>
+            </div>
+
+            {/* Active filter chip */}
+            {(q || status !== 'open') && (
+              <button
+                type="button"
+                onClick={() => { setQ(''); setStatus('open'); setSort('priority'); }}
+                className="inline-flex items-center gap-1.5 rounded-full border border-primary/30 bg-primary/8 px-3 py-1.5 text-xs font-medium text-primary transition-colors hover:bg-primary/15"
+              >
+                <X className="h-3 w-3" />
+                Reset filters
+              </button>
+            )}
+
+            {/* Match count badge */}
+            {!isLoading && (
+              <span className="ml-auto text-xs text-muted">
+                {filtered.length} {filtered.length === 1 ? 'plan' : 'plans'}
+              </span>
+            )}
+          </div>
         </div>
       )}
 

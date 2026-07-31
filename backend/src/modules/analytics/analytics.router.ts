@@ -16,11 +16,22 @@ import {
   weeklySnapshotQuery,
 } from './analytics.schema.js';
 import * as analytics from './analytics.service.js';
+import * as analyticsPage from './analytics.page.js';
 import * as weeks from './analytics.weeks.js';
 
 export const analyticsRouter = Router();
 
 analyticsRouter.use(requireAuth, recurringCatchUp);
+
+/** The whole analytics page in one round trip. */
+analyticsRouter.get(
+  '/page',
+  validate({ query: summaryQuery }),
+  asyncHandler(async (req, res) => {
+    const q = req.query as { month?: string; currency?: string };
+    res.json(await analyticsPage.page(req.user!, q.month, q.currency));
+  }),
+);
 
 /** Per-day spend for a month (or the last 30 days), with streak maths done. */
 analyticsRouter.get(

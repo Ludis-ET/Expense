@@ -641,3 +641,114 @@ export interface DashboardData {
   tab: LedgerSummary;
   wishlist: WishlistDigest;
 }
+
+// ---------------------------------------------------------------------------
+// Analytics page (GET /analytics/page) - one payload, one screen.
+// ---------------------------------------------------------------------------
+
+export interface AnalyticsPlanRow {
+  id: string;
+  name: string;
+  icon?: string | null;
+  color?: string | null;
+  kind: BudgetKind;
+  cycleLabel: string | null;
+  periodNoun: string | null;
+  /** What the cycle opened with, before any mid-cycle raise or cut. */
+  openingPlanned: string;
+  /** Net of the raises (+) and cuts (-) made during the cycle. */
+  adjusted: string;
+  planned: string;
+  funded: string;
+  spent: string;
+  remaining: string;
+  /** Spend against the opening figure. Can exceed 100. */
+  pctOfOpening: number;
+}
+
+export interface AnalyticsCommitment {
+  id: string;
+  name: string;
+  kind: TxKind;
+  amount: string;
+  frequency: 'DAILY' | 'WEEKLY' | 'MONTHLY' | 'YEARLY';
+  interval: number;
+  nextRun: string;
+  autoPost: boolean;
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  monthlyEquivalent: string;
+}
+
+export interface AnalyticsCounterparty {
+  name: string;
+  kind: 'LENT' | 'BORROWED' | 'EXPECTED_IN' | 'EXPECTED_OUT';
+  outstanding: string;
+  dueDate: string | null;
+  overdue: boolean;
+}
+
+export interface AnalyticsPageData {
+  period: {
+    month: string;
+    start: string;
+    end: string;
+    inProgress: boolean;
+    daysElapsed: number;
+    daysInMonth: number;
+  };
+  scope: {
+    currency: string;
+    /** Currencies held with no rate into the scoped one, so left out of totals. */
+    missingRates: string[];
+    complete: boolean;
+  };
+  history: { hasPrevious: boolean; firstTransactionAt: string | null };
+  cashFlow: {
+    income: string;
+    expense: string;
+    net: string;
+    previous: { income: string; expense: string; net: string };
+    deltaNetPct: number | null;
+    deltaExpensePct: number | null;
+    savingsRate: number | null;
+  };
+  unplanned: { amount: string; totalExpense: string; pct: number };
+  cash: {
+    real: string;
+    locked: string;
+    available: string;
+    lockedPct: number;
+    accountCount: number;
+  };
+  plans: {
+    items: AnalyticsPlanRow[];
+    totals: { opening: string; adjusted: string; spent: string; pctOfOpening: number };
+    overspentCount: number;
+    adjustedCount: number;
+  };
+  commitments: {
+    monthlyOut: string;
+    monthlyIn: string;
+    items: AnalyticsCommitment[];
+    shareOfIncome: number | null;
+  };
+  wishlist: {
+    wanting: number;
+    planned: number;
+    bought: number;
+    dropped: number;
+    plannedValue: string;
+    avgDaysToPlan: number | null;
+    avgDaysToBuy: number | null;
+  };
+  ledger: {
+    lent: string;
+    lentCount: number;
+    borrowed: string;
+    borrowedCount: number;
+    expectedIn: string;
+    expectedOut: string;
+    counterparties: AnalyticsCounterparty[];
+    overdueCount: number;
+  };
+}

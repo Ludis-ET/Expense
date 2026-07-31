@@ -58,3 +58,72 @@ export function BarChart({
     </div>
   );
 }
+
+/**
+ * A bar chart for figures that can go below zero.
+ *
+ * The plain `BarChart` scales height as `value / max`, so a negative bar
+ * collapses to the 2px minimum and reads identically to zero - which is the
+ * opposite of the truth for a net figure. Here bars grow away from a drawn
+ * baseline in both directions, and the sign is carried by direction and by the
+ * printed number, never by colour alone.
+ */
+export function SignedBarChart({
+  data,
+  height = 170,
+  format,
+  positive = 'bg-emerald-500',
+  negative = 'bg-rose-500',
+}: {
+  data: BarDatum[];
+  height?: number;
+  format?: (value: number) => string;
+  positive?: string;
+  negative?: string;
+}) {
+  const fmt = format ?? ((v: number) => String(v));
+  if (!data.length) return <p className="py-8 text-center text-sm text-muted">No data.</p>;
+
+  const maxAbs = Math.max(1, ...data.map((d) => Math.abs(d.value)));
+  const anyNegative = data.some((d) => d.value < 0);
+
+  return (
+    <div className="flex items-stretch gap-2" style={{ height }}>
+      {data.map((d) => {
+        const share = `${(Math.abs(d.value) / maxAbs) * 100}%`;
+        return (
+          <div key={d.label} className="flex min-w-0 flex-1 flex-col items-center gap-1">
+            <span className="truncate text-[10px] font-medium tabular-nums text-muted">
+              {fmt(d.value)}
+            </span>
+
+            <div className="flex w-full flex-1 flex-col">
+              <div className="flex w-full flex-1 flex-col justify-end">
+                {d.value > 0 && (
+                  <div
+                    className={cn('w-full rounded-t-md transition-all', positive)}
+                    style={{ height: share, minHeight: 2 }}
+                  />
+                )}
+              </div>
+              {/* The zero line only earns its space when something crosses it. */}
+              {anyNegative && <div className="h-px w-full shrink-0 bg-border" />}
+              <div className={cn('flex w-full flex-col justify-start', anyNegative && 'flex-1')}>
+                {d.value < 0 && (
+                  <div
+                    className={cn('w-full rounded-b-md transition-all', negative)}
+                    style={{ height: share, minHeight: 2 }}
+                  />
+                )}
+              </div>
+            </div>
+
+            <span className="w-full truncate text-center text-[11px] text-muted" title={d.label}>
+              {d.label}
+            </span>
+          </div>
+        );
+      })}
+    </div>
+  );
+}

@@ -47,3 +47,10 @@ export const payeesQuery = z.object({
 export const unnecessaryQuery = z.object({ month: monthStr.optional(), currency: currencyStr });
 
 export const burnRateQuery = z.object({ currency: currencyStr });
+
+export const seasonalQuery = z.object({
+  currency: currencyStr,
+  weeks: z.coerce.number().int().min(4).max(52).default(12),
+});
+
+export const moversQuery = z.object({ month: monthStr.optional(), currency: currencyStr });

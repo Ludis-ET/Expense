@@ -9,7 +9,9 @@ import {
   dailySpendQuery,
   heatmapQuery,
   incomeVsExpenseQuery,
+  moversQuery,
   payeesQuery,
+  seasonalQuery,
   seriesQuery,
   summaryQuery,
   unnecessaryQuery,
@@ -17,6 +19,7 @@ import {
 } from './analytics.schema.js';
 import * as analytics from './analytics.service.js';
 import * as analyticsPage from './analytics.page.js';
+import * as reports from './analytics.reports.js';
 import * as weeks from './analytics.weeks.js';
 
 export const analyticsRouter = Router();
@@ -30,6 +33,26 @@ analyticsRouter.get(
   asyncHandler(async (req, res) => {
     const q = req.query as { month?: string; currency?: string };
     res.json(await analyticsPage.page(req.user!, q.month, q.currency));
+  }),
+);
+
+/** Month-of-year, weekday and year-on-year shape, from whole history. */
+analyticsRouter.get(
+  '/seasonal',
+  validate({ query: seasonalQuery }),
+  asyncHandler(async (req, res) => {
+    const q = req.query as unknown as { currency?: string; weeks: number };
+    res.json(await reports.seasonal(req.user!, q.currency ?? 'ETB', q.weeks));
+  }),
+);
+
+/** Which categories moved most since last month, up and down. */
+analyticsRouter.get(
+  '/movers',
+  validate({ query: moversQuery }),
+  asyncHandler(async (req, res) => {
+    const q = req.query as { month?: string; currency?: string };
+    res.json(await reports.movers(req.user!, q.month, q.currency ?? 'ETB'));
   }),
 );
 

@@ -7,13 +7,17 @@ import {
   AlertTriangle,
   ArrowDownRight,
   ArrowUpRight,
+  CalendarDays,
   CircleEllipsis,
   HandCoins,
   Lock,
+  PieChart,
   Repeat,
   Scale,
   Sparkles,
+  Sun,
   Target,
+  TrendingUp,
   Wallet,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
@@ -23,13 +27,78 @@ import { financeIcon } from '@/components/finance/icons';
 import { CurrencyBadge } from '@/components/finance/currency-badge';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
 import { CalendarDate } from '@/components/calendar-date';
+import { AnalyticsTrends } from '@/components/analytics/analytics-trends';
+import { AnalyticsCategories } from '@/components/analytics/analytics-categories';
+import { AnalyticsCalendar } from '@/components/analytics/analytics-calendar';
+import { AnalyticsSeasons } from '@/components/analytics/analytics-seasons';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { AnalyticsPageData } from '@/lib/types';
 
+const TABS = [
+  { id: 'overview', label: 'Overview', icon: Scale },
+  { id: 'trends', label: 'Trends', icon: TrendingUp },
+  { id: 'categories', label: 'Categories', icon: PieChart },
+  { id: 'calendar', label: 'Calendar', icon: CalendarDays },
+  { id: 'seasons', label: 'Seasons', icon: Sun },
+] as const;
+
+type TabId = (typeof TABS)[number]['id'];
+
 /**
- * The analytics page: three questions, in order.
+ * Analytics, five ways into the same money.
+ *
+ * Overview answers the three questions the page exists for; the rest are the
+ * long views - trend lines, category movement, the calendar, and what is normal
+ * for you at this time of year. The month picked on Overview anchors Categories
+ * and Calendar too, so moving between tabs never silently changes the window.
+ */
+export function AnalyticsPage() {
+  const [tab, setTab] = useState<TabId>('overview');
+  const [month, setMonth] = useState(currentMonth());
+  const { activeCurrency } = useCurrencyView();
+
+  return (
+    <div className="space-y-4">
+      <div
+        role="tablist"
+        className="flex w-full gap-1 overflow-x-auto rounded-xl border border-border p-1 [-ms-overflow-style:none] [scrollbar-width:none] sm:w-fit [&::-webkit-scrollbar]:hidden"
+      >
+        {TABS.map((t) => {
+          const Icon = t.icon;
+          const active = tab === t.id;
+          return (
+            <button
+              key={t.id}
+              role="tab"
+              aria-selected={active}
+              onClick={() => setTab(t.id)}
+              className={cn(
+                'inline-flex min-h-9 shrink-0 items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
+                active
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted hover:bg-surface-muted hover:text-foreground',
+              )}
+            >
+              <Icon className="h-4 w-4" />
+              {t.label}
+            </button>
+          );
+        })}
+      </div>
+
+      {tab === 'overview' && <AnalyticsOverview month={month} setMonth={setMonth} />}
+      {tab === 'trends' && <AnalyticsTrends currency={activeCurrency} />}
+      {tab === 'categories' && <AnalyticsCategories month={month} currency={activeCurrency} />}
+      {tab === 'calendar' && <AnalyticsCalendar month={month} currency={activeCurrency} />}
+      {tab === 'seasons' && <AnalyticsSeasons currency={activeCurrency} />}
+    </div>
+  );
+}
+
+/**
+ * The three questions, in order.
  *
  *   1. Am I living within my means?          -> Net cash flow
  *   2. Where did it actually go?             -> Unplanned share, plan discipline
@@ -39,9 +108,8 @@ import type { AnalyticsPageData } from '@/lib/types';
  * month rather than this one. Nothing here edits: every card deep-links to the
  * screen where you would act on it.
  */
-export function AnalyticsPage() {
+function AnalyticsOverview({ month, setMonth }: { month: string; setMonth: (m: string) => void }) {
   const { activeCurrency } = useCurrencyView();
-  const [month, setMonth] = useState(currentMonth());
   const { data, isLoading } = useSWR<AnalyticsPageData>(
     `/analytics/page?month=${month}&currency=${encodeURIComponent(activeCurrency)}`,
   );

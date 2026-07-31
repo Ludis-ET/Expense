@@ -752,3 +752,87 @@ export interface AnalyticsPageData {
     overdueCount: number;
   };
 }
+
+// --- Report endpoints the charts read -------------------------------------
+
+export interface CategoryTotals {
+  currency: string;
+  total: string;
+  items: {
+    category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+    amount: string;
+    count: number;
+    pct: number;
+  }[];
+}
+
+export interface IncomeVsExpense {
+  currency: string;
+  points: { month: string; income: string; expense: string; savingsRate: number | null }[];
+}
+
+export interface SpendHeatmapData {
+  currency: string;
+  year: number;
+  days: { date: string; total: string }[];
+}
+
+export interface TopPayees {
+  currency: string;
+  items: { payee: string | null; total: string; count: number }[];
+}
+
+export interface SeasonalMonth {
+  month: number;
+  name: string;
+  /** How many calendar months of history fed this average. */
+  samples: number;
+  avgIncome: string;
+  avgExpense: string;
+  avgNet: string;
+}
+
+export interface SeasonalReport {
+  currency: string;
+  monthsObserved: number;
+  months: SeasonalMonth[];
+  dearestMonth: SeasonalMonth | null;
+  cheapestMonth: SeasonalMonth | null;
+  daysOfWeek: {
+    day: number;
+    name: string;
+    avgSpend: string;
+    total: string;
+    txCount: number;
+    samples: number;
+  }[];
+  heaviestDay: { day: number; name: string; avgSpend: string; samples: number } | null;
+  years: {
+    year: number;
+    income: string;
+    expense: string;
+    net: string;
+    txCount: number;
+    savingsRate: number | null;
+  }[];
+  weekly: { week: string; label: string; income: string; expense: string; net: string }[];
+}
+
+export interface CategoryMover {
+  category: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  current: string;
+  previous: string;
+  change: string;
+  /** Null when the category is new this month - a percentage off zero says nothing. */
+  changePct: number | null;
+  isNew: boolean;
+  stopped: boolean;
+}
+
+export interface CategoryMovers {
+  currency: string;
+  month: string;
+  hasPrevious: boolean;
+  up: CategoryMover[];
+  down: CategoryMover[];
+}

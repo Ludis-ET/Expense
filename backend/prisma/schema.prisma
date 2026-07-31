@@ -199,6 +199,7 @@ model Account {
 
   transactions   Transaction[]      @relation("TxAccount")
   transfersIn    Transaction[]      @relation("TxTransferAccount")
+  planSpends     Transaction[]      @relation("TxBudgetSourceAccount")
   recurringRules RecurringRule[]
   allocations    BudgetAllocation[]
 
@@ -257,6 +258,14 @@ model Transaction {
   budget      Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
   budgetCycle Int? // which cycle of a recurring plan this belongs to
 
+  // Which funding account's reservation this plan expense frees. Usually the
+  // same as accountId, but not always: you can fill a plan from one wallet and
+  // pay from another, and the reservation still has to come off the wallet that
+  // was actually holding it. Reservation aggregates group by this, never by
+  // accountId. Null for anything that is not a funded-plan expense.
+  budgetSourceAccountId String?
+  budgetSourceAccount   Account? @relation("TxBudgetSourceAccount", fields: [budgetSourceAccountId], references: [id], onDelete: SetNull)
+
   note            String?
   payee           String? // merchant / person
   tags            String[]       @default([])
@@ -272,6 +281,7 @@ model Transaction {
   @@index([userId, kind])
   @@index([accountId])
   @@index([budgetId, budgetCycle])
+  @@index([budgetSourceAccountId])
   @@map("transactions")
 }
 

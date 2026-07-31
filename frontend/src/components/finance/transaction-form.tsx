@@ -53,8 +53,13 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
    * For income it is a plain account id, since plans only ever pay out.
    */
   const [source, setSource] = useState('');
-  /** Which account the money really leaves, when the plan has no pot. */
+  /** Which account the money really leaves. Free choice, for any plan. */
   const [drawFromId, setDrawFromId] = useState('');
+  /**
+   * Which funder's reservation to free. Only asked for when a plan was filled
+   * from more than one account - with a single filler there is no choice.
+   */
+  const [releaseFromId, setReleaseFromId] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
   const [payee, setPayee] = useState('');
@@ -81,11 +86,20 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     : undefined;
   const isUnplanned = selectedPlan?.isUnplanned ?? false;
 
-  // A funded plan charges the account that filled it; Unplanned draws on
-  // whichever account the user points at; income lands straight in an account.
+  // Every expense names the wallet the cash actually leaves - a plan does not
+  // dictate it, since you can fill from one bank and pay from another. Income
+  // lands straight in an account.
   const isPlanSource = source.startsWith(PLAN_PREFIX);
-  const accountId = !isPlanSource ? source : isUnplanned ? drawFromId : undefined;
+  const accountId = isPlanSource ? drawFromId : source;
   const drawAccount = accounts.find((a) => a.id === drawFromId);
+
+  // Where the reservation is held. One filler means nothing to choose.
+  const planSources = useMemo(
+    () => (selectedPlan && !isUnplanned ? selectedPlan.sources.filter((s) => s.account) : []),
+    [selectedPlan, isUnplanned],
+  );
+  const multiSource = planSources.length > 1;
+  const releaseSource = planSources.find((s) => s.account!.id === releaseFromId) ?? planSources[0];
 
   // Seed the form when opening (either blank or from the editing target).
   useEffect(() => {
@@ -95,6 +109,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       setAmount(String(Number(editing.amount)));
       setSource(editing.budgetId ? `${PLAN_PREFIX}${editing.budgetId}` : editing.accountId);
       setDrawFromId(editing.accountId);
+      setReleaseFromId(editing.budgetSourceAccountId ?? '');
       setCategoryId(editing.categoryId ?? '');
       setDate(editing.date.slice(0, 10));
       setPayee(editing.payee ?? '');
@@ -127,13 +142,27 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     }
   }, [kind, source, accounts]);
 
-  // Keep the Unplanned draw-from account valid and defaulted.
+  // Keep the draw-from account valid and defaulted for any plan spend. A funded
+  // plan starts on its biggest filler, because paying from the wallet holding
+  // the reservation is the ordinary case - it is just no longer the only one.
   useEffect(() => {
-    if (!isUnplanned || accounts.length === 0) return;
-    if (!accounts.some((a) => a.id === drawFromId)) {
-      setDrawFromId((accounts.find((a) => a.isDefault) ?? accounts[0]!).id);
+    if (!isPlanSource || accounts.length === 0) return;
+    if (accounts.some((a) => a.id === drawFromId)) return;
+    const funder = planSources[0]?.account?.id;
+    const fallback = accounts.find((a) => a.isDefault) ?? accounts[0]!;
+    setDrawFromId(funder && accounts.some((a) => a.id === funder) ? funder : fallback.id);
+  }, [isPlanSource, accounts, drawFromId, planSources]);
+
+  // Default the reservation source to the largest share.
+  useEffect(() => {
+    if (planSources.length === 0) {
+      if (releaseFromId) setReleaseFromId('');
+      return;
     }
-  }, [isUnplanned, accounts, drawFromId]);
+    if (!planSources.some((s) => s.account!.id === releaseFromId)) {
+      setReleaseFromId(planSources[0]!.account!.id);
+    }
+  }, [planSources, releaseFromId]);
 
   /** Picking a plan that has a category pre-selects it, as promised. */
   function pickSource(value: string) {
@@ -175,13 +204,25 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     e.preventDefault();
     if (!source) return toast.error(kind === 'EXPENSE' ? 'Pick a plan' : 'Pick an account');
     if (!categoryId) return toast.error('Pick a category');
-    if (isUnplanned && !drawFromId) return toast.error('Pick which account this comes out of');
+    if (isPlanSource && !drawFromId) return toast.error('Pick which account this comes out of');
     if (selectedPlan && !isUnplanned && Number(amount) > Number(selectedPlan.balance)) {
       return toast.error(
         `"${selectedPlan.name}" only has ${Number(selectedPlan.balance).toFixed(2)} ${selectedPlan.currency} left.`,
       );
     }
-    if (isUnplanned && drawAccount && Number(amount) > Number(drawAccount.balance)) {
+    // The reservation being freed has to be big enough on its own.
+    if (releaseSource && Number(amount) > Number(releaseSource.available)) {
+      return toast.error(
+        `Only ${Number(releaseSource.available).toFixed(2)} ${selectedPlan?.currency ?? ''} of this plan is held against "${releaseSource.account!.name}". Take it off a different account.`,
+      );
+    }
+    // Paying from a wallet that holds no reservation for this plan spends its
+    // free money, so it must genuinely have it.
+    if (
+      drawAccount &&
+      releaseSource?.account?.id !== drawAccount.id &&
+      Number(amount) > Number(drawAccount.balance)
+    ) {
       return toast.error(
         `"${drawAccount.name}" only has ${Number(drawAccount.balance).toFixed(2)} ${drawAccount.currency} available.`,
       );
@@ -191,12 +232,13 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
     const payload = {
       kind,
       amount: Number(amount),
-      // Unplanned sends both: the plan it is filed under, and the account it
-      // actually comes out of.
+      // A plan spend sends three things: the plan it is filed under, the wallet
+      // the cash leaves, and - for a funded plan - whose reservation to free.
       ...(isPlanSource
         ? {
             budgetId: source.slice(PLAN_PREFIX.length),
-            ...(isUnplanned ? { accountId: drawFromId } : {}),
+            accountId: drawFromId,
+            ...(releaseSource ? { budgetSourceAccountId: releaseSource.account!.id } : {}),
           }
         : { accountId }),
       categoryId,
@@ -206,10 +248,8 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       tags: tagList,
     };
 
-    // A local preview so the change appears instantly, even offline. For a plan
-    // spend the backend decides the account, so mirror its largest source.
-    const previewAccountId =
-      accountId ?? selectedPlan?.sources[0]?.account?.id ?? editing?.accountId ?? '';
+    // A local preview so the change appears instantly, even offline.
+    const previewAccountId = accountId || editing?.accountId || '';
     const account = accounts.find((a) => a.id === previewAccountId);
     const category = categories.find((c) => c.id === categoryId);
     const optimistic: Transaction = {
@@ -355,10 +395,14 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
           </Field>
         )}
 
-        {isUnplanned && (
+        {isPlanSource && (
           <Field
             label="Take it out of"
-            hint="Unplanned has no pot of its own. The money comes straight out of the account you pick, from whatever is left after your other plans."
+            hint={
+              isUnplanned
+                ? 'Unplanned has no pot of its own. The money comes straight out of the account you pick, from whatever is left after your other plans.'
+                : 'Any account, not just the one that filled the plan - you might fill from one bank and pay with another.'
+            }
           >
             <Select
               value={drawFromId}
@@ -374,14 +418,34 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
           </Field>
         )}
 
+        {/* Whose reservation comes off. Only a question with several fillers. */}
+        {multiSource && (
+          <Field
+            label="Take the set-aside money off"
+            hint="This plan was filled from more than one account. The cash leaves the wallet above; this is the reservation that gets released."
+          >
+            <Select value={releaseFromId} onChange={(e) => setReleaseFromId(e.target.value)}>
+              {planSources.map((s) => (
+                <option key={s.account!.id} value={s.account!.id}>
+                  {s.account!.name} - {Number(s.available).toFixed(2)} {selectedPlan!.currency} held
+                </option>
+              ))}
+            </Select>
+          </Field>
+        )}
+
         {selectedPlan && !isUnplanned && (
           <p className="-mt-2 flex items-start gap-2 rounded-xl bg-primary/5 px-3 py-2 text-xs text-muted">
             <Wallet className="mt-0.5 h-3.5 w-3.5 shrink-0 text-primary" />
             <span>
               Comes out of the money already set aside in{' '}
               <strong className="text-foreground">{selectedPlan.name}</strong>
-              {selectedPlan.sources[0]?.account && (
-                <> · charged to {selectedPlan.sources[0].account.name}</>
+              {releaseSource?.account && !multiSource && (
+                <> · freeing the {Number(releaseSource.available).toFixed(2)} held against{' '}
+                  {releaseSource.account.name}</>
+              )}
+              {drawAccount && releaseSource?.account && drawAccount.id !== releaseSource.account.id && (
+                <>, while the cash leaves {drawAccount.name}</>
               )}
               . It can&apos;t go below zero.
             </span>

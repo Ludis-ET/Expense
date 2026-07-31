@@ -68,6 +68,12 @@ export interface Transaction {
   budgetId?: string | null;
   budget?: { id: string; name: string; icon?: string | null; color?: string | null; currency: string } | null;
   budgetCycle?: number | null;
+  /**
+   * The funding account whose reservation this plan expense freed. Differs from
+   * `accountId` when the plan was filled from one wallet and paid from another.
+   */
+  budgetSourceAccountId?: string | null;
+  budgetSourceAccount?: { id: string; name: string; type?: AccountType } | null;
   note?: string | null;
   payee?: string | null;
   tags: string[];

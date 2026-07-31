@@ -318,8 +318,10 @@ export async function lockedByAccount(userId: string): Promise<Map<string, Prism
       where: { userId },
       _sum: { amount: true },
     }),
+    // Grouped by the account the reservation sat on, which is not necessarily
+    // the one the cash left.
     prisma.transaction.groupBy({
-      by: ['accountId'],
+      by: ['budgetSourceAccountId'],
       where: { userId, ...RESERVED_EXPENSES },
       _sum: { amount: true },
     }),
@@ -328,7 +330,9 @@ export async function lockedByAccount(userId: string): Promise<Map<string, Prism
   const map = new Map<string, Prisma.Decimal>();
   for (const a of allocs) map.set(a.accountId, a._sum.amount ?? zero);
   for (const s of spends) {
-    map.set(s.accountId, (map.get(s.accountId) ?? zero).sub(s._sum.amount ?? zero));
+    if (!s.budgetSourceAccountId) continue;
+    const id = s.budgetSourceAccountId;
+    map.set(id, (map.get(id) ?? zero).sub(s._sum.amount ?? zero));
   }
   for (const [k, v] of map) map.set(k, Prisma.Decimal.max(zero, v));
   return map;
@@ -366,7 +370,7 @@ export async function sourcesFor(budgetId: string) {
       _sum: { amount: true },
     }),
     prisma.transaction.groupBy({
-      by: ['accountId'],
+      by: ['budgetSourceAccountId'],
       where: { budgetId, kind: TxKind.EXPENSE },
       _sum: { amount: true },
     }),
@@ -374,7 +378,11 @@ export async function sourcesFor(budgetId: string) {
 
   const shares = new Map<string, Prisma.Decimal>();
   for (const a of allocs) shares.set(a.accountId, a._sum.amount ?? zero);
-  for (const s of spends) shares.set(s.accountId, (shares.get(s.accountId) ?? zero).sub(s._sum.amount ?? zero));
+  for (const s of spends) {
+    if (!s.budgetSourceAccountId) continue;
+    const id = s.budgetSourceAccountId;
+    shares.set(id, (shares.get(id) ?? zero).sub(s._sum.amount ?? zero));
+  }
 
   const ids = [...shares.keys()];
   if (ids.length === 0) return [];
@@ -1086,7 +1094,8 @@ export async function reopen(user: AuthUser, id: string) {
 
 export interface PlanCharge {
   budget: Budget;
-  accountId: string;
+  /** The funding account whose reservation this spend frees. */
+  releaseAccountId: string;
 }
 
 /**
@@ -1110,9 +1119,14 @@ export async function assertUnplannedSpendable(
 }
 
 /**
- * Validate that `amount` can be paid out of a plan and decide which account the
- * real money leaves from. Returns the resolved source; throws with a readable
- * message when the pot (or one account's share of it) is too small.
+ * Validate that `amount` can be paid out of a plan and decide which funding
+ * account's reservation it frees.
+ *
+ * This is *not* the account the cash leaves - the caller picks that freely, and
+ * it may be a wallet that never funded the plan. What has to be resolved here is
+ * whose reservation comes off, because that money is sitting somewhere specific.
+ * `releaseAccountId` names it; with a single funder there is nothing to choose,
+ * and otherwise the largest share that covers the spend is assumed.
  *
  * `excludeTxId` lets an edit ignore its own prior effect.
  */
@@ -1120,7 +1134,7 @@ export async function assertSpendable(
   userId: string,
   budgetId: string,
   amount: number,
-  preferredAccountId?: string,
+  releaseAccountId?: string,
   excludeTxId?: string,
 ): Promise<PlanCharge> {
   const budget = await prisma.budget.findFirst({ where: { id: budgetId, userId } });
@@ -1148,31 +1162,51 @@ export async function assertSpendable(
     );
   }
 
-  // Pick the funding account that can cover the whole spend.
+  // Whose reservation comes off. Shares are keyed by the account that funded
+  // them, less what previous spends already released from each.
   const [allocs, spends] = await Promise.all([
     prisma.budgetAllocation.groupBy({ by: ['accountId'], where: { budgetId }, _sum: { amount: true } }),
-    prisma.transaction.groupBy({ by: ['accountId'], where: spendWhere, _sum: { amount: true } }),
+    prisma.transaction.groupBy({
+      by: ['budgetSourceAccountId'],
+      where: spendWhere,
+      _sum: { amount: true },
+    }),
   ]);
   const shares = new Map<string, Prisma.Decimal>();
   for (const a of allocs) shares.set(a.accountId, a._sum.amount ?? zero);
-  for (const s of spends) shares.set(s.accountId, (shares.get(s.accountId) ?? zero).sub(s._sum.amount ?? zero));
+  for (const s of spends) {
+    if (!s.budgetSourceAccountId) continue;
+    const id = s.budgetSourceAccountId;
+    shares.set(id, (shares.get(id) ?? zero).sub(s._sum.amount ?? zero));
+  }
 
-  const ranked = [...shares.entries()].sort((a, b) => b[1].comparedTo(a[1]));
-  const chosen = preferredAccountId
-    ? ranked.find(([accountId]) => accountId === preferredAccountId)
-    : ranked[0];
+  const ranked = [...shares.entries()]
+    .filter(([, share]) => share.gt(0))
+    .sort((a, b) => b[1].comparedTo(a[1]));
 
-  if (!chosen) throw new BadRequestError(`"${budget.name}" has no money in it yet.`);
-  if (want.gt(chosen[1])) {
-    const best = ranked[0];
+  if (ranked.length === 0) throw new BadRequestError(`"${budget.name}" has no money in it yet.`);
+
+  const chosen = releaseAccountId
+    ? ranked.find(([accountId]) => accountId === releaseAccountId)
+    : // No choice offered: take the largest share that covers it. With one
+      // funder - the common case - this is simply that funder.
+      (ranked.find(([, share]) => share.gte(want)) ?? ranked[0]);
+
+  if (!chosen) {
     throw new BadRequestError(
-      preferredAccountId
-        ? `Only ${chosen[1].toFixed(2)} ${budget.currency} of "${budget.name}" came from that account.`
-        : `"${budget.name}" holds money across several accounts; the largest single share is ${best![1].toFixed(2)} ${budget.currency}. Split the expense or move money between accounts first.`,
+      `None of "${budget.name}" was funded from that account, so there is no reservation there to free.`,
+    );
+  }
+  if (want.gt(chosen[1])) {
+    const best = ranked[0]!;
+    throw new BadRequestError(
+      releaseAccountId
+        ? `Only ${chosen[1].toFixed(2)} ${budget.currency} of "${budget.name}" is held against that account. Pick another one to take it off, or use ${best[1].toFixed(2)} from the largest share.`
+        : `"${budget.name}" holds money across several accounts; the largest single share is ${best[1].toFixed(2)} ${budget.currency}. Choose which account to take it off, or split the expense.`,
     );
   }
 
-  return { budget, accountId: chosen[0] };
+  return { budget, releaseAccountId: chosen[0] };
 }
 
 /**

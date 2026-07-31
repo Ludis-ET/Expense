@@ -13,6 +13,9 @@ const txInclude = {
   account: { select: { id: true, name: true, type: true, currency: true } },
   transferAccount: { select: { id: true, name: true, type: true } },
   budget: { select: { id: true, name: true, icon: true, color: true, currency: true } },
+  // Only differs from `account` when a plan was filled from one wallet and paid
+  // from another; worth showing so the reservation is traceable.
+  budgetSourceAccount: { select: { id: true, name: true, type: true } },
 } satisfies Prisma.TransactionInclude;
 
 function serialize(tx: { amount: Prisma.Decimal } & Record<string, unknown>) {
@@ -137,15 +140,18 @@ export async function listTags(user: AuthUser) {
 
 export async function create(user: AuthUser, input: CreateTransactionInput) {
   const planId = input.kind === TxKind.EXPENSE ? input.budgetId : undefined;
+  const requestedRelease =
+    input.kind === TxKind.EXPENSE ? input.budgetSourceAccountId : undefined;
 
   // Two shapes of plan spending:
-  //  - a funded plan: its pot must cover the spend, and it decides which
-  //    account the real money leaves from (the one that funded that share);
-  //  - the built-in Unplanned plan: no pot at all, so the caller says which
-  //    account to draw on and it goes through the ordinary balance guard.
+  //  - a funded plan: its pot must cover the spend, and one funding account's
+  //    reservation comes off - which need not be the wallet the cash leaves;
+  //  - the built-in Unplanned plan: no pot at all, so it is an ordinary expense
+  //    that happens to be labelled.
+  // Either way the caller names the account the money actually comes out of.
   let plan: { id: string; cycleIndex: number } | null = null;
-  let fromPot = false;
-  let accountId = input.accountId;
+  let releaseAccountId: string | null = null;
+  const accountId = input.accountId;
 
   if (planId) {
     const { assertSpendable, assertUnplannedSpendable } = await import(
@@ -158,15 +164,18 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
       }
       plan = { id: unplanned.id, cycleIndex: unplanned.cycleIndex };
     } else {
-      const charge = await assertSpendable(user.id, planId, input.amount, input.accountId);
+      if (!accountId) {
+        throw new BadRequestError('Pick which account this expense comes out of');
+      }
+      const charge = await assertSpendable(user.id, planId, input.amount, requestedRelease);
       plan = { id: charge.budget.id, cycleIndex: charge.budget.cycleIndex };
-      accountId = charge.accountId;
-      fromPot = true;
+      releaseAccountId = charge.releaseAccountId;
     }
   }
 
   if (!accountId) throw new BadRequestError('Pick an account or a budget plan to pay from');
   const account = await assertOwnedAccount(accountId, user.id);
+  if (releaseAccountId) await assertOwnedAccount(releaseAccountId, user.id);
 
   let categoryId: string | null = null;
   if (input.kind === TxKind.TRANSFER) {
@@ -176,11 +185,12 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
     categoryId = input.categoryId;
   }
 
-  // Money leaving an account may not push it negative. Spending out of a
-  // funded pot is already covered by its own reservation, so it only needs the
-  // real balance; everything else (including Unplanned) must fit in what is
-  // genuinely free after other plans have taken their share.
-  if (fromPot) {
+  // Money leaving an account may not push it negative. When the reservation
+  // being freed sits on this very account the money is already spoken for, so
+  // only the real balance matters. Pay from a different wallet and that wallet
+  // has nothing reserved here - it has to have the cash genuinely free, or it
+  // would end up over-committed to its own plans.
+  if (releaseAccountId === account.id) {
     const { accountBalance } = await import('../accounts/accounts.service.js');
     const real = await accountBalance(user.id, account.id);
     if (new Prisma.Decimal(input.amount).gt(real)) {
@@ -204,6 +214,7 @@ export async function create(user: AuthUser, input: CreateTransactionInput) {
       categoryId,
       budgetId: plan?.id ?? null,
       budgetCycle: plan?.cycleIndex ?? null,
+      budgetSourceAccountId: releaseAccountId,
       note: input.note,
       payee: input.payee,
       tags: input.tags,
@@ -227,18 +238,8 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
     ? await assertUnplannedSpendable(user.id, existing.budgetId)
     : null;
 
-  // A funded plan dictates its own source account; Unplanned does not.
-  if (
-    input.accountId &&
-    existing.budgetId &&
-    !unplanned &&
-    input.accountId !== existing.accountId
-  ) {
-    throw new BadRequestError(
-      'This expense is paid from a budget plan; the plan decides which account it comes out of.',
-    );
-  }
   if (input.accountId) await assertOwnedAccount(input.accountId, user.id);
+  if (input.budgetSourceAccountId) await assertOwnedAccount(input.budgetSourceAccountId, user.id);
   if (input.transferAccountId) {
     if (existing.kind !== TxKind.TRANSFER) {
       throw new BadRequestError('Only transfers have a destination account');
@@ -257,20 +258,39 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
 
   // Re-check the balance guard for outflows, ignoring this transaction's own
   // prior effect so an unchanged edit can't falsely trip.
+  const sourceId = input.accountId ?? existing.accountId;
+  let releaseAccountId = input.budgetSourceAccountId ?? existing.budgetSourceAccountId;
+
   if (existing.kind === TxKind.EXPENSE || existing.kind === TxKind.TRANSFER) {
     const outflow = Number(input.amount ?? existing.amount);
     if (existing.budgetId && !unplanned) {
       // Pot expenses are capped by the plan's pot, not by free account money.
       const { assertSpendable } = await import('../budgets/budgets.service.js');
-      await assertSpendable(user.id, existing.budgetId, outflow, existing.accountId, id);
-    } else {
-      const sourceId = input.accountId ?? existing.accountId;
+      const charge = await assertSpendable(
+        user.id,
+        existing.budgetId,
+        outflow,
+        releaseAccountId ?? undefined,
+        id,
+      );
+      releaseAccountId = charge.releaseAccountId;
+    }
+    // Paying from a wallet that is not the one holding the reservation means
+    // that wallet needs the money genuinely free - same rule as any expense.
+    if (releaseAccountId !== sourceId) {
       const source = await assertOwnedAccount(sourceId, user.id);
       await assertSufficientBalance(user.id, sourceId, source.name, outflow, id);
     }
   }
 
-  const tx = await prisma.transaction.update({ where: { id }, data: input, include: txInclude });
+  const tx = await prisma.transaction.update({
+    where: { id },
+    data: {
+      ...input,
+      ...(existing.budgetId && !unplanned ? { budgetSourceAccountId: releaseAccountId } : {}),
+    },
+    include: txInclude,
+  });
 
   if (tx.budgetId) {
     const { afterSpend } = await import('../budgets/budgets.service.js');

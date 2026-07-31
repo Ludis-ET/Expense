@@ -29,6 +29,12 @@ export const createTransactionSchema = z
       categoryId: z.string().min(1),
       /** Pay out of a budget plan's pot instead of straight from an account. */
       budgetId: z.string().min(1).optional(),
+      /**
+       * Which funding account's reservation to free. Only meaningful with
+       * `budgetId`, and only needs saying when the plan was filled from more
+       * than one account - otherwise the single funder is assumed.
+       */
+      budgetSourceAccountId: z.string().min(1).optional(),
       ...baseTx,
     }),
     z.object({
@@ -53,6 +59,8 @@ export const updateTransactionSchema = z.object({
   date: z.coerce.date().optional(),
   accountId: z.string().min(1).optional(),
   transferAccountId: z.string().min(1).optional(),
+  /** Which funding account's reservation a plan expense frees. */
+  budgetSourceAccountId: z.string().min(1).optional(),
   categoryId: z.string().min(1).optional(),
   note: z.string().max(2000).nullable().optional(),
   payee: z.string().max(200).nullable().optional(),

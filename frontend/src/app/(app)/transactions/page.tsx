@@ -15,6 +15,7 @@ import { TransferModal } from '@/components/finance/transfer-modal';
 import { RecurringPanel } from '@/components/finance/recurring-panel';
 import { ExportImportModal } from '@/components/finance/export-import-modal';
 import { MonthNavigator, currentMonth } from '@/components/finance/month-navigator';
+import { DailyPace } from '@/components/finance/daily-pace';
 import { ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
 import { useConfirm } from '@/components/ui/confirm-dialog';
@@ -213,6 +214,8 @@ function TransactionsInner() {
           <Download className="h-4 w-4" />
         </Button>
       </div>
+
+      <DailyPace month={month} />
 
       {isLoading && displayItems.length === 0 ? (
         <div className="space-y-3">{Array.from({ length: 6 }).map((_, i) => <Skeleton key={i} className="h-14" />)}</div>

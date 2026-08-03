@@ -37,7 +37,7 @@ export function DailyPace({ month }: { month: string }) {
         <span className="text-base font-bold tabular-nums">{money(pace)}</span>
         <InfoHint label="About the daily average">
           Spending in {data.label.toLowerCase()} divided by the {data.stats.dayCount} days counted
-          so far — a month still running stops at today rather than dividing by days that have not
+          so far    a month still running stops at today rather than dividing by days that have not
           happened. Income and transfers are not in it. Each bar is one day; taller and tinted ones
           are above the average.
         </InfoHint>

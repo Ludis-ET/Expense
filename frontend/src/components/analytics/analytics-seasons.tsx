@@ -33,7 +33,7 @@ export function AnalyticsSeasons({ currency }: { currency: string }) {
       {data.monthsObserved < 3 && (
         <p className="rounded-xl border border-border bg-surface-muted/40 px-3 py-2 text-xs text-muted">
           Only {data.monthsObserved} month{data.monthsObserved === 1 ? '' : 's'} of history so far.
-          Seasonal patterns need a year or two before they mean anything — this page will get more
+          Seasonal patterns need a year or two before they mean anything    this page will get more
           useful on its own.
         </p>
       )}
@@ -46,7 +46,7 @@ export function AnalyticsSeasons({ currency }: { currency: string }) {
             <InfoHint label="About the seasonal average">
               Average spend for each calendar month across every year you have data for. A month is
               divided by how many times you have actually lived it, not by the age of the account,
-              so a single observed January is shown as an average of one — check the sample count
+              so a single observed January is shown as an average of one    check the sample count
               before reading much into it.
             </InfoHint>
           </h2>
@@ -161,7 +161,7 @@ export function AnalyticsSeasons({ currency }: { currency: string }) {
                             {money(Math.abs(net))}
                           </td>
                           <td className="py-2 text-right tabular-nums text-muted">
-                            {y.savingsRate === null ? '—' : `${y.savingsRate}%`}
+                            {y.savingsRate === null ? '  ' : `${y.savingsRate}%`}
                           </td>
                         </tr>
                       );
@@ -171,7 +171,7 @@ export function AnalyticsSeasons({ currency }: { currency: string }) {
               </div>
               {!multiYear && (
                 <p className="mt-3 text-xs text-muted">
-                  One year of data — there is nothing to compare it against yet.
+                  One year of data    there is nothing to compare it against yet.
                 </p>
               )}
             </>

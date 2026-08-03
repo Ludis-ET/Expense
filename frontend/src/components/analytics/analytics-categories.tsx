@@ -22,7 +22,7 @@ function monthBounds(month: string) {
 }
 
 /**
- * Where the money went, and — more usefully — what changed. The breakdown says
+ * Where the money went, and    more usefully    what changed. The breakdown says
  * what is big; the movers say what is different, which is the part you can act
  * on before it becomes a habit.
  */
@@ -57,7 +57,7 @@ export function AnalyticsCategories({ month, currency }: { month: string; curren
           <PieChart className="h-4 w-4 text-muted" />
           {formatMonth(month)} by category
           <InfoHint label="About the breakdown">
-            Only the month in view, in {currency}. Transfers never appear — they have no category
+            Only the month in view, in {currency}. Transfers never appear    they have no category
             and move money between your own accounts rather than in or out.
           </InfoHint>
         </h2>
@@ -129,7 +129,7 @@ export function AnalyticsCategories({ month, currency }: { month: string; curren
             <Skeleton className="h-24" />
           ) : !movers.hasPrevious ? (
             <p className="text-sm text-muted">
-              No spending last month to compare against — this is your first month of history here.
+              No spending last month to compare against    this is your first month of history here.
             </p>
           ) : movers.up.length === 0 && movers.down.length === 0 ? (
             <p className="text-sm text-muted">Spending was flat across every category.</p>

@@ -110,7 +110,7 @@ export function InfoHint({
         aria-label={label}
         aria-expanded={open}
         onClick={(e) => {
-          // Cards and rows often wrap this in a link — never navigate on a hint tap.
+          // Cards and rows often wrap this in a link    never navigate on a hint tap.
           e.preventDefault();
           e.stopPropagation();
           cancelClose();

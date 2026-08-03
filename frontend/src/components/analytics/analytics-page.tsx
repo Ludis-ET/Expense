@@ -142,7 +142,7 @@ function AnalyticsOverview({ month, setMonth }: { month: string; setMonth: (m: s
 
       {!data.scope.complete && (
         <Honesty>
-          Totals cover {data.scope.currency} only — no rate is set for{' '}
+          Totals cover {data.scope.currency} only    no rate is set for{' '}
           {data.scope.missingRates.join(', ')}. Add one in Settings to see everything together.
         </Honesty>
       )}
@@ -297,7 +297,7 @@ function CashFlowCard({ data }: { data: AnalyticsPageData }) {
           </p>
           <InfoHint label="About net cash flow">
             Everything that came in, less everything that went out, for the month in view.
-            Transfers between your own accounts are not counted either way — moving money is not
+            Transfers between your own accounts are not counted either way    moving money is not
             earning or spending it.
           </InfoHint>
         </div>
@@ -329,7 +329,7 @@ function CashFlowCard({ data }: { data: AnalyticsPageData }) {
 
         {period.inProgress && (
           <p className="mt-2 text-[11px] text-muted">
-            {period.daysInMonth - period.daysElapsed} days still to go — this figure is not final.
+            {period.daysInMonth - period.daysElapsed} days still to go    this figure is not final.
           </p>
         )}
       </CardContent>
@@ -362,7 +362,7 @@ function UnplannedCard({ data }: { data: AnalyticsPageData }) {
           <div className="flex items-end justify-between gap-3">
             <div>
               <p className="text-3xl font-bold tabular-nums">{unplanned.pct}%</p>
-              <p className="text-xs text-muted">unplanned — {money(unplanned.amount)}</p>
+              <p className="text-xs text-muted">unplanned    {money(unplanned.amount)}</p>
             </div>
             <div className="text-right">
               <p className="text-lg font-semibold tabular-nums">{money(planned)}</p>
@@ -397,7 +397,7 @@ function ReservedCard({ data, pastMonth }: { data: AnalyticsPageData; pastMonth:
     <Section
       icon={Lock}
       title="What is actually free"
-      hint="Filling a plan does not move money out of your account — it just stops counting as available. This is the split: what is physically there, what plans have reserved, and what is genuinely yours to spend right now."
+      hint="Filling a plan does not move money out of your account    it just stops counting as available. This is the split: what is physically there, what plans have reserved, and what is genuinely yours to spend right now."
       href="/accounts"
       linkLabel="Accounts"
       asOfNow
@@ -414,7 +414,7 @@ function ReservedCard({ data, pastMonth }: { data: AnalyticsPageData; pastMonth:
       <p className="mt-3 text-sm text-muted">
         {Number(cash.available) <= 0
           ? 'Every birr you hold is spoken for. Give money back from a plan before spending outside one.'
-          : `${money(cash.available)} is unreserved across ${cash.accountCount} account${cash.accountCount === 1 ? '' : 's'} — everything else is already promised to a plan.`}
+          : `${money(cash.available)} is unreserved across ${cash.accountCount} account${cash.accountCount === 1 ? '' : 's'}    everything else is already promised to a plan.`}
       </p>
     </Section>
   );
@@ -434,7 +434,7 @@ function PlanDisciplineCard({ data, pastMonth }: { data: AnalyticsPageData; past
     <Section
       icon={Target}
       title="Plan discipline"
-      hint="Spending measured against what each cycle OPENED with, not what the plan was later changed to. Raising a plan mid-month to cover an overspend still reads as an overspend here — drift and discipline are different problems and one combined number hides both. Cycles are the plan's own periods, which may not line up with the calendar month."
+      hint="Spending measured against what each cycle OPENED with, not what the plan was later changed to. Raising a plan mid-month to cover an overspend still reads as an overspend here    drift and discipline are different problems and one combined number hides both. Cycles are the plan's own periods, which may not line up with the calendar month."
       href="/budgets"
       linkLabel="All plans"
       asOfNow
@@ -518,7 +518,7 @@ function PlanDisciplineCard({ data, pastMonth }: { data: AnalyticsPageData; past
           {plans.overspentCount > 0 && (
             <p className="mt-3 text-sm text-muted">
               <strong className="text-foreground">{plans.overspentCount}</strong> plan
-              {plans.overspentCount === 1 ? ' has' : 's have'} gone past what they opened with — either
+              {plans.overspentCount === 1 ? ' has' : 's have'} gone past what they opened with    either
               the plan was too small or the spending was.
             </p>
           )}
@@ -554,7 +554,7 @@ function CommitmentsCard({ data, pastMonth }: { data: AnalyticsPageData; pastMon
     <Section
       icon={Repeat}
       title="Your fixed floor"
-      hint="Every active recurring rule converted to what it costs per month — a fortnightly rule counts as roughly half a weekly one, not the same. This is the money that is spoken for before you decide anything."
+      hint="Every active recurring rule converted to what it costs per month    a fortnightly rule counts as roughly half a weekly one, not the same. This is the money that is spoken for before you decide anything."
       href="/transactions?tab=recurring"
       linkLabel="Recurring"
       asOfNow
@@ -687,7 +687,7 @@ function LedgerCard({ data, pastMonth }: { data: AnalyticsPageData; pastMonth: b
     <Section
       icon={HandCoins}
       title="Owed and owing"
-      hint="What is still outstanding after part-payments, not the original amount — a 5,000 loan repaid down to 1,000 counts as 1,000. Open entries only."
+      hint="What is still outstanding after part-payments, not the original amount    a 5,000 loan repaid down to 1,000 counts as 1,000. Open entries only."
       href="/tab"
       linkLabel="Money Tab"
       asOfNow
@@ -752,7 +752,7 @@ function LedgerCard({ data, pastMonth }: { data: AnalyticsPageData; pastMonth: b
           {ledger.overdueCount > 0 && (
             <p className="mt-3 text-sm text-muted">
               <strong className="text-foreground">{ledger.overdueCount}</strong> past their due date
-              — worth a message.
+                 worth a message.
             </p>
           )}
         </>

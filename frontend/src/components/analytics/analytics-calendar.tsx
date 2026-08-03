@@ -39,7 +39,7 @@ export function AnalyticsCalendar({ month, currency }: { month: string; currency
               Every day of {year}
               <InfoHint label="About the calendar">
                 One square per day, darker where you spent more. Empty squares are days with no
-                spending at all — the gaps are as informative as the dark patches.
+                spending at all    the gaps are as informative as the dark patches.
               </InfoHint>
             </h2>
             <div className="flex items-center gap-1">
@@ -87,8 +87,8 @@ export function AnalyticsCalendar({ month, currency }: { month: string; currency
               Which day you spend
               <InfoHint label="About the weekday profile">
                 Average spend on days of each weekday that saw any spending, across your whole
-                history. Dividing by days that actually had spending — rather than by every
-                calendar day — stops a quiet Sunday from flattering the average.
+                history. Dividing by days that actually had spending    rather than by every
+                calendar day    stops a quiet Sunday from flattering the average.
               </InfoHint>
             </h3>
             {!seasonal ? (

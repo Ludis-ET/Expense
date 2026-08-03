@@ -119,7 +119,7 @@ export function AnalyticsTrends({ currency }: { currency: string }) {
                   Kept each month
                   <InfoHint label="About kept each month">
                     Income minus spending. Bars below the line are months you spent more than came
-                    in — living off savings, or off someone else.
+                    in    living off savings, or off someone else.
                   </InfoHint>
                 </h3>
                 <SignedBarChart data={netBars} format={(v) => money(v)} height={160} />
@@ -140,7 +140,7 @@ export function AnalyticsTrends({ currency }: { currency: string }) {
                   Savings rate
                   <InfoHint label="About savings rate">
                     The share of each month&apos;s income you did not spend. Months with no income
-                    are left out rather than shown as zero — nothing came in to save.
+                    are left out rather than shown as zero    nothing came in to save.
                   </InfoHint>
                 </h3>
                 {savings.length === 0 ? (

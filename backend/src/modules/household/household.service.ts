@@ -11,7 +11,7 @@ export async function getMembership(userId: string) {
       household: {
         include: {
           members: {
-            include: { user: { select: { id: true, name: true, email: true } } },
+            include: { user: { select: { id: true, name: true, email: true, avatarId: true } } },
           },
           accounts: {
             where: { archived: false },
@@ -54,6 +54,7 @@ export async function overview(user: AuthUser) {
       id: m.user.id,
       name: m.user.name,
       email: m.user.email,
+      avatarId: m.user.avatarId,
       role: m.role,
       isYou: m.user.id === user.id,
     })),
@@ -75,7 +76,7 @@ export async function create(user: AuthUser, name?: string) {
       members: { create: { userId: user.id, role: HouseholdRole.OWNER } },
     },
     include: {
-      members: { include: { user: { select: { id: true, name: true, email: true } } } },
+      members: { include: { user: { select: { id: true, name: true, email: true, avatarId: true } } } },
     },
   });
 
@@ -86,6 +87,7 @@ export async function create(user: AuthUser, name?: string) {
       id: m.user.id,
       name: m.user.name,
       email: m.user.email,
+      avatarId: m.user.avatarId,
       role: m.role,
       isYou: m.user.id === user.id,
     })),

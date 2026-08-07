@@ -13,6 +13,8 @@ export interface User {
   calendar?: 'gregorian' | 'ethiopian';
   currency: string;
   firstDayOfWeek: number;
+  avatarId?: string;
+  bannerId?: string;
 }
 
 export interface AuthResponse {
@@ -445,6 +447,7 @@ export interface HouseholdMember {
   id: string;
   name: string;
   email: string;
+  avatarId?: string;
   role: 'OWNER' | 'PARTNER';
   isYou: boolean;
 }

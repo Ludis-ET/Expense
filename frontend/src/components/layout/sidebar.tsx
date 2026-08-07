@@ -127,7 +127,7 @@ export function Sidebar({ open, onClose }: { open: boolean; onClose: () => void 
 
           {user && (
             <div className="mt-2 flex items-center gap-3 rounded-xl bg-surface-muted/60 px-3 py-3">
-              <Avatar name={user.name} className="h-8 w-8 text-[10px]" />
+              <Avatar name={user.name} avatarId={user.avatarId} className="h-8 w-8 text-[10px]" />
               <div className="min-w-0 flex-1">
                 <p className="truncate text-sm font-medium">{user.name}</p>
                 <p className="truncate text-[11px] text-muted">{user.email}</p>

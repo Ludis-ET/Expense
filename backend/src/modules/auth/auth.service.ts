@@ -7,6 +7,7 @@ import { DEFAULT_CATEGORIES } from '../categories/default-categories.js';
 import { UNPLANNED_NAME, unplannedId } from '../budgets/budgets.service.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from './jwt.js';
 import type { LoginInput, RegisterInput } from './auth.schema.js';
+import { randomAvatarId, randomBannerId } from '../users/profile-presets.js';
 
 const BCRYPT_ROUNDS = 12;
 
@@ -32,7 +33,14 @@ export async function register(input: RegisterInput) {
   // app is usable immediately after signup.
   const user = await prisma.$transaction(async (tx) => {
     const created = await tx.user.create({
-      data: { name: input.name, email: input.email, passwordHash, locale: input.locale },
+      data: {
+        name: input.name,
+        email: input.email,
+        passwordHash,
+        locale: input.locale,
+        avatarId: randomAvatarId(),
+        bannerId: randomBannerId(),
+      },
     });
 
     await tx.category.createMany({

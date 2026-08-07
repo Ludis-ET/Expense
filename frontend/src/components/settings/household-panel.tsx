@@ -155,7 +155,7 @@ export function HouseholdPanel() {
               <ul className="space-y-2">
                 {household.members.map((m) => (
                   <li key={m.id} className="flex items-center gap-3 rounded-lg bg-surface-muted/50 px-3 py-2">
-                    <Avatar name={m.name} className="h-8 w-8 shrink-0 text-[10px]" />
+                    <Avatar name={m.name} avatarId={m.avatarId} className="h-8 w-8 shrink-0 text-[10px]" />
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">{m.isYou ? `${m.name} (you)` : m.name}</p>
                       <p className="truncate text-xs text-muted">{m.email}</p>

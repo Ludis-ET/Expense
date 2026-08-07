@@ -114,6 +114,10 @@ model User {
   calendar       String @default("gregorian") // "gregorian" | "ethiopian" - display preference
   currency       String @default("ETB") // default display/entry currency
   firstDayOfWeek Int    @default(1) // 1 = Monday, 0 = Sunday
+  /// Preset illustration id from the avatar catalog (assigned randomly on signup).
+  avatarId       String
+  /// Preset settings-banner id from the banner catalog (assigned randomly on signup).
+  bannerId       String
 
   accounts          Account[]
   categories        Category[]

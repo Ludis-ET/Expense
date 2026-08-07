@@ -73,7 +73,7 @@ export function ExchangeRatesPanel() {
         </div>
       </CardHeader>
       <CardContent className="space-y-4">
-        <div className="grid gap-3 sm:grid-cols-[1fr_1fr_1fr_auto] sm:items-end">
+        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-[1fr_1fr_1fr_auto] lg:items-end">
           <Field label="From">
             <Select value={from} onChange={(e) => setFrom(e.target.value)}>
               {CURRENCIES.map((c) => (
@@ -88,10 +88,12 @@ export function ExchangeRatesPanel() {
               ))}
             </Select>
           </Field>
-          <Field label="Rate (1 unit = ?)">
-            <Input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 56.5" inputMode="decimal" />
-          </Field>
-          <Button onClick={() => void save()} loading={saving} className="sm:mb-0">
+          <div className="sm:col-span-2 lg:col-span-1">
+            <Field label="Rate (1 unit = ?)">
+              <Input value={rate} onChange={(e) => setRate(e.target.value)} placeholder="e.g. 56.5" inputMode="decimal" />
+            </Field>
+          </div>
+          <Button onClick={() => void save()} loading={saving} className="w-full lg:mb-0 lg:w-auto">
             <Plus className="h-4 w-4" /> Add
           </Button>
         </div>

@@ -9,6 +9,7 @@ import {
   TxKind,
 } from '../generated/client/index.js';
 import { DEFAULT_CATEGORIES } from '../src/modules/categories/default-categories.js';
+import { pickAvatarId, pickBannerId } from '../src/modules/users/profile-presets.js';
 
 const prisma = new PrismaClient();
 
@@ -52,6 +53,8 @@ async function main() {
       passwordHash,
       locale: 'en',
       currency: 'ETB',
+      avatarId: pickAvatarId(42),
+      bannerId: pickBannerId(7),
     },
   });
 

@@ -89,7 +89,7 @@ export function Topbar({ onMenu }: { onMenu: () => void }) {
             onClick={() => setMenuOpen((o) => !o)}
             className="flex items-center gap-2 rounded-xl p-1 pr-1.5 transition-colors hover:bg-surface-muted sm:pr-2"
           >
-            <Avatar name={user?.name ?? '?'} className="h-8 w-8 text-[10px]" />
+            <Avatar name={user?.name ?? '?'} avatarId={user?.avatarId} className="h-8 w-8 text-[10px]" />
             <span className="hidden text-sm font-medium md:block">{user?.name?.split(' ')[0]}</span>
           </button>
           {menuOpen && (

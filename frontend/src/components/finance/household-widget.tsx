@@ -46,7 +46,7 @@ export function HouseholdWidget({
 
       <div className="mt-4 flex -space-x-2">
         {household.members.map((m) => (
-          <Avatar key={m.id} name={m.name} className="h-9 w-9 border-2 border-surface text-[10px]" />
+          <Avatar key={m.id} name={m.name} avatarId={m.avatarId} className="h-9 w-9 border-2 border-surface text-[10px]" />
         ))}
       </div>
       <p className="mt-2 text-xs text-muted">

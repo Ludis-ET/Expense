@@ -2,10 +2,28 @@ import type { ReactNode } from 'react';
 import { Loader2 } from 'lucide-react';
 import { BrandMark } from '@/components/brand';
 import { InfoHint } from '@/components/ui/info-hint';
+import { AvatarArt } from '@/lib/profile-presets';
 import { cn } from '@/lib/utils';
 import { initials } from '@/lib/format';
 
-export function Avatar({ name, className }: { name: string; className?: string }) {
+export function Avatar({
+  name,
+  avatarId,
+  className,
+}: {
+  name: string;
+  avatarId?: string | null;
+  className?: string;
+}) {
+  if (avatarId) {
+    return (
+      <AvatarArt
+        avatarId={avatarId}
+        className={cn('h-9 w-9 shrink-0 rounded-full shadow-sm', className)}
+      />
+    );
+  }
+
   return (
     <div
       className={cn(

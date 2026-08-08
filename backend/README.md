@@ -99,6 +99,66 @@ All routes are under `/api/v1`. Everything except `/auth/*` requires a
 | POST     | `/ai/ask` · `/ai/review` · `/ai/categorize` | needs a provider key |
 | GET/PUT  | `/ai/settings`, POST `/ai/settings/test`, GET `/ai/status` | manage provider keys |
 | GET      | `/notifications`, POST `/notifications/:id/read`, `/notifications/read-all` | |
+| GET/POST | `/devices`, POST `/devices/:id/revoke`, DELETE `/devices/:id` | pair a phone; the token is returned once |
+| GET      | `/ingest/inbox`, GET `/ingest/inbox/stats`, GET `/ingest/inbox/:id` | `?unresolved=true` for the review queue |
+| POST     | `/ingest/inbox/:id/{confirm,reject}`, DELETE `/ingest/inbox/:id` | confirm writes a real transaction |
+| POST     | `/ingest/inbox/reparse`               | replay improved parsers over stored bodies |
+| POST     | `/ingest/preview`                     | dry-run a message through the parsers |
+| GET/PUT  | `/ingest/senders`, DELETE `/ingest/senders/:id` | the per-sender allowlist and mapping |
+| GET      | `/ingest/banks`                       | bank catalog for the app's sender picker |
+| POST     | `/ingest/sms`, GET `/ingest/manifest` | **device token**, not JWT — see below |
+
+### Bank-message capture
+
+`POST /ingest/sms` and `GET /ingest/manifest` are the only routes that accept an
+`X-Device-Token` instead of a JWT. The Android upload worker runs headless, hours
+after the user last opened the app, so it cannot walk a 15-minute access token's
+refresh flow. The scope is deliberately narrow: a stolen device token can add
+messages to an inbox, but cannot read the ledger.
+
+Tokens are stored as SHA-256 digests only — plaintext is returned exactly once,
+at pairing. Revoking is a soft delete that also scrambles the stored hash, so the
+old token can never be resurrected.
+
+Ingest is **idempotent**. Each message is fingerprinted over
+`user + normalized sender + body + arrival minute`, with a unique index behind it.
+Re-sending a batch whose response was lost is a no-op that reports `duplicate` —
+the phone's retry loop depends on this. A second, softer dedupe matches the bank's
+own reference number, which catches the same transaction arriving by two routes.
+
+Parsing lives in `src/modules/ingest/parsers/`. Each bank declares only what it
+does differently; the generic extractors in `extract.ts` handle the rest and score
+0–100 confidence. One trap worth knowing about: balance clauses are matched and
+**masked out of the body before the amount is read**, so
+`"spent ETB 50, balance ETB 4,000"` cannot report a 4,000 birr coffee.
+`tests/ingest.parsers.test.ts` pins that down along with direction weighting and
+reference extraction.
+
+Auto-posting is off by default and requires a mapped account, a default category,
+and a score ≥ 80. It still writes through `transactions.create`, so the overdraw
+guard applies — a refusal is stored on the message and shown in the inbox rather
+than swallowed.
+
+### Movements that are not spending
+
+`InboxMessage.movement` separates the two shapes a naive reading gets wrong, and
+`GET /ingest/inbox` returns a `suggestion` per row telling the client what to
+offer:
+
+| movement | meaning | suggested |
+| -------- | ------- | --------- |
+| `ATM_WITHDRAWAL` | cash out of a machine | `TRANSFER` into `User.cashAccountId` |
+| `ACCOUNT_TRANSFER` | sent to another account | `TRANSFER` if the counterparty matches one of the user's `Account.accountNumber`s, otherwise `EXPENSE` |
+| `PLAIN` | everything else | the parsed income/expense |
+
+An ATM withdrawal booked as an expense double-counts the money — once at the
+machine and again when the cash is spent. Matching on account numbers uses only
+the trailing four digits, so a masked number pasted straight out of an SMS works.
+
+Neither can auto-post: both need a destination wallet the parser cannot know, so
+`parseMessage` caps their confidence below the floor. `confirm` accepts
+`kind: TRANSFER` with a `transferAccountId`, falling back to the user's cash
+wallet for ATM withdrawals and refusing with a readable message if none is set.
 
 ## Privacy & isolation
 

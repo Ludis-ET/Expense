@@ -10,6 +10,7 @@ import { AppLockProvider } from '@/lib/app-lock-context';
 import { OfflineProvider } from '@/lib/offline/offline-context';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
+import { AndroidAppPopup } from '@/components/pwa/android-app-popup';
 import { SplashScreen } from '@/components/splash-screen';
 import { CurrencyViewProvider } from '@/lib/currency-view-context';
 import { fetcher } from '@/lib/api';
@@ -43,6 +44,9 @@ export function Providers({ children }: { children: ReactNode }) {
               </AmountVisibilityProvider>
             </CurrencyViewBridge>
             <InstallPrompt />
+            {/* Android-only, on a random delay and frequency-capped. See
+                `useAppAd` for the caps. */}
+            <AndroidAppPopup />
           </PwaInstallProvider>
           <Toaster
             position="top-right"

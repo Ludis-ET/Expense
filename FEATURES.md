@@ -162,6 +162,26 @@ A live bell menu surfaces things needing attention: budget-plan alerts (running 
 
 Press **⌘K / Ctrl+K** anywhere to jump to any page, add a transaction, or toggle the theme.
 
+## Android app & bank-SMS capture
+
+A Flutter client (`mobile/`) covering the dashboard, activity, plans, wallets and settings — plus the one thing only a phone can do: reading your bank's SMS so you stop typing transactions.
+
+**How it works.** A native broadcast receiver catches messages from the banks you approve, the moment they arrive — app closed, swiped away, phone locked. Each message is queued in an on-device outbox and uploaded by a background worker with retry and backoff, so a dead zone delays a transaction rather than losing it. The server pulls out the amount, direction, balance, counterparty and reference number, scores how much it understood, and puts a draft in your **message inbox**. You glance at it and tap once.
+
+**Setup** is six steps: allow SMS, pair the phone, pick your banks, say which wallet holds cash, optionally import history, and lift Android's battery restrictions. The bank picker — **Messaging points** — lists the senders actually in your inbox with a sample message, since sender IDs vary by carrier. You can also add one by hand, link each to a wallet and a default category, and attach the wallet's account number.
+
+**The swipe deck.** *Review all* opens a full-screen stack, one message per card. Swipe right to record, left to skip; verdict stamps fade in as you drag and the next card peeks out underneath. Anything the parser could not work out is a highlighted chip on the card — tap, pick, carry on. A missing field blocks the swipe and says what it needs rather than half-committing. A month's messages take about a minute.
+
+**It knows what isn't spending.** Cash out of an ATM has not left your net worth — it moved from the bank into your pocket — so Santim offers it as a transfer into your cash wallet instead of double-counting it when you spend the cash. Money sent to another account is matched against your wallets' account numbers: if it is one of yours, it becomes a transfer; if not, it stays an expense. Neither can ever auto-post, because both need a destination the parser cannot know.
+
+**Importing history.** Live capture starts when setup finishes. Anything older comes in via a date range you choose — presets from 30 days to everything, or a custom range, with a count shown before you commit. Re-importing an overlapping range is harmless: the phone de-duplicates locally and the server fingerprints every message.
+
+**Review by default.** Nothing reaches your ledger unseen. Per sender you can turn on *Record without asking*, which needs a mapped wallet, a default category, and a confident read — and the write still goes through the same overdraw guard as a hand-typed entry, so a refusal shows up as an explanation instead of a silent failure.
+
+**When a parse is wrong.** Every field is editable, the original SMS is one tap away, and *Always use these* teaches the sender its wallet and category. Raw message text is kept, so improving a bank's pattern lets you re-read stored messages rather than re-uploading them.
+
+Because Google restricts SMS permissions to a short list of approved use cases that expense tracking is not on, the app installs directly (`flutter build apk` → `adb install`) rather than through Play. See [`mobile/README.md`](mobile/README.md).
+
 ---
 
 ## Starter categories
@@ -173,4 +193,6 @@ New accounts (and the demo) begin with a rich default set you can fully customiz
 
 ## Not built (by design)
 
-Deliberately out of scope for now: automatic bank-sync/import and receipt-image OCR. **Multi-currency** is supported per wallet with manual exchange rates and per-currency dashboard/analytics views (amounts are never naively merged). **Installable PWA** (Add to Home screen on Android and iOS) is supported; native App Store / Play Store builds are not.
+Deliberately out of scope for now: direct bank-API sync (no open-banking rails to plug into here) and receipt-image OCR. **Multi-currency** is supported per wallet with manual exchange rates and per-currency dashboard/analytics views (amounts are never naively merged). **Installable PWA** (Add to Home screen on Android and iOS) is supported.
+
+**Automatic transaction import** now exists on Android via bank-SMS capture — see above. It is not available on iOS and cannot be: Apple gives third-party apps no access to Messages at all. The Android app is distributed by direct install, not through Play.

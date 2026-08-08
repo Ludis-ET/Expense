@@ -14,6 +14,7 @@ import { Brand } from '@/components/brand';
 import { ThemeToggle } from '@/components/theme-toggle';
 import { DownloadAppButton } from '@/components/pwa/download-app-button';
 import { LandingMobileInstall } from '@/components/pwa/landing-mobile-install';
+import { AndroidAppShowcase } from '@/components/pwa/android-app-showcase';
 import { Button } from '@/components/ui/button';
 
 const features = [
@@ -42,6 +43,7 @@ export default function LandingPage() {
           <Brand />
           <nav className="hidden items-center gap-7 text-sm text-muted md:flex">
             <a href="#features" className="transition-colors hover:text-foreground">Features</a>
+            <a href="#android" className="transition-colors hover:text-foreground">Android app</a>
             <a href="#local" className="transition-colors hover:text-foreground">Made local</a>
             <a href="#cta" className="transition-colors hover:text-foreground">Get started</a>
           </nav>
@@ -120,6 +122,10 @@ export default function LandingPage() {
           ))}
         </div>
       </section>
+
+      {/* Android app - given its own block because bank-SMS capture is the one
+          thing a browser structurally cannot do. */}
+      <AndroidAppShowcase />
 
       {/* Local section */}
       <section id="local" className="border-y border-border bg-surface/50">

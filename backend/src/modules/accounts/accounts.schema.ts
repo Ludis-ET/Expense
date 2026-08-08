@@ -11,6 +11,12 @@ export const createAccountSchema = z.object({
   icon: z.string().max(50).optional(),
   color: z.string().regex(/^#[0-9a-fA-F]{6}$/).optional(),
   isDefault: z.boolean().optional(),
+  /**
+   * As the bank writes it, masking and all ("****4821"). Only the last four
+   * digits are ever compared, so pasting the masked form straight out of an
+   * SMS is enough to make transfer matching work.
+   */
+  accountNumber: z.string().max(40).nullable().optional(),
 });
 
 export const updateAccountSchema = createAccountSchema.partial().extend({

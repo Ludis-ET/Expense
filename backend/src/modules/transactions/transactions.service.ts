@@ -1,4 +1,4 @@
-import { CategoryKind, Prisma, TxKind } from '../../core/prisma.js';
+import { CategoryKind, InboxStatus, Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
@@ -18,7 +18,9 @@ const txInclude = {
   budgetSourceAccount: { select: { id: true, name: true, type: true } },
 } satisfies Prisma.TransactionInclude;
 
-function serialize(tx: { amount: Prisma.Decimal } & Record<string, unknown>) {
+// Generic so the returned shape keeps every field of the row it was given -
+// callers such as the SMS inbox need `id` back off a created transaction.
+function serialize<T extends { amount: Prisma.Decimal }>(tx: T) {
   return { ...tx, amount: tx.amount.toFixed(2) };
 }
 
@@ -301,6 +303,16 @@ export async function update(user: AuthUser, id: string, input: UpdateTransactio
 
 export async function remove(user: AuthUser, id: string) {
   const existing = await assertOwnedTransaction(id, user.id);
+
+  // If this row came from a captured bank message, hand the message back to the
+  // inbox rather than leaving it marked CONFIRMED against a transaction that no
+  // longer exists. Deleting is then a genuine undo: the message can be reviewed
+  // again, and the fingerprint still blocks a re-upload from duplicating it.
+  await prisma.inboxMessage.updateMany({
+    where: { transactionId: id, userId: user.id },
+    data: { status: InboxStatus.PENDING, transactionId: null, resolvedAt: null },
+  });
+
   await prisma.transaction.delete({ where: { id } });
   // Deleting a plan expense hands the money back to the pot.
   if (existing.budgetId) {

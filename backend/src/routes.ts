@@ -15,6 +15,8 @@ import { ledgerRouter } from './modules/ledger/ledger.router.js';
 import { exchangeRatesRouter } from './modules/exchange-rates/exchange-rates.router.js';
 import { wishlistRouter } from './modules/wishlist/wishlist.router.js';
 import { guidesRouter } from './modules/guides/guides.router.js';
+import { devicesRouter } from './modules/devices/devices.router.js';
+import { ingestRouter } from './modules/ingest/ingest.router.js';
 
 export const apiRouter = Router();
 
@@ -34,3 +36,5 @@ apiRouter.use('/ledger', ledgerRouter);
 apiRouter.use('/exchange-rates', exchangeRatesRouter);
 apiRouter.use('/wishlist', wishlistRouter);
 apiRouter.use('/guides', guidesRouter);
+apiRouter.use('/devices', devicesRouter);
+apiRouter.use('/ingest', ingestRouter);

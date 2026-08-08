@@ -1,0 +1,43 @@
+name: mobile
+description: "Santim - personal income & expense tracker, with automatic bank-SMS capture."
+publish_to: 'none'
+
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+
+  # State. Provider is deliberately boring here: the app's state is a handful
+  # of independent stores, not a graph that needs a heavier solution.
+  provider: ^6.1.2
+
+  http: ^1.2.2
+  # JWTs and the device token are account credentials, so they go in the
+  # Keystore-backed store rather than SharedPreferences.
+  flutter_secure_storage: ^9.2.2
+  shared_preferences: ^2.3.3
+
+  intl: ^0.20.2
+  permission_handler: ^11.3.1
+
+  # Offline. sqflite rather than a key-value store because the outbox is an
+  # ordered queue with attempt counts and the cache needs eviction by age -
+  # both awkward on top of plain preferences.
+  sqflite: ^2.4.1
+  path: ^1.9.0
+  connectivity_plus: ^6.1.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

@@ -105,6 +105,29 @@ enum WishlistStatus {
   DROPPED
 }
 
+// Where a captured message came from. SMS is the Android companion app; the
+// others are here so the inbox pipeline stays channel-agnostic.
+enum MessageSource {
+  SMS
+  NOTIFICATION
+  MANUAL
+  EMAIL
+}
+
+// Lifecycle of a captured bank message.
+//   PENDING   - parsed, waiting for the user to confirm it
+//   CONFIRMED - a real Transaction was created from it
+//   REJECTED  - user dismissed it; kept so it is never re-ingested
+//   UNPARSED  - no parser understood it; visible so patterns can be improved
+//   DUPLICATE - matched an earlier message's bank reference
+enum InboxStatus {
+  PENDING
+  CONFIRMED
+  REJECTED
+  UNPARSED
+  DUPLICATE
+}
+
 model User {
   id             String @id @default(cuid())
   email          String @unique
@@ -118,6 +141,11 @@ model User {
   avatarId       String
   /// Preset settings-banner id from the banner catalog (assigned randomly on signup).
   bannerId       String
+  /// Which wallet holds physical cash. ATM withdrawals are booked as a
+  /// transfer into it rather than as spending, so the money is not counted as
+  /// gone until it is actually spent. The user nominates this - there is no
+  /// safe way to guess which of their wallets is the cash one.
+  cashAccountId  String?
 
   accounts          Account[]
   categories        Category[]
@@ -134,6 +162,9 @@ model User {
   exchangeRates     ExchangeRate[]
   wishlistItems     WishlistItem[]
   weekSnapshots     WeekSnapshot[]
+  devices           Device[]
+  inboxMessages     InboxMessage[]
+  senderRules       BankSenderRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -195,6 +226,10 @@ model Account {
   name           String // "Cash", "CBE", "Telebirr"
   type           AccountType @default(CASH)
   currency       String      @default("ETB")
+  /// Account number as the bank writes it, usually masked ("****4821"). Used
+  /// to recognise which of your own wallets a transfer message refers to, so
+  /// an inter-account move is offered as a transfer rather than as spending.
+  accountNumber  String?
   openingBalance Decimal     @default(0) @db.Decimal(14, 2)
   icon           String? // lucide icon name
   color          String? // hex
@@ -206,12 +241,15 @@ model Account {
   planSpends     Transaction[]      @relation("TxBudgetSourceAccount")
   recurringRules RecurringRule[]
   allocations    BudgetAllocation[]
+  senderRules    BankSenderRule[]
+  inboxMessages  InboxMessage[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId])
   @@index([householdId])
+  @@index([userId, accountNumber])
   @@map("accounts")
 }
 
@@ -276,6 +314,11 @@ model Transaction {
   receiptUrl      String?
   recurringRuleId String?
   recurringRule   RecurringRule? @relation(fields: [recurringRuleId], references: [id], onDelete: SetNull)
+
+  // Set when this row was created from a captured bank message rather than
+  // typed by hand. Deleting the transaction releases the message back to the
+  // inbox instead of orphaning it.
+  inboxMessage InboxMessage?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -574,6 +617,136 @@ model WeekSnapshot {
   @@unique([userId, currency, weekStart])
   @@index([userId, weekStart])
   @@map("week_snapshots")
+}
+
+// A paired phone. The companion app authenticates SMS uploads with a long-lived
+// device token instead of a 15-minute JWT, because the Android upload worker
+// runs with no UI attached and cannot walk a refresh flow. Only the SHA-256 of
+// the token is stored; the plaintext is shown to the user exactly once.
+model Device {
+  id        String @id @default(cuid())
+  userId    String
+  user      User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name      String // "Pixel 8"
+  platform  String @default("android")
+  tokenHash String @unique
+
+  // Rough client fingerprint, purely for the "is my phone still forwarding?"
+  // panel in settings.
+  appVersion   String?
+  lastSeenAt   DateTime?
+  lastIngestAt DateTime?
+  messageCount Int       @default(0)
+
+  revokedAt DateTime?
+
+  inboxMessages InboxMessage[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, revokedAt])
+  @@map("devices")
+}
+
+// Which SMS senders count as a bank, and what to do with their messages. The
+// phone holds a copy of this list so non-matching messages never leave the
+// device; the server copy is the source of truth the app syncs from.
+model BankSenderRule {
+  id      String @id @default(cuid())
+  userId  String
+  user    User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  // Which parser handles this sender - a key from the parser registry.
+  bankKey String
+  // The literal SMS originating address, e.g. "CBE" or "127".
+  sender  String
+
+  // Which wallet these messages land in. Null means the user still has to pick
+  // an account when confirming.
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  // Default category applied to parsed expenses from this sender.
+  defaultCategoryId String?
+
+  enabled Boolean @default(true)
+  // Skip the review step and write the transaction straight away. Off by
+  // default: a mis-parse that auto-posts is expensive to unpick once budget
+  // reservations have moved.
+  autoCommit Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, sender])
+  @@index([userId, enabled])
+  @@map("bank_sender_rules")
+}
+
+// One captured bank message and whatever the parser made of it. Raw text is
+// kept so a parser fix can re-run over history.
+model InboxMessage {
+  id       String        @id @default(cuid())
+  userId   String
+  user     User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  deviceId String?
+  device   Device?       @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  source   MessageSource @default(SMS)
+
+  sender     String
+  body       String
+  receivedAt DateTime
+
+  // SHA-256 over user + sender + body + the minute the message arrived. The
+  // unique index on it is what makes re-uploading a batch harmless, which the
+  // phone relies on: it retries until the server acknowledges.
+  fingerprint String
+
+  status InboxStatus @default(PENDING)
+
+  // --- parse output -------------------------------------------------------
+  bankKey        String?
+  parsedKind     TxKind?
+  parsedAmount   Decimal? @db.Decimal(14, 2)
+  parsedCurrency String?
+  // Balance the bank reported after the movement. Not written anywhere yet -
+  // shown during review so a drifted account balance is obvious.
+  parsedBalance  Decimal? @db.Decimal(14, 2)
+  parsedPayee    String?
+  // Bank's own receipt/reference number. The strongest dedupe key there is:
+  // the same transaction arriving twice (SMS + email, or a resend) carries it.
+  parsedRef      String?
+
+  // PLAIN | ATM_WITHDRAWAL | ACCOUNT_TRANSFER. Anything other than PLAIN needs
+  // a destination wallet the parser cannot know, so it always reaches review.
+  movement       String   @default("PLAIN")
+  // Masked account number of the other side, matched against Account.accountNumber.
+  counterpartyAccount String?
+  atmLocation    String?
+  // Timestamp read out of the message body. Differs from receivedAt when the
+  // SMS was delayed by the network, which is common enough to matter for
+  // which day a transaction lands on.
+  occurredAt     DateTime?
+  // 0-100. Below the auto-commit floor a message always waits for review.
+  confidence     Int      @default(0)
+
+  // --- resolution ---------------------------------------------------------
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: SetNull)
+
+  transactionId String?      @unique
+  transaction   Transaction? @relation(fields: [transactionId], references: [id], onDelete: SetNull)
+  resolvedAt    DateTime?
+  // Why an auto-commit did not go through (e.g. the overdraw guard refused it).
+  error         String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, fingerprint])
+  @@index([userId, status, receivedAt])
+  @@index([userId, parsedRef])
+  @@map("inbox_messages")
 }
 
 // User-defined conversion rates (e.g. 1 USD = 56.5 ETB). Never merge currencies without these.

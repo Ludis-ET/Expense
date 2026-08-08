@@ -12,6 +12,7 @@ const publicUserSelect = {
   firstDayOfWeek: true,
   avatarId: true,
   bannerId: true,
+  cashAccountId: true,
   createdAt: true,
 } as const;
 
@@ -23,6 +24,7 @@ export type UpdateProfileInput = {
   firstDayOfWeek?: number;
   avatarId?: string;
   bannerId?: string;
+  cashAccountId?: string | null;
 };
 
 export async function getById(userId: string) {
@@ -37,6 +39,15 @@ export async function updateProfile(userId: string, data: UpdateProfileInput) {
   }
   if (data.bannerId !== undefined && !isBannerId(data.bannerId)) {
     throw new BadRequestError('Unknown banner');
+  }
+  // The cash wallet is what ATM withdrawals get transferred into, so it has to
+  // be one of this user's own accounts - not just any id that parses.
+  if (data.cashAccountId) {
+    const account = await prisma.account.findFirst({
+      where: { id: data.cashAccountId, userId },
+      select: { id: true },
+    });
+    if (!account) throw new NotFoundError('Account not found');
   }
   return prisma.user.update({ where: { id: userId }, data, select: publicUserSelect });
 }

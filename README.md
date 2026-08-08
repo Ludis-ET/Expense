@@ -6,9 +6,13 @@ A personal income & expense tracker - **Express + Prisma backend** and a **Next.
 .
 ├── backend/    Modular-monolith REST API (Express, Prisma, PostgreSQL)
 ├── frontend/   Next.js 15 App Router web app (Tailwind v4, SWR)
+├── mobile/     Flutter Android client + native bank-SMS capture
 ├── pnpm-workspace.yaml
 └── package.json   Workspace scripts
 ```
+
+> `mobile/` is a Flutter project, not a pnpm package — it is outside the
+> workspace and has its own toolchain. See [`mobile/README.md`](mobile/README.md).
 
 ## Features
 
@@ -27,6 +31,18 @@ A personal income & expense tracker - **Express + Prisma backend** and a **Next.
 - **Assistant** - ask questions about your money and generate a personalized monthly review (using your own AI provider key)
 - **Settings** - profile, default currency, language (English/Amharic/Oromo/Tigrinya), Ethiopian calendar option, category manager, theme picker, and AI providers
 - Live **notifications**, global theming, toasts, skeletons and empty states throughout
+
+**Mobile (Android)** — a Flutter client covering the dashboard, activity, plans and
+wallets, plus the feature that only a phone can offer: **automatic bank-SMS
+capture**. A native Kotlin broadcast receiver reads messages from the banks you
+approve the moment they arrive — app closed, phone locked — queues them in a
+local outbox, and uploads them with WorkManager. The server parses out the
+amount, direction, balance and reference number, scores how confident it is, and
+drops a draft in a review inbox. You tap once to record it.
+
+Nothing posts to your ledger unseen unless you explicitly enable per-sender
+auto-recording, and even then it must clear a confidence floor and still passes
+through the same overdraw guard as a hand-typed entry.
 
 See [`FEATURES.md`](FEATURES.md) for a full walkthrough of what you can do on each page.
 
@@ -72,6 +88,24 @@ pnpm dev
 | `pnpm db:migrate` / `db:seed`  | Prisma migrate / seed              |
 
 See [`backend/README.md`](backend/README.md) for the full API reference and data model.
+
+## Mobile app
+
+```bash
+cd mobile
+flutter pub get
+flutter run --dart-define=SANTIM_API_URL=http://192.168.1.10:4000/api/v1
+```
+
+Use your machine's LAN IP on a real phone, or omit the define to get the
+emulator default (`10.0.2.2`). The address is also editable in-app under
+**Settings → Server**.
+
+Bank-SMS capture cannot ship on Google Play — `RECEIVE_SMS` is restricted to a
+short list of approved use cases that expense tracking is not on — so the app is
+built for direct install (`flutter build apk`, then `adb install`). Setup, parser
+tuning and the reliability caveats are covered in
+[`mobile/README.md`](mobile/README.md).
 
 ## AI assistant (optional)
 

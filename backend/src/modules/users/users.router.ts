@@ -32,6 +32,8 @@ const updateMeSchema = z.object({
   firstDayOfWeek: z.number().int().min(0).max(1).optional(),
   avatarId: z.enum(AVATAR_IDS).optional(),
   bannerId: z.enum(BANNER_IDS).optional(),
+  /** Which wallet holds physical cash; ATM withdrawals transfer into it. */
+  cashAccountId: z.string().min(1).nullable().optional(),
 });
 
 usersRouter.put(

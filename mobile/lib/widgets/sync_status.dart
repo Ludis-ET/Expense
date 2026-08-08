@@ -15,16 +15,17 @@ class SyncStatusPill extends StatelessWidget {
   Widget build(BuildContext context) {
     final sync = context.watch<SyncEngine>();
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
 
     final (label, color, icon) = switch ((sync.online, sync.isSyncing, sync.pending)) {
-      (false, _, _) => ('Offline', SantimTheme.warning, Icons.cloud_off_outlined),
-      (true, true, _) => ('Syncing…', theme.colorScheme.primary, Icons.sync),
+      (false, _, _) => ('Offline', colors.amber, Icons.cloud_off_outlined),
+      (true, true, _) => ('Syncing…', colors.cyan, Icons.sync),
       (true, false, > 0) => (
-          compact ? '${sync.pending}' : '${sync.pending} pending',
-          SantimTheme.warning,
+          compact ? '${sync.pending}' : 'Outbox · ${sync.pending} pending',
+          colors.amber,
           Icons.cloud_upload_outlined,
         ),
-      _ => ('Synced', SantimTheme.income, Icons.cloud_done_outlined),
+      _ => ('All synced', colors.mint, Icons.check_rounded),
     };
 
     return AnimatedContainer(
@@ -77,6 +78,7 @@ class OfflineBanner extends StatelessWidget {
     }
 
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
     final offline = !sync.online;
     final message = offline
         ? (sync.hasPending
@@ -88,8 +90,8 @@ class OfflineBanner extends StatelessWidget {
 
     return Material(
       color: offline
-          ? SantimTheme.warning.withValues(alpha: 0.14)
-          : theme.colorScheme.primary.withValues(alpha: 0.1),
+          ? colors.amber.withValues(alpha: 0.14)
+          : colors.cyan.withValues(alpha: 0.1),
       child: InkWell(
         onTap: sync.online ? () => sync.sync() : null,
         child: Padding(
@@ -99,7 +101,7 @@ class OfflineBanner extends StatelessWidget {
               Icon(
                 offline ? Icons.wifi_off_rounded : Icons.cloud_upload_outlined,
                 size: 16,
-                color: offline ? SantimTheme.warning : theme.colorScheme.primary,
+                color: offline ? colors.amber : colors.cyan,
               ),
               const SizedBox(width: 8),
               Expanded(
@@ -117,7 +119,7 @@ class OfflineBanner extends StatelessWidget {
                   style: TextStyle(
                     fontSize: 12,
                     fontWeight: FontWeight.w800,
-                    color: theme.colorScheme.primary,
+                    color: colors.cyan,
                   ),
                 ),
             ],

@@ -4,18 +4,59 @@ import '../core/formatting.dart';
 /// the point of display only - see the note in `Money`.
 
 class AppUser {
-  const AppUser({required this.id, required this.email, this.name, this.currency = 'ETB'});
+  const AppUser({
+    required this.id,
+    required this.email,
+    this.name,
+    this.currency = 'ETB',
+    this.locale = 'en',
+    this.calendar = 'gregorian',
+    this.firstDayOfWeek = 1,
+    this.avatarId,
+    this.bannerId,
+  });
 
   final String id;
   final String email;
   final String? name;
   final String currency;
+  final String locale;
+  final String calendar;
+  final int firstDayOfWeek;
+  final String? avatarId;
+  final String? bannerId;
 
   factory AppUser.fromJson(Map<String, dynamic> json) => AppUser(
         id: json['id'] as String,
         email: json['email'] as String,
         name: json['name'] as String?,
         currency: json['currency'] as String? ?? 'ETB',
+        locale: json['locale'] as String? ?? 'en',
+        calendar: json['calendar'] as String? ?? 'gregorian',
+        firstDayOfWeek: (json['firstDayOfWeek'] as num?)?.toInt() ?? 1,
+        avatarId: json['avatarId'] as String?,
+        bannerId: json['bannerId'] as String?,
+      );
+
+  AppUser copyWith({
+    String? name,
+    String? currency,
+    String? locale,
+    String? calendar,
+    int? firstDayOfWeek,
+    String? avatarId,
+    String? bannerId,
+  }) =>
+      AppUser(
+        id: id,
+        email: email,
+        name: name ?? this.name,
+        currency: currency ?? this.currency,
+        locale: locale ?? this.locale,
+        calendar: calendar ?? this.calendar,
+        firstDayOfWeek: firstDayOfWeek ?? this.firstDayOfWeek,
+        avatarId: avatarId ?? this.avatarId,
+        bannerId: bannerId ?? this.bannerId,
       );
 }
 
@@ -122,6 +163,14 @@ class Budget {
     this.icon,
     this.color,
     this.state = 'ACTIVE',
+    this.health = 'ok',
+    this.fillable,
+    this.carriedIn,
+    this.recurrenceLabel,
+    this.cycleLabel,
+    this.startsAt,
+    this.note,
+    this.categoryName,
   });
 
   final String id;
@@ -152,25 +201,129 @@ class Budget {
   final String? icon;
   final String? color;
   final String state;
+  final String health;
+  final String? fillable;
+  final String? carriedIn;
+  final String? recurrenceLabel;
+  final String? cycleLabel;
+  final DateTime? startsAt;
+  final String? note;
+  final String? categoryName;
 
   double get progress => (pctSpentOfFunded / 100).clamp(0, 1).toDouble();
 
-  factory Budget.fromJson(Map<String, dynamic> json) => Budget(
-        id: json['id'] as String,
-        name: json['name'] as String,
-        kind: json['kind'] as String? ?? 'ONE_TIME',
-        currency: json['currency'] as String? ?? 'ETB',
-        plannedAmount: json['plannedAmount']?.toString(),
-        fundedAmount: json['fundedAmount']?.toString(),
-        spentAmount: json['spentAmount']?.toString(),
-        potBalance: json['balance']?.toString(),
-        pctSpentOfFunded: (json['pctSpentOfFunded'] as num?)?.round() ?? 0,
-        isUnplanned: json['isUnplanned'] as bool? ?? json['kind'] == 'UNPLANNED',
-        started: json['started'] as bool? ?? true,
-        icon: json['icon'] as String?,
-        color: json['color'] as String?,
-        state: json['state'] as String? ?? 'ACTIVE',
-      );
+  factory Budget.fromJson(Map<String, dynamic> json) {
+    final category = json['category'] as Map<String, dynamic>?;
+    return Budget(
+      id: json['id'] as String,
+      name: json['name'] as String,
+      kind: json['kind'] as String? ?? 'ONE_TIME',
+      currency: json['currency'] as String? ?? 'ETB',
+      plannedAmount: json['plannedAmount']?.toString(),
+      fundedAmount: json['fundedAmount']?.toString(),
+      spentAmount: json['spentAmount']?.toString(),
+      potBalance: json['balance']?.toString(),
+      pctSpentOfFunded: (json['pctSpentOfFunded'] as num?)?.round() ?? 0,
+      isUnplanned: json['isUnplanned'] as bool? ?? json['kind'] == 'UNPLANNED',
+      started: json['started'] as bool? ?? true,
+      icon: json['icon'] as String?,
+      color: json['color'] as String?,
+      state: json['state'] as String? ?? 'ACTIVE',
+      health: json['health'] as String? ?? 'ok',
+      fillable: json['fillable']?.toString(),
+      carriedIn: json['carriedIn']?.toString(),
+      recurrenceLabel: json['recurrenceLabel'] as String?,
+      cycleLabel: json['cycleLabel'] as String?,
+      startsAt: Dates.tryParse(json['startsAt']),
+      note: json['note'] as String?,
+      categoryName: category?['name'] as String?,
+    );
+  }
+}
+
+class BudgetSourceHold {
+  const BudgetSourceHold({required this.accountId, required this.accountName, required this.available});
+  final String accountId;
+  final String accountName;
+  final String available;
+
+  factory BudgetSourceHold.fromJson(Map<String, dynamic> json) {
+    final account = json['account'] as Map<String, dynamic>?;
+    return BudgetSourceHold(
+      accountId: account?['id'] as String? ?? '',
+      accountName: account?['name'] as String? ?? 'Account',
+      available: json['available']?.toString() ?? '0',
+    );
+  }
+}
+
+class BudgetTimelineEntry {
+  const BudgetTimelineEntry({
+    required this.id,
+    required this.kind,
+    required this.amount,
+    required this.date,
+    this.note,
+    this.accountName,
+  });
+
+  final String id;
+  final String kind;
+  final String amount;
+  final DateTime? date;
+  final String? note;
+  final String? accountName;
+
+  factory BudgetTimelineEntry.fromJson(Map<String, dynamic> json) {
+    final account = json['account'] as Map<String, dynamic>?;
+    return BudgetTimelineEntry(
+      id: json['id'] as String? ?? json['allocationId']?.toString() ?? 'entry-${json.hashCode}',
+      kind: json['kind'] as String? ?? json['type'] as String? ?? 'ALLOCATION',
+      amount: json['amount']?.toString() ?? '0',
+      date: Dates.tryParse(json['date'] ?? json['createdAt']),
+      note: json['note'] as String?,
+      accountName: account?['name'] as String?,
+    );
+  }
+}
+
+class BudgetDetail {
+  const BudgetDetail({
+    required this.plan,
+    this.sources = const [],
+    this.timeline = const [],
+    this.lifetimeSpent,
+    this.lifetimeTxCount = 0,
+    this.lifetimeCycleCount = 0,
+    this.lifetimeFirstTxAt,
+  });
+
+  final Budget plan;
+  final List<BudgetSourceHold> sources;
+  final List<BudgetTimelineEntry> timeline;
+  final String? lifetimeSpent;
+  final int lifetimeTxCount;
+  final int lifetimeCycleCount;
+  final DateTime? lifetimeFirstTxAt;
+
+  factory BudgetDetail.fromJson(Map<String, dynamic> json) {
+    final lifetime = json['lifetime'] as Map<String, dynamic>?;
+    return BudgetDetail(
+      plan: Budget.fromJson(json),
+      sources: ((json['sources'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(BudgetSourceHold.fromJson)
+          .toList(),
+      timeline: ((json['timeline'] as List?) ?? const [])
+          .whereType<Map<String, dynamic>>()
+          .map(BudgetTimelineEntry.fromJson)
+          .toList(),
+      lifetimeSpent: lifetime?['spent']?.toString(),
+      lifetimeTxCount: (lifetime?['txCount'] as num?)?.toInt() ?? 0,
+      lifetimeCycleCount: (lifetime?['cycleCount'] as num?)?.toInt() ?? 0,
+      lifetimeFirstTxAt: Dates.tryParse(lifetime?['firstTxAt']),
+    );
+  }
 }
 
 class Transaction {
@@ -183,9 +336,14 @@ class Transaction {
     this.payee,
     this.note,
     this.accountName,
+    this.transferAccountName,
     this.categoryName,
     this.categoryColor,
+    this.categoryIcon,
     this.budgetName,
+    this.budgetColor,
+    this.budgetCycle,
+    this.recurringRuleId,
     this.tags = const [],
     this.pendingSync = false,
   });
@@ -198,9 +356,14 @@ class Transaction {
   final String? payee;
   final String? note;
   final String? accountName;
+  final String? transferAccountName;
   final String? categoryName;
   final String? categoryColor;
+  final String? categoryIcon;
   final String? budgetName;
+  final String? budgetColor;
+  final int? budgetCycle;
+  final String? recurringRuleId;
   final List<String> tags;
 
   /// An optimistic row: saved on this phone, not yet accepted by the server.
@@ -211,13 +374,21 @@ class Transaction {
   /// True for rows the SMS pipeline created, which are tagged on the way in.
   bool get fromBankMessage => tags.contains('auto');
 
-  String get title => payee?.trim().isNotEmpty == true
-      ? payee!
-      : (categoryName ?? (kind == 'INCOME' ? 'Income' : 'Expense'));
+  bool get isTransfer => kind == 'TRANSFER';
+
+  String get title {
+    if (isTransfer) {
+      return '${accountName ?? '?'} → ${transferAccountName ?? '?'}';
+    }
+    return payee?.trim().isNotEmpty == true
+        ? payee!
+        : (categoryName ?? (kind == 'INCOME' ? 'Income' : 'Expense'));
+  }
 
   factory Transaction.fromJson(Map<String, dynamic> json) {
     final category = json['category'] as Map<String, dynamic>?;
     final account = json['account'] as Map<String, dynamic>?;
+    final transfer = json['transferAccount'] as Map<String, dynamic>?;
     final budget = json['budget'] as Map<String, dynamic>?;
 
     return Transaction(
@@ -229,9 +400,14 @@ class Transaction {
       payee: json['payee'] as String?,
       note: json['note'] as String?,
       accountName: account?['name'] as String?,
+      transferAccountName: transfer?['name'] as String?,
       categoryName: category?['name'] as String?,
       categoryColor: category?['color'] as String?,
+      categoryIcon: category?['icon'] as String?,
       budgetName: budget?['name'] as String?,
+      budgetColor: budget?['color'] as String?,
+      budgetCycle: (json['budgetCycle'] as num?)?.toInt(),
+      recurringRuleId: json['recurringRuleId'] as String?,
       tags: ((json['tags'] as List?) ?? const []).map((e) => '$e').toList(),
     );
   }

@@ -21,103 +21,98 @@ class AccountDetailScreen extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
     final typeLabel = account.type.replaceAll('_', ' ').toLowerCase();
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Wallet')),
+      appBar: AppBar(title: Text(account.name)),
       body: ListView(
         padding: const EdgeInsets.fromLTRB(16, 8, 16, 40),
         children: [
           SoftCard(
-            padding: EdgeInsets.zero,
-            child: Container(
-              width: double.infinity,
-              padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(24),
-                gradient: SantimTheme.heroGradient(theme.brightness),
-              ),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      Container(
-                        width: 48,
-                        height: 48,
-                        decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.16),
-                          borderRadius: BorderRadius.circular(16),
-                        ),
-                        child: Icon(
-                          _icons[account.type] ?? Icons.wallet_rounded,
-                          color: Colors.white,
-                        ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Container(
+                      width: 56,
+                      height: 56,
+                      decoration: BoxDecoration(
+                        color: colors.primary.withValues(alpha: 0.12),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: colors.border.withValues(alpha: 0.6)),
                       ),
-                      const Spacer(),
-                      if (account.isDefault)
-                        Container(
-                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                          decoration: BoxDecoration(
-                            color: Colors.white.withValues(alpha: 0.16),
-                            borderRadius: BorderRadius.circular(999),
+                      child: Icon(
+                        _icons[account.type] ?? Icons.wallet_rounded,
+                        color: colors.primary,
+                        size: 26,
+                      ),
+                    ),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Row(
+                            children: [
+                              Flexible(
+                                child: Text(
+                                  account.name,
+                                  style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                                ),
+                              ),
+                              if (account.isDefault) ...[
+                                const SizedBox(width: 8),
+                                Container(
+                                  padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+                                  decoration: BoxDecoration(
+                                    color: colors.primary.withValues(alpha: 0.1),
+                                    borderRadius: BorderRadius.circular(99),
+                                  ),
+                                  child: Text(
+                                    'default',
+                                    style: TextStyle(fontSize: 10, fontWeight: FontWeight.w700, color: colors.primary),
+                                  ),
+                                ),
+                              ],
+                            ],
                           ),
-                          child: const Text(
-                            'Default',
-                            style: TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 11),
+                          Text(
+                            '$typeLabel · ${account.currency}',
+                            style: theme.textTheme.bodySmall?.copyWith(color: colors.muted),
                           ),
-                        ),
-                    ],
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    account.name,
-                    style: theme.textTheme.headlineSmall?.copyWith(color: Colors.white),
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    typeLabel,
-                    style: const TextStyle(color: Colors.white70, fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 18),
-                  Text(
-                    'Free to spend',
-                    style: theme.textTheme.labelLarge?.copyWith(color: Colors.white70),
-                  ),
-                  const SizedBox(height: 6),
-                  Text(
-                    Money.format(account.available, currency: account.currency),
-                    style: theme.textTheme.displaySmall?.copyWith(color: Colors.white),
-                  ),
-                ],
-              ),
+                        ],
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 18),
+                Text(
+                  Money.format(account.available, currency: account.currency),
+                  style: theme.textTheme.headlineMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  '${Money.format(account.realBalance, currency: account.currency)} real · '
+                  '${Money.format(account.locked, currency: account.currency)} in plan pots',
+                  style: theme.textTheme.bodySmall?.copyWith(color: colors.muted),
+                ),
+              ],
             ),
           ),
           const SizedBox(height: 14),
           SoftCard(
             child: Column(
               children: [
+                _row(context, 'Available to spend', Money.format(account.available, currency: account.currency)),
                 _row(context, 'In the account', Money.format(account.realBalance, currency: account.currency)),
-                _row(context, 'Held in plans', Money.format(account.locked, currency: account.currency)),
-                _row(context, 'Currency', account.currency),
+                _row(context, 'Set aside in plans', Money.format(account.locked, currency: account.currency)),
                 if (account.accountNumber != null)
                   _row(context, 'Account number', account.accountNumber!),
               ],
             ),
           ),
-          if (account.hasReservation) ...[
-            const SizedBox(height: 14),
-            SoftCard(
-              color: SantimTheme.warning.withValues(alpha: 0.08),
-              child: Text(
-                'Some of this wallet is reserved for budget plans. That money still sits here, '
-                'but it is not counted as free to spend.',
-                style: theme.textTheme.bodyMedium?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ),
-          ],
         ],
       ),
     );
@@ -125,17 +120,13 @@ class AccountDetailScreen extends StatelessWidget {
 
   Widget _row(BuildContext context, String label, String value) {
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 10),
       child: Row(
         children: [
-          Expanded(
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-            ),
-          ),
-          Text(value, style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w800)),
+          Expanded(child: Text(label, style: TextStyle(color: colors.muted))),
+          Text(value, style: const TextStyle(fontWeight: FontWeight.w700)),
         ],
       ),
     );

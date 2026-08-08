@@ -12,6 +12,7 @@ import 'state/auth_store.dart';
 import 'state/capture_store.dart';
 import 'state/data_store.dart';
 import 'state/notification_store.dart';
+import 'state/theme_controller.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -44,6 +45,7 @@ class _SantimAppState extends State<SantimApp> {
   late final DataStore _data;
   late final CaptureStore _capture;
   late final NotificationStore _notifications;
+  late final ThemeController _theme;
 
   @override
   void initState() {
@@ -52,6 +54,7 @@ class _SantimAppState extends State<SantimApp> {
     _data = DataStore(api: widget.api, db: widget.db, sync: widget.sync);
     _capture = CaptureStore(api: widget.api, db: widget.db, sync: widget.sync);
     _notifications = NotificationStore(api: widget.api, db: widget.db);
+    _theme = ThemeController();
     widget.sync.start();
     _auth.addListener(_onAuthChanged);
   }
@@ -84,13 +87,17 @@ class _SantimAppState extends State<SantimApp> {
         ChangeNotifierProvider<DataStore>.value(value: _data),
         ChangeNotifierProvider<CaptureStore>.value(value: _capture),
         ChangeNotifierProvider<NotificationStore>.value(value: _notifications),
+        ChangeNotifierProvider<ThemeController>.value(value: _theme),
       ],
-      child: MaterialApp(
-        title: 'Santim',
-        debugShowCheckedModeBanner: false,
-        theme: SantimTheme.light(),
-        darkTheme: SantimTheme.dark(),
-        home: const _Root(),
+      child: Consumer<ThemeController>(
+        builder: (context, theme, _) => MaterialApp(
+          title: 'Santim',
+          debugShowCheckedModeBanner: false,
+          theme: SantimTheme.light(),
+          darkTheme: SantimTheme.dark(),
+          themeMode: theme.mode,
+          home: const _Root(),
+        ),
       ),
     );
   }

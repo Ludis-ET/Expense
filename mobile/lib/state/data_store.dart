@@ -33,6 +33,58 @@ class DataStore extends ChangeNotifier {
   int _total = 0;
   bool loadingMore = false;
 
+  /// Active ledger filters (website parity).
+  String? txFrom;
+  String? txTo;
+  String? txKind;
+  String? txCategoryId;
+  String? txBudgetId;
+  String? txQuery;
+  String? txAccountId;
+
+  void setTransactionFilters({
+    String? from,
+    String? to,
+    String? kind,
+    String? categoryId,
+    String? budgetId,
+    String? q,
+    String? accountId,
+    bool clearKind = false,
+    bool clearCategory = false,
+    bool clearBudget = false,
+    bool clearQuery = false,
+    bool clearAccount = false,
+  }) {
+    if (from != null) txFrom = from;
+    if (to != null) txTo = to;
+    if (clearKind) {
+      txKind = null;
+    } else if (kind != null) {
+      txKind = kind.isEmpty ? null : kind;
+    }
+    if (clearCategory) {
+      txCategoryId = null;
+    } else if (categoryId != null) {
+      txCategoryId = categoryId.isEmpty ? null : categoryId;
+    }
+    if (clearBudget) {
+      txBudgetId = null;
+    } else if (budgetId != null) {
+      txBudgetId = budgetId.isEmpty ? null : budgetId;
+    }
+    if (clearQuery) {
+      txQuery = null;
+    } else if (q != null) {
+      txQuery = q.isEmpty ? null : q;
+    }
+    if (clearAccount) {
+      txAccountId = null;
+    } else if (accountId != null) {
+      txAccountId = accountId.isEmpty ? null : accountId;
+    }
+  }
+
   /// The wallet the user nominated as holding physical cash.
   String? cashAccountId;
 
@@ -212,11 +264,22 @@ class DataStore extends ChangeNotifier {
     }
 
     try {
-      final data = await api.get('/transactions', query: {
+      final query = <String, dynamic>{
         'page': _page,
         'pageSize': 25,
         'sort': 'date_desc',
-      }) as Map<String, dynamic>;
+      };
+      // Scope by profile currency when available (website currency view).
+      // The API accepts currency; omitting it returns mixed wallets.
+      if (txFrom != null) query['from'] = txFrom;
+      if (txTo != null) query['to'] = txTo;
+      if (txKind != null) query['kind'] = txKind;
+      if (txCategoryId != null) query['categoryId'] = txCategoryId;
+      if (txBudgetId != null) query['budgetId'] = txBudgetId;
+      if (txQuery != null) query['q'] = txQuery;
+      if (txAccountId != null) query['accountId'] = txAccountId;
+
+      final data = await api.get('/transactions', query: query) as Map<String, dynamic>;
 
       final items = (data['items'] as List)
           .whereType<Map<String, dynamic>>()
@@ -249,8 +312,140 @@ class DataStore extends ChangeNotifier {
       if (!reset) _page -= 1;
     } finally {
       loadingMore = false;
-      if (!reset) notifyListeners();
+      notifyListeners();
     }
+  }
+
+  Future<BudgetDetail?> fetchBudgetDetail(String id) async {
+    try {
+      final data = await api.get('/budgets/$id') as Map<String, dynamic>;
+      return BudgetDetail.fromJson(data);
+    } on NetworkException {
+      return null;
+    }
+  }
+
+  Future<BudgetDetail> fundBudget({
+    required String budgetId,
+    required String accountId,
+    required double amount,
+    required String date,
+    String? note,
+  }) async {
+    final data = await api.post(
+      '/budgets/$budgetId/fund',
+      body: {
+        'accountId': accountId,
+        'amount': amount,
+        'date': date,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+    ) as Map<String, dynamic>;
+    await _loadBudgets();
+    await _loadAccounts();
+    return BudgetDetail.fromJson(data);
+  }
+
+  Future<BudgetDetail> releaseBudget({
+    required String budgetId,
+    required String accountId,
+    required double amount,
+    required String date,
+    String? note,
+  }) async {
+    final data = await api.post(
+      '/budgets/$budgetId/release',
+      body: {
+        'accountId': accountId,
+        'amount': amount,
+        'date': date,
+        if (note != null && note.isNotEmpty) 'note': note,
+      },
+    ) as Map<String, dynamic>;
+    await _loadBudgets();
+    await _loadAccounts();
+    return BudgetDetail.fromJson(data);
+  }
+
+  Future<void> closeBudget(String id) async {
+    await api.post('/budgets/$id/close', body: {});
+    await _loadBudgets();
+  }
+
+  Future<void> reopenBudget(String id) async {
+    await api.post('/budgets/$id/reopen', body: {});
+    await _loadBudgets();
+  }
+
+  Future<void> deleteBudget(String id) async {
+    await api.delete('/budgets/$id');
+    await _loadBudgets();
+  }
+
+  Future<bool> createTransfer({
+    required String fromAccountId,
+    required String toAccountId,
+    required double amount,
+    required String currency,
+    required String date,
+    String? note,
+  }) {
+    return createTransaction({
+      'kind': 'TRANSFER',
+      'amount': amount,
+      'currency': currency,
+      'accountId': fromAccountId,
+      'transferAccountId': toAccountId,
+      'date': date,
+      if (note != null && note.isNotEmpty) 'note': note,
+    });
+  }
+
+  Future<List<Transaction>> fetchTransactions({
+    String? accountId,
+    String? budgetId,
+    int pageSize = 40,
+    String sort = 'date_desc',
+  }) async {
+    final query = <String, dynamic>{
+      'page': 1,
+      'pageSize': pageSize,
+      'sort': sort,
+    };
+    if (accountId != null) query['accountId'] = accountId;
+    if (budgetId != null) query['budgetId'] = budgetId;
+    try {
+      final data = await api.get('/transactions', query: query) as Map<String, dynamic>;
+      return (data['items'] as List)
+          .whereType<Map<String, dynamic>>()
+          .map(Transaction.fromJson)
+          .toList();
+    } on NetworkException {
+      return const [];
+    }
+  }
+
+  Future<Map<String, dynamic>> fetchWishlist({
+    String? status,
+    String? q,
+    String sort = 'priority',
+  }) async {
+    final query = <String, dynamic>{'sort': sort};
+    if (status != null && status != 'all') query['status'] = status;
+    if (q != null && q.isNotEmpty) query['q'] = q;
+    final data = await api.get('/wishlist', query: query) as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> fetchLedger({String? kind, String status = 'open'}) async {
+    final query = <String, dynamic>{'status': status};
+    if (kind != null && kind != 'all') query['kind'] = kind;
+    final data = await api.get('/ledger', query: query) as Map<String, dynamic>;
+    return data;
+  }
+
+  Future<Map<String, dynamic>> fetchLedgerSummary() async {
+    return await api.get('/ledger/summary') as Map<String, dynamic>;
   }
 
   // --- writes ---------------------------------------------------------------
@@ -295,6 +490,7 @@ class DataStore extends ChangeNotifier {
         note: body['note'] as String?,
         accountName: account?.name,
         categoryName: category?.name,
+        categoryColor: category?.color,
         tags: const ['pending'],
         pendingSync: true,
       ),

@@ -44,83 +44,46 @@ class _LoginScreenState extends State<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final auth = context.watch<AuthStore>();
+    final colors = theme.extension<SantimColors>()!;
 
     return Scaffold(
-      body: DecoratedBox(
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topCenter,
-            end: Alignment.bottomCenter,
-            colors: [
-              SantimTheme.seed.withValues(alpha: 0.16),
-              theme.scaffoldBackgroundColor,
-              theme.scaffoldBackgroundColor,
-            ],
-          ),
-        ),
-        child: SafeArea(
-          child: ListView(
-            padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
-            children: [
-              const SizedBox(height: 18),
-              FadeIn(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(20),
-                      child: Image.asset(
-                        'assets/branding/app_icon.png',
-                        width: 64,
-                        height: 64,
-                        fit: BoxFit.cover,
-                        errorBuilder: (context, error, stackTrace) => Container(
-                          width: 64,
-                          height: 64,
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(20),
-                            gradient: SantimTheme.heroGradient(theme.brightness),
-                          ),
-                          child: const Icon(Icons.payments_rounded, color: Colors.white, size: 30),
-                        ),
-                      ),
-                    ),
-                    const SizedBox(height: 22),
-                    Text(
-                      _register ? 'Create your Santim' : 'Welcome back',
-                      style: theme.textTheme.headlineLarge,
-                    ),
-                    const SizedBox(height: 8),
-                    Text(
-                      _register
-                          ? 'Track spending, plans and bank SMS in one calm place.'
-                          : 'Your money, offline-ready and always in sync.',
-                      style: theme.textTheme.bodyLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
+      body: SafeArea(
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: ListView(
+              padding: const EdgeInsets.fromLTRB(20, 28, 20, 28),
+              children: [
+                const BrandRow(),
+                const SizedBox(height: 28),
+                Text(
+                  _register ? 'Create your account' : 'Welcome back',
+                  style: theme.textTheme.headlineSmall,
                 ),
-              ),
-              const SizedBox(height: 32),
-              SoftCard(
-                child: Form(
+                const SizedBox(height: 4),
+                Text(
+                  _register ? 'Start tracking your money' : 'Sign in to your money',
+                  style: theme.textTheme.bodyMedium?.copyWith(color: colors.muted),
+                ),
+                const SizedBox(height: 28),
+                Form(
                   key: _formKey,
                   child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       if (_register) ...[
                         TextFormField(
                           controller: _name,
                           textCapitalization: TextCapitalization.words,
-                          decoration: const InputDecoration(labelText: 'Full name'),
-                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Required' : null,
+                          decoration: const InputDecoration(labelText: 'Your name'),
+                          validator: (v) => (v == null || v.trim().isEmpty) ? 'Enter your name' : null,
                         ),
                         const SizedBox(height: 14),
                       ],
                       TextFormField(
                         controller: _email,
                         keyboardType: TextInputType.emailAddress,
+                        autofillHints: const [AutofillHints.email],
                         decoration: const InputDecoration(labelText: 'Email'),
                         validator: (v) => (v == null || !v.contains('@')) ? 'Enter a valid email' : null,
                       ),
@@ -135,66 +98,60 @@ class _LoginScreenState extends State<LoginScreen> {
                             icon: Icon(_obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined),
                           ),
                         ),
-                        validator: (v) => (v == null || v.length < 6) ? 'At least 6 characters' : null,
+                        validator: (v) => (v == null || v.length < 8) ? 'At least 8 characters' : null,
                       ),
-                      const SizedBox(height: 22),
+                      const SizedBox(height: 20),
                       FilledButton(
                         onPressed: _busy ? null : _submit,
+                        style: FilledButton.styleFrom(minimumSize: const Size.fromHeight(48)),
                         child: _busy
                             ? const SizedBox(
-                                width: 22,
-                                height: 22,
+                                width: 20,
+                                height: 20,
                                 child: CircularProgressIndicator(strokeWidth: 2.4, color: Colors.white),
                               )
-                            : Text(_register ? 'Create account' : 'Sign in'),
-                      ),
-                      const SizedBox(height: 10),
-                      TextButton(
-                        onPressed: _busy ? null : () => setState(() => _register = !_register),
-                        child: Text(_register ? 'Already have an account? Sign in' : 'New here? Create an account'),
+                            : Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Text(_register ? 'Create account' : 'Sign in'),
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.arrow_forward_rounded, size: 18),
+                                ],
+                              ),
                       ),
                     ],
                   ),
                 ),
-              ),
-              const SizedBox(height: 18),
-              TextButton(
-                onPressed: () => _editServer(context, auth),
-                child: Text(
-                  'Server · ${auth.api.baseUrl.replaceFirst(RegExp(r'https?://'), '')}',
-                  style: theme.textTheme.bodySmall?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-                  overflow: TextOverflow.ellipsis,
+                const SizedBox(height: 24),
+                Text.rich(
+                  TextSpan(
+                    style: theme.textTheme.bodySmall?.copyWith(color: colors.muted),
+                    children: [
+                      TextSpan(text: _register ? 'Already have an account? ' : "Don't have an account? "),
+                      WidgetSpan(
+                        alignment: PlaceholderAlignment.baseline,
+                        baseline: TextBaseline.alphabetic,
+                        child: GestureDetector(
+                          onTap: _busy ? null : () => setState(() => _register = !_register),
+                          child: Text(
+                            _register ? 'Sign in' : 'Create one',
+                            style: TextStyle(
+                              color: colors.primary,
+                              fontWeight: FontWeight.w600,
+                              fontSize: theme.textTheme.bodySmall?.fontSize,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                  textAlign: TextAlign.center,
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
     );
-  }
-
-  Future<void> _editServer(BuildContext context, AuthStore auth) async {
-    final controller = TextEditingController(text: auth.api.baseUrl);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('API server'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          keyboardType: TextInputType.url,
-          decoration: const InputDecoration(hintText: 'https://host/api/v1'),
-        ),
-        actions: [
-          TextButton(onPressed: () => Navigator.pop(context), child: const Text('Cancel')),
-          FilledButton(
-            style: FilledButton.styleFrom(minimumSize: const Size(88, 40)),
-            onPressed: () => Navigator.pop(context, controller.text.trim()),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    if (result != null && result.isNotEmpty) await auth.setBaseUrl(result);
   }
 }

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:provider/provider.dart';
 
 import '../core/formatting.dart';
@@ -11,10 +12,9 @@ import '../state/data_store.dart';
 import '../state/notification_store.dart';
 import '../widgets/common.dart';
 import '../widgets/sync_status.dart';
+import '../widgets/web_chrome.dart';
 import 'capture/capture_setup_screen.dart';
 import 'capture/inbox_screen.dart';
-import 'notifications_screen.dart';
-import 'settings_screen.dart';
 import 'transaction_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
@@ -24,13 +24,14 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = context.watch<DataStore>();
     final capture = context.watch<CaptureStore>();
-    final unread = context.select<NotificationStore, int>((s) => s.unread);
     final user = context.select<AuthStore, String?>((s) => s.user?.name);
     final d = data.dashboard;
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
 
     return Scaffold(
       body: RefreshIndicator(
+        color: colors.primary,
         onRefresh: () async {
           await data.refreshAll();
           if (!context.mounted) return;
@@ -43,39 +44,17 @@ class DashboardScreen extends StatelessWidget {
           slivers: [
             SliverAppBar(
               floating: true,
-              title: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    user == null ? 'Santim' : 'Hi, ${user.split(' ').first}',
-                    style: theme.textTheme.titleLarge,
-                  ),
-                  Text(
-                    'Your money today',
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
+              leading: IconButton(
+                icon: const Icon(Icons.menu_rounded),
+                onPressed: () => Scaffold.maybeOf(context)?.openDrawer(),
               ),
-              actions: [
-                const Padding(
+              title: const Text('Dashboard'),
+              actions: const [
+                Padding(
                   padding: EdgeInsets.only(right: 4),
                   child: Center(child: SyncStatusPill(compact: true)),
                 ),
-                IconButton(
-                  tooltip: 'Notifications',
-                  onPressed: () => Navigator.of(context).push(santimRoute(const NotificationsScreen())),
-                  icon: Badge(
-                    isLabelVisible: unread > 0,
-                    label: Text(unread > 9 ? '9+' : '$unread'),
-                    child: const Icon(Icons.notifications_none_rounded),
-                  ),
-                ),
-                IconButton(
-                  icon: const Icon(Icons.settings_outlined),
-                  onPressed: () => Navigator.of(context).push(santimRoute(const SettingsScreen())),
-                ),
+                WebTopActions(),
               ],
             ),
             SliverPadding(
@@ -83,93 +62,144 @@ class DashboardScreen extends StatelessWidget {
               sliver: SliverList.list(
                 children: [
                   if (data.loading && d.recent.isEmpty) ...[
-                    const ShimmerBlock(height: 180),
-                    const SizedBox(height: 14),
-                    const ShimmerBlock(height: 100),
+                    const ShimmerBlock(height: 200),
+                    const SizedBox(height: 12),
+                    const ShimmerBlock(height: 88),
                   ] else ...[
-                    FadeIn(child: _HeroBalance(data: d)),
-                    const SizedBox(height: 14),
+                    FadeIn(child: _HeroBalance(data: d, userName: user?.split(' ').first)),
+                    const SizedBox(height: 12),
                     if (!capture.native.healthy) ...[
                       SoftCard(
                         onTap: () => Navigator.of(context).push(santimRoute(const CaptureSetupScreen())),
-                        gradient: LinearGradient(
-                          colors: [
-                            SantimTheme.seed.withValues(alpha: 0.14),
-                            SantimTheme.seed.withValues(alpha: 0.04),
-                          ],
-                        ),
+                        padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            const Icon(Icons.sms_rounded, color: SantimTheme.seed),
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: colors.primary.withValues(alpha: 0.1),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.sms_rounded, color: colors.primary, size: 18),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 'Set up bank SMS capture',
-                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded),
+                            Icon(Icons.chevron_right_rounded, color: colors.muted),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                     ],
                     if (capture.needsReview > 0) ...[
                       SoftCard(
                         onTap: () => Navigator.of(context).push(santimRoute(const InboxScreen())),
-                        color: SantimTheme.warning.withValues(alpha: 0.1),
+                        padding: const EdgeInsets.all(16),
                         child: Row(
                           children: [
-                            const Icon(Icons.mark_email_unread_rounded, color: SantimTheme.warning),
+                            Container(
+                              width: 36,
+                              height: 36,
+                              decoration: BoxDecoration(
+                                color: colors.warning.withValues(alpha: 0.12),
+                                borderRadius: BorderRadius.circular(12),
+                              ),
+                              child: Icon(Icons.mark_email_unread_rounded, color: colors.warning, size: 18),
+                            ),
                             const SizedBox(width: 12),
                             Expanded(
                               child: Text(
                                 '${capture.needsReview} message${capture.needsReview == 1 ? '' : 's'} need review',
-                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
                               ),
                             ),
-                            const Icon(Icons.chevron_right_rounded),
+                            Icon(Icons.chevron_right_rounded, color: colors.muted),
                           ],
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const SizedBox(height: 12),
                     ],
-                    _MonthStrip(month: d.month),
-                    const SizedBox(height: 18),
+                    _SmartInsight(data: d),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                        Expanded(
+                          child: SoftCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Income', style: TextStyle(fontSize: 12, color: colors.muted, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  Money.format(d.month.income, currency: d.month.currency),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.success,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: SoftCard(
+                            padding: const EdgeInsets.all(16),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('Spent', style: TextStyle(fontSize: 12, color: colors.muted, fontWeight: FontWeight.w500)),
+                                const SizedBox(height: 6),
+                                Text(
+                                  Money.format(d.month.expense, currency: d.month.currency),
+                                  style: theme.textTheme.titleMedium?.copyWith(
+                                    fontWeight: FontWeight.w700,
+                                    color: colors.danger,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                     if (d.budgetsAtRisk.isNotEmpty) ...[
+                      const SizedBox(height: 16),
                       const SectionLabel('Plans running low'),
                       ...d.budgetsAtRisk.map(
                         (b) => Padding(
-                          padding: const EdgeInsets.only(bottom: 10),
+                          padding: const EdgeInsets.only(bottom: 8),
                           child: SoftCard(
+                            padding: const EdgeInsets.all(16),
                             child: Row(
                               children: [
                                 Expanded(
                                   child: Column(
                                     crossAxisAlignment: CrossAxisAlignment.start,
                                     children: [
-                                      Text(b.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                      Text(b.name, style: const TextStyle(fontWeight: FontWeight.w600)),
                                       const SizedBox(height: 4),
                                       Text(
                                         '${Money.format(b.potBalance, currency: b.currency)} left',
-                                        style: theme.textTheme.bodySmall?.copyWith(
-                                          color: theme.colorScheme.onSurfaceVariant,
-                                        ),
+                                        style: theme.textTheme.bodySmall?.copyWith(color: colors.muted),
                                       ),
                                     ],
                                   ),
                                 ),
-                                StatusPill(
-                                  label: '${b.pctSpentOfFunded.round()}%',
-                                  tone: PillTone.warn,
-                                ),
+                                StatusPill(label: '${b.pctSpentOfFunded.round()}%', tone: PillTone.warn),
                               ],
                             ),
                           ),
                         ),
                       ),
-                      const SizedBox(height: 8),
                     ],
+                    const SizedBox(height: 8),
                     const SectionLabel('Recent activity'),
                     if (d.recent.isEmpty)
                       const EmptyState(
@@ -178,16 +208,16 @@ class DashboardScreen extends StatelessWidget {
                         message: 'Add a transaction or pair your phone for bank SMS.',
                       )
                     else
-                      ...d.recent.map(
-                        (tx) => Padding(
-                          padding: const EdgeInsets.only(bottom: 8),
-                          child: SoftCard(
-                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                            onTap: () => Navigator.of(context).push(
-                              santimRoute(TransactionDetailScreen(tx: tx)),
-                            ),
-                            child: TransactionTile(tx: tx),
-                          ),
+                      SoftCard(
+                        padding: const EdgeInsets.fromLTRB(8, 8, 8, 4),
+                        child: Column(
+                          children: [
+                            for (final tx in d.recent)
+                              TransactionTile(
+                                tx: tx,
+                                onTap: () => showTransactionDetailSheet(context, tx),
+                              ),
+                          ],
                         ),
                       ),
                   ],
@@ -202,118 +232,191 @@ class DashboardScreen extends StatelessWidget {
 }
 
 class _HeroBalance extends StatelessWidget {
-  const _HeroBalance({required this.data});
+  const _HeroBalance({required this.data, this.userName});
 
   final DashboardData data;
+  final String? userName;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final now = DateTime.now();
+    final greeting = now.hour < 12
+        ? 'Good morning'
+        : now.hour < 17
+            ? 'Good afternoon'
+            : 'Good evening';
+    final greg = DateFormat('EEEE, d MMMM yyyy').format(now);
+    final locked = Money.parse(data.budgetLocked);
+
     return SoftCard(
       padding: EdgeInsets.zero,
+      gradient: SantimTheme.heroGradient(theme.brightness),
       child: Container(
         width: double.infinity,
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          gradient: SantimTheme.heroGradient(theme.brightness),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Text(
-              'Free to spend',
-              style: theme.textTheme.labelLarge?.copyWith(color: Colors.white70),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              Money.format(data.totalBalance, currency: data.displayCurrency),
-              style: theme.textTheme.displaySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
-            ),
-            const SizedBox(height: 18),
-            Row(
-              children: [
-                Expanded(
-                  child: _HeroStat(
-                    label: 'In wallets',
-                    value: Money.format(data.realBalance, currency: data.displayCurrency),
+        padding: const EdgeInsets.all(24),
+        child: DefaultTextStyle(
+          style: const TextStyle(color: Colors.white),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          userName == null ? greeting : '$greeting, $userName',
+                          style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w500, color: Colors.white70),
+                        ),
+                        const SizedBox(height: 6),
+                        Row(
+                          children: [
+                            const Icon(Icons.calendar_today_outlined, size: 13, color: Colors.white60),
+                            const SizedBox(width: 6),
+                            Flexible(
+                              child: Text(
+                                greg,
+                                style: const TextStyle(fontSize: 12, color: Colors.white60),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
                   ),
+                  Container(
+                    width: 40,
+                    height: 40,
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    child: const Icon(Icons.account_balance_wallet_outlined, color: Colors.white, size: 20),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 18),
+              Text(
+                'Available to spend · ${data.displayCurrency}',
+                style: const TextStyle(fontSize: 12, color: Colors.white60),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                Money.format(data.totalBalance, currency: data.displayCurrency),
+                style: theme.textTheme.displaySmall?.copyWith(
+                  color: Colors.white,
+                  fontWeight: FontWeight.w700,
+                  letterSpacing: -1,
                 ),
-                Expanded(
-                  child: _HeroStat(
-                    label: 'In plans',
-                    value: Money.format(data.budgetLocked, currency: data.displayCurrency),
-                  ),
+              ),
+              if (locked > 0) ...[
+                const SizedBox(height: 8),
+                Text(
+                  '${Money.format(data.realBalance, currency: data.displayCurrency)} in your accounts · '
+                  '${Money.format(data.budgetLocked, currency: data.displayCurrency)} set aside in budget plans',
+                  style: const TextStyle(fontSize: 12, color: Colors.white70),
                 ),
               ],
-            ),
-          ],
+              const SizedBox(height: 18),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
+                children: [
+                  _HeroChip(label: 'Income', value: Money.format(data.month.income, currency: data.month.currency)),
+                  _HeroChip(label: 'Spent', value: Money.format(data.month.expense, currency: data.month.currency)),
+                ],
+              ),
+            ],
+          ),
         ),
       ),
     );
   }
 }
 
-class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.label, required this.value});
+class _HeroChip extends StatelessWidget {
+  const _HeroChip({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
-      ],
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.15),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(label.toUpperCase(), style: const TextStyle(fontSize: 10, fontWeight: FontWeight.w500, color: Colors.white70)),
+          const SizedBox(height: 2),
+          Text(value, style: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600)),
+        ],
+      ),
     );
   }
 }
 
-class _MonthStrip extends StatelessWidget {
-  const _MonthStrip({required this.month});
+class _SmartInsight extends StatelessWidget {
+  const _SmartInsight({required this.data});
 
-  final MonthSummary month;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: SoftCard(
+    final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
+    final income = Money.parse(data.month.income);
+    final net = Money.parse(data.month.income) - Money.parse(data.month.expense);
+    String insight;
+    if (data.budgetsAtRisk.isNotEmpty) {
+      insight = '${data.budgetsAtRisk.length} budget plan${data.budgetsAtRisk.length == 1 ? ' is' : 's are'} running low.';
+    } else if (Money.parse(data.budgetLocked) > 0) {
+      insight =
+          '${Money.format(data.budgetLocked, currency: data.displayCurrency)} is set aside in budget plans and excluded from your available balance.';
+    } else if (income > 0 && net / income < 0.1) {
+      insight = 'Your savings rate is below 10% this month. Consider cutting unnecessary expenses.';
+    } else if (net > 0) {
+      insight = "You're saving ${Money.format(net, currency: data.displayCurrency)} this month — keep it up!";
+    } else {
+      insight = 'Add transactions and set budgets to unlock personalized insights.';
+    }
+
+    return SoftCard(
+      padding: const EdgeInsets.all(16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: colors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: Icon(Icons.lightbulb_outline_rounded, color: colors.primary, size: 18),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                const Text('In', style: TextStyle(fontWeight: FontWeight.w700, color: SantimTheme.income)),
-                const SizedBox(height: 6),
                 Text(
-                  Money.format(month.income, currency: month.currency),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                  'SMART INSIGHT',
+                  style: TextStyle(fontSize: 11, fontWeight: FontWeight.w600, letterSpacing: 0.6, color: colors.muted),
                 ),
+                const SizedBox(height: 4),
+                Text(insight, style: theme.textTheme.bodyMedium?.copyWith(height: 1.45)),
               ],
             ),
           ),
-        ),
-        const SizedBox(width: 10),
-        Expanded(
-          child: SoftCard(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text('Out', style: TextStyle(fontWeight: FontWeight.w700, color: SantimTheme.expense)),
-                const SizedBox(height: 6),
-                Text(
-                  Money.format(month.expense, currency: month.currency),
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -327,17 +430,18 @@ class TransactionTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
     final color = SantimTheme.amountColor(tx.kind, theme.colorScheme);
 
     return ListTile(
       onTap: onTap,
       contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       leading: Container(
-        height: 44,
-        width: 44,
+        height: 40,
+        width: 40,
         decoration: BoxDecoration(
           color: color.withValues(alpha: 0.12),
-          borderRadius: BorderRadius.circular(14),
+          borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
           switch (tx.kind) {
@@ -345,7 +449,7 @@ class TransactionTile extends StatelessWidget {
             'EXPENSE' => Icons.north_east_rounded,
             _ => Icons.swap_horiz_rounded,
           },
-          size: 20,
+          size: 18,
           color: color,
         ),
       ),
@@ -354,7 +458,8 @@ class TransactionTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
         style: TextStyle(
-          fontWeight: FontWeight.w700,
+          fontWeight: FontWeight.w600,
+          fontSize: 14,
           color: tx.pendingSync ? theme.colorScheme.onSurface.withValues(alpha: 0.55) : null,
         ),
       ),
@@ -366,6 +471,7 @@ class TransactionTile extends StatelessWidget {
         ].join(' · '),
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
+        style: TextStyle(fontSize: 12, color: colors.muted),
       ),
       trailing: Column(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -373,10 +479,9 @@ class TransactionTile extends StatelessWidget {
         children: [
           Text(
             Money.signed(tx.amount, tx.kind, currency: tx.currency),
-            style: theme.textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w800),
+            style: theme.textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w700),
           ),
-          if (tx.pendingSync)
-            const Icon(Icons.cloud_upload_outlined, size: 14, color: SantimTheme.warning),
+          if (tx.pendingSync) Icon(Icons.cloud_upload_outlined, size: 14, color: colors.warning),
         ],
       ),
     );

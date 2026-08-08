@@ -2,58 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 
-/// Soft elevated surface used across the redesign.
-class SoftCard extends StatelessWidget {
-  const SoftCard({
-    super.key,
-    required this.child,
-    this.padding = const EdgeInsets.all(18),
-    this.onTap,
-    this.gradient,
-    this.color,
-  });
-
-  final Widget child;
-  final EdgeInsets padding;
-  final VoidCallback? onTap;
-  final Gradient? gradient;
-  final Color? color;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final body = Container(
-      width: double.infinity,
-      padding: padding,
-      decoration: BoxDecoration(
-        color: gradient == null ? (color ?? theme.colorScheme.surface) : null,
-        gradient: gradient,
-        borderRadius: BorderRadius.circular(24),
-        border: Border.all(
-          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: SantimTheme.ink.withValues(alpha: theme.brightness == Brightness.light ? 0.05 : 0.25),
-            blurRadius: 24,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: child,
-    );
-
-    if (onTap == null) return body;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(24),
-        child: body,
-      ),
-    );
-  }
-}
+export '../core/theme.dart' show SoftCard, BrandMark, BrandRow, GlassCard, GlassIconButton, Eyebrow, AuroraBackdrop;
 
 class SectionLabel extends StatelessWidget {
   const SectionLabel(this.title, {super.key, this.action});
@@ -71,7 +20,7 @@ class SectionLabel extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+              style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600),
             ),
           ),
           ?action,
@@ -82,7 +31,7 @@ class SectionLabel extends StatelessWidget {
 }
 
 class ShimmerBlock extends StatefulWidget {
-  const ShimmerBlock({super.key, this.height = 88, this.radius = 20});
+  const ShimmerBlock({super.key, this.height = 88, this.radius = 16});
 
   final double height;
   final double radius;
@@ -97,7 +46,7 @@ class _ShimmerBlockState extends State<ShimmerBlock> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100))..repeat();
   }
 
   @override
@@ -108,7 +57,7 @@ class _ShimmerBlockState extends State<ShimmerBlock> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
-    final base = Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    final muted = Theme.of(context).extension<SantimColors>()!.surfaceMuted;
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) {
@@ -120,9 +69,9 @@ class _ShimmerBlockState extends State<ShimmerBlock> with SingleTickerProviderSt
               begin: Alignment(-1 + _c.value * 2, 0),
               end: Alignment(1 + _c.value * 2, 0),
               colors: [
-                base,
-                Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
-                base,
+                muted,
+                Theme.of(context).colorScheme.surface,
+                muted,
               ],
             ),
           ),
@@ -142,21 +91,17 @@ class FadeIn extends StatelessWidget {
   Widget build(BuildContext context) {
     return TweenAnimationBuilder<double>(
       tween: Tween(begin: 0, end: 1),
-      duration: const Duration(milliseconds: 520),
+      duration: const Duration(milliseconds: 450),
       curve: Curves.easeOutCubic,
       builder: (context, value, child) => Opacity(
         opacity: value,
-        child: Transform.translate(
-          offset: Offset(0, (1 - value) * 14),
-          child: child,
-        ),
+        child: Transform.translate(offset: Offset(0, (1 - value) * 10), child: child),
       ),
       child: child,
     );
   }
 }
 
-/// Placeholder for a list with nothing in it yet.
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -174,36 +119,32 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final colors = theme.extension<SantimColors>()!;
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
       child: Column(
         children: [
           Container(
-            width: 72,
-            height: 72,
+            width: 56,
+            height: 56,
             decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              gradient: LinearGradient(
-                colors: [
-                  SantimTheme.seed.withValues(alpha: 0.18),
-                  SantimTheme.seed.withValues(alpha: 0.05),
-                ],
-              ),
+              color: colors.primary.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(16),
             ),
-            child: Icon(icon, color: SantimTheme.seed, size: 30),
+            child: Icon(icon, color: colors.primary, size: 26),
           ),
-          const SizedBox(height: 18),
-          Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+          const SizedBox(height: 16),
+          Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
           if (message != null) ...[
-            const SizedBox(height: 8),
+            const SizedBox(height: 6),
             Text(
               message!,
               textAlign: TextAlign.center,
-              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+              style: theme.textTheme.bodyMedium?.copyWith(color: colors.muted),
             ),
           ],
           if (action != null) ...[
-            const SizedBox(height: 18),
+            const SizedBox(height: 16),
             action!,
           ],
         ],
@@ -222,20 +163,18 @@ class StatusPill extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).extension<SantimColors>()!;
     final (bg, fg) = switch (tone) {
-      PillTone.good => (SantimTheme.income.withValues(alpha: 0.12), SantimTheme.income),
-      PillTone.warn => (SantimTheme.warning.withValues(alpha: 0.14), SantimTheme.warning),
-      PillTone.bad => (SantimTheme.expense.withValues(alpha: 0.12), SantimTheme.expense),
-      PillTone.neutral => (
-          Theme.of(context).colorScheme.surfaceContainerHighest,
-          Theme.of(context).colorScheme.onSurfaceVariant,
-        ),
+      PillTone.good => (colors.success.withValues(alpha: 0.12), colors.success),
+      PillTone.warn => (colors.warning.withValues(alpha: 0.14), colors.warning),
+      PillTone.bad => (colors.danger.withValues(alpha: 0.12), colors.danger),
+      PillTone.neutral => (colors.surfaceMuted, colors.muted),
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
       decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
-      child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11)),
+      child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w600, fontSize: 11)),
     );
   }
 }
@@ -245,12 +184,12 @@ void showOk(BuildContext context, String message) {
 }
 
 void showError(BuildContext context, String message) {
+  final danger = Theme.of(context).extension<SantimColors>()?.danger ?? SantimTheme.danger;
   ScaffoldMessenger.of(context).showSnackBar(
-    SnackBar(content: Text(message), backgroundColor: SantimTheme.expense),
+    SnackBar(content: Text(message), backgroundColor: danger),
   );
 }
 
-/// Kept for older call sites that still import InfoHint from common.
 class InfoHint extends StatelessWidget {
   const InfoHint({
     super.key,
@@ -284,7 +223,6 @@ class InfoHint extends StatelessWidget {
   }
 }
 
-/// Backward-compatible section card used by screens not yet fully redesigned.
 class SectionCard extends StatelessWidget {
   const SectionCard({
     super.key,
@@ -304,6 +242,7 @@ class SectionCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final muted = theme.extension<SantimColors>()!.muted;
     return SoftCard(
       padding: padding,
       child: Column(
@@ -316,16 +255,11 @@ class SectionCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(title!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                      Text(title!, style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w600)),
                       if (subtitle != null)
                         Padding(
                           padding: const EdgeInsets.only(top: 2),
-                          child: Text(
-                            subtitle!,
-                            style: theme.textTheme.bodySmall?.copyWith(
-                              color: theme.colorScheme.onSurfaceVariant,
-                            ),
-                          ),
+                          child: Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: muted)),
                         ),
                     ],
                   ),
@@ -336,6 +270,42 @@ class SectionCard extends StatelessWidget {
             const SizedBox(height: 14),
           ],
           child,
+        ],
+      ),
+    );
+  }
+}
+
+class PageHeader extends StatelessWidget {
+  const PageHeader(this.title, {super.key, this.subtitle, this.actions});
+
+  final String title;
+  final String? subtitle;
+  final List<Widget>? actions;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final muted = theme.extension<SantimColors>()!.muted;
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 8, 8, 12),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(title, style: theme.textTheme.headlineSmall),
+                if (subtitle != null)
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Text(subtitle!, style: theme.textTheme.bodySmall?.copyWith(color: muted)),
+                  ),
+              ],
+            ),
+          ),
+          ...?actions,
         ],
       ),
     );

@@ -12,8 +12,8 @@ enum AuthPhase { loading, signedOut, signedIn }
 
 /// Session state, and the owner of the API base URL.
 ///
-/// Defaults to the Render production API. Override with `--dart-define` for
-/// local work, or change it in Settings on the device.
+/// Defaults to the local API. Override with `--dart-define=SANTIM_API_URL=...`
+/// for production, or change it in Settings on the device.
 class AuthStore extends ChangeNotifier {
   AuthStore({required this.api, required this.db});
 
@@ -23,11 +23,12 @@ class AuthStore extends ChangeNotifier {
   static const _kBaseUrl = 'santim.baseUrl';
   static const _kLastUser = 'santim.lastUser';
 
-  /// Production API on Render. Override at build time with
-  /// `--dart-define=SANTIM_API_URL=...` for local/emulator work.
+  /// Local API during development. Override at build time with
+  /// `--dart-define=SANTIM_API_URL=https://expense-7py7.onrender.com/api/v1`
+  /// for production APKs.
   static const defaultBaseUrl = String.fromEnvironment(
     'SANTIM_API_URL',
-    defaultValue: 'https://expense-7py7.onrender.com/api/v1',
+    defaultValue: 'http://localhost:4000/api/v1',
   );
 
   AuthPhase phase = AuthPhase.loading;
@@ -41,17 +42,12 @@ class AuthStore extends ChangeNotifier {
   Future<void> bootstrap() async {
     final prefs = await SharedPreferences.getInstance();
     final saved = prefs.getString(_kBaseUrl);
-    // Prefer the baked-in production host over leftover emulator/LAN URLs from
-    // an older install, so a release APK does not silently keep pointing at
-    // 10.0.2.2 after an upgrade.
-    final looksLocal = saved != null &&
-        (saved.contains('10.0.2.2') ||
-            saved.contains('localhost') ||
-            saved.contains('127.0.0.1') ||
-            RegExp(r'https?://192\.168\.').hasMatch(saved) ||
-            RegExp(r'https?://10\.\d+\.').hasMatch(saved));
-    api.baseUrl = (saved == null || looksLocal) ? defaultBaseUrl : saved;
-    if (looksLocal) await prefs.setString(_kBaseUrl, defaultBaseUrl);
+    // Prefer local default over a leftover Render URL from an older session,
+    // so browser/dev previews hit the machine running `npm run dev`.
+    final looksRemote = saved != null &&
+        (saved.contains('onrender.com') || saved.contains('https://expense'));
+    api.baseUrl = (saved == null || looksRemote) ? defaultBaseUrl : saved;
+    if (looksRemote || saved == null) await prefs.setString(_kBaseUrl, defaultBaseUrl);
 
     await api.loadTokens();
     if (!api.hasSession) {
@@ -167,6 +163,42 @@ class AuthStore extends ChangeNotifier {
     user = null;
     offlineSession = false;
     _set(AuthPhase.signedOut);
+  }
+
+  Future<void> updateProfile(Map<String, dynamic> body) async {
+    final map = await api.put('/users/me', body: body) as Map<String, dynamic>;
+    final userMap = map['user'] is Map<String, dynamic>
+        ? map['user'] as Map<String, dynamic>
+        : map;
+    // Merge so partial responses don't blank fields the client already knows.
+    final merged = <String, dynamic>{
+      if (user != null) ...{
+        'id': user!.id,
+        'email': user!.email,
+        'name': user!.name,
+        'currency': user!.currency,
+        'locale': user!.locale,
+        'calendar': user!.calendar,
+        'firstDayOfWeek': user!.firstDayOfWeek,
+        'avatarId': user!.avatarId,
+        'bannerId': user!.bannerId,
+      },
+      ...userMap,
+      ...body,
+    };
+    user = AppUser.fromJson(merged);
+    await db.put('profile', merged);
+    await _rememberUser(merged);
+    notifyListeners();
+  }
+
+  Future<void> refreshUser() async {
+    final me = await api.get('/users/me');
+    final map = me as Map<String, dynamic>;
+    user = AppUser.fromJson(map);
+    await db.put('profile', map);
+    await _rememberUser(map);
+    notifyListeners();
   }
 
   void _set(AuthPhase next) {

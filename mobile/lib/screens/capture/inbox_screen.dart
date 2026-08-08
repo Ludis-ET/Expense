@@ -10,6 +10,7 @@ import 'capture_setup_screen.dart';
 import 'review_deck_screen.dart';
 import 'review_sheet.dart';
 
+
 /// Bank messages waiting to become transactions.
 ///
 /// Nothing here has touched the ledger yet. That is the whole design: a
@@ -44,7 +45,7 @@ class InboxScreen extends StatelessWidget {
             tooltip: 'Capture settings',
             icon: const Icon(Icons.tune),
             onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const CaptureSetupScreen()),
+              santimRoute(const CaptureSetupScreen()),
             ),
           ),
         ],
@@ -64,7 +65,7 @@ class InboxScreen extends StatelessWidget {
                     action: FilledButton(
                       style: FilledButton.styleFrom(minimumSize: const Size(200, 48)),
                       onPressed: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const CaptureSetupScreen()),
+                        santimRoute(const CaptureSetupScreen()),
                       ),
                       child: const Text('Set up capture'),
                     ),
@@ -120,7 +121,7 @@ class _ReviewAllBanner extends StatelessWidget {
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: () => Navigator.of(context).push(
-            MaterialPageRoute(builder: (_) => const ReviewDeckScreen()),
+            santimRoute(const ReviewDeckScreen()),
           ),
           child: Ink(
             decoration: BoxDecoration(
@@ -178,124 +179,117 @@ class _MessageCard extends StatelessWidget {
     final parsed = message.isParsed;
     final isIncome = message.parsedKind == 'INCOME';
 
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => _review(context),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
+    return SoftCard(
+      padding: const EdgeInsets.all(16),
+      onTap: () => _review(context),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
             children: [
-              Row(
-                children: [
-                  Expanded(
-                    child: Text(
-                      message.bankLabel ?? message.sender,
-                      style: theme.textTheme.labelLarge?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    Dates.relative(message.receivedAt),
-                    style: theme.textTheme.bodySmall?.copyWith(
-                      color: theme.colorScheme.onSurfaceVariant,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-
-              if (parsed)
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    Expanded(
-                      child: Text(
-                        message.displayTitle,
-                        overflow: TextOverflow.ellipsis,
-                        style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-                      ),
-                    ),
-                    const SizedBox(width: 10),
-                    Text(
-                      '${isIncome ? '+' : '−'}${Money.format(
-                        message.parsedAmount,
-                        currency: message.parsedCurrency ?? 'ETB',
-                      )}',
-                      style: theme.textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        color: isIncome ? SantimTheme.income : SantimTheme.expense,
-                      ),
-                    ),
-                  ],
-                )
-              else
-                Text(
-                  "Couldn't read this one",
-                  style: theme.textTheme.titleSmall?.copyWith(
-                    fontWeight: FontWeight.w700,
-                    color: SantimTheme.warning,
+              Expanded(
+                child: Text(
+                  message.bankLabel ?? message.sender,
+                  style: theme.textTheme.labelLarge?.copyWith(
+                    color: theme.colorScheme.onSurfaceVariant,
                   ),
                 ),
-
-              const SizedBox(height: 8),
+              ),
               Text(
-                message.body,
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                Dates.relative(message.receivedAt),
                 style: theme.textTheme.bodySmall?.copyWith(
                   color: theme.colorScheme.onSurfaceVariant,
                 ),
               ),
+            ],
+          ),
+          const SizedBox(height: 8),
 
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  if (parsed) _ConfidencePill(confidence: message.confidence),
-                  if (message.parsedRef != null) ...[
-                    const SizedBox(width: 8),
-                    StatusPill(label: 'Ref ${message.parsedRef}', tone: PillTone.neutral),
-                  ],
-                  const Spacer(),
-                  TextButton(
-                    onPressed: () => _review(context),
-                    child: Text(parsed ? 'Review' : 'Fix it'),
-                  ),
-                ],
-              ),
-
-              // An auto-post that was refused explains itself here - usually
-              // the overdraw guard, which is worth reading rather than hiding.
-              if (message.error != null) ...[
-                const SizedBox(height: 6),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.all(10),
-                  decoration: BoxDecoration(
-                    color: SantimTheme.warning.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
+          if (parsed)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Expanded(
                   child: Text(
-                    message.error!,
-                    style: theme.textTheme.bodySmall?.copyWith(color: SantimTheme.warning),
+                    message.displayTitle,
+                    overflow: TextOverflow.ellipsis,
+                    style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Text(
+                  '${isIncome ? '+' : '−'}${Money.format(
+                    message.parsedAmount,
+                    currency: message.parsedCurrency ?? 'ETB',
+                  )}',
+                  style: theme.textTheme.titleMedium?.copyWith(
+                    fontWeight: FontWeight.w800,
+                    color: isIncome ? SantimTheme.income : SantimTheme.expense,
                   ),
                 ),
               ],
+            )
+          else
+            Text(
+              "Couldn't read this one",
+              style: theme.textTheme.titleSmall?.copyWith(
+                fontWeight: FontWeight.w700,
+                color: SantimTheme.warning,
+              ),
+            ),
+
+          const SizedBox(height: 8),
+          Text(
+            message.body,
+            maxLines: 2,
+            overflow: TextOverflow.ellipsis,
+            style: theme.textTheme.bodySmall?.copyWith(
+              color: theme.colorScheme.onSurfaceVariant,
+            ),
+          ),
+
+          const SizedBox(height: 12),
+          Row(
+            children: [
+              if (parsed) _ConfidencePill(confidence: message.confidence),
+              if (message.parsedRef != null) ...[
+                const SizedBox(width: 8),
+                StatusPill(label: 'Ref ${message.parsedRef}', tone: PillTone.neutral),
+              ],
+              const Spacer(),
+              Text(
+                parsed ? 'Review' : 'Fix it',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: theme.colorScheme.primary,
+                ),
+              ),
+              Icon(Icons.chevron_right_rounded, color: theme.colorScheme.primary),
             ],
           ),
-        ),
+
+          if (message.error != null) ...[
+            const SizedBox(height: 6),
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.all(10),
+              decoration: BoxDecoration(
+                color: SantimTheme.warning.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(10),
+              ),
+              child: Text(
+                message.error!,
+                style: theme.textTheme.bodySmall?.copyWith(color: SantimTheme.warning),
+              ),
+            ),
+          ],
+        ],
       ),
     );
   }
 
-  Future<void> _review(BuildContext context) => showModalBottomSheet<void>(
-        context: context,
-        isScrollControlled: true,
-        showDragHandle: true,
-        builder: (_) => ReviewSheet(message: message),
-      );
+  Future<void> _review(BuildContext context) =>
+      Navigator.of(context).push(santimRoute(ReviewSheet(message: message)));
 }
 
 /// How much of the message the parser understood.

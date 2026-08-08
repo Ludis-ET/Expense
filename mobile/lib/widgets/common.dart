@@ -1,63 +1,157 @@
 import 'package:flutter/material.dart';
 
-/// A titled panel. Used everywhere instead of bare Cards so section headings,
-/// padding and the optional trailing action stay consistent.
-class SectionCard extends StatelessWidget {
-  const SectionCard({
+import '../core/theme.dart';
+
+/// Soft elevated surface used across the redesign.
+class SoftCard extends StatelessWidget {
+  const SoftCard({
     super.key,
     required this.child,
-    this.title,
-    this.subtitle,
-    this.trailing,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(18),
+    this.onTap,
+    this.gradient,
+    this.color,
   });
 
   final Widget child;
-  final String? title;
-  final String? subtitle;
-  final Widget? trailing;
   final EdgeInsets padding;
+  final VoidCallback? onTap;
+  final Gradient? gradient;
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final body = Container(
+      width: double.infinity,
+      padding: padding,
+      decoration: BoxDecoration(
+        color: gradient == null ? (color ?? theme.colorScheme.surface) : null,
+        gradient: gradient,
+        borderRadius: BorderRadius.circular(24),
+        border: Border.all(
+          color: theme.colorScheme.outlineVariant.withValues(alpha: 0.45),
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: SantimTheme.ink.withValues(alpha: theme.brightness == Brightness.light ? 0.05 : 0.25),
+            blurRadius: 24,
+            offset: const Offset(0, 10),
+          ),
+        ],
+      ),
+      child: child,
+    );
 
-    return Card(
-      child: Padding(
-        padding: padding,
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            if (title != null) ...[
-              Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(title!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
-                        if (subtitle != null)
-                          Padding(
-                            padding: const EdgeInsets.only(top: 2),
-                            child: Text(
-                              subtitle!,
-                              style: theme.textTheme.bodySmall?.copyWith(
-                                color: theme.colorScheme.onSurfaceVariant,
-                              ),
-                            ),
-                          ),
-                      ],
-                    ),
-                  ),
-                  ?trailing,
-                ],
-              ),
-              const SizedBox(height: 14),
-            ],
-            child,
-          ],
+    if (onTap == null) return body;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(24),
+        child: body,
+      ),
+    );
+  }
+}
+
+class SectionLabel extends StatelessWidget {
+  const SectionLabel(this.title, {super.key, this.action});
+
+  final String title;
+  final Widget? action;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 12, top: 4),
+      child: Row(
+        children: [
+          Expanded(
+            child: Text(
+              title,
+              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+            ),
+          ),
+          ?action,
+        ],
+      ),
+    );
+  }
+}
+
+class ShimmerBlock extends StatefulWidget {
+  const ShimmerBlock({super.key, this.height = 88, this.radius = 20});
+
+  final double height;
+  final double radius;
+
+  @override
+  State<ShimmerBlock> createState() => _ShimmerBlockState();
+}
+
+class _ShimmerBlockState extends State<ShimmerBlock> with SingleTickerProviderStateMixin {
+  late final AnimationController _c;
+
+  @override
+  void initState() {
+    super.initState();
+    _c = AnimationController(vsync: this, duration: const Duration(milliseconds: 1200))..repeat();
+  }
+
+  @override
+  void dispose() {
+    _c.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final base = Theme.of(context).colorScheme.surfaceContainerHighest.withValues(alpha: 0.55);
+    return AnimatedBuilder(
+      animation: _c,
+      builder: (context, _) {
+        return Container(
+          height: widget.height,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(widget.radius),
+            gradient: LinearGradient(
+              begin: Alignment(-1 + _c.value * 2, 0),
+              end: Alignment(1 + _c.value * 2, 0),
+              colors: [
+                base,
+                Theme.of(context).colorScheme.surface.withValues(alpha: 0.9),
+                base,
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class FadeIn extends StatelessWidget {
+  const FadeIn({super.key, required this.child, this.delay = Duration.zero});
+
+  final Widget child;
+  final Duration delay;
+
+  @override
+  Widget build(BuildContext context) {
+    return TweenAnimationBuilder<double>(
+      tween: Tween(begin: 0, end: 1),
+      duration: const Duration(milliseconds: 520),
+      curve: Curves.easeOutCubic,
+      builder: (context, value, child) => Opacity(
+        opacity: value,
+        child: Transform.translate(
+          offset: Offset(0, (1 - value) * 14),
+          child: child,
         ),
       ),
+      child: child,
     );
   }
 }
@@ -80,75 +174,38 @@ class EmptyState extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.all(32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              padding: const EdgeInsets.all(18),
-              decoration: BoxDecoration(
-                color: theme.colorScheme.primary.withValues(alpha: 0.08),
-                shape: BoxShape.circle,
-              ),
-              child: Icon(icon, size: 32, color: theme.colorScheme.primary),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              title,
-              textAlign: TextAlign.center,
-              style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700),
-            ),
-            if (message != null) ...[
-              const SizedBox(height: 6),
-              Text(
-                message!,
-                textAlign: TextAlign.center,
-                style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
-              ),
-            ],
-            if (action != null) ...[const SizedBox(height: 20), action!],
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-/// Small status pill. `tone` picks the colour role rather than a literal.
-class StatusPill extends StatelessWidget {
-  const StatusPill({super.key, required this.label, this.tone = PillTone.neutral, this.icon});
-
-  final String label;
-  final PillTone tone;
-  final IconData? icon;
-
-  @override
-  Widget build(BuildContext context) {
-    final scheme = Theme.of(context).colorScheme;
-    final color = switch (tone) {
-      PillTone.good => const Color(0xFF059669),
-      PillTone.warn => const Color(0xFFD97706),
-      PillTone.bad => const Color(0xFFE11D48),
-      PillTone.neutral => scheme.onSurfaceVariant,
-    };
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 48),
+      child: Column(
         children: [
-          if (icon != null) ...[Icon(icon, size: 13, color: color), const SizedBox(width: 5)],
-          Text(
-            label,
-            style: TextStyle(color: color, fontSize: 12, fontWeight: FontWeight.w600),
+          Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  SantimTheme.seed.withValues(alpha: 0.18),
+                  SantimTheme.seed.withValues(alpha: 0.05),
+                ],
+              ),
+            ),
+            child: Icon(icon, color: SantimTheme.seed, size: 30),
           ),
+          const SizedBox(height: 18),
+          Text(title, textAlign: TextAlign.center, style: theme.textTheme.titleLarge),
+          if (message != null) ...[
+            const SizedBox(height: 8),
+            Text(
+              message!,
+              textAlign: TextAlign.center,
+              style: theme.textTheme.bodyMedium?.copyWith(color: theme.colorScheme.onSurfaceVariant),
+            ),
+          ],
+          if (action != null) ...[
+            const SizedBox(height: 18),
+            action!,
+          ],
         ],
       ),
     );
@@ -157,51 +214,130 @@ class StatusPill extends StatelessWidget {
 
 enum PillTone { good, warn, bad, neutral }
 
-/// Explanatory copy behind an (i) tap.
-///
-/// Mirrors the web app's convention: helper text does not sit permanently under
-/// headings and fields, it hides behind this icon so the screen stays quiet.
+class StatusPill extends StatelessWidget {
+  const StatusPill({super.key, required this.label, this.tone = PillTone.neutral});
+
+  final String label;
+  final PillTone tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final (bg, fg) = switch (tone) {
+      PillTone.good => (SantimTheme.income.withValues(alpha: 0.12), SantimTheme.income),
+      PillTone.warn => (SantimTheme.warning.withValues(alpha: 0.14), SantimTheme.warning),
+      PillTone.bad => (SantimTheme.expense.withValues(alpha: 0.12), SantimTheme.expense),
+      PillTone.neutral => (
+          Theme.of(context).colorScheme.surfaceContainerHighest,
+          Theme.of(context).colorScheme.onSurfaceVariant,
+        ),
+    };
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(999)),
+      child: Text(label, style: TextStyle(color: fg, fontWeight: FontWeight.w700, fontSize: 11)),
+    );
+  }
+}
+
+void showOk(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+}
+
+void showError(BuildContext context, String message) {
+  ScaffoldMessenger.of(context).showSnackBar(
+    SnackBar(content: Text(message), backgroundColor: SantimTheme.expense),
+  );
+}
+
+/// Kept for older call sites that still import InfoHint from common.
 class InfoHint extends StatelessWidget {
-  const InfoHint({super.key, required this.title, required this.message});
+  const InfoHint({
+    super.key,
+    required this.title,
+    this.message,
+    this.body,
+  }) : assert(message != null || body != null);
 
   final String title;
-  final String message;
+  final String? message;
+  final String? body;
+
+  String get _text => message ?? body ?? '';
 
   @override
   Widget build(BuildContext context) {
     return IconButton(
-      visualDensity: VisualDensity.compact,
-      iconSize: 18,
-      icon: const Icon(Icons.info_outline),
       tooltip: title,
       onPressed: () => showDialog<void>(
         context: context,
         builder: (context) => AlertDialog(
           title: Text(title),
-          content: Text(message),
+          content: Text(_text),
           actions: [
             TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it')),
           ],
         ),
       ),
+      icon: const Icon(Icons.info_outline_rounded, size: 20),
     );
   }
 }
 
-/// Shows an error as a snackbar. Backend messages are surfaced verbatim.
-void showError(BuildContext context, Object error) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(
-      SnackBar(
-        content: Text('$error'),
-        backgroundColor: Theme.of(context).colorScheme.error,
+/// Backward-compatible section card used by screens not yet fully redesigned.
+class SectionCard extends StatelessWidget {
+  const SectionCard({
+    super.key,
+    required this.child,
+    this.title,
+    this.subtitle,
+    this.trailing,
+    this.padding = const EdgeInsets.all(16),
+  });
+
+  final Widget child;
+  final String? title;
+  final String? subtitle;
+  final Widget? trailing;
+  final EdgeInsets padding;
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    return SoftCard(
+      padding: padding,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          if (title != null) ...[
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(title!, style: theme.textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800)),
+                      if (subtitle != null)
+                        Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Text(
+                            subtitle!,
+                            style: theme.textTheme.bodySmall?.copyWith(
+                              color: theme.colorScheme.onSurfaceVariant,
+                            ),
+                          ),
+                        ),
+                    ],
+                  ),
+                ),
+                ?trailing,
+              ],
+            ),
+            const SizedBox(height: 14),
+          ],
+          child,
+        ],
       ),
     );
-}
-
-void showOk(BuildContext context, String message) {
-  ScaffoldMessenger.of(context)
-    ..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+  }
 }

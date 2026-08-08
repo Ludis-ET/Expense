@@ -4,11 +4,6 @@ import 'package:flutter/material.dart';
 
 import '../core/theme.dart';
 
-/// Branded launch animation shown while the session and local cache boot.
-///
-/// Native [LaunchTheme] covers the gap before Flutter paints; this takes over
-/// for the half-second of auth + sqflite hydrate so the first real screen
-/// never flashes empty.
 class SplashScreen extends StatefulWidget {
   const SplashScreen({super.key});
 
@@ -17,183 +12,144 @@ class SplashScreen extends StatefulWidget {
 }
 
 class _SplashScreenState extends State<SplashScreen> with TickerProviderStateMixin {
-  late final AnimationController _mark;
-  late final AnimationController _pulse;
+  late final AnimationController _intro;
+  late final AnimationController _orbit;
   late final Animation<double> _scale;
   late final Animation<double> _fade;
-  late final Animation<double> _ring;
 
   @override
   void initState() {
     super.initState();
-
-    _mark = AnimationController(vsync: this, duration: const Duration(milliseconds: 900));
-    _pulse = AnimationController(vsync: this, duration: const Duration(milliseconds: 1600))
-      ..repeat();
-
-    _scale = CurvedAnimation(parent: _mark, curve: Curves.easeOutBack);
-    _fade = CurvedAnimation(parent: _mark, curve: const Interval(0.15, 1, curve: Curves.easeOut));
-    _ring = CurvedAnimation(parent: _pulse, curve: Curves.easeInOut);
-
-    _mark.forward();
+    _intro = AnimationController(vsync: this, duration: const Duration(milliseconds: 1100));
+    _orbit = AnimationController(vsync: this, duration: const Duration(milliseconds: 2400))..repeat();
+    _scale = CurvedAnimation(parent: _intro, curve: Curves.easeOutBack);
+    _fade = CurvedAnimation(parent: _intro, curve: const Interval(0.12, 1, curve: Curves.easeOut));
+    _intro.forward();
   }
 
   @override
   void dispose() {
-    _mark.dispose();
-    _pulse.dispose();
+    _intro.dispose();
+    _orbit.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final isDark = theme.brightness == Brightness.dark;
+    final dark = theme.brightness == Brightness.dark;
 
     return Scaffold(
-      backgroundColor: isDark ? const Color(0xFF0B1220) : const Color(0xFFF4F6F9),
-      body: Stack(
-        children: [
-          Positioned.fill(
-            child: DecoratedBox(
-              decoration: BoxDecoration(
-                gradient: RadialGradient(
-                  center: const Alignment(0, -0.35),
-                  radius: 1.1,
-                  colors: [
-                    SantimTheme.seed.withValues(alpha: isDark ? 0.28 : 0.18),
-                    Colors.transparent,
-                  ],
-                ),
-              ),
-            ),
+      body: DecoratedBox(
+        decoration: BoxDecoration(
+          gradient: RadialGradient(
+            center: const Alignment(0, -0.2),
+            radius: 1.15,
+            colors: [
+              SantimTheme.seed.withValues(alpha: dark ? 0.35 : 0.22),
+              dark ? const Color(0xFF07110D) : SantimTheme.mist,
+            ],
           ),
-          Center(
-            child: FadeTransition(
-              opacity: _fade,
-              child: ScaleTransition(
-                scale: _scale,
-                child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    AnimatedBuilder(
-                      animation: _ring,
-                      builder: (context, child) {
-                        final t = _ring.value;
-                        return Stack(
-                          alignment: Alignment.center,
-                          children: [
-                            Transform.scale(
-                              scale: 1 + (t * 0.35),
-                              child: Opacity(
-                                opacity: (1 - t).clamp(0.0, 1.0),
-                                child: Container(
-                                  width: 108,
-                                  height: 108,
-                                  decoration: BoxDecoration(
-                                    shape: BoxShape.circle,
-                                    border: Border.all(
-                                      color: SantimTheme.seed.withValues(alpha: 0.35),
-                                      width: 2,
-                                    ),
-                                  ),
+        ),
+        child: SafeArea(
+          child: FadeTransition(
+            opacity: _fade,
+            child: ScaleTransition(
+              scale: _scale,
+              child: Column(
+                children: [
+                  const Spacer(flex: 3),
+                  AnimatedBuilder(
+                    animation: _orbit,
+                    builder: (context, child) {
+                      final t = _orbit.value * math.pi * 2;
+                      return Stack(
+                        alignment: Alignment.center,
+                        children: [
+                          Transform.rotate(
+                            angle: t,
+                            child: Container(
+                              width: 128,
+                              height: 128,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: SantimTheme.seed.withValues(alpha: 0.22),
+                                  width: 1.4,
                                 ),
                               ),
                             ),
-                            child!,
-                          ],
-                        );
-                      },
-                      child: Container(
-                        width: 88,
-                        height: 88,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(26),
-                          gradient: const LinearGradient(
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                            colors: [Color(0xFF10B981), Color(0xFF0D9488)],
                           ),
-                          boxShadow: [
-                            BoxShadow(
-                              color: SantimTheme.seed.withValues(alpha: 0.35),
-                              blurRadius: 28,
-                              offset: const Offset(0, 12),
+                          Transform.rotate(
+                            angle: -t * 0.7,
+                            child: Container(
+                              width: 156,
+                              height: 156,
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: SantimTheme.seed.withValues(alpha: 0.1),
+                                  width: 1,
+                                ),
+                              ),
                             ),
-                          ],
+                          ),
+                          child!,
+                        ],
+                      );
+                    },
+                    child: Container(
+                      width: 104,
+                      height: 104,
+                      decoration: BoxDecoration(
+                        borderRadius: BorderRadius.circular(30),
+                        boxShadow: [
+                          BoxShadow(
+                            color: SantimTheme.seed.withValues(alpha: 0.4),
+                            blurRadius: 36,
+                            offset: const Offset(0, 16),
+                          ),
+                        ],
+                      ),
+                      clipBehavior: Clip.antiAlias,
+                      child: Image.asset(
+                        'assets/branding/app_icon.png',
+                        fit: BoxFit.cover,
+                        errorBuilder: (_, __, ___) => Container(
+                          decoration: BoxDecoration(
+                            gradient: SantimTheme.heroGradient(theme.brightness),
+                          ),
+                          child: const Icon(Icons.payments_rounded, color: Colors.white, size: 44),
                         ),
-                        child: const Center(
-                          child: _MarkLetter(),
-                        ),
                       ),
                     ),
-                    const SizedBox(height: 22),
-                    Text(
-                      'Santim',
-                      style: theme.textTheme.headlineSmall?.copyWith(
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.4,
-                      ),
+                  ),
+                  const SizedBox(height: 28),
+                  Text('Santim', style: theme.textTheme.displaySmall),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Your money, beautifully tracked',
+                    style: theme.textTheme.bodyLarge?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
-                    const SizedBox(height: 6),
-                    Text(
-                      'Your money, offline too',
-                      style: theme.textTheme.bodyMedium?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                    const SizedBox(height: 28),
-                    SizedBox(
-                      width: 28,
-                      height: 28,
+                  ),
+                  const Spacer(flex: 4),
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 36),
+                    child: SizedBox(
+                      width: 26,
+                      height: 26,
                       child: CircularProgressIndicator(
                         strokeWidth: 2.4,
                         color: SantimTheme.seed.withValues(alpha: 0.85),
                       ),
                     ),
-                  ],
-                ),
+                  ),
+                ],
               ),
             ),
           ),
-          Positioned(
-            left: 0,
-            right: 0,
-            bottom: 36 + MediaQuery.paddingOf(context).bottom,
-            child: AnimatedBuilder(
-              animation: _pulse,
-              builder: (context, _) {
-                final sway = math.sin(_pulse.value * math.pi * 2) * 4;
-                return Transform.translate(
-                  offset: Offset(sway, 0),
-                  child: Icon(
-                    Icons.sync_alt_rounded,
-                    size: 18,
-                    color: theme.colorScheme.onSurfaceVariant.withValues(alpha: 0.45),
-                  ),
-                );
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _MarkLetter extends StatelessWidget {
-  const _MarkLetter();
-
-  @override
-  Widget build(BuildContext context) {
-    return const Text(
-      'S',
-      style: TextStyle(
-        color: Colors.white,
-        fontSize: 40,
-        fontWeight: FontWeight.w800,
-        height: 1,
-        letterSpacing: -1,
+        ),
       ),
     );
   }

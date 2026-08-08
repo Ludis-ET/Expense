@@ -344,4 +344,17 @@ class CaptureStore extends ChangeNotifier {
     await NativeIngest.setCaptureEnabled(enabled);
     await refreshNativeStatus();
   }
+
+  /// Clears capture state after sign-out.
+  void reset() {
+    inbox = const [];
+    stats = const InboxStats.empty();
+    senderRules = const [];
+    banks = const [];
+    devices = const [];
+    native = const IngestStatus.unknown();
+    loading = false;
+    error = null;
+    notifyListeners();
+  }
 }

@@ -73,7 +73,7 @@ class SettingsScreen extends StatelessWidget {
             title: 'Bank message capture',
             trailing: TextButton(
               onPressed: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CaptureSetupScreen()),
+                santimRoute(const CaptureSetupScreen()),
               ),
               child: const Text('Manage'),
             ),

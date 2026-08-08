@@ -138,34 +138,26 @@ class _ReviewSheetState extends State<ReviewSheet> {
     final m = widget.message;
     final categories = _kind == 'INCOME' ? data.incomeCategories : data.expenseCategories;
 
-    return Padding(
-      padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-      child: DraggableScrollableSheet(
-        expand: false,
-        initialChildSize: 0.9,
-        maxChildSize: 0.95,
-        builder: (context, scrollController) => ListView(
-          controller: scrollController,
-          padding: const EdgeInsets.fromLTRB(20, 0, 20, 28),
-          children: [
-            Row(
-              children: [
-                Expanded(
-                  child: Text(
-                    m.bankLabel ?? m.sender,
-                    style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w800),
-                  ),
+    return Scaffold(
+      appBar: AppBar(
+        title: Text(m.bankLabel ?? m.sender),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: 16),
+            child: Center(
+              child: Text(
+                Dates.relative(m.receivedAt),
+                style: theme.textTheme.bodySmall?.copyWith(
+                  color: theme.colorScheme.onSurfaceVariant,
                 ),
-                Text(
-                  Dates.relative(m.receivedAt),
-                  style: theme.textTheme.bodySmall?.copyWith(
-                    color: theme.colorScheme.onSurfaceVariant,
-                  ),
-                ),
-              ],
+              ),
             ),
-            const SizedBox(height: 12),
-
+          ),
+        ],
+      ),
+      body: ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 40),
+        children: [
             _RawMessage(
               body: m.body,
               expanded: _showRaw,
@@ -304,8 +296,7 @@ class _ReviewSheetState extends State<ReviewSheet> {
               style: TextButton.styleFrom(foregroundColor: theme.colorScheme.error),
               child: const Text('Not a transaction — dismiss'),
             ),
-          ],
-        ),
+        ],
       ),
     );
   }

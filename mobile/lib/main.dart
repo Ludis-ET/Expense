@@ -11,6 +11,7 @@ import 'screens/splash_screen.dart';
 import 'state/auth_store.dart';
 import 'state/capture_store.dart';
 import 'state/data_store.dart';
+import 'state/notification_store.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -42,6 +43,7 @@ class _SantimAppState extends State<SantimApp> {
   late final AuthStore _auth;
   late final DataStore _data;
   late final CaptureStore _capture;
+  late final NotificationStore _notifications;
 
   @override
   void initState() {
@@ -49,11 +51,23 @@ class _SantimAppState extends State<SantimApp> {
     _auth = AuthStore(api: widget.api, db: widget.db)..bootstrap();
     _data = DataStore(api: widget.api, db: widget.db, sync: widget.sync);
     _capture = CaptureStore(api: widget.api, db: widget.db, sync: widget.sync);
+    _notifications = NotificationStore(api: widget.api, db: widget.db);
     widget.sync.start();
+    _auth.addListener(_onAuthChanged);
+  }
+
+  void _onAuthChanged() {
+    if (_auth.phase == AuthPhase.signedOut) {
+      _notifications.reset();
+      _data.reset();
+      _capture.reset();
+    }
   }
 
   @override
   void dispose() {
+    _auth.removeListener(_onAuthChanged);
+    _notifications.dispose();
     widget.sync.dispose();
     widget.api.dispose();
     super.dispose();
@@ -69,6 +83,7 @@ class _SantimAppState extends State<SantimApp> {
         ChangeNotifierProvider<AuthStore>.value(value: _auth),
         ChangeNotifierProvider<DataStore>.value(value: _data),
         ChangeNotifierProvider<CaptureStore>.value(value: _capture),
+        ChangeNotifierProvider<NotificationStore>.value(value: _notifications),
       ],
       child: MaterialApp(
         title: 'Santim',
@@ -89,10 +104,18 @@ class _Root extends StatelessWidget {
   Widget build(BuildContext context) {
     final phase = context.select<AuthStore, AuthPhase>((s) => s.phase);
 
-    return switch (phase) {
-      AuthPhase.loading => const SplashScreen(),
-      AuthPhase.signedOut => const LoginScreen(),
-      AuthPhase.signedIn => const HomeShell(),
-    };
+    return AnimatedSwitcher(
+      duration: const Duration(milliseconds: 420),
+      switchInCurve: Curves.easeOutCubic,
+      switchOutCurve: Curves.easeInCubic,
+      child: KeyedSubtree(
+        key: ValueKey(phase),
+        child: switch (phase) {
+          AuthPhase.loading => const SplashScreen(),
+          AuthPhase.signedOut => const LoginScreen(),
+          AuthPhase.signedIn => const HomeShell(),
+        },
+      ),
+    );
   }
 }

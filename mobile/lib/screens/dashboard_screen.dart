@@ -8,10 +8,14 @@ import '../models/finance.dart';
 import '../state/auth_store.dart';
 import '../state/capture_store.dart';
 import '../state/data_store.dart';
+import '../state/notification_store.dart';
 import '../widgets/common.dart';
 import '../widgets/sync_status.dart';
 import 'capture/capture_setup_screen.dart';
+import 'capture/inbox_screen.dart';
+import 'notifications_screen.dart';
 import 'settings_screen.dart';
+import 'transaction_detail_screen.dart';
 
 class DashboardScreen extends StatelessWidget {
   const DashboardScreen({super.key});
@@ -20,82 +24,175 @@ class DashboardScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     final data = context.watch<DataStore>();
     final capture = context.watch<CaptureStore>();
+    final unread = context.select<NotificationStore, int>((s) => s.unread);
     final user = context.select<AuthStore, String?>((s) => s.user?.name);
     final d = data.dashboard;
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(
-        title: Text(user == null ? 'Santim' : 'Hi, ${user.split(' ').first}'),
-        actions: [
-          const Padding(
-            padding: EdgeInsets.only(right: 4),
-            child: Center(child: SyncStatusPill(compact: true)),
-          ),
-          IconButton(
-            icon: const Icon(Icons.settings_outlined),
-            onPressed: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SettingsScreen()),
-            ),
-          ),
-        ],
-      ),
       body: RefreshIndicator(
         onRefresh: () async {
           await data.refreshAll();
+          if (!context.mounted) return;
           await capture.refresh();
+          if (!context.mounted) return;
+          await context.read<NotificationStore>().refresh();
         },
-        child: ListView(
-          padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-          children: [
-            _BalanceCard(
-              available: d.totalBalance,
-              real: d.realBalance,
-              locked: d.budgetLocked,
-              currency: d.displayCurrency,
-            ),
-            const SizedBox(height: 14),
-
-            // Only shown until capture is actually running - once it is, this
-            // becomes noise on the screen the user sees most often.
-            if (!capture.native.healthy) ...[
-              const _CaptureNudge(),
-              const SizedBox(height: 14),
-            ],
-
-            if (capture.needsReview > 0) ...[
-              _ReviewBanner(count: capture.needsReview),
-              const SizedBox(height: 14),
-            ],
-
-            _MonthCard(month: d.month),
-            const SizedBox(height: 14),
-
-            if (d.budgetsAtRisk.isNotEmpty) ...[
-              SectionCard(
-                title: 'Plans running low',
-                subtitle: 'Nearly out of the money you set aside',
-                child: Column(
-                  children: [
-                    for (final b in d.budgetsAtRisk) _BudgetRow(budget: b),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 14),
-            ],
-
-            SectionCard(
-              title: 'Recent activity',
-              padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-              child: d.recent.isEmpty
-                  ? const Padding(
-                      padding: EdgeInsets.symmetric(vertical: 24),
-                      child: Text('Nothing recorded yet.', textAlign: TextAlign.center),
-                    )
-                  : Column(
-                      children: [
-                        for (final tx in d.recent.take(6)) TransactionTile(tx: tx),
-                      ],
+        child: CustomScrollView(
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    user == null ? 'Santim' : 'Hi, ${user.split(' ').first}',
+                    style: theme.textTheme.titleLarge,
+                  ),
+                  Text(
+                    'Your money today',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
                     ),
+                  ),
+                ],
+              ),
+              actions: [
+                const Padding(
+                  padding: EdgeInsets.only(right: 4),
+                  child: Center(child: SyncStatusPill(compact: true)),
+                ),
+                IconButton(
+                  tooltip: 'Notifications',
+                  onPressed: () => Navigator.of(context).push(santimRoute(const NotificationsScreen())),
+                  icon: Badge(
+                    isLabelVisible: unread > 0,
+                    label: Text(unread > 9 ? '9+' : '$unread'),
+                    child: const Icon(Icons.notifications_none_rounded),
+                  ),
+                ),
+                IconButton(
+                  icon: const Icon(Icons.settings_outlined),
+                  onPressed: () => Navigator.of(context).push(santimRoute(const SettingsScreen())),
+                ),
+              ],
+            ),
+            SliverPadding(
+              padding: const EdgeInsets.fromLTRB(16, 4, 16, 120),
+              sliver: SliverList.list(
+                children: [
+                  if (data.loading && d.recent.isEmpty) ...[
+                    const ShimmerBlock(height: 180),
+                    const SizedBox(height: 14),
+                    const ShimmerBlock(height: 100),
+                  ] else ...[
+                    FadeIn(child: _HeroBalance(data: d)),
+                    const SizedBox(height: 14),
+                    if (!capture.native.healthy) ...[
+                      SoftCard(
+                        onTap: () => Navigator.of(context).push(santimRoute(const CaptureSetupScreen())),
+                        gradient: LinearGradient(
+                          colors: [
+                            SantimTheme.seed.withValues(alpha: 0.14),
+                            SantimTheme.seed.withValues(alpha: 0.04),
+                          ],
+                        ),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.sms_rounded, color: SantimTheme.seed),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                'Set up bank SMS capture',
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    if (capture.needsReview > 0) ...[
+                      SoftCard(
+                        onTap: () => Navigator.of(context).push(santimRoute(const InboxScreen())),
+                        color: SantimTheme.warning.withValues(alpha: 0.1),
+                        child: Row(
+                          children: [
+                            const Icon(Icons.mark_email_unread_rounded, color: SantimTheme.warning),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: Text(
+                                '${capture.needsReview} message${capture.needsReview == 1 ? '' : 's'} need review',
+                                style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                              ),
+                            ),
+                            const Icon(Icons.chevron_right_rounded),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 14),
+                    ],
+                    _MonthStrip(month: d.month),
+                    const SizedBox(height: 18),
+                    if (d.budgetsAtRisk.isNotEmpty) ...[
+                      const SectionLabel('Plans running low'),
+                      ...d.budgetsAtRisk.map(
+                        (b) => Padding(
+                          padding: const EdgeInsets.only(bottom: 10),
+                          child: SoftCard(
+                            child: Row(
+                              children: [
+                                Expanded(
+                                  child: Column(
+                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                    children: [
+                                      Text(b.name, style: const TextStyle(fontWeight: FontWeight.w800)),
+                                      const SizedBox(height: 4),
+                                      Text(
+                                        '${Money.format(b.potBalance, currency: b.currency)} left',
+                                        style: theme.textTheme.bodySmall?.copyWith(
+                                          color: theme.colorScheme.onSurfaceVariant,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                                StatusPill(
+                                  label: '${b.pctSpentOfFunded.round()}%',
+                                  tone: PillTone.warn,
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ),
+                      const SizedBox(height: 8),
+                    ],
+                    const SectionLabel('Recent activity'),
+                    if (d.recent.isEmpty)
+                      const EmptyState(
+                        icon: Icons.receipt_long_outlined,
+                        title: 'No activity yet',
+                        message: 'Add a transaction or pair your phone for bank SMS.',
+                      )
+                    else
+                      ...d.recent.map(
+                        (tx) => Padding(
+                          padding: const EdgeInsets.only(bottom: 8),
+                          child: SoftCard(
+                            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                            onTap: () => Navigator.of(context).push(
+                              santimRoute(TransactionDetailScreen(tx: tx)),
+                            ),
+                            child: TransactionTile(tx: tx),
+                          ),
+                        ),
+                      ),
+                  ],
+                ],
+              ),
             ),
           ],
         ),
@@ -104,75 +201,52 @@ class DashboardScreen extends StatelessWidget {
   }
 }
 
-/// The headline figure is *available* money, not the raw balance - it is the
-/// number the overdraw guard enforces, so it is the only one that answers
-/// "can I spend this?".
-class _BalanceCard extends StatelessWidget {
-  const _BalanceCard({
-    required this.available,
-    required this.real,
-    required this.locked,
-    required this.currency,
-  });
+class _HeroBalance extends StatelessWidget {
+  const _HeroBalance({required this.data});
 
-  final String available;
-  final String real;
-  final String locked;
-  final String currency;
+  final DashboardData data;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final hasReservations = Money.parse(locked) > 0;
-
-    return Card(
+    return SoftCard(
+      padding: EdgeInsets.zero,
       child: Container(
+        width: double.infinity,
+        padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
         decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(18),
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [theme.colorScheme.primary, theme.colorScheme.primary.withValues(alpha: 0.82)],
-          ),
+          borderRadius: BorderRadius.circular(24),
+          gradient: SantimTheme.heroGradient(theme.brightness),
         ),
-        padding: const EdgeInsets.all(20),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+            Text(
+              'Free to spend',
+              style: theme.textTheme.labelLarge?.copyWith(color: Colors.white70),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              Money.format(data.totalBalance, currency: data.displayCurrency),
+              style: theme.textTheme.displaySmall?.copyWith(color: Colors.white, fontWeight: FontWeight.w700),
+            ),
+            const SizedBox(height: 18),
             Row(
               children: [
-                Text(
-                  'Free to spend',
-                  style: theme.textTheme.labelLarge?.copyWith(color: Colors.white70),
-                ),
-                const Spacer(),
-                if (hasReservations)
-                  const InfoHintLight(
-                    title: 'Free to spend',
-                    message:
-                        'Your accounts hold more than this. The difference is money already '
-                        'set aside in budget plans — it is still yours, it is just spoken for.',
+                Expanded(
+                  child: _HeroStat(
+                    label: 'In wallets',
+                    value: Money.format(data.realBalance, currency: data.displayCurrency),
                   ),
+                ),
+                Expanded(
+                  child: _HeroStat(
+                    label: 'In plans',
+                    value: Money.format(data.budgetLocked, currency: data.displayCurrency),
+                  ),
+                ),
               ],
             ),
-            const SizedBox(height: 6),
-            Text(
-              Money.format(available, currency: currency),
-              style: theme.textTheme.headlineMedium?.copyWith(
-                color: Colors.white,
-                fontWeight: FontWeight.w800,
-              ),
-            ),
-            if (hasReservations) ...[
-              const SizedBox(height: 12),
-              Row(
-                children: [
-                  _MiniStat(label: 'In accounts', value: Money.format(real, currency: currency)),
-                  const SizedBox(width: 18),
-                  _MiniStat(label: 'Set aside', value: Money.format(locked, currency: currency)),
-                ],
-              ),
-            ],
           ],
         ),
       ),
@@ -180,289 +254,70 @@ class _BalanceCard extends StatelessWidget {
   }
 }
 
-class _MiniStat extends StatelessWidget {
-  const _MiniStat({required this.label, required this.value});
+class _HeroStat extends StatelessWidget {
+  const _HeroStat({required this.label, required this.value});
 
   final String label;
   final String value;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: theme.textTheme.labelSmall?.copyWith(color: Colors.white70)),
-        Text(
-          value,
-          style: theme.textTheme.titleSmall?.copyWith(
-            color: Colors.white,
-            fontWeight: FontWeight.w600,
-          ),
-        ),
+        Text(label, style: const TextStyle(color: Colors.white60, fontSize: 12, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 4),
+        Text(value, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w800, fontSize: 15)),
       ],
     );
   }
 }
 
-/// Same idea as [InfoHint], tinted for the coloured balance card.
-class InfoHintLight extends StatelessWidget {
-  const InfoHintLight({super.key, required this.title, required this.message});
-
-  final String title;
-  final String message;
-
-  @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: () => showDialog<void>(
-        context: context,
-        builder: (context) => AlertDialog(
-          title: Text(title),
-          content: Text(message),
-          actions: [
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Got it')),
-          ],
-        ),
-      ),
-      child: const Icon(Icons.info_outline, size: 18, color: Colors.white70),
-    );
-  }
-}
-
-class _MonthCard extends StatelessWidget {
-  const _MonthCard({required this.month});
+class _MonthStrip extends StatelessWidget {
+  const _MonthStrip({required this.month});
 
   final MonthSummary month;
 
   @override
   Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return SectionCard(
-      title: 'This month',
-      child: Row(
-        children: [
-          Expanded(
-            child: _Figure(
-              label: 'In',
-              value: Money.format(month.income, currency: month.currency),
-              color: SantimTheme.income,
-              deltaPct: month.incomeDeltaPct,
-              deltaIsGoodWhenUp: true,
-            ),
-          ),
-          Container(width: 1, height: 46, color: theme.dividerColor),
-          Expanded(
-            child: _Figure(
-              label: 'Out',
-              value: Money.format(month.expense, currency: month.currency),
-              color: SantimTheme.expense,
-              deltaPct: month.expenseDeltaPct,
-              deltaIsGoodWhenUp: false,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _Figure extends StatelessWidget {
-  const _Figure({
-    required this.label,
-    required this.value,
-    required this.color,
-    required this.deltaIsGoodWhenUp,
-    this.deltaPct,
-  });
-
-  final String label;
-  final String value;
-  final Color color;
-  final double? deltaPct;
-
-  /// Income rising is good; spending rising is not. Without this the same
-  /// arrow would be green in both places.
-  final bool deltaIsGoodWhenUp;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-    final delta = deltaPct;
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+    return Row(
       children: [
-        Text(label, style: theme.textTheme.labelMedium?.copyWith(
-          color: theme.colorScheme.onSurfaceVariant,
-        )),
-        const SizedBox(height: 4),
-        Text(
-          value,
-          style: theme.textTheme.titleLarge?.copyWith(color: color, fontWeight: FontWeight.w700),
-        ),
-        // A null delta means there is no previous month to compare with, which
-        // is different from "no change" and must not render as 0%.
-        if (delta != null) ...[
-          const SizedBox(height: 4),
-          Row(
-            children: [
-              Icon(
-                delta >= 0 ? Icons.trending_up : Icons.trending_down,
-                size: 14,
-                color: (delta >= 0) == deltaIsGoodWhenUp ? SantimTheme.income : SantimTheme.expense,
-              ),
-              const SizedBox(width: 4),
-              Text(
-                '${delta.abs().toStringAsFixed(0)}% vs last month',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
+        Expanded(
+          child: SoftCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('In', style: TextStyle(fontWeight: FontWeight.w700, color: SantimTheme.income)),
+                const SizedBox(height: 6),
+                Text(
+                  Money.format(month.income, currency: month.currency),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
-        ],
+        ),
+        const SizedBox(width: 10),
+        Expanded(
+          child: SoftCard(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Text('Out', style: TextStyle(fontWeight: FontWeight.w700, color: SantimTheme.expense)),
+                const SizedBox(height: 6),
+                Text(
+                  Money.format(month.expense, currency: month.currency),
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w800),
+                ),
+              ],
+            ),
+          ),
+        ),
       ],
     );
   }
 }
 
-class _CaptureNudge extends StatelessWidget {
-  const _CaptureNudge();
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Card(
-      child: InkWell(
-        borderRadius: BorderRadius.circular(18),
-        onTap: () => Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => const CaptureSetupScreen()),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.all(10),
-                decoration: BoxDecoration(
-                  color: theme.colorScheme.primary.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(12),
-                ),
-                child: Icon(Icons.sms_outlined, color: theme.colorScheme.primary),
-              ),
-              const SizedBox(width: 14),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Stop typing transactions',
-                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w700),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      'Let Santim read your bank SMS and fill them in for you.',
-                      style: theme.textTheme.bodySmall?.copyWith(
-                        color: theme.colorScheme.onSurfaceVariant,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.chevron_right),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _ReviewBanner extends StatelessWidget {
-  const _ReviewBanner({required this.count});
-
-  final int count;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Container(
-      padding: const EdgeInsets.all(14),
-      decoration: BoxDecoration(
-        color: SantimTheme.warning.withValues(alpha: 0.1),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: SantimTheme.warning.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          const Icon(Icons.mark_email_unread_outlined, color: SantimTheme.warning),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Text(
-              count == 1
-                  ? '1 bank message is waiting for you'
-                  : '$count bank messages are waiting for you',
-              style: theme.textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w600),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _BudgetRow extends StatelessWidget {
-  const _BudgetRow({required this.budget});
-
-  final Budget budget;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 14),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Text(budget.name, style: theme.textTheme.bodyMedium?.copyWith(
-                  fontWeight: FontWeight.w600,
-                )),
-              ),
-              Text(
-                '${Money.format(budget.potBalance, currency: budget.currency)} left',
-                style: theme.textTheme.bodySmall?.copyWith(
-                  color: theme.colorScheme.onSurfaceVariant,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 6),
-          ClipRRect(
-            borderRadius: BorderRadius.circular(999),
-            child: LinearProgressIndicator(
-              value: budget.progress,
-              minHeight: 6,
-              backgroundColor: theme.colorScheme.surfaceContainerHighest,
-              valueColor: AlwaysStoppedAnimation(
-                budget.progress >= 1 ? SantimTheme.expense : SantimTheme.warning,
-              ),
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// One row in any transaction list.
 class TransactionTile extends StatelessWidget {
   const TransactionTile({super.key, required this.tx, this.onTap});
 
@@ -476,48 +331,32 @@ class TransactionTile extends StatelessWidget {
 
     return ListTile(
       onTap: onTap,
-      contentPadding: EdgeInsets.zero,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
       leading: Container(
-        height: 40,
-        width: 40,
+        height: 44,
+        width: 44,
         decoration: BoxDecoration(
-          color: color.withValues(alpha: 0.1),
-          borderRadius: BorderRadius.circular(12),
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
         ),
         child: Icon(
           switch (tx.kind) {
-            'INCOME' => Icons.south_west,
-            'EXPENSE' => Icons.north_east,
-            _ => Icons.swap_horiz,
+            'INCOME' => Icons.south_west_rounded,
+            'EXPENSE' => Icons.north_east_rounded,
+            _ => Icons.swap_horiz_rounded,
           },
-          size: 19,
+          size: 20,
           color: color,
         ),
       ),
-      title: Row(
-        children: [
-          Flexible(
-            child: Text(
-              tx.title,
-              overflow: TextOverflow.ellipsis,
-              style: TextStyle(
-                fontWeight: FontWeight.w600,
-                color: tx.pendingSync
-                    ? theme.colorScheme.onSurface.withValues(alpha: 0.55)
-                    : null,
-              ),
-            ),
-          ),
-          if (tx.pendingSync) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.cloud_upload_outlined, size: 14, color: SantimTheme.warning),
-          ],
-          // Worth flagging: these rows were written from an SMS, not typed.
-          if (tx.fromBankMessage) ...[
-            const SizedBox(width: 6),
-            Icon(Icons.bolt, size: 14, color: theme.colorScheme.primary),
-          ],
-        ],
+      title: Text(
+        tx.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: tx.pendingSync ? theme.colorScheme.onSurface.withValues(alpha: 0.55) : null,
+        ),
       ),
       subtitle: Text(
         [
@@ -528,9 +367,17 @@ class TransactionTile extends StatelessWidget {
         maxLines: 1,
         overflow: TextOverflow.ellipsis,
       ),
-      trailing: Text(
-        Money.signed(tx.amount, tx.kind, currency: tx.currency),
-        style: theme.textTheme.bodyLarge?.copyWith(color: color, fontWeight: FontWeight.w700),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
+        children: [
+          Text(
+            Money.signed(tx.amount, tx.kind, currency: tx.currency),
+            style: theme.textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w800),
+          ),
+          if (tx.pendingSync)
+            const Icon(Icons.cloud_upload_outlined, size: 14, color: SantimTheme.warning),
+        ],
       ),
     );
   }

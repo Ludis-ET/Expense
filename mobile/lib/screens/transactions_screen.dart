@@ -1,13 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../core/api_client.dart';
 import '../core/formatting.dart';
+import '../core/theme.dart';
 import '../models/finance.dart';
-import '../offline/sync_engine.dart';
 import '../state/data_store.dart';
 import '../widgets/common.dart';
-import 'dashboard_screen.dart' show TransactionTile;
+import 'transaction_detail_screen.dart';
 
 /// The full ledger, grouped by day and paged as you scroll.
 class TransactionsScreen extends StatefulWidget {
@@ -34,7 +33,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   void _maybeLoadMore() {
-    // Fetch a screen early so the list does not visibly stall at the bottom.
     if (_scroll.position.pixels >= _scroll.position.maxScrollExtent - 400) {
       context.read<DataStore>().loadTransactions();
     }
@@ -44,81 +42,115 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Widget build(BuildContext context) {
     final data = context.watch<DataStore>();
     final groups = _groupByDay(data.transactions);
+    final theme = Theme.of(context);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Activity')),
       body: RefreshIndicator(
         onRefresh: () => data.loadTransactions(reset: true),
-        child: data.transactions.isEmpty
-            ? ListView(
-                children: const [
-                  SizedBox(height: 120),
-                  EmptyState(
-                    icon: Icons.receipt_long_outlined,
-                    title: 'No transactions yet',
-                    message: 'Add one with the + button, or pair your phone so bank SMS fills them in.',
+        child: CustomScrollView(
+          controller: _scroll,
+          physics: const AlwaysScrollableScrollPhysics(),
+          slivers: [
+            SliverAppBar(
+              floating: true,
+              title: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Activity', style: theme.textTheme.titleLarge),
+                  Text(
+                    data.transactions.isEmpty
+                        ? 'Your ledger'
+                        : '${data.transactions.length} entries',
+                    style: theme.textTheme.bodySmall?.copyWith(
+                      color: theme.colorScheme.onSurfaceVariant,
+                    ),
                   ),
                 ],
-              )
-            : ListView.builder(
-                controller: _scroll,
-                padding: const EdgeInsets.fromLTRB(16, 8, 16, 96),
-                itemCount: groups.length + (data.hasMoreTransactions ? 1 : 0),
-                itemBuilder: (context, index) {
-                  if (index >= groups.length) {
-                    return const Padding(
-                      padding: EdgeInsets.all(24),
-                      child: Center(child: CircularProgressIndicator()),
-                    );
-                  }
-
-                  final group = groups[index];
-                  return Padding(
-                    padding: const EdgeInsets.only(bottom: 14),
-                    child: SectionCard(
-                      title: group.label,
-                      subtitle: group.subtitle,
-                      padding: const EdgeInsets.fromLTRB(16, 16, 16, 4),
-                      child: Column(
-                        children: [
-                          for (final tx in group.items)
-                            TransactionTile(
-                              tx: tx,
-                              onTap: () => _showDetail(context, tx),
-                            ),
-                        ],
-                      ),
-                    ),
-                  );
-                },
               ),
-      ),
-    );
-  }
+            ),
+            if (data.loading && data.transactions.isEmpty)
+              const SliverPadding(
+                padding: EdgeInsets.all(16),
+                sliver: SliverToBoxAdapter(
+                  child: Column(
+                    children: [
+                      ShimmerBlock(height: 120),
+                      SizedBox(height: 12),
+                      ShimmerBlock(height: 120),
+                    ],
+                  ),
+                ),
+              )
+            else if (data.transactions.isEmpty)
+              const SliverFillRemaining(
+                hasScrollBody: false,
+                child: EmptyState(
+                  icon: Icons.receipt_long_outlined,
+                  title: 'No transactions yet',
+                  message: 'Add one with + , or pair your phone so bank SMS fills them in.',
+                ),
+              )
+            else
+              SliverPadding(
+                padding: const EdgeInsets.fromLTRB(16, 8, 16, 120),
+                sliver: SliverList.builder(
+                  itemCount: groups.length + (data.hasMoreTransactions ? 1 : 0),
+                  itemBuilder: (context, index) {
+                    if (index >= groups.length) {
+                      return const Padding(
+                        padding: EdgeInsets.all(24),
+                        child: Center(child: CircularProgressIndicator()),
+                      );
+                    }
 
-  Future<void> _showDetail(BuildContext context, Transaction tx) async {
-    final data = context.read<DataStore>();
-
-    await showModalBottomSheet<void>(
-      context: context,
-      showDragHandle: true,
-      isScrollControlled: true,
-      builder: (sheetContext) => _TransactionDetail(
-        tx: tx,
-        onDelete: () async {
-          Navigator.pop(sheetContext);
-            try {
-            await data.deleteTransaction(tx.id);
-            if (context.mounted) {
-              showOk(
-                context,
-                context.read<SyncEngine>().online ? 'Deleted' : 'Deleted offline — will sync later',
-              );
-            }
-          } on ApiException catch (e) {
-            if (context.mounted) showError(context, e.message);
-          }
-        },
+                    final group = groups[index];
+                    return Padding(
+                      padding: const EdgeInsets.only(bottom: 14),
+                      child: SoftCard(
+                        padding: const EdgeInsets.fromLTRB(10, 16, 10, 8),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Padding(
+                              padding: const EdgeInsets.symmetric(horizontal: 8),
+                              child: Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      group.label,
+                                      style: theme.textTheme.titleSmall?.copyWith(fontWeight: FontWeight.w800),
+                                    ),
+                                  ),
+                                  Text(
+                                    group.subtitle,
+                                    style: theme.textTheme.labelLarge?.copyWith(
+                                      color: theme.colorScheme.onSurfaceVariant,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ),
+                            const SizedBox(height: 8),
+                            for (final tx in group.items)
+                              Material(
+                                color: Colors.transparent,
+                                child: InkWell(
+                                  borderRadius: BorderRadius.circular(14),
+                                  onTap: () => Navigator.of(context).push(
+                                    santimRoute(TransactionDetailScreen(tx: tx)),
+                                  ),
+                                  child: _TxRow(tx: tx),
+                                ),
+                              ),
+                          ],
+                        ),
+                      ),
+                    );
+                  },
+                ),
+              ),
+          ],
+        ),
       ),
     );
   }
@@ -134,7 +166,6 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
     return map.entries.map((e) {
       final first = e.value.first.date;
-      // Net for the day, so a day reads as a whole rather than a pile of rows.
       final net = e.value.fold<double>(0, (sum, tx) {
         final amount = Money.parse(tx.amount);
         return switch (tx.kind) {
@@ -174,92 +205,65 @@ class _DayGroup {
   final List<Transaction> items;
 }
 
-class _TransactionDetail extends StatelessWidget {
-  const _TransactionDetail({required this.tx, required this.onDelete});
+class _TxRow extends StatelessWidget {
+  const _TxRow({required this.tx});
 
   final Transaction tx;
-  final VoidCallback onDelete;
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final color = SantimTheme.amountColor(tx.kind, theme.colorScheme);
 
-    return Padding(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, MediaQuery.of(context).viewInsets.bottom + 28),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.start,
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
+      leading: Container(
+        height: 44,
+        width: 44,
+        decoration: BoxDecoration(
+          color: color.withValues(alpha: 0.12),
+          borderRadius: BorderRadius.circular(14),
+        ),
+        child: Icon(
+          switch (tx.kind) {
+            'INCOME' => Icons.south_west_rounded,
+            'EXPENSE' => Icons.north_east_rounded,
+            _ => Icons.swap_horiz_rounded,
+          },
+          size: 20,
+          color: color,
+        ),
+      ),
+      title: Text(
+        tx.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+        style: TextStyle(
+          fontWeight: FontWeight.w700,
+          color: tx.pendingSync ? theme.colorScheme.onSurface.withValues(alpha: 0.55) : null,
+        ),
+      ),
+      subtitle: Text(
+        [
+          if (tx.categoryName != null) tx.categoryName!,
+          if (tx.accountName != null) tx.accountName!,
+          Dates.day(tx.date),
+        ].join(' · '),
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
+      ),
+      trailing: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
-          Text(tx.title, style: theme.textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700)),
-          const SizedBox(height: 4),
           Text(
             Money.signed(tx.amount, tx.kind, currency: tx.currency),
-            style: theme.textTheme.headlineSmall?.copyWith(
-              fontWeight: FontWeight.w800,
-              color: SantimAmountColor.of(context, tx.kind),
-            ),
+            style: theme.textTheme.titleSmall?.copyWith(color: color, fontWeight: FontWeight.w800),
           ),
-          const SizedBox(height: 20),
-
-          _DetailRow(label: 'Date', value: Dates.full(tx.date)),
-          if (tx.categoryName != null) _DetailRow(label: 'Category', value: tx.categoryName!),
-          if (tx.accountName != null) _DetailRow(label: 'Account', value: tx.accountName!),
-          if (tx.budgetName != null) _DetailRow(label: 'Plan', value: tx.budgetName!),
-          if (tx.note?.isNotEmpty == true) _DetailRow(label: 'Note', value: tx.note!),
-          if (tx.fromBankMessage)
-            _DetailRow(label: 'Source', value: 'Captured from a bank message'),
-
-          const SizedBox(height: 20),
-          OutlinedButton.icon(
-            onPressed: onDelete,
-            icon: const Icon(Icons.delete_outline),
-            label: const Text('Delete transaction'),
-            style: OutlinedButton.styleFrom(foregroundColor: theme.colorScheme.error),
-          ),
+          if (tx.pendingSync)
+            const Icon(Icons.cloud_upload_outlined, size: 14, color: SantimTheme.warning),
         ],
       ),
     );
   }
-}
-
-class _DetailRow extends StatelessWidget {
-  const _DetailRow({required this.label, required this.value});
-
-  final String label;
-  final String value;
-
-  @override
-  Widget build(BuildContext context) {
-    final theme = Theme.of(context);
-
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          SizedBox(
-            width: 92,
-            child: Text(
-              label,
-              style: theme.textTheme.bodyMedium?.copyWith(
-                color: theme.colorScheme.onSurfaceVariant,
-              ),
-            ),
-          ),
-          Expanded(
-            child: Text(value, style: theme.textTheme.bodyMedium),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// Small helper so the detail sheet does not need to import the theme class.
-class SantimAmountColor {
-  static Color of(BuildContext context, String kind) => switch (kind) {
-        'INCOME' => const Color(0xFF059669),
-        'EXPENSE' => const Color(0xFFE11D48),
-        _ => Theme.of(context).colorScheme.onSurfaceVariant,
-      };
 }

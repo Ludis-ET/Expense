@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../offline/sync_engine.dart';
+import '../core/theme.dart';
 import '../state/capture_store.dart';
 import '../state/data_store.dart';
+import '../state/notification_store.dart';
+import '../offline/sync_engine.dart';
 import '../widgets/sync_status.dart';
 import 'accounts_screen.dart';
 import 'budgets_screen.dart';
@@ -13,10 +15,6 @@ import 'dashboard_screen.dart';
 import 'transaction_form.dart';
 import 'transactions_screen.dart';
 
-/// The signed-in frame: five tabs and one add button.
-///
-/// Tabs are kept alive in an IndexedStack so switching back to a list does not
-/// refetch and lose scroll position - on a phone that churn is very visible.
 class HomeShell extends StatefulWidget {
   const HomeShell({super.key});
 
@@ -30,29 +28,26 @@ class _HomeShellState extends State<HomeShell> {
   @override
   void initState() {
     super.initState();
-    // Paint cached data first so a cold start offline is useful immediately,
-    // then refresh from the network when there is one.
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       if (!mounted) return;
       final data = context.read<DataStore>();
       final capture = context.read<CaptureStore>();
       final sync = context.read<SyncEngine>();
+      final notes = context.read<NotificationStore>();
 
       await Future.wait([
         data.hydrateFromCache(),
         capture.hydrateFromCache(),
         sync.refreshCounts(),
+        notes.hydrateFromCache(),
       ]);
       if (!mounted) return;
 
       await data.refreshAll();
       if (!mounted) return;
-      await capture.refresh();
-      if (!mounted) return;
-      await capture.loadBanks();
+      await Future.wait([capture.refresh(), notes.start(), capture.loadBanks()]);
       if (!mounted) return;
 
-      // Ask once after sign-in if no cash wallet is nominated yet.
       if (data.cashAccountId == null && data.activeAccounts.isNotEmpty) {
         await CashAccountSheet.show(context);
       }
@@ -60,17 +55,16 @@ class _HomeShellState extends State<HomeShell> {
   }
 
   Future<void> _addTransaction() async {
-    final created = await Navigator.of(context).push<bool>(
-      MaterialPageRoute(builder: (_) => const TransactionForm()),
-    );
-    if (created == true && mounted) setState(() {});
+    await Navigator.of(context).push(santimRoute(const TransactionForm()));
   }
 
   @override
   Widget build(BuildContext context) {
     final needsReview = context.select<CaptureStore, int>((s) => s.needsReview);
+    final theme = Theme.of(context);
 
     return Scaffold(
+      extendBody: true,
       body: Column(
         children: [
           const OfflineBanner(),
@@ -90,23 +84,26 @@ class _HomeShellState extends State<HomeShell> {
       ),
       floatingActionButton: _index == 2
           ? null
-          : FloatingActionButton(
+          : FloatingActionButton.extended(
               onPressed: _addTransaction,
-              tooltip: 'Add transaction',
-              child: const Icon(Icons.add),
+              icon: const Icon(Icons.add_rounded),
+              label: const Text('Add'),
+              backgroundColor: SantimTheme.seed,
+              foregroundColor: Colors.white,
             ),
       bottomNavigationBar: NavigationBar(
         selectedIndex: _index,
+        backgroundColor: theme.colorScheme.surface.withValues(alpha: 0.96),
         onDestinationSelected: (i) => setState(() => _index = i),
         destinations: [
           const NavigationDestination(
             icon: Icon(Icons.home_outlined),
-            selectedIcon: Icon(Icons.home),
+            selectedIcon: Icon(Icons.home_rounded),
             label: 'Home',
           ),
           const NavigationDestination(
             icon: Icon(Icons.receipt_long_outlined),
-            selectedIcon: Icon(Icons.receipt_long),
+            selectedIcon: Icon(Icons.receipt_long_rounded),
             label: 'Activity',
           ),
           NavigationDestination(
@@ -118,18 +115,18 @@ class _HomeShellState extends State<HomeShell> {
             selectedIcon: Badge(
               isLabelVisible: needsReview > 0,
               label: Text('$needsReview'),
-              child: const Icon(Icons.mark_email_unread),
+              child: const Icon(Icons.mark_email_unread_rounded),
             ),
             label: 'Inbox',
           ),
           const NavigationDestination(
-            icon: Icon(Icons.pie_chart_outline),
-            selectedIcon: Icon(Icons.pie_chart),
+            icon: Icon(Icons.pie_chart_outline_rounded),
+            selectedIcon: Icon(Icons.pie_chart_rounded),
             label: 'Plans',
           ),
           const NavigationDestination(
             icon: Icon(Icons.account_balance_wallet_outlined),
-            selectedIcon: Icon(Icons.account_balance_wallet),
+            selectedIcon: Icon(Icons.account_balance_wallet_rounded),
             label: 'Wallets',
           ),
         ],

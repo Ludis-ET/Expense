@@ -128,7 +128,7 @@ class ApiClient {
 
     final http.Response response;
     try {
-      final streamed = await _http.send(request).timeout(const Duration(seconds: 25));
+      final streamed = await _http.send(request).timeout(const Duration(seconds: 60));
       response = await http.Response.fromStream(streamed);
     } on ApiException {
       rethrow;

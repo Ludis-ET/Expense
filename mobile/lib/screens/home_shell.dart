@@ -56,6 +56,8 @@ class _HomeShellState extends State<HomeShell> {
       if (data.cashAccountId == null && data.activeAccounts.isNotEmpty) {
         await CashAccountSheet.show(context);
       }
+    });
+  }
 
   Future<void> _addTransaction() async {
     final created = await Navigator.of(context).push<bool>(

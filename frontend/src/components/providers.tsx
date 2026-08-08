@@ -11,6 +11,7 @@ import { OfflineProvider } from '@/lib/offline/offline-context';
 import { PwaInstallProvider } from '@/lib/pwa-install-context';
 import { InstallPrompt } from '@/components/pwa/install-prompt';
 import { AndroidAppPopup } from '@/components/pwa/android-app-popup';
+import { CashWalletPrompt } from '@/components/finance/cash-wallet-prompt';
 import { SplashScreen } from '@/components/splash-screen';
 import { CurrencyViewProvider } from '@/lib/currency-view-context';
 import { fetcher } from '@/lib/api';
@@ -44,6 +45,7 @@ export function Providers({ children }: { children: ReactNode }) {
               </AmountVisibilityProvider>
             </CurrencyViewBridge>
             <InstallPrompt />
+            <CashWalletPrompt />
             {/* Android-only, on a random delay and frequency-capped. See
                 `useAppAd` for the caps. */}
             <AndroidAppPopup />

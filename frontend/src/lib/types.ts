@@ -15,6 +15,8 @@ export interface User {
   firstDayOfWeek: number;
   avatarId?: string;
   bannerId?: string;
+  /** Wallet that holds physical cash (ATM withdrawals transfer into it). */
+  cashAccountId?: string | null;
 }
 
 export interface AuthResponse {

@@ -7,6 +7,7 @@ import '../state/data_store.dart';
 import '../widgets/sync_status.dart';
 import 'accounts_screen.dart';
 import 'budgets_screen.dart';
+import 'capture/cash_account_sheet.dart';
 import 'capture/inbox_screen.dart';
 import 'dashboard_screen.dart';
 import 'transaction_form.dart';
@@ -49,8 +50,12 @@ class _HomeShellState extends State<HomeShell> {
       await capture.refresh();
       if (!mounted) return;
       await capture.loadBanks();
-    });
-  }
+      if (!mounted) return;
+
+      // Ask once after sign-in if no cash wallet is nominated yet.
+      if (data.cashAccountId == null && data.activeAccounts.isNotEmpty) {
+        await CashAccountSheet.show(context);
+      }
 
   Future<void> _addTransaction() async {
     final created = await Navigator.of(context).push<bool>(

@@ -12,9 +12,8 @@ enum AuthPhase { loading, signedOut, signedIn }
 
 /// Session state, and the owner of the API base URL.
 ///
-/// The base URL is mutable at runtime because a phone cannot reach the
-/// developer's `localhost`: the default points at the emulator loopback and
-/// Settings lets you retarget it at a LAN address or a deployed host.
+/// Defaults to the Render production API. Override with `--dart-define` for
+/// local work, or change it in Settings on the device.
 class AuthStore extends ChangeNotifier {
   AuthStore({required this.api, required this.db});
 

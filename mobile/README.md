@@ -66,23 +66,34 @@ your firewall has to allow the port.
 
 ### 2. Point the app at your server
 
-The default is `http://10.0.2.2:4000/api/v1`, which is how the **Android
-emulator** reaches the host machine.
+**Release / production default** is the Render API:
 
-On a **real phone**, use your computer's LAN IP. Either set it at build time:
+`https://expense-7py7.onrender.com/api/v1`
+
+That value is baked into release builds. Override only when developing against a
+local backend:
 
 ```bash
-flutter run --dart-define=SANTIM_API_URL=http://192.168.1.10:4000/api/v1
+flutter run --dart-define=SANTIM_API_URL=http://10.0.2.2:4000/api/v1
 ```
 
-…or change it in the app: **Settings → Server → Change server address**, or the
-"Change" link on the sign-in screen. Include the `/api/v1` suffix.
+You can also change it in the app: **Settings → Server → Change server address**,
+or the "Change" link on the sign-in screen. Include the `/api/v1` suffix.
 
-### 3. Install
+### 3. Install / release APK
 
 ```bash
-flutter run                    # debug, with a device attached
-flutter build apk --release    # → build/app/outputs/flutter-apk/app-release.apk
+cd mobile
+flutter build apk --release --dart-define=SANTIM_API_URL=https://expense-7py7.onrender.com/api/v1
+```
+
+Output:
+
+`build/app/outputs/flutter-apk/app-release.apk`
+
+Install:
+
+```bash
 adb install -r build/app/outputs/flutter-apk/app-release.apk
 ```
 

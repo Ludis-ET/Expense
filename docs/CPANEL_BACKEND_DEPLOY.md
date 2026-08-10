@@ -67,10 +67,14 @@ Repo → **Settings** → **Secrets and variables** → **Actions** → **Secret
 
 | Secret | Example | Notes |
 |--------|---------|--------|
-| `FTP_SERVER` | `ftp.yourdomain.com` | No `ftp://` prefix |
+| `FTP_SERVER` | `ftp.yourdomain.com` or `203.0.113.10` | Hostname or IP only. **No** `ftp://`, **no** path, **no** `https://` |
 | `FTP_USERNAME` | `deploy@yourdomain.com` | |
 | `FTP_PASSWORD` | `••••••••` | |
 | `FTP_SERVER_DIR` | `/home/USER/api.yourdomain.com/` | **Must end with `/`** |
+
+If Actions fails with `getaddrinfo ENOTFOUND`, `FTP_SERVER` does not resolve in DNS — fix the hostname/IP in the secret (check cPanel → FTP Accounts for the correct FTP host).
+
+This action uses **FTP/FTPS**, not SFTP. If your host only offers SFTP, you need a different deploy method.
 
 Optional **Variables** (not secrets):
 
@@ -92,10 +96,8 @@ File: [`.github/workflows/deploy-backend-cpanel.yml`](../.github/workflows/deplo
 
 Pipeline steps (all logged):
 
-Pipeline steps (all logged):
-
 1. Banner + secret presence checks (lengths only)
-2. Checkout + Node 20 + pnpm 10
+2. Checkout + Node 24 + pnpm 10
 3. `pnpm install --frozen-lockfile` at repo root
 4. `pnpm --filter @santim/backend build`
 5. Validate / regenerate a real npm `package-lock.json` (isolated from the pnpm workspace)

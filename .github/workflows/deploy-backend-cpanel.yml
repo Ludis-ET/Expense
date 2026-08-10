@@ -108,9 +108,39 @@ jobs:
             missing=1
           fi
 
+          if [[ -n "${FTP_SERVER:-}" ]]; then
+            host="${FTP_SERVER}"
+            # Common mistakes: protocol / path / port embedded in the host secret
+            if [[ "${host}" == *"://"* ]]; then
+              echo "  ✗ FTP_SERVER must be a hostname or IP only (no ftp:// or https://)"
+              missing=1
+            fi
+            if [[ "${host}" == *"/"* ]]; then
+              echo "  ✗ FTP_SERVER must not include a path (put the path in FTP_SERVER_DIR)"
+              missing=1
+            fi
+            # Strip optional :port for DNS check
+            dns_host="${host%%:*}"
+            echo "  DNS lookup for FTP_SERVER host…"
+            if getent hosts "${dns_host}" >/tmp/ftp-dns.txt 2>/dev/null; then
+              echo "  ✓ Host resolves ($(wc -l </tmp/ftp-dns.txt) address(es))"
+            elif host "${dns_host}" >/tmp/ftp-dns.txt 2>/dev/null; then
+              echo "  ✓ Host resolves"
+              cat /tmp/ftp-dns.txt | sed 's/^/    /' | head -5
+            else
+              echo "  ✗ DNS ENOTFOUND for host '${dns_host}'"
+              echo "    Fix FTP_SERVER in repo secrets. Use one of:"
+              echo "      - your cPanel FTP hostname (e.g. ftp.yourdomain.com)"
+              echo "      - the server hostname from cPanel → FTP Accounts"
+              echo "      - the server IP address"
+              echo "    Do NOT use: subdomain URL, https://, or SFTP-only hosts with this action."
+              missing=1
+            fi
+          fi
+
           if [[ "${missing}" -ne 0 ]]; then
             echo ""
-            echo "Add the missing secrets under:"
+            echo "Add/fix secrets under:"
             echo "  Repo → Settings → Secrets and variables → Actions"
             echo "See docs/CPANEL_BACKEND_DEPLOY.md for details."
             exit 1
@@ -139,10 +169,10 @@ jobs:
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
 
-      - name: Setup Node.js 22
+      - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '22'
+          node-version: '24'
           cache: pnpm
 
       - name: Runtime versions
@@ -266,7 +296,7 @@ jobs:
       # -----------------------------------------------------------------------
       - name: Sync files via FTP
         if: ${{ github.event.inputs.dry_run != 'true' }}
-        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        uses: SamKirkland/FTP-Deploy-Action@v4.4.0
         with:
           server: ${{ secrets.FTP_SERVER }}
           username: ${{ secrets.FTP_USERNAME }}

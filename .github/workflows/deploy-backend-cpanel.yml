@@ -1,0 +1,285 @@
+# =============================================================================
+# Deploy Santim backend → cPanel subdomain (FTP)
+# =============================================================================
+# Triggers:
+#   - push to main/master when backend/** changes
+#   - manual run (workflow_dispatch) with optional dry-run
+#
+# Required GitHub repository secrets (Settings → Secrets and variables → Actions):
+#   FTP_SERVER      e.g. ftp.yourdomain.com  OR  your server IP
+#   FTP_USERNAME    cPanel FTP / subdomain FTP user
+#   FTP_PASSWORD    FTP password
+#   FTP_SERVER_DIR  remote app root, e.g. /home/USER/api.yourdomain.com/
+#                   (must end with / ; use the Node.js app directory, NOT public_html
+#                    unless that is where the Node app Application root points)
+#
+# Optional repository variables (Settings → Secrets and variables → Actions → Variables):
+#   FTP_PROTOCOL    ftp | ftps | ftps-legacy   (default: ftps)
+#   FTP_PORT        e.g. 21                    (default: action default)
+# =============================================================================
+
+name: Deploy Backend (cPanel FTP)
+
+on:
+  push:
+    branches:
+      - main
+      - master
+    paths:
+      - 'backend/**'
+      - '.github/workflows/deploy-backend-cpanel.yml'
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: 'Build + stage only (skip FTP upload)'
+        type: boolean
+        default: false
+      log_level:
+        description: 'FTP action log level'
+        type: choice
+        options:
+          - standard
+          - verbose
+          - minimal
+        default: verbose
+
+concurrency:
+  group: deploy-backend-cpanel
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  deploy-backend:
+    name: Build & FTP deploy backend
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+
+    defaults:
+      run:
+        working-directory: backend
+        shell: bash
+
+    steps:
+      # -----------------------------------------------------------------------
+      - name: 📋 Job banner
+        working-directory: .
+        run: |
+          echo "=============================================================="
+          echo " Santim API — cPanel FTP deploy"
+          echo "=============================================================="
+          echo "Timestamp (UTC) : $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
+          echo "Event           : ${{ github.event_name }}"
+          echo "Ref             : ${{ github.ref }}"
+          echo "SHA             : ${{ github.sha }}"
+          echo "Actor           : ${{ github.actor }}"
+          echo "Run ID          : ${{ github.run_id }}"
+          echo "Run attempt     : ${{ github.run_attempt }}"
+          echo "Dry run         : ${{ github.event.inputs.dry_run || 'false' }}"
+          echo "FTP log level   : ${{ github.event.inputs.log_level || 'verbose' }}"
+          echo "Working tree    : backend/"
+          echo "=============================================================="
+
+      # -----------------------------------------------------------------------
+      - name: 🔐 Validate required secrets
+        working-directory: .
+        env:
+          FTP_SERVER: ${{ secrets.FTP_SERVER }}
+          FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
+          FTP_PASSWORD: ${{ secrets.FTP_PASSWORD }}
+          FTP_SERVER_DIR: ${{ secrets.FTP_SERVER_DIR }}
+          DRY_RUN: ${{ github.event.inputs.dry_run || 'false' }}
+        run: |
+          set -euo pipefail
+          echo "[$(date -u +%H:%M:%S)] Checking GitHub secrets (values never printed)…"
+
+          missing=0
+          check() {
+            local name="$1"
+            local value="$2"
+            if [[ -z "${value}" ]]; then
+              echo "  ✗ MISSING secret: ${name}"
+              missing=1
+            else
+              echo "  ✓ Present: ${name} (length=${#value})"
+            fi
+          }
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "[$(date -u +%H:%M:%S)] Dry-run enabled — FTP secret check skipped"
+            exit 0
+          fi
+
+          check "FTP_SERVER" "${FTP_SERVER:-}"
+          check "FTP_USERNAME" "${FTP_USERNAME:-}"
+          check "FTP_PASSWORD" "${FTP_PASSWORD:-}"
+          check "FTP_SERVER_DIR" "${FTP_SERVER_DIR:-}"
+
+          if [[ -n "${FTP_SERVER_DIR:-}" && "${FTP_SERVER_DIR}" != */ ]]; then
+            echo "  ✗ FTP_SERVER_DIR must end with a trailing slash (/)"
+            missing=1
+          fi
+
+          if [[ "${missing}" -ne 0 ]]; then
+            echo ""
+            echo "Add the missing secrets under:"
+            echo "  Repo → Settings → Secrets and variables → Actions"
+            echo "See docs/CPANEL_BACKEND_DEPLOY.md for details."
+            exit 1
+          fi
+
+          echo "[$(date -u +%H:%M:%S)] All required FTP secrets are configured"
+
+      # -----------------------------------------------------------------------
+      - name: 🚚 Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: 📦 Checkout summary
+        working-directory: .
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Repository checked out"
+          echo "  Path     : ${GITHUB_WORKSPACE}"
+          echo "  Commit   : $(git rev-parse --short HEAD)"
+          echo "  Message  : $(git log -1 --pretty=%s)"
+          echo "  Backend tree (top-level):"
+          ls -la backend | sed 's/^/    /'
+
+      # -----------------------------------------------------------------------
+      - name: 🟢 Setup Node.js 20
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: npm
+          cache-dependency-path: backend/package-lock.json
+
+      - name: 🟢 Node / npm environment
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Runtime versions"
+          echo "  node : $(node -v)"
+          echo "  npm  : $(npm -v)"
+          echo "  os   : $(uname -a)"
+          echo "  cwd  : $(pwd)"
+
+      # -----------------------------------------------------------------------
+      - name: 📥 Install backend dependencies
+        run: |
+          echo "[$(date -u +%H:%M:%S)] npm ci (clean install from lockfile)"
+          npm ci --no-fund --no-audit
+          echo "[$(date -u +%H:%M:%S)] Install finished"
+          echo "  node_modules size: $(du -sh node_modules | cut -f1)"
+
+      # -----------------------------------------------------------------------
+      - name: 🔨 Build TypeScript + Prisma client
+        env:
+          # Dummy URL so prisma generate does not fail if schema reads env
+          DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build?schema=public
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Starting production build"
+          echo "  Command: npm run build  (prisma generate && tsc)"
+          npm run build
+          echo "[$(date -u +%H:%M:%S)] Build completed successfully"
+          echo "  dist/ exists       : $(test -f dist/server.js && echo yes || echo NO)"
+          echo "  generated/client   : $(test -f generated/client/index.js && echo yes || echo NO)"
+          echo "  dist file count    : $(find dist -type f | wc -l)"
+          echo "  dist size          : $(du -sh dist | cut -f1)"
+          echo "  generated size     : $(du -sh generated 2>/dev/null | cut -f1 || echo n/a)"
+
+      # -----------------------------------------------------------------------
+      - name: 🧪 Smoke-check compiled entry
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Verifying dist/server.js is valid ESM"
+          node --check dist/server.js
+          echo "[$(date -u +%H:%M:%S)] Syntax check passed"
+
+      # -----------------------------------------------------------------------
+      - name: 📦 Stage FTP payload (.deploy)
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Running prepare:cpanel"
+          npm run prepare:cpanel
+          echo "[$(date -u +%H:%M:%S)] Staging complete"
+          echo "  .deploy size : $(du -sh .deploy | cut -f1)"
+          echo "  .deploy files: $(find .deploy -type f | wc -l)"
+          echo "  Manifest:"
+          cat .deploy/DEPLOY_META.json | sed 's/^/    /'
+
+      # -----------------------------------------------------------------------
+      - name: 🚫 Safety: ensure secrets are not staged
+        run: |
+          echo "[$(date -u +%H:%M:%S)] Scanning .deploy for accidental secrets…"
+          bad=0
+          for f in .env .env.local .env.production .env.production.local; do
+            if [[ -e ".deploy/${f}" ]]; then
+              echo "  ✗ Found forbidden file: .deploy/${f}"
+              bad=1
+            fi
+          done
+          if find .deploy -type f \( -name '*.pem' -o -name '*credentials*' -o -name 'id_rsa*' \) | grep -q .; then
+            echo "  ✗ Found credential-like files under .deploy"
+            find .deploy -type f \( -name '*.pem' -o -name '*credentials*' -o -name 'id_rsa*' \) | sed 's/^/    /'
+            bad=1
+          fi
+          if [[ "${bad}" -ne 0 ]]; then
+            echo "Refusing to upload — remove secrets from the payload."
+            exit 1
+          fi
+          echo "  ✓ No .env or credential files in deploy payload"
+
+      # -----------------------------------------------------------------------
+      - name: 📂 Sync files via FTP
+        if: ${{ github.event.inputs.dry_run != 'true' }}
+        uses: SamKirkland/FTP-Deploy-Action@v4.3.5
+        with:
+          server: ${{ secrets.FTP_SERVER }}
+          username: ${{ secrets.FTP_USERNAME }}
+          password: ${{ secrets.FTP_PASSWORD }}
+          protocol: ${{ vars.FTP_PROTOCOL || 'ftps' }}
+          port: ${{ vars.FTP_PORT || 21 }}
+          local-dir: ./backend/.deploy/
+          server-dir: ${{ secrets.FTP_SERVER_DIR }}
+          log-level: ${{ github.event.inputs.log_level || 'verbose' }}
+          timeout: 60000
+          # Keep server node_modules / logs / .env intact across deploys
+          exclude: |
+            **/.git*
+            **/.git*/**
+            **/node_modules/**
+            **/.env
+            **/.env.*
+            **/npm-debug.log*
+            **/*.log
+
+      # -----------------------------------------------------------------------
+      - name: ⏭️ FTP skipped (dry-run)
+        if: ${{ github.event.inputs.dry_run == 'true' }}
+        working-directory: .
+        run: |
+          echo "=============================================================="
+          echo " DRY-RUN — FTP upload skipped"
+          echo " Artifact is ready locally in the runner at:"
+          echo "   backend/.deploy/"
+          echo "=============================================================="
+
+      # -----------------------------------------------------------------------
+      - name: ✅ Deploy finished
+        working-directory: .
+        run: |
+          echo "=============================================================="
+          echo " Backend deploy job finished"
+          echo "=============================================================="
+          echo "Commit : ${{ github.sha }}"
+          echo ""
+          echo "Next steps on cPanel (first deploy / after dependency changes):"
+          echo "  1. Open Setup Node.js App → select this subdomain app"
+          echo "  2. Confirm Application root = FTP_SERVER_DIR folder"
+          echo "  3. Application startup file = dist/server.js"
+          echo "  4. Set env vars (DATABASE_URL, JWT_SECRET, CORS_ORIGINS, …)"
+          echo "  5. Run NPM Install"
+          echo "  6. Restart the application"
+          echo "  7. Once: npx prisma migrate deploy  (SSH or Node terminal)"
+          echo ""
+          echo "Health check: GET https://YOUR-API-SUBDOMAIN/health"
+          echo "Full guide: docs/CPANEL_BACKEND_DEPLOY.md"
+          echo "=============================================================="

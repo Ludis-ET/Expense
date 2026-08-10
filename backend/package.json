@@ -12,6 +12,7 @@
     "build": "prisma generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "postinstall": "node scripts/postinstall.mjs",
+    "prepare:cpanel": "node scripts/prepare-cpanel-deploy.mjs",
     "typecheck": "prisma generate && tsc --noEmit",
     "lint": "eslint .",
     "test": "prisma generate && vitest run",

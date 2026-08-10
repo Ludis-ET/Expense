@@ -5,7 +5,7 @@
 generator client {
   provider      = "prisma-client-js"
   output        = "../generated/client"
-  # native = local/CI; debian + rhel cover most cPanel / CloudLinux hosts
+  // native = local/CI; debian + rhel cover most cPanel / CloudLinux hosts
   binaryTargets = ["native", "debian-openssl-3.0.x", "rhel-openssl-3.0.x"]
 }
 

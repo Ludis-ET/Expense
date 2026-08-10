@@ -206,7 +206,7 @@ jobs:
           cat .deploy/DEPLOY_META.json | sed 's/^/    /'
 
       # -----------------------------------------------------------------------
-      - name: 🚫 Safety: ensure secrets are not staged
+      - name: 'Safety check — ensure secrets are not staged'
         run: |
           echo "[$(date -u +%H:%M:%S)] Scanning .deploy for accidental secrets…"
           bad=0

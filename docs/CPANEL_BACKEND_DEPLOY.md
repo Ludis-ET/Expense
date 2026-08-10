@@ -5,12 +5,14 @@ This guide covers **backend only**: build in CI, upload over FTP, run as a cPane
 ## Architecture
 
 ```
-GitHub (push to main) → Actions build → FTP upload → cPanel Node.js App
-                              │
-                              └── uploads backend/.deploy/
-                                  (dist, prisma, scripts, package*.json)
-                                  Prisma client is generated on the host via npm install
+GitHub (push to main)
+  → pnpm install + build (monorepo)
+  → ensure real npm package-lock.json
+  → FTP upload backend/.deploy/
+  → cPanel Node.js App (npm install on host)
 ```
+
+This repo is a **pnpm** monorepo. CI builds with pnpm. The FTP payload still includes an **npm** `package-lock.json` so cPanel’s “Run NPM Install” works without pnpm.
 
 Secrets and `.env` are **never** uploaded. Configure them in cPanel.
 

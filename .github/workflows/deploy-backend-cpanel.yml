@@ -1,21 +1,12 @@
 # =============================================================================
 # Deploy Santim backend → cPanel subdomain (FTP)
 # =============================================================================
-# Triggers:
-#   - push to main/master when backend/** changes
-#   - manual run (workflow_dispatch) with optional dry-run
+# This monorepo uses pnpm. CI builds with pnpm; the FTP payload includes a
+# real npm package-lock.json so cPanel "Run NPM Install" works standalone.
 #
-# Required GitHub repository secrets (Settings → Secrets and variables → Actions):
-#   FTP_SERVER      e.g. ftp.yourdomain.com  OR  your server IP
-#   FTP_USERNAME    cPanel FTP / subdomain FTP user
-#   FTP_PASSWORD    FTP password
-#   FTP_SERVER_DIR  remote app root, e.g. /home/USER/api.yourdomain.com/
-#                   (must end with / ; use the Node.js app directory, NOT public_html
-#                    unless that is where the Node app Application root points)
-#
-# Optional repository variables (Settings → Secrets and variables → Actions → Variables):
-#   FTP_PROTOCOL    ftp | ftps | ftps-legacy   (default: ftps)
-#   FTP_PORT        e.g. 21                    (default: action default)
+# Required GitHub secrets:
+#   FTP_SERVER, FTP_USERNAME, FTP_PASSWORD, FTP_SERVER_DIR (trailing /)
+# Optional vars: FTP_PROTOCOL (default ftps), FTP_PORT (default 21)
 # =============================================================================
 
 name: Deploy Backend (cPanel FTP)
@@ -27,6 +18,9 @@ on:
       - master
     paths:
       - 'backend/**'
+      - 'pnpm-lock.yaml'
+      - 'pnpm-workspace.yaml'
+      - 'package.json'
       - '.github/workflows/deploy-backend-cpanel.yml'
   workflow_dispatch:
     inputs:
@@ -56,15 +50,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
 
-    defaults:
-      run:
-        working-directory: backend
-        shell: bash
-
     steps:
       # -----------------------------------------------------------------------
-      - name: 📋 Job banner
-        working-directory: .
+      - name: Job banner
         run: |
           echo "=============================================================="
           echo " Santim API — cPanel FTP deploy"
@@ -78,12 +66,11 @@ jobs:
           echo "Run attempt     : ${{ github.run_attempt }}"
           echo "Dry run         : ${{ github.event.inputs.dry_run || 'false' }}"
           echo "FTP log level   : ${{ github.event.inputs.log_level || 'verbose' }}"
-          echo "Working tree    : backend/"
+          echo "Package manager : pnpm (monorepo) → npm lockfile for cPanel"
           echo "=============================================================="
 
       # -----------------------------------------------------------------------
-      - name: 🔐 Validate required secrets
-        working-directory: .
+      - name: Validate required secrets
         env:
           FTP_SERVER: ${{ secrets.FTP_SERVER }}
           FTP_USERNAME: ${{ secrets.FTP_USERNAME }}
@@ -132,13 +119,12 @@ jobs:
           echo "[$(date -u +%H:%M:%S)] All required FTP secrets are configured"
 
       # -----------------------------------------------------------------------
-      - name: 🚚 Checkout repository
+      - name: Checkout repository
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: 📦 Checkout summary
-        working-directory: .
+      - name: Checkout summary
         run: |
           echo "[$(date -u +%H:%M:%S)] Repository checked out"
           echo "  Path     : ${GITHUB_WORKSPACE}"
@@ -146,62 +132,98 @@ jobs:
           echo "  Message  : $(git log -1 --pretty=%s)"
           echo "  Backend tree (top-level):"
           ls -la backend | sed 's/^/    /'
+          echo "  Lockfiles:"
+          ls -la pnpm-lock.yaml backend/package-lock.json 2>/dev/null | sed 's/^/    /' || true
 
       # -----------------------------------------------------------------------
-      - name: 🟢 Setup Node.js 20
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10
+
+      - name: Setup Node.js 20
         uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: npm
-          cache-dependency-path: backend/package-lock.json
+          cache: pnpm
 
-      - name: 🟢 Node / npm environment
+      - name: Runtime versions
         run: |
           echo "[$(date -u +%H:%M:%S)] Runtime versions"
           echo "  node : $(node -v)"
           echo "  npm  : $(npm -v)"
+          echo "  pnpm : $(pnpm -v)"
           echo "  os   : $(uname -a)"
-          echo "  cwd  : $(pwd)"
 
       # -----------------------------------------------------------------------
-      - name: 📥 Install backend dependencies
+      - name: Install monorepo dependencies (pnpm)
         run: |
-          echo "[$(date -u +%H:%M:%S)] npm ci (clean install from lockfile)"
-          npm ci --no-fund --no-audit
+          echo "[$(date -u +%H:%M:%S)] pnpm install --frozen-lockfile"
+          pnpm install --frozen-lockfile
           echo "[$(date -u +%H:%M:%S)] Install finished"
-          echo "  node_modules size: $(du -sh node_modules | cut -f1)"
+          echo "  prisma CLI (backend):"
+          ls -la backend/node_modules/.bin/prisma 2>/dev/null || ls -la node_modules/.bin/prisma 2>/dev/null || echo "    (checking via pnpm exec)"
+          pnpm --filter @santim/backend exec prisma -v
 
       # -----------------------------------------------------------------------
-      - name: 🔨 Build TypeScript + Prisma client
+      - name: Build backend (Prisma + TypeScript)
         env:
-          # Dummy URL so prisma generate does not fail if schema reads env
           DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build?schema=public
         run: |
-          echo "[$(date -u +%H:%M:%S)] Starting production build"
-          echo "  prisma CLI : $(test -f node_modules/prisma/build/index.js && echo OK || echo MISSING)"
-          echo "  .bin/prisma: $(test -x node_modules/.bin/prisma && echo OK || echo missing)"
-          ls -la node_modules/.bin/prisma 2>/dev/null || true
-          echo "  Command: npm run build"
-          npm run build
+          echo "[$(date -u +%H:%M:%S)] Starting production build via pnpm"
+          pnpm --filter @santim/backend build
           echo "[$(date -u +%H:%M:%S)] Build completed successfully"
-          echo "  dist/ exists       : $(test -f dist/server.js && echo yes || echo NO)"
-          echo "  generated/client   : $(test -f generated/client/index.js && echo yes || echo NO)"
-          echo "  dist file count    : $(find dist -type f | wc -l)"
-          echo "  dist size          : $(du -sh dist | cut -f1)"
-          echo "  generated size     : $(du -sh generated 2>/dev/null | cut -f1 || echo n/a)"
+          echo "  dist/server.js     : $(test -f backend/dist/server.js && echo yes || echo NO)"
+          echo "  generated/client   : $(test -f backend/generated/client/index.js && echo yes || echo NO)"
+          echo "  dist file count    : $(find backend/dist -type f | wc -l)"
+          echo "  dist size          : $(du -sh backend/dist | cut -f1)"
+          echo "  generated size     : $(du -sh backend/generated 2>/dev/null | cut -f1 || echo n/a)"
 
       # -----------------------------------------------------------------------
-      - name: 🧪 Smoke-check compiled entry
+      - name: Smoke-check compiled entry
+        working-directory: backend
         run: |
           echo "[$(date -u +%H:%M:%S)] Verifying dist/server.js is valid ESM"
           node --check dist/server.js
           echo "[$(date -u +%H:%M:%S)] Syntax check passed"
 
       # -----------------------------------------------------------------------
-      - name: 📦 Stage FTP payload (.deploy)
+      - name: Ensure npm package-lock.json for cPanel
+        working-directory: backend
+        run: |
+          set -euo pipefail
+          echo "[$(date -u +%H:%M:%S)] Validating/creating npm lockfile for cPanel"
+
+          needs_regen=0
+          if [[ ! -f package-lock.json ]]; then
+            echo "  package-lock.json missing — will generate"
+            needs_regen=1
+          elif grep -q '\.pnpm/' package-lock.json; then
+            echo "  package-lock.json contains pnpm link paths — regenerating"
+            needs_regen=1
+          else
+            echo "  package-lock.json looks like a real npm lockfile"
+          fi
+
+          if [[ "${needs_regen}" -eq 1 ]]; then
+            rm -f package-lock.json
+            # Isolated npm lockfile for the FTP payload (does not use workspace links)
+            npm install --package-lock-only --ignore-scripts --no-fund --no-audit
+            echo "  Regenerated package-lock.json ($(wc -c < package-lock.json) bytes)"
+          fi
+
+          if grep -q '\.pnpm/' package-lock.json; then
+            echo "  ✗ Lockfile still contains pnpm paths — refusing deploy"
+            exit 1
+          fi
+          echo "  ✓ npm lockfile ready for cPanel"
+
+      # -----------------------------------------------------------------------
+      - name: Stage FTP payload (.deploy)
+        working-directory: backend
         run: |
           echo "[$(date -u +%H:%M:%S)] Running prepare:cpanel"
-          npm run prepare:cpanel
+          pnpm run prepare:cpanel
           echo "[$(date -u +%H:%M:%S)] Staging complete"
           echo "  .deploy size : $(du -sh .deploy | cut -f1)"
           echo "  .deploy files: $(find .deploy -type f | wc -l)"
@@ -210,6 +232,7 @@ jobs:
 
       # -----------------------------------------------------------------------
       - name: 'Safety check — ensure secrets are not staged'
+        working-directory: backend
         run: |
           echo "[$(date -u +%H:%M:%S)] Scanning .deploy for accidental secrets…"
           bad=0
@@ -231,7 +254,7 @@ jobs:
           echo "  ✓ No .env or credential files in deploy payload"
 
       # -----------------------------------------------------------------------
-      - name: 📂 Sync files via FTP
+      - name: Sync files via FTP
         if: ${{ github.event.inputs.dry_run != 'true' }}
         uses: SamKirkland/FTP-Deploy-Action@v4.3.5
         with:
@@ -244,7 +267,6 @@ jobs:
           server-dir: ${{ secrets.FTP_SERVER_DIR }}
           log-level: ${{ github.event.inputs.log_level || 'verbose' }}
           timeout: 60000
-          # Keep server node_modules / logs / .env intact across deploys
           exclude: |
             **/.git*
             **/.git*/**
@@ -255,9 +277,8 @@ jobs:
             **/*.log
 
       # -----------------------------------------------------------------------
-      - name: ⏭️ FTP skipped (dry-run)
+      - name: FTP skipped (dry-run)
         if: ${{ github.event.inputs.dry_run == 'true' }}
-        working-directory: .
         run: |
           echo "=============================================================="
           echo " DRY-RUN — FTP upload skipped"
@@ -266,8 +287,7 @@ jobs:
           echo "=============================================================="
 
       # -----------------------------------------------------------------------
-      - name: ✅ Deploy finished
-        working-directory: .
+      - name: Deploy finished
         run: |
           echo "=============================================================="
           echo " Backend deploy job finished"

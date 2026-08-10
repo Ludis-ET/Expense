@@ -178,7 +178,10 @@ jobs:
           DATABASE_URL: postgresql://build:build@127.0.0.1:5432/build?schema=public
         run: |
           echo "[$(date -u +%H:%M:%S)] Starting production build"
-          echo "  Command: npm run build  (prisma generate && tsc)"
+          echo "  prisma CLI : $(test -f node_modules/prisma/build/index.js && echo OK || echo MISSING)"
+          echo "  .bin/prisma: $(test -x node_modules/.bin/prisma && echo OK || echo missing)"
+          ls -la node_modules/.bin/prisma 2>/dev/null || true
+          echo "  Command: npm run build"
           npm run build
           echo "[$(date -u +%H:%M:%S)] Build completed successfully"
           echo "  dist/ exists       : $(test -f dist/server.js && echo yes || echo NO)"

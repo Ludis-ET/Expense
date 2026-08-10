@@ -9,20 +9,20 @@
   },
   "scripts": {
     "dev": "tsx watch src/server.ts",
-    "build": "prisma generate && tsc -p tsconfig.json",
+    "build": "node ./node_modules/prisma/build/index.js generate && tsc -p tsconfig.json",
     "start": "node dist/server.js",
     "postinstall": "node scripts/postinstall.mjs",
     "prepare:cpanel": "node scripts/prepare-cpanel-deploy.mjs",
-    "typecheck": "prisma generate && tsc --noEmit",
+    "typecheck": "node ./node_modules/prisma/build/index.js generate && tsc --noEmit",
     "lint": "eslint .",
-    "test": "prisma generate && vitest run",
+    "test": "node ./node_modules/prisma/build/index.js generate && vitest run",
     "test:watch": "vitest",
-    "db:generate": "prisma generate",
-    "db:migrate": "prisma migrate dev",
-    "db:deploy": "prisma migrate deploy",
+    "db:generate": "node ./node_modules/prisma/build/index.js generate",
+    "db:migrate": "node ./node_modules/prisma/build/index.js migrate dev",
+    "db:deploy": "node ./node_modules/prisma/build/index.js migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:backfill-categories": "tsx prisma/backfill-categories.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "node ./node_modules/prisma/build/index.js studio"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"

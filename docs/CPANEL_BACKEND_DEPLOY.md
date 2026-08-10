@@ -92,12 +92,14 @@ File: [`.github/workflows/deploy-backend-cpanel.yml`](../.github/workflows/deplo
 
 Pipeline steps (all logged):
 
+Pipeline steps (all logged):
+
 1. Banner + secret presence checks (lengths only)
-2. Checkout + Node 20
-3. `npm ci` in `backend/`
-4. `npm run build` (`prisma generate` + `tsc`)
-5. Syntax check `dist/server.js`
-6. `npm run prepare:cpanel` → stages `backend/.deploy/`
+2. Checkout + Node 20 + pnpm 10
+3. `pnpm install --frozen-lockfile` at repo root
+4. `pnpm --filter @santim/backend build`
+5. Validate / regenerate a real npm `package-lock.json` (isolated from the pnpm workspace)
+6. `pnpm prepare:cpanel` → stages `backend/.deploy/`
 7. Refuse upload if `.env` / credential files are staged
 8. `SamKirkland/FTP-Deploy-Action` with verbose logs
 9. Post-deploy checklist printed in the job log

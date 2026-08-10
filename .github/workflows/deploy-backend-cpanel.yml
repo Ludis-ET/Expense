@@ -199,16 +199,22 @@ jobs:
             echo "  package-lock.json missing — will generate"
             needs_regen=1
           elif grep -q '\.pnpm/' package-lock.json; then
-            echo "  package-lock.json contains pnpm link paths — regenerating"
+            echo "  package-lock.json contains pnpm link paths — regenerating in isolation"
             needs_regen=1
           else
             echo "  package-lock.json looks like a real npm lockfile"
           fi
 
           if [[ "${needs_regen}" -eq 1 ]]; then
-            rm -f package-lock.json
-            # Isolated npm lockfile for the FTP payload (does not use workspace links)
-            npm install --package-lock-only --ignore-scripts --no-fund --no-audit
+            # Must generate outside the pnpm workspace or npm rewrites link:true stubs
+            tmp="$(mktemp -d)"
+            cp package.json "${tmp}/"
+            (
+              cd "${tmp}"
+              npm install --package-lock-only --ignore-scripts --no-fund --no-audit
+            )
+            cp "${tmp}/package-lock.json" ./package-lock.json
+            rm -rf "${tmp}"
             echo "  Regenerated package-lock.json ($(wc -c < package-lock.json) bytes)"
           fi
 
@@ -216,6 +222,12 @@ jobs:
             echo "  ✗ Lockfile still contains pnpm paths — refusing deploy"
             exit 1
           fi
+
+          if ! grep -q '"node_modules/prisma"' package-lock.json; then
+            echo "  ✗ prisma missing from lockfile — refusing deploy"
+            exit 1
+          fi
+
           echo "  ✓ npm lockfile ready for cPanel"
 
       # -----------------------------------------------------------------------

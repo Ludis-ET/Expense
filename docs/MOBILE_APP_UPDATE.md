@@ -9,7 +9,7 @@ Sideloaded Santim builds can update themselves without ADB. The backend advertis
 
 | Variable | Example | Notes |
 |----------|---------|--------|
-| `ANDROID_LATEST_VERSION_CODE` | `2010` | Must match `pubspec.yaml` build number (`1.0.10+2010` → `2010`) |
+| `ANDROID_LATEST_VERSION_CODE` | `4009` | Must match `pubspec.yaml` build number (`1.0.10+4009` → `4009`) |
 | `ANDROID_LATEST_VERSION_NAME` | `1.0.10` | Shown in the popup |
 | `ANDROID_APK_URL` | `https://…/app-release.apk` | Direct HTTPS link to the APK |
 | `ANDROID_CHANGELOG` | `Outlook + chat history` | Optional “What’s new” text |
@@ -23,7 +23,7 @@ Sideloaded Santim builds can update themselves without ADB. The backend advertis
 ## Publish a new version
 
 ```bash
-# 1. Bump mobile/pubspec.yaml — e.g. 1.0.10+2010
+# 1. Bump mobile/pubspec.yaml — e.g. 1.0.10+4009 (must be > what's on the phone)
 # 2. Build
 cd mobile
 flutter build apk --release --target-platform android-arm64 \

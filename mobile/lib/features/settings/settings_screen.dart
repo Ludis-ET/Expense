@@ -1,0 +1,438 @@
+import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
+
+import '../../core/api/api_client.dart';
+import '../../core/theme/tokens.dart';
+import '../../core/utils/format.dart';
+import '../../core/utils/icons.dart';
+import '../../models/models.dart';
+import '../../state/auth_state.dart';
+import '../../state/data_state.dart';
+import '../../state/prefs_state.dart';
+import '../../widgets/fields.dart';
+import '../../widgets/ui.dart';
+import 'ai_providers_screen.dart';
+import 'categories_screen.dart';
+import 'exchange_rates_screen.dart';
+import 'household_screen.dart';
+
+/// Settings. Everything that shapes how the app behaves, grouped by what it
+/// affects rather than by which endpoint owns it.
+class SettingsScreen extends StatelessWidget {
+  const SettingsScreen({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final auth = context.watch<AuthState>();
+    final prefs = context.watch<PrefsState>();
+    final data = context.watch<DataState>();
+    final user = auth.user;
+
+    return Scaffold(
+      backgroundColor: Colors.transparent,
+      appBar: AppBar(
+        title: Text(
+          'Settings',
+          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+        ),
+      ),
+      body: MeshBackground(
+        showGrid: false,
+        child: ListView(
+          padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
+          children: [
+            FadeInUp(
+              child: AppCard(
+                padding: const EdgeInsets.all(16),
+                onTap: () => _editProfile(context),
+                child: Row(
+                  children: [
+                    Avatar(name: user?.name ?? '?', avatarId: user?.avatarId, size: 52),
+                    const SizedBox(width: 14),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            user?.name ?? '',
+                            style: TextStyle(
+                              fontSize: 16,
+                              fontWeight: FontWeight.w700,
+                              color: t.foreground,
+                            ),
+                          ),
+                          const SizedBox(height: 2),
+                          Muted(user?.email ?? '', size: 12.5, maxLines: 1),
+                        ],
+                      ),
+                    ),
+                    Icon(Icons.edit_outlined, size: 18, color: t.mutedForeground),
+                  ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            SectionLabel('APPEARANCE'),
+            AppCard(
+              padding: const EdgeInsets.all(14),
+              child: Column(
+                children: [
+                  FieldShell(
+                    label: 'Theme',
+                    child: SegmentedTabs<ThemeMode>(
+                      value: prefs.themeMode,
+                      options: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
+                      labelOf: (m) => switch (m) {
+                        ThemeMode.system => 'System',
+                        ThemeMode.light => 'Light',
+                        ThemeMode.dark => 'Dark',
+                      },
+                      iconOf: (m) => switch (m) {
+                        ThemeMode.system => Icons.brightness_auto_outlined,
+                        ThemeMode.light => Icons.light_mode_outlined,
+                        ThemeMode.dark => Icons.dark_mode_outlined,
+                      },
+                      onChanged: prefs.setThemeMode,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  SwitchRow(
+                    title: 'Hide amounts',
+                    subtitle: 'Masks every figure until you tap the eye.',
+                    icon: Icons.visibility_off_outlined,
+                    value: prefs.amountsHidden,
+                    onChanged: (_) => prefs.toggleAmounts(),
+                  ),
+                  SwitchRow(
+                    title: 'Reduce motion',
+                    subtitle: 'Turns off the drifting background and entrance animations.',
+                    icon: Icons.motion_photos_off_outlined,
+                    value: prefs.reduceMotion,
+                    onChanged: prefs.setReduceMotion,
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            SectionLabel('MONEY'),
+            _Tile(
+              icon: Icons.sell_outlined,
+              title: 'Categories',
+              subtitle: '${(data.categories.data ?? const <TxCategory>[]).length} in use',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+              ),
+            ),
+            _Tile(
+              icon: Icons.currency_exchange,
+              title: 'Exchange rates',
+              subtitle: 'Needed to combine currencies into one total',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ExchangeRatesScreen()),
+              ),
+            ),
+            _Tile(
+              icon: Icons.payments_outlined,
+              title: 'Default currency',
+              subtitle: user?.currency ?? 'ETB',
+              onTap: () => _pickCurrency(context),
+            ),
+            _Tile(
+              icon: Icons.account_balance_wallet_outlined,
+              title: 'Cash wallet',
+              subtitle: _cashWalletName(data, user) ?? 'Not set',
+              onTap: () => _pickCashWallet(context),
+            ),
+            const SizedBox(height: 18),
+
+            SectionLabel('PEOPLE & AI'),
+            _Tile(
+              icon: Icons.group_outlined,
+              title: 'Household',
+              subtitle: 'Share wallets with a partner',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HouseholdScreen()),
+              ),
+            ),
+            _Tile(
+              icon: Icons.auto_awesome,
+              title: 'AI providers',
+              subtitle: 'Bring your own key for Ask Santim',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
+              ),
+            ),
+            const SizedBox(height: 18),
+
+            SectionLabel('APP'),
+            _Tile(
+              icon: Icons.dns_outlined,
+              title: 'API server',
+              subtitle: context.read<ApiClient>().baseUrl,
+              onTap: () => _editServer(context),
+            ),
+            _Tile(
+              icon: Icons.calendar_today_outlined,
+              title: 'Calendar',
+              subtitle: 'Gregorian with Ethiopian alongside',
+              onTap: null,
+            ),
+            const SizedBox(height: 18),
+
+            AppButton(
+              label: 'Sign out',
+              icon: Icons.logout_rounded,
+              variant: BtnVariant.outline,
+              expand: true,
+              onPressed: () async {
+                final ok = await confirm(
+                  context,
+                  title: 'Sign out?',
+                  message: 'You will need your email and password to get back in.',
+                  confirmLabel: 'Sign out',
+                );
+                if (ok && context.mounted) await context.read<AuthState>().logout();
+              },
+            ),
+            const SizedBox(height: 20),
+            Center(
+              child: Column(
+                children: [
+                  const BrandMark(size: 34),
+                  const SizedBox(height: 10),
+                  Muted('Santim · version 1.0.0', size: 11),
+                  const SizedBox(height: 3),
+                  Muted('Know where every birr goes', size: 11),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static String? _cashWalletName(DataState data, User? user) {
+    if (user?.cashAccountId == null) return null;
+    return (data.accounts.data ?? const <Account>[])
+        .where((a) => a.id == user!.cashAccountId)
+        .firstOrNull
+        ?.name;
+  }
+
+  static Future<void> _editProfile(BuildContext context) async {
+    final auth = context.read<AuthState>();
+    final name = TextEditingController(text: auth.user?.name ?? '');
+    await showAppSheet<void>(
+      context,
+      title: 'Your profile',
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              controller: name,
+              label: 'Name',
+              prefixIcon: Icons.person_outline,
+              textCapitalization: TextCapitalization.words,
+            ),
+            const SizedBox(height: 14),
+            AppTextField(
+              label: 'Email',
+              placeholder: auth.user?.email ?? '',
+              prefixIcon: Icons.alternate_email,
+              enabled: false,
+            ),
+            const SizedBox(height: 20),
+            AppButton(
+              label: 'Save',
+              expand: true,
+              onPressed: () async {
+                try {
+                  await auth.updateProfile({'name': name.text.trim()});
+                  if (ctx.mounted) Navigator.pop(ctx);
+                  if (context.mounted) toast(context, 'Profile updated');
+                } on ApiError catch (e) {
+                  if (context.mounted) toast(context, e.message, error: true);
+                }
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  static Future<void> _pickCurrency(BuildContext context) async {
+    const currencies = ['ETB', 'USD', 'EUR', 'GBP', 'KES', 'AED'];
+    final auth = context.read<AuthState>();
+    final picked = await showAppSheet<String>(
+      context,
+      title: 'Default currency',
+      subtitle: 'Used for new wallets and as the base for conversions.',
+      scrollable: false,
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final c in currencies)
+              ListTile(
+                onTap: () => Navigator.pop(ctx, c),
+                selected: c == auth.user?.currency,
+                selectedTileColor: ctx.t.primary.withValues(alpha: 0.08),
+                title: Text('$c · ${currencySymbol(c)}',
+                    style: const TextStyle(fontSize: 14.5)),
+                trailing: c == auth.user?.currency
+                    ? Icon(Icons.check_circle, size: 20, color: ctx.t.primary)
+                    : null,
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    try {
+      await auth.updateProfile({'currency': picked});
+      if (context.mounted) await context.read<DataState>().refreshAfterWrite();
+    } on ApiError catch (e) {
+      if (context.mounted) toast(context, e.message, error: true);
+    }
+  }
+
+  static Future<void> _pickCashWallet(BuildContext context) async {
+    final auth = context.read<AuthState>();
+    final data = context.read<DataState>();
+    await data.loadAccounts();
+    if (!context.mounted) return;
+
+    final picked = await showAppSheet<String>(
+      context,
+      title: 'Cash wallet',
+      subtitle: 'The wallet that holds physical cash. ATM withdrawals transfer into it.',
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            for (final a in data.scopedAccounts)
+              ListTile(
+                onTap: () => Navigator.pop(ctx, a.id),
+                selected: a.id == auth.user?.cashAccountId,
+                selectedTileColor: ctx.t.primary.withValues(alpha: 0.08),
+                leading: IconTile(
+                  icon: accountTypeIcon(a.type.wire),
+                  color: parseHexColor(a.color),
+                  size: 34,
+                ),
+                title: Text(a.name, style: const TextStyle(fontSize: 14.5)),
+                trailing: a.id == auth.user?.cashAccountId
+                    ? Icon(Icons.check_circle, size: 20, color: ctx.t.primary)
+                    : null,
+              ),
+          ],
+        ),
+      ),
+    );
+    if (picked == null || !context.mounted) return;
+    try {
+      await auth.updateProfile({'cashAccountId': picked});
+      if (context.mounted) toast(context, 'Cash wallet updated');
+    } on ApiError catch (e) {
+      if (context.mounted) toast(context, e.message, error: true);
+    }
+  }
+
+  static Future<void> _editServer(BuildContext context) async {
+    final api = context.read<ApiClient>();
+    final controller = TextEditingController(text: api.baseUrl);
+    await showAppSheet<void>(
+      context,
+      title: 'API server',
+      subtitle: 'Point the app at your own Santim backend.',
+      builder: (ctx) => Padding(
+        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            AppTextField(
+              controller: controller,
+              label: 'Base URL',
+              placeholder: 'https://example.com/api/v1',
+              textCapitalization: TextCapitalization.none,
+              keyboardType: TextInputType.url,
+            ),
+            const SizedBox(height: 18),
+            AppButton(
+              label: 'Save',
+              expand: true,
+              onPressed: () async {
+                final value = controller.text.trim().replaceAll(RegExp(r'/+$'), '');
+                await api.tokens.setBase(value.isEmpty ? null : value);
+                if (ctx.mounted) Navigator.pop(ctx);
+                if (context.mounted) toast(context, 'Server updated — sign in again');
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Tile extends StatelessWidget {
+  const _Tile({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final VoidCallback? onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 9),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        onTap: onTap,
+        child: Row(
+          children: [
+            Icon(icon, size: 19, color: t.mutedForeground),
+            const SizedBox(width: 14),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w600,
+                      color: t.foreground,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Muted(subtitle, size: 11.5, maxLines: 1),
+                ],
+              ),
+            ),
+            if (onTap != null)
+              Icon(Icons.chevron_right, size: 19, color: t.mutedForeground),
+          ],
+        ),
+      ),
+    );
+  }
+}

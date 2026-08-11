@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Mirrors the app's background and primary design tokens so the native
+     launch window hands off to the Flutter splash without a colour flash. -->
+<resources>
+    <color name="santim_background">#F4F6F9</color>
+    <color name="santim_primary">#059669</color>
+</resources>

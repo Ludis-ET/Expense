@@ -1,0 +1,31 @@
+name: santim
+description: "Santim - know where every birr goes. Android client."
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.10.7
+
+dependencies:
+  flutter:
+    sdk: flutter
+
+  cupertino_icons: ^1.0.8
+  # State: plain ChangeNotifier trees, no code generation.
+  provider: ^6.1.2
+  # REST client for the Express backend.
+  http: ^1.2.2
+  # Token + preference persistence.
+  shared_preferences: ^2.3.3
+  # Currency / date formatting to match the web app's Intl output.
+  intl: ^0.20.2
+  # Opening wishlist links and guide references.
+  url_launcher: ^6.3.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+  uses-material-design: true

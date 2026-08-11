@@ -254,26 +254,6 @@ class _AuthScreenState extends State<AuthScreen> {
                           ),
                         ),
                         const SizedBox(height: 20),
-                        FadeInUp(
-                          delay: const Duration(milliseconds: 180),
-                          child: Center(
-                            child: GestureDetector(
-                              onTap: _openServerSheet,
-                              behavior: HitTestBehavior.opaque,
-                              child: Padding(
-                                padding: const EdgeInsets.all(8),
-                                child: Row(
-                                  mainAxisSize: MainAxisSize.min,
-                                  children: [
-                                    Icon(Icons.dns_outlined, size: 13, color: t.mutedForeground),
-                                    const SizedBox(width: 6),
-                                    Muted('Server settings', size: 12),
-                                  ],
-                                ),
-                              ),
-                            ),
-                          ),
-                        ),
                       ],
                     ),
                   ),
@@ -281,44 +261,6 @@ class _AuthScreenState extends State<AuthScreen> {
               ),
             ],
           ),
-        ),
-      ),
-    );
-  }
-
-  /// Lets a self-hoster point the app at their own backend without a rebuild.
-  Future<void> _openServerSheet() async {
-    final api = context.read<ApiClient>();
-    final controller = TextEditingController(text: api.baseUrl);
-    await showAppSheet<void>(
-      context,
-      title: 'API server',
-      subtitle: 'Point the app at your own Santim backend.',
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppTextField(
-              controller: controller,
-              label: 'Base URL',
-              placeholder: 'https://example.com/api/v1',
-              textCapitalization: TextCapitalization.none,
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 18),
-            AppButton(
-              label: 'Save',
-              expand: true,
-              onPressed: () async {
-                final value = controller.text.trim().replaceAll(RegExp(r'/+$'), '');
-                await api.tokens.setBase(value.isEmpty ? null : value);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (mounted) toast(context, 'Server updated');
-              },
-            ),
-          ],
         ),
       ),
     );

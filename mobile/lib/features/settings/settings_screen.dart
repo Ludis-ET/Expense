@@ -169,12 +169,6 @@ class SettingsScreen extends StatelessWidget {
 
             SectionLabel('APP'),
             _Tile(
-              icon: Icons.dns_outlined,
-              title: 'API server',
-              subtitle: context.read<ApiClient>().baseUrl,
-              onTap: () => _editServer(context),
-            ),
-            _Tile(
               icon: Icons.calendar_today_outlined,
               title: 'Calendar',
               subtitle: 'Gregorian with Ethiopian alongside',
@@ -346,43 +340,6 @@ class SettingsScreen extends StatelessWidget {
     } on ApiError catch (e) {
       if (context.mounted) toast(context, e.message, error: true);
     }
-  }
-
-  static Future<void> _editServer(BuildContext context) async {
-    final api = context.read<ApiClient>();
-    final controller = TextEditingController(text: api.baseUrl);
-    await showAppSheet<void>(
-      context,
-      title: 'API server',
-      subtitle: 'Point the app at your own Santim backend.',
-      builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            AppTextField(
-              controller: controller,
-              label: 'Base URL',
-              placeholder: 'https://example.com/api/v1',
-              textCapitalization: TextCapitalization.none,
-              keyboardType: TextInputType.url,
-            ),
-            const SizedBox(height: 18),
-            AppButton(
-              label: 'Save',
-              expand: true,
-              onPressed: () async {
-                final value = controller.text.trim().replaceAll(RegExp(r'/+$'), '');
-                await api.tokens.setBase(value.isEmpty ? null : value);
-                if (ctx.mounted) Navigator.pop(ctx);
-                if (context.mounted) toast(context, 'Server updated — sign in again');
-              },
-            ),
-          ],
-        ),
-      ),
-    );
   }
 }
 

@@ -23,29 +23,23 @@ class ApiError implements Exception {
 /// Persisted access/refresh pair. Keys match the web app so a user reading
 /// support docs sees the same names.
 class TokenStore {
-  TokenStore(this._prefs);
+  TokenStore(this._prefs) {
+    // Drop any previously saved in-app API base override.
+    _prefs.remove(_legacyBaseKey);
+  }
 
   static const _accessKey = 'rt.accessToken';
   static const _refreshKey = 'rt.refreshToken';
-  static const _baseKey = 'santim.apiBase';
+  static const _legacyBaseKey = 'santim.apiBase';
 
   final SharedPreferences _prefs;
 
   String? get access => _prefs.getString(_accessKey);
   String? get refresh => _prefs.getString(_refreshKey);
-  String? get customBase => _prefs.getString(_baseKey);
 
   Future<void> set(String access, String refresh) async {
     await _prefs.setString(_accessKey, access);
     await _prefs.setString(_refreshKey, refresh);
-  }
-
-  Future<void> setBase(String? base) async {
-    if (base == null || base.isEmpty) {
-      await _prefs.remove(_baseKey);
-    } else {
-      await _prefs.setString(_baseKey, base);
-    }
   }
 
   Future<void> clear() async {
@@ -74,7 +68,7 @@ class ApiClient {
   final _unauthorized = StreamController<void>.broadcast();
   Stream<void> get onUnauthorized => _unauthorized.stream;
 
-  String get baseUrl => tokens.customBase ?? _defaultBase;
+  String get baseUrl => _defaultBase;
 
   Future<T> get<T>(String path, {Map<String, dynamic>? query}) =>
       _request<T>('GET', path, query: query);

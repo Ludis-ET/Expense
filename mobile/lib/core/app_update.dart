@@ -10,8 +10,8 @@ import 'package:path_provider/path_provider.dart';
 import 'package:permission_handler/permission_handler.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
-import '../api/api_client.dart';
-import '../../models/common.dart';
+import 'api/api_client.dart';
+import '../models/common.dart';
 
 /// Latest Android build advertised by `GET /app/android-update`.
 class AppUpdateInfo {

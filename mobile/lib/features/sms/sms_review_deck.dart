@@ -97,7 +97,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
     final next = list.length > 1 ? list[1] : null;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       body: MeshBackground(
         child: SafeArea(
           child: Column(

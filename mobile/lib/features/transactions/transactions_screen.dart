@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../core/utils/format.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
@@ -475,7 +476,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
 
           SliverToBoxAdapter(
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(14, 0, 14, 130),
+              padding: EdgeInsets.fromLTRB(14, 0, 14, ShellLayout.bottomClearance(context)),
               child: items.isEmpty
                   ? const SizedBox.shrink()
                   : items.length >= _total

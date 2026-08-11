@@ -48,5 +48,7 @@ class DeviceStore {
     await _secure.delete(key: _tokenKey);
     await _prefs.remove(_deviceIdKey);
     await _prefs.remove(_deviceNameKey);
+    await _prefs.remove(_setupDoneKey);
+    await _prefs.setBool(_captureKey, false);
   }
 }

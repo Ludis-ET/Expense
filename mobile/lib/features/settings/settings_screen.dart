@@ -3,18 +3,21 @@ import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/auth_state.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/app_lock_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 import 'ai_providers_screen.dart';
 import 'categories_screen.dart';
 import 'exchange_rates_screen.dart';
 import 'household_screen.dart';
+import '../lock/app_lock_settings_screen.dart';
 import '../sms/sms_settings_screen.dart';
 
 /// Settings. Everything that shapes how the app behaves, grouped by what it
@@ -28,6 +31,7 @@ class SettingsScreen extends StatelessWidget {
     final auth = context.watch<AuthState>();
     final prefs = context.watch<PrefsState>();
     final data = context.watch<DataState>();
+    final lock = context.watch<AppLockState>();
     final user = auth.user;
 
     return Scaffold(
@@ -41,7 +45,7 @@ class SettingsScreen extends StatelessWidget {
       body: MeshBackground(
         showGrid: false,
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
+          padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
           children: [
             FadeInUp(
               child: AppCard(
@@ -169,6 +173,16 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 18),
 
             SectionLabel('APP'),
+            _Tile(
+              icon: Icons.lock_outline_rounded,
+              title: 'App lock',
+              subtitle: lock.enabled
+                  ? (lock.biometricEnabled ? 'PIN + biometrics on' : 'PIN on')
+                  : 'Off — protect your money privately',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AppLockSettingsScreen()),
+              ),
+            ),
             _Tile(
               icon: Icons.sms_rounded,
               title: 'Bank SMS',

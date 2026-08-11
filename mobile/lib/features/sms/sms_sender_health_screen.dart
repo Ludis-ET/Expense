@@ -68,7 +68,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
     final unhealthy = _rows.where((r) => r.unhealthy).length;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
         title: Text(
           'Sender health',

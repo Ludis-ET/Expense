@@ -5,6 +5,7 @@ import 'package:url_launcher/url_launcher.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
@@ -91,7 +92,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
+            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const OfflineBanner(),

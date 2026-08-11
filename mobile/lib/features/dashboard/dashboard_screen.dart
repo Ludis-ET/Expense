@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
@@ -46,7 +47,7 @@ class DashboardScreen extends StatelessWidget {
       color: context.t.primary,
       backgroundColor: context.t.surface,
       child: ListView(
-        padding: const EdgeInsets.fromLTRB(14, 14, 14, 130),
+        padding: EdgeInsets.fromLTRB(14, 14, 14, ShellLayout.bottomClearance(context)),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           PageHeader(

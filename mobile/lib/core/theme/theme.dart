@@ -51,11 +51,13 @@ ThemeData buildTheme(SantimTokens t) {
       fontFamily: 'Roboto',
     ),
     appBarTheme: AppBarTheme(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       surfaceTintColor: Colors.transparent,
       elevation: 0,
+      scrolledUnderElevation: 0,
       centerTitle: false,
       foregroundColor: t.foreground,
+      iconTheme: IconThemeData(color: t.foreground, size: 22),
       systemOverlayStyle: t.isDark
           ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
           : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),

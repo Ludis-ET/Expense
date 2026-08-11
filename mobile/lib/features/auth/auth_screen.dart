@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
@@ -86,7 +87,11 @@ class _AuthScreenState extends State<AuthScreen> {
     return Scaffold(
       backgroundColor: t.background,
       resizeToAvoidBottomInset: true,
-      body: MeshBackground(
+      body: AnnotatedRegion<SystemUiOverlayStyle>(
+        value: t.isDark
+            ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
+            : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+        child: MeshBackground(
         intensity: 1.2,
         child: SafeArea(
           child: Stack(
@@ -95,12 +100,17 @@ class _AuthScreenState extends State<AuthScreen> {
                 right: 8,
                 top: 6,
                 child: IconPill(
-                  icon: prefs.themeMode == ThemeMode.dark
+                  icon: Theme.of(context).brightness == Brightness.dark
                       ? Icons.light_mode_outlined
                       : Icons.dark_mode_outlined,
-                  onTap: () => prefs.setThemeMode(
-                    prefs.themeMode == ThemeMode.dark ? ThemeMode.light : ThemeMode.dark,
-                  ),
+                  onTap: () {
+                    final brightness = Theme.of(context).brightness;
+                    // Always flip the *effective* look so System+dark OS still
+                    // responds on the first tap.
+                    prefs.setThemeMode(
+                      brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
+                    );
+                  },
                 ),
               ),
               Center(
@@ -262,6 +272,7 @@ class _AuthScreenState extends State<AuthScreen> {
             ],
           ),
         ),
+      ),
       ),
     );
   }

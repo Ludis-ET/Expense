@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 
@@ -93,7 +94,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
+            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (_loading && data == null)

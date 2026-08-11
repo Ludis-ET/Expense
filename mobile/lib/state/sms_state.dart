@@ -40,9 +40,11 @@ class SmsState extends ChangeNotifier {
   List<InboxMessage> unresolved = const [];
   List<SenderRule> senderRules = const [];
   List<BankCatalogItem> banks = const [];
+  List<PairedDevice> pairedDevices = const [];
   List<String> allowlist = const [];
   int localPendingUploads = 0;
   bool loadingInbox = false;
+  bool loadingDevices = false;
   Object? inboxError;
 
   bool get isAndroid => !kIsWeb && Platform.isAndroid;
@@ -155,6 +157,7 @@ class SmsState extends ChangeNotifier {
     notifyListeners();
     await refreshManifest();
     await _ensureListening();
+    unawaited(loadDevices(force: true));
     return device;
   }
 
@@ -169,6 +172,7 @@ class SmsState extends ChangeNotifier {
     await _bridge.stopListening();
     await _incomingSub?.cancel();
     _incomingSub = null;
+    await loadDevices();
     notifyListeners();
   }
 
@@ -185,6 +189,33 @@ class SmsState extends ChangeNotifier {
   Future<List<PairedDevice>> listDevices() async {
     final json = await api.get('/devices');
     return mapItemsList(json, PairedDevice.fromJson);
+  }
+
+  Future<void> loadDevices({bool force = false}) async {
+    if (loadingDevices && !force) return;
+    loadingDevices = true;
+    notifyListeners();
+    try {
+      pairedDevices = await listDevices();
+    } catch (e) {
+      debugPrint('loadDevices failed: $e');
+    } finally {
+      loadingDevices = false;
+      notifyListeners();
+    }
+  }
+
+  /// Revoke any household phone. If it is *this* handset, also clear local pairing.
+  Future<void> revokeDevice(String id) async {
+    await api.post('/devices/$id/revoke');
+    if (id == devices.deviceId) {
+      await devices.clearPairing();
+      await _bridge.stopListening();
+      await _incomingSub?.cancel();
+      _incomingSub = null;
+    }
+    await loadDevices(force: true);
+    notifyListeners();
   }
 
   Future<void> loadBanks() async {

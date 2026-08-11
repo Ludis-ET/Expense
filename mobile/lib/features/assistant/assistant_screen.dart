@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/layout.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../models/common.dart';
@@ -201,7 +202,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
                     ? _intro(context)
                     : ListView.builder(
                         controller: _scroll,
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        padding: EdgeInsets.fromLTRB(
+                          14,
+                          12,
+                          14,
+                          12 + ShellLayout.chromeHeight,
+                        ),
                         itemCount: _messages.length + (_thinking ? 1 : 0),
                         itemBuilder: (context, i) {
                           if (i == _messages.length) return const _Thinking();
@@ -210,7 +216,12 @@ class _AssistantScreenState extends State<AssistantScreen> {
                       ),
               ),
               Padding(
-                padding: const EdgeInsets.fromLTRB(14, 6, 14, 12),
+                padding: EdgeInsets.fromLTRB(
+                  14,
+                  6,
+                  14,
+                  12 + ShellLayout.bottomClearance(context, extra: 0),
+                ),
                 child: Row(
                   children: [
                     Expanded(

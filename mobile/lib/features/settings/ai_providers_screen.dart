@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../models/common.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
@@ -155,7 +156,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
+            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               AppCard(

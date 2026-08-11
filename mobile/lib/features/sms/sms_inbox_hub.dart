@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/layout.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/format.dart';
 import '../../models/ingest.dart';
@@ -29,9 +30,6 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final sms = context.read<SmsState>();
-      if (!sms.setupDone || !sms.isPaired) {
-        // Soft prompt — user can still browse if somehow messages exist.
-      }
       sms.loadUnresolved(force: true);
       sms.flushUploads();
     });
@@ -60,10 +58,13 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
     final t = context.t;
     final sms = context.watch<SmsState>();
     final prefs = context.watch<PrefsState>();
+    final needsSetup = !sms.isPaired || !sms.setupDone;
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
+        backgroundColor: t.background,
+        foregroundColor: t.foreground,
         title: Text(
           'Message inbox',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
@@ -84,7 +85,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
           onRefresh: () => sms.loadUnresolved(force: true),
           color: t.primary,
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(14, 8, 14, 40),
+            padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               FadeInUp(
@@ -108,7 +109,10 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                                 ),
                               ],
                             ),
-                            child: const Icon(Icons.mark_email_unread_rounded, color: Colors.white),
+                            child: Icon(
+                              Icons.mark_email_unread_rounded,
+                              color: t.primaryForeground,
+                            ),
                           ),
                           const SizedBox(width: 12),
                           Expanded(
@@ -125,9 +129,11 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                                   ),
                                 ),
                                 Muted(
-                                  sms.localPendingUploads > 0
-                                      ? '${sms.localPendingUploads} waiting to upload'
-                                      : 'Swipe right to record · left to skip',
+                                  needsSetup
+                                      ? 'Set up this phone to capture bank SMS'
+                                      : sms.localPendingUploads > 0
+                                          ? '${sms.localPendingUploads} waiting to upload'
+                                          : 'Swipe right to record · left to skip',
                                   size: 12,
                                 ),
                               ],
@@ -137,10 +143,12 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                       ),
                       const SizedBox(height: 16),
                       AppButton(
-                        label: 'Review all',
-                        icon: Icons.style_rounded,
+                        label: needsSetup ? 'Set up capture' : 'Review all',
+                        icon: needsSetup ? Icons.phonelink_setup_rounded : Icons.style_rounded,
                         expand: true,
-                        onPressed: _openDeck,
+                        onPressed: needsSetup
+                            ? () => showSmsSetupWizard(context)
+                            : _openDeck,
                       ),
                     ],
                   ),
@@ -154,18 +162,27 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                       label: 'Import history',
                       variant: BtnVariant.outline,
                       icon: Icons.history_rounded,
-                      onPressed: () => showSmsImportSheet(context),
+                      onPressed: needsSetup
+                          ? () async {
+                              final done = await showSmsSetupWizard(context);
+                              if (done == true && context.mounted) {
+                                await showSmsImportSheet(context);
+                              }
+                            }
+                          : () => showSmsImportSheet(context),
                     ),
                   ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: AppButton(
-                      label: 'Setup',
-                      variant: BtnVariant.ghost,
-                      icon: Icons.phonelink_setup_rounded,
-                      onPressed: () => showSmsSetupWizard(context),
+                  if (needsSetup) ...[
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: AppButton(
+                        label: 'Setup',
+                        variant: BtnVariant.ghost,
+                        icon: Icons.phonelink_setup_rounded,
+                        onPressed: () => showSmsSetupWizard(context),
+                      ),
                     ),
-                  ),
+                  ],
                 ],
               ),
               const SizedBox(height: 18),
@@ -257,7 +274,11 @@ class _InboxRow extends StatelessWidget {
                 children: [
                   Text(
                     message.parsedPayee ?? message.bankLabel ?? message.sender,
-                    style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5),
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.5,
+                      color: t.foreground,
+                    ),
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                   ),

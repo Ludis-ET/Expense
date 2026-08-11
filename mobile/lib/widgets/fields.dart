@@ -420,7 +420,7 @@ class _PickerListState<T> extends State<_PickerList<T>> {
         Flexible(
           child: ListView.builder(
             shrinkWrap: true,
-            padding: const EdgeInsets.fromLTRB(12, 0, 12, 24),
+            padding: EdgeInsets.fromLTRB(12, 0, 12, 24 + MediaQuery.paddingOf(context).bottom),
             itemCount: items.length + (widget.allowClear ? 1 : 0),
             itemBuilder: (context, i) {
               if (widget.allowClear && i == 0) {

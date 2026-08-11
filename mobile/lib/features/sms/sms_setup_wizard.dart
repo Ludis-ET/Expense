@@ -203,7 +203,7 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
     final current = steps[_step.clamp(0, steps.length - 1)];
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
         title: Text(
           'Bank SMS setup',

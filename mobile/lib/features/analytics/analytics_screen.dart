@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/layout.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/analytics.dart';
@@ -204,7 +205,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 color: t.primary,
                 backgroundColor: t.surface,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(14, 0, 14, 40),
+                  padding: EdgeInsets.fromLTRB(14, 0, 14, ShellLayout.bottomClearance(context)),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     if (_loading && _page == null)

@@ -3,6 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/layout.dart';
 import '../../core/theme/tokens.dart';
 import '../../models/ingest.dart';
 import '../../models/models.dart';
@@ -82,7 +83,12 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
             final t = ctx.t;
             final accounts = data.scopedAccounts;
             return Padding(
-              padding: EdgeInsets.fromLTRB(20, 0, 20, 20 + MediaQuery.of(ctx).padding.bottom),
+              padding: EdgeInsets.fromLTRB(
+                20,
+                0,
+                20,
+                20 + MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom,
+              ),
               child: SingleChildScrollView(
                 child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -154,16 +160,18 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       textCapitalization: TextCapitalization.none,
                     ),
                     const SizedBox(height: 10),
-                    DropdownButtonFormField<String?>(
-                      initialValue: categoryId,
-                      decoration: const InputDecoration(labelText: 'Default category'),
-                      items: [
-                        const DropdownMenuItem(value: null, child: Text('None')),
-                        for (final c in data.categories.data ?? const <TxCategory>[])
-                          if (!c.archived)
-                            DropdownMenuItem(value: c.id, child: Text(c.name)),
-                      ],
-                      onChanged: (v) => setLocal(() => categoryId = v),
+                    PickerField<TxCategory>(
+                      label: 'Default category',
+                      value: (data.categories.data ?? const <TxCategory>[])
+                          .where((c) => c.id == categoryId)
+                          .firstOrNull,
+                      options: (data.categories.data ?? const <TxCategory>[])
+                          .where((c) => !c.archived)
+                          .toList(),
+                      labelOf: (c) => c.name,
+                      placeholder: 'None',
+                      allowClear: true,
+                      onChanged: (c) => setLocal(() => categoryId = c?.id),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
@@ -206,13 +214,17 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
     try {
       if (accountId != null && digits.isNotEmpty) {
         final acc = data.accounts.data?.where((a) => a.id == accountId).firstOrNull;
-        if (acc != null && acc.accountNumber != digits) {
+        if (acc == null || acc.accountNumber != digits) {
           await context.read<ApiClient>().put(
             '/accounts/$accountId',
             body: {'accountNumber': digits},
           );
           await data.loadAccounts(force: true);
         }
+      }
+      if (accountId == null) {
+        if (mounted) toast(context, 'Pick a wallet to link this sender', error: true);
+        return;
       }
       await sms.upsertSenderRule({
         'sender': sender,
@@ -234,8 +246,10 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
     final sms = context.watch<SmsState>();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
+        backgroundColor: t.background,
+        foregroundColor: t.foreground,
         title: Text(
           'Messaging points',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
@@ -255,7 +269,7 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                 onRefresh: _load,
                 color: t.primary,
                 child: ListView(
-                  padding: const EdgeInsets.fromLTRB(14, 8, 14, 40),
+                  padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
                   children: [
                     Muted(
                       'Senders Santim is allowed to read. Map each one to a wallet '

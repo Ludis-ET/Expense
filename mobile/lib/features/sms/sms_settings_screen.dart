@@ -5,7 +5,10 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/api/api_client.dart';
+import '../../core/layout.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/utils/format.dart';
+import '../../models/ingest.dart';
 import '../../state/sms_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
@@ -32,7 +35,9 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      context.read<SmsState>().loadSenderRules();
+      final sms = context.read<SmsState>();
+      sms.loadSenderRules();
+      sms.loadDevices();
     });
   }
 
@@ -67,8 +72,10 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
     }
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
+        backgroundColor: t.background,
+        foregroundColor: t.foreground,
         title: Text(
           'Bank SMS',
           style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
@@ -76,13 +83,16 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
       ),
       body: MeshBackground(
         child: ListView(
-          padding: const EdgeInsets.fromLTRB(14, 8, 14, 40),
+          padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
           children: [
             GlassCard(
               padding: const EdgeInsets.all(16),
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
-                title: const Text('Capture bank SMS', style: TextStyle(fontWeight: FontWeight.w700)),
+                title: Text(
+                  'Capture bank SMS',
+                  style: TextStyle(fontWeight: FontWeight.w700, color: t.foreground),
+                ),
                 subtitle: Text(
                   sms.isPaired
                       ? 'Live messages from approved senders upload as drafts'
@@ -96,39 +106,91 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               ),
             ),
             const SizedBox(height: 14),
-            SectionLabel('DEVICE'),
+            SectionLabel('THIS PHONE'),
             _Tile(
               icon: Icons.phonelink_setup_rounded,
-              title: sms.isPaired ? (sms.devices.deviceName ?? 'Paired phone') : 'Not paired',
+              title: sms.isPaired ? (sms.devices.deviceName ?? 'This phone') : 'Not paired',
               subtitle: sms.isPaired
-                  ? 'Token stored securely · ${sms.localPendingUploads} queued'
+                  ? 'Capturing here · ${sms.localPendingUploads} queued'
                   : 'Run setup to pair and grant SMS access',
               onTap: () => showSmsSetupWizard(context),
             ),
             if (sms.isPaired)
               _Tile(
                 icon: Icons.link_off_rounded,
-                title: 'Revoke this phone',
-                subtitle: 'Stops uploads until you pair again',
+                title: 'Unlink this phone',
+                subtitle: 'Stops uploads from this handset until you pair again',
                 onTap: () async {
                   final ok = await confirm(
                     context,
-                    title: 'Revoke device?',
-                    message: 'The phone will stop uploading SMS until paired again.',
-                    confirmLabel: 'Revoke',
+                    title: 'Unlink this phone?',
+                    message: 'This phone will stop uploading SMS until paired again.',
+                    confirmLabel: 'Unlink',
                   );
                   if (!ok || !context.mounted) return;
                   await sms.revokeAndClear();
-                  if (context.mounted) toast(context, 'Device revoked');
+                  if (context.mounted) toast(context, 'Phone unlinked');
                 },
               ),
+            const SizedBox(height: 14),
+            SectionLabel('LINKED PHONES'),
+            if (sms.loadingDevices && sms.pairedDevices.isEmpty)
+              const Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              )
+            else if (sms.pairedDevices.where((d) => !d.revoked).isEmpty)
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: AppCard(
+                  padding: const EdgeInsets.all(14),
+                  child: Muted(
+                    'No active phones yet. Pair this device, or set up another phone with the same Santim account.',
+                    size: 12.5,
+                    maxLines: 4,
+                  ),
+                ),
+              )
+            else
+              for (final d in sms.pairedDevices.where((d) => !d.revoked))
+                _DeviceCard(
+                  device: d,
+                  isThisPhone: d.id == sms.devices.deviceId,
+                  onRevoke: () async {
+                    final ok = await confirm(
+                      context,
+                      title: d.id == sms.devices.deviceId
+                          ? 'Unlink this phone?'
+                          : 'Revoke ${d.name}?',
+                      message: d.id == sms.devices.deviceId
+                          ? 'This phone will stop uploading until paired again.'
+                          : 'That phone will stop uploading bank SMS.',
+                      confirmLabel: 'Revoke',
+                    );
+                    if (!ok || !context.mounted) return;
+                    try {
+                      await sms.revokeDevice(d.id);
+                      if (context.mounted) toast(context, 'Device revoked');
+                    } on ApiError catch (e) {
+                      if (context.mounted) toast(context, e.message, error: true);
+                    }
+                  },
+                ),
+            _Tile(
+              icon: Icons.add_to_home_screen_rounded,
+              title: sms.isPaired ? 'Re-pair this phone' : 'Pair another phone',
+              subtitle: sms.isPaired
+                  ? 'Creates a fresh token for this handset'
+                  : 'Each phone needs its own setup on that device',
+              onTap: () => showSmsSetupWizard(context),
+            ),
             const SizedBox(height: 14),
             SectionLabel('MESSAGING'),
             _Tile(
               icon: Icons.cell_tower_rounded,
               title: 'Bank message sources',
               subtitle: sms.senderRules.isEmpty
-                  ? 'Pick which SMS senders are banks and which wallet they fill'
+                  ? 'Link SMS senders to wallets (accounts) and categories'
                   : '${sms.senderRules.length} mapped · tap to edit wallet & digits',
               onTap: () => Navigator.of(context).push(
                 MaterialPageRoute(builder: (_) => const MessagingPointsScreen()),
@@ -155,7 +217,14 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(r.sender, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 13.5)),
+                              Text(
+                                r.sender,
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w700,
+                                  fontSize: 13.5,
+                                  color: t.foreground,
+                                ),
+                              ),
                               Muted(
                                 [
                                   r.bankLabel ?? r.bankKey,
@@ -256,10 +325,73 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
             const SizedBox(height: 18),
             Muted(
               'Santim is distributed by direct APK install. Google Play does not '
-              'allow expense apps to request SMS permission.',
+              'allow expense apps to request SMS permission. Pair each phone you '
+              'want to capture from — they all share the same inbox and wallet mappings.',
               size: 11.5,
               height: 1.4,
-              maxLines: 4,
+              maxLines: 5,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _DeviceCard extends StatelessWidget {
+  const _DeviceCard({
+    required this.device,
+    required this.isThisPhone,
+    required this.onRevoke,
+  });
+
+  final PairedDevice device;
+  final bool isThisPhone;
+  final VoidCallback onRevoke;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: AppCard(
+        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        child: Row(
+          children: [
+            Icon(
+              isThisPhone ? Icons.smartphone_rounded : Icons.phone_android_rounded,
+              size: 20,
+              color: isThisPhone ? t.primary : t.mutedForeground,
+            ),
+            const SizedBox(width: 12),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    device.name,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14,
+                      color: t.foreground,
+                    ),
+                  ),
+                  Muted(
+                    [
+                      if (isThisPhone) 'This phone',
+                      device.platform,
+                      if (device.lastSeenAt != null) 'Seen ${formatDate(device.lastSeenAt)}',
+                      '${device.messageCount} msgs',
+                    ].join(' · '),
+                    size: 11.5,
+                  ),
+                ],
+              ),
+            ),
+            TextButton(
+              onPressed: onRevoke,
+              style: TextButton.styleFrom(foregroundColor: t.danger),
+              child: Text(isThisPhone ? 'Unlink' : 'Revoke', style: const TextStyle(fontSize: 12.5)),
             ),
           ],
         ),
@@ -297,7 +429,14 @@ class _Tile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14.5)),
+                  Text(
+                    title,
+                    style: TextStyle(
+                      fontWeight: FontWeight.w700,
+                      fontSize: 14.5,
+                      color: t.foreground,
+                    ),
+                  ),
                   Muted(subtitle, size: 12, maxLines: 2),
                 ],
               ),

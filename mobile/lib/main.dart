@@ -8,8 +8,10 @@ import 'core/api/api_client.dart';
 import 'core/theme/theme.dart';
 import 'core/theme/tokens.dart';
 import 'features/auth/auth_screen.dart';
+import 'features/lock/app_lock_screen.dart';
 import 'features/shell/app_shell.dart';
 import 'features/splash/splash_screen.dart';
+import 'state/app_lock_state.dart';
 import 'state/auth_state.dart';
 import 'state/data_state.dart';
 import 'state/prefs_state.dart';
@@ -51,6 +53,9 @@ class SantimApp extends StatelessWidget {
         Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider(create: (_) => PrefsState(prefs)),
         ChangeNotifierProvider(
+          create: (_) => AppLockState(prefs)..bootstrap(),
+        ),
+        ChangeNotifierProvider(
           create: (_) => AuthState(api: api, prefs: prefs)..bootstrap(),
         ),
         ChangeNotifierProvider(
@@ -75,8 +80,6 @@ class SantimApp extends StatelessWidget {
           theme: buildTheme(SantimTokens.light),
           darkTheme: buildTheme(SantimTokens.dark),
           builder: (context, child) => MediaQuery(
-            // The app's own type scale should not be blown out by a very large
-            // system font setting; 1.25 keeps every card legible.
             data: MediaQuery.of(context).copyWith(
               textScaler: TextScaler.linear(
                 MediaQuery.textScalerOf(context).scale(1).clamp(0.85, 1.25),
@@ -92,8 +95,7 @@ class SantimApp extends StatelessWidget {
   }
 }
 
-/// Holds the splash for its full run, then shows the shell or the auth screen
-/// depending on whether the restored session held up.
+/// Splash → auth → optional app lock → shell.
 class _Gate extends StatefulWidget {
   const _Gate();
 
@@ -107,25 +109,31 @@ class _GateState extends State<_Gate> {
   @override
   Widget build(BuildContext context) {
     final auth = context.watch<AuthState>();
+    final lock = context.watch<AppLockState>();
 
-    // The splash covers the bootstrap request, so there is never a flash of
-    // the login screen for a user who is already signed in.
-    final showSplash = !_splashDone || auth.loading;
+    final showSplash = !_splashDone || auth.loading || !lock.ready;
+
+    Widget child;
+    if (showSplash) {
+      child = SplashScreen(
+        key: const ValueKey('splash'),
+        onDone: () {
+          if (mounted) setState(() => _splashDone = true);
+        },
+      );
+    } else if (!auth.isAuthed) {
+      child = const AuthScreen(key: ValueKey('auth'));
+    } else if (lock.requiresUnlock) {
+      child = const AppLockScreen(key: ValueKey('lock'));
+    } else {
+      child = const AppShell(key: ValueKey('shell'));
+    }
 
     return AnimatedSwitcher(
       duration: SplashScreen.fade,
       switchInCurve: Motion.easeOut,
       switchOutCurve: Motion.easeOut,
-      child: showSplash
-          ? SplashScreen(
-              key: const ValueKey('splash'),
-              onDone: () {
-                if (mounted) setState(() => _splashDone = true);
-              },
-            )
-          : auth.isAuthed
-              ? const AppShell(key: ValueKey('shell'))
-              : const AuthScreen(key: ValueKey('auth')),
+      child: child,
     );
   }
 }

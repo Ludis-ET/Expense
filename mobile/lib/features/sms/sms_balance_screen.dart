@@ -54,7 +54,7 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
     final prefs = context.watch<PrefsState>();
 
     return Scaffold(
-      backgroundColor: Colors.transparent,
+      backgroundColor: t.background,
       appBar: AppBar(
         title: Text(
           'Balance check',

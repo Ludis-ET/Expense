@@ -7,11 +7,13 @@ import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
+import '../../core/utils/monthly_outlook.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
+import '../outlook/monthly_outlook_screen.dart';
 
 /// Recurring plans — rent, salary, subscriptions. Auto-posting rules write
 /// themselves into your ledger when they come due; the rest wait for a tap.
@@ -33,10 +35,10 @@ class RecurringScreen extends StatelessWidget {
 
     final monthlyOut = active
         .where((r) => r.kind == TxKind.expense)
-        .fold<double>(0, (s, r) => s + _monthlyEquivalent(r));
+        .fold<double>(0, (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval));
     final monthlyIn = active
         .where((r) => r.kind == TxKind.income)
-        .fold<double>(0, (s, r) => s + _monthlyEquivalent(r));
+        .fold<double>(0, (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval));
 
     String money(Object? v) => prefs.money(v, currency: data.activeCurrency);
 
@@ -105,6 +107,17 @@ class RecurringScreen extends StatelessWidget {
                     ],
                   ),
                 ),
+                const SizedBox(height: 10),
+                AppButton(
+                  label: 'Open monthly outlook',
+                  icon: Icons.insights_rounded,
+                  expand: true,
+                  variant: BtnVariant.outline,
+                  size: BtnSize.sm,
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const MonthlyOutlookScreen()),
+                  ),
+                ),
                 const SizedBox(height: 16),
 
                 if (active.isEmpty && paused.isEmpty)
@@ -156,18 +169,6 @@ class RecurringScreen extends StatelessWidget {
         ),
       ),
     );
-  }
-
-  /// Normalises every cadence to a per-month figure so the two totals compare.
-  static double _monthlyEquivalent(RecurringRule r) {
-    final amount = toNum(r.amount);
-    final perPeriod = amount / r.interval;
-    return switch (r.frequency) {
-      Frequency.daily => perPeriod * 30,
-      Frequency.weekly => perPeriod * 52 / 12,
-      Frequency.monthly => perPeriod,
-      Frequency.yearly => perPeriod / 12,
-    };
   }
 }
 

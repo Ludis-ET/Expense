@@ -16,6 +16,7 @@ import '../analytics/analytics_screen.dart';
 import '../budgets/budget_detail_screen.dart';
 import '../ledger/tab_screen.dart';
 import '../recurring/recurring_screen.dart';
+import '../outlook/monthly_outlook_screen.dart';
 import '../shell/app_shell.dart';
 import '../transactions/transaction_detail.dart';
 import '../transactions/transaction_list.dart';
@@ -115,6 +116,11 @@ class DashboardScreen extends StatelessWidget {
       FadeInUp(
         delay: const Duration(milliseconds: 90),
         child: FinancialHealthCard(data: raw, money: money),
+      ),
+      const SizedBox(height: 14),
+      FadeInUp(
+        delay: const Duration(milliseconds: 100),
+        child: const MonthlyOutlookCard(),
       ),
       const SizedBox(height: 14),
 

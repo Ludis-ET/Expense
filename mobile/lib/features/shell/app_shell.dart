@@ -17,6 +17,7 @@ import '../budgets/budgets_screen.dart';
 import '../dashboard/dashboard_screen.dart';
 import '../guides/guides_screen.dart';
 import '../ledger/tab_screen.dart';
+import '../outlook/monthly_outlook_screen.dart';
 import '../settings/settings_screen.dart';
 import '../sms/sms_inbox_hub.dart';
 import '../wishlist/wishlist_screen.dart';
@@ -109,10 +110,36 @@ class AppShellState extends State<AppShell> with WidgetsBindingObserver {
     }
   }
 
+  /// Android/iOS back: close drawer → pop tab stack → Home tab → leave app.
+  void _handleSystemBack() {
+    final scaffold = _scaffoldKey.currentState;
+    if (scaffold?.isDrawerOpen ?? false) {
+      scaffold!.closeDrawer();
+      return;
+    }
+    final nav = _navKeys[_tab]?.currentState;
+    if (nav != null && nav.canPop()) {
+      nav.pop();
+      return;
+    }
+    if (_tab != ShellTab.home) {
+      goTo(ShellTab.home);
+      return;
+    }
+    SystemNavigator.pop();
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return Scaffold(
+    return PopScope(
+      // Nested tab Navigators do not receive the OS back button; intercept here.
+      canPop: false,
+      onPopInvokedWithResult: (didPop, _) {
+        if (didPop) return;
+        _handleSystemBack();
+      },
+      child: Scaffold(
       key: _scaffoldKey,
       backgroundColor: t.background,
       extendBody: true,
@@ -161,6 +188,7 @@ class AppShellState extends State<AppShell> with WidgetsBindingObserver {
         onAdd: openAddTransaction,
         onAsk: () => push(const AssistantScreen()),
       ),
+    ),
     );
   }
 }
@@ -606,6 +634,7 @@ class _AppDrawer extends StatelessWidget {
     ]),
     ('Insights', [
       ('analytics', Icons.bar_chart_rounded, 'Analytics'),
+      ('outlook', Icons.insights_rounded, 'Monthly outlook'),
       ('guides', Icons.menu_book_outlined, 'Guides'),
     ]),
     ('Plan', [
@@ -636,6 +665,8 @@ class _AppDrawer extends StatelessWidget {
           shell.push(const WishlistScreen());
         case 'analytics':
           shell.push(const AnalyticsScreen());
+        case 'outlook':
+          shell.push(const MonthlyOutlookScreen());
         case 'guides':
           shell.push(const GuidesScreen());
         case 'tab':

@@ -230,6 +230,8 @@ class DataState extends ChangeNotifier {
         loadAccounts(),
         loadCategories(),
         loadNotifications(),
+        loadRecurring(),
+        loadBudgets(),
       ]);
 
   /// Called after any write, so balances and plan pots never go stale.
@@ -238,6 +240,7 @@ class DataState extends ChangeNotifier {
         loadAccounts(force: true),
         loadBudgets(force: true),
         loadSpendSources(force: true),
+        loadRecurring(force: true),
       ]);
 
   Future<void> markNotificationRead(String id) async {

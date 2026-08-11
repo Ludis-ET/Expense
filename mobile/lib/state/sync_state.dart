@@ -883,6 +883,7 @@ Map<String, dynamic> _accountJson(Account a) => {
       if (a.color != null) 'color': a.color,
       'isShared': a.isShared,
       if (a.householdId != null) 'householdId': a.householdId,
+      if (a.accountNumber != null) 'accountNumber': a.accountNumber,
     };
 
 Map<String, dynamic> _categoryJson(TxCategory c) => {

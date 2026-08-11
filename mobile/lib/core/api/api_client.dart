@@ -82,6 +82,58 @@ class ApiClient {
 
   Future<T> delete<T>(String path) => _request<T>('DELETE', path);
 
+  /// Device-token auth for SMS ingest routes (no user JWT).
+  Future<T> deviceRequest<T>(
+    String method,
+    String path, {
+    required String deviceToken,
+    Object? body,
+    Map<String, dynamic>? query,
+  }) async {
+    final uri = _uri(path, query);
+    final headers = <String, String>{
+      'Content-Type': 'application/json',
+      'X-Device-Token': deviceToken,
+      'Cache-Control': 'no-cache, no-store, must-revalidate',
+    };
+    http.Response res;
+    try {
+      final req = http.Request(method, uri)..headers.addAll(headers);
+      if (body != null) req.body = jsonEncode(body);
+      final streamed = await _http.send(req).timeout(const Duration(seconds: 30));
+      res = await http.Response.fromStream(streamed);
+    } on TimeoutException {
+      throw ApiError(0, 'The server took too long to respond.');
+    } catch (_) {
+      throw ApiError(0, 'Cannot reach the server. Check your connection.');
+    }
+
+    if (res.statusCode == 204 || res.bodyBytes.isEmpty) {
+      if (res.statusCode >= 200 && res.statusCode < 300) return null as T;
+      throw ApiError(res.statusCode, res.reasonPhrase ?? 'Empty response from server');
+    }
+
+    Object? data;
+    try {
+      data = jsonDecode(utf8.decode(res.bodyBytes));
+    } catch (_) {
+      data = null;
+    }
+
+    if (res.statusCode < 200 || res.statusCode >= 300) {
+      final err = (data is Map<String, dynamic>) ? data['error'] : null;
+      throw ApiError(
+        res.statusCode,
+        (err is Map && err['message'] is String)
+            ? err['message'] as String
+            : res.reasonPhrase ?? 'Request failed',
+        code: (err is Map && err['code'] is String) ? err['code'] as String : null,
+        details: (err is Map) ? err['details'] : null,
+      );
+    }
+    return data as T;
+  }
+
   Future<T> _request<T>(
     String method,
     String path, {

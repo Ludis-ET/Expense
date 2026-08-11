@@ -9,6 +9,7 @@ import '../../core/theme/tokens.dart';
 import '../../state/auth_state.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sms_state.dart';
 import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../accounts/accounts_screen.dart';
@@ -19,6 +20,7 @@ import '../dashboard/dashboard_screen.dart';
 import '../guides/guides_screen.dart';
 import '../ledger/tab_screen.dart';
 import '../settings/settings_screen.dart';
+import '../sms/sms_inbox_hub.dart';
 import '../wishlist/wishlist_screen.dart';
 import '../transactions/transaction_form.dart';
 import '../transactions/transactions_screen.dart';
@@ -40,7 +42,7 @@ class AppShell extends StatefulWidget {
       context.findAncestorStateOfType<AppShellState>()!;
 }
 
-class AppShellState extends State<AppShell> {
+class AppShellState extends State<AppShell> with WidgetsBindingObserver {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
   final _navKeys = {for (final t in ShellTab.values) t: GlobalKey<NavigatorState>()};
   late final _routeObservers = {
@@ -53,10 +55,26 @@ class AppShellState extends State<AppShell> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<DataState>().primeAll();
+      context.read<SmsState>().refreshStats();
       _syncBrandBar(forTab: _tab);
     });
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && mounted) {
+      context.read<SmsState>().refreshStats();
+      context.read<SmsState>().flushUploads();
+    }
   }
 
   void _syncBrandBar({ShellTab? forTab}) {
@@ -245,6 +263,18 @@ class _Topbar extends StatelessWidget {
                 onTap: () {
                   HapticFeedback.selectionClick();
                   prefs.toggleAmounts();
+                },
+              ),
+              IconPill(
+                icon: Icons.mark_email_unread_outlined,
+                background: Colors.transparent,
+                badge: context.watch<SmsState>().needsReview,
+                tooltip: 'Message inbox',
+                onTap: () {
+                  HapticFeedback.selectionClick();
+                  Navigator.of(context).push(
+                    MaterialPageRoute(builder: (_) => const SmsInboxHub()),
+                  );
                 },
               ),
               IconPill(

@@ -82,6 +82,22 @@ needs), so the site serves the APK directly.
 | wishlist panel | Plan tab → Wishlist |
 | recurring panel | Activity tab → repeat icon |
 
+## Bank SMS capture (Android APK)
+
+Santim can read bank SMS on Android, parse them on the server, and let you
+swipe to confirm drafts. Google Play does not allow this permission for expense
+apps, so distribute with a direct install:
+
+```bash
+cd mobile
+flutter build apk --release
+# Install: adb install build/app/outputs/flutter-apk/app-release.apk
+```
+
+In the app: topbar **inbox** icon → setup wizard (SMS permission, pair phone,
+cash wallet, battery exemption, messaging points). Settings → **Bank SMS** for
+capture toggle, import history, and paste preview.
+
 ## Layout
 
 ```

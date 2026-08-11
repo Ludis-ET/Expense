@@ -44,7 +44,7 @@ class LocalDb {
 
     Future<Database> openFresh() => openDatabase(
           path,
-          version: 2,
+          version: 3,
           onCreate: _onCreate,
           onUpgrade: _onUpgrade,
         );
@@ -53,6 +53,7 @@ class LocalDb {
       final db = await openFresh();
       // Touch the schema so a half-migrated file fails here, not mid-write.
       await db.rawQuery('SELECT entity, action, method, path, label FROM outbox LIMIT 0');
+      await db.rawQuery('SELECT fingerprint FROM sms_outbox LIMIT 0');
       return db;
     } catch (e) {
       debugPrint('LocalDb open/migrate failed, recreating: $e');
@@ -96,6 +97,22 @@ class LocalDb {
         value TEXT NOT NULL
       )
     ''');
+    await _createSmsOutbox(db);
+  }
+
+  Future<void> _createSmsOutbox(Database db) async {
+    await db.execute('''
+      CREATE TABLE IF NOT EXISTS sms_outbox (
+        fingerprint TEXT PRIMARY KEY NOT NULL,
+        sender TEXT NOT NULL,
+        body TEXT NOT NULL,
+        received_at INTEGER NOT NULL,
+        status TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        error TEXT,
+        created_at INTEGER NOT NULL
+      )
+    ''');
   }
 
   Future<void> _onUpgrade(Database db, int oldVersion, int newVersion) async {
@@ -119,6 +136,9 @@ class LocalDb {
           'UPDATE outbox SET action = kind WHERE action IS NULL AND kind IS NOT NULL',
         );
       } catch (_) {}
+    }
+    if (oldVersion < 3) {
+      await _createSmsOutbox(db);
     }
   }
 
@@ -214,4 +234,5 @@ abstract final class CacheKeys {
   static const spendSources = 'spend_sources';
   static const notifications = 'notifications';
   static const transactionsRecent = 'transactions_recent';
+  static const inboxUnresolved = 'inbox_unresolved';
 }

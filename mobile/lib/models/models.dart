@@ -59,6 +59,7 @@ class Account {
     this.color,
     this.isShared = false,
     this.householdId,
+    this.accountNumber,
   });
 
   final String id;
@@ -82,6 +83,9 @@ class Account {
   final bool isShared;
   final String? householdId;
 
+  /// Trailing digits used to match own-account transfers from bank SMS.
+  final String? accountNumber;
+
   factory Account.fromJson(Map<String, dynamic> j) => Account(
         id: asStr(j['id'], ''),
         name: asStr(j['name'], ''),
@@ -97,6 +101,7 @@ class Account {
         color: asStrOrNull(j['color']),
         isShared: asBool(j['isShared']),
         householdId: asStrOrNull(j['householdId']),
+        accountNumber: asStrOrNull(j['accountNumber']),
       );
 }
 

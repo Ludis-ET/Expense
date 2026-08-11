@@ -15,6 +15,7 @@ import 'ai_providers_screen.dart';
 import 'categories_screen.dart';
 import 'exchange_rates_screen.dart';
 import 'household_screen.dart';
+import '../sms/sms_settings_screen.dart';
 
 /// Settings. Everything that shapes how the app behaves, grouped by what it
 /// affects rather than by which endpoint owns it.
@@ -168,6 +169,14 @@ class SettingsScreen extends StatelessWidget {
             const SizedBox(height: 18),
 
             SectionLabel('APP'),
+            _Tile(
+              icon: Icons.sms_rounded,
+              title: 'Bank SMS',
+              subtitle: 'Capture & review messaging points',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SmsSettingsScreen()),
+              ),
+            ),
             _Tile(
               icon: Icons.calendar_today_outlined,
               title: 'Calendar',

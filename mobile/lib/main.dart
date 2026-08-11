@@ -12,6 +12,7 @@ import 'features/splash/splash_screen.dart';
 import 'state/auth_state.dart';
 import 'state/data_state.dart';
 import 'state/prefs_state.dart';
+import 'state/sms_state.dart';
 import 'state/sync_state.dart';
 
 Future<void> main() async {
@@ -55,6 +56,13 @@ class SantimApp extends StatelessWidget {
         ),
         ChangeNotifierProvider(
           create: (ctx) => DataState(api, sync: ctx.read<SyncState>()),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => SmsState(
+            api: api,
+            prefs: prefs,
+            sync: ctx.read<SyncState>(),
+          )..start(),
         ),
       ],
       child: Consumer<PrefsState>(

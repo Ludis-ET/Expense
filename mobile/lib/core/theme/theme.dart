@@ -18,9 +18,9 @@ abstract final class R {
 abstract final class Motion {
   static const easeOut = Cubic(0.22, 1, 0.36, 1);
   static const spring = Cubic(0.34, 1.56, 0.64, 1);
-  static const enter = Duration(milliseconds: 450);
-  static const fast = Duration(milliseconds: 220);
-  static const stagger = Duration(milliseconds: 60);
+  static const enter = Duration(milliseconds: 260);
+  static const fast = Duration(milliseconds: 160);
+  static const stagger = Duration(milliseconds: 32);
 }
 
 ThemeData buildTheme(SantimTokens t) {
@@ -43,7 +43,7 @@ ThemeData buildTheme(SantimTokens t) {
     scaffoldBackgroundColor: t.background,
     canvasColor: t.surface,
     dividerColor: t.border,
-    splashFactory: InkSparkle.splashFactory,
+    splashFactory: InkRipple.splashFactory,
     extensions: [t],
     textTheme: base.textTheme.apply(
       bodyColor: t.foreground,
@@ -101,7 +101,7 @@ class _FadeThroughTransitionBuilder extends PageTransitionsBuilder {
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
-        position: Tween(begin: const Offset(0, 0.022), end: Offset.zero).animate(curved),
+        position: Tween(begin: const Offset(0.03, 0), end: Offset.zero).animate(curved),
         child: child,
       ),
     );

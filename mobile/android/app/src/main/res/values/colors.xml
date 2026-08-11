@@ -4,4 +4,5 @@
 <resources>
     <color name="santim_background">#F4F6F9</color>
     <color name="santim_primary">#059669</color>
+	<color name="ic_launcher_background">#059669</color>
 </resources>

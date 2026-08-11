@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 
-/// `@keyframes fade-in-up` — 10px rise over 450ms on the easeOut curve, with
-/// the same optional 60ms-per-index delay the `.animate-in-delay-*` classes use.
+bool _skipMotion(BuildContext context) => MediaQuery.disableAnimationsOf(context);
+
+/// Fast rise-in for list sections. Skips when Reduce motion is on.
 class FadeInUp extends StatefulWidget {
   const FadeInUp({
     super.key,
     required this.child,
     this.delay = Duration.zero,
-    this.offset = 10,
+    this.offset = 6,
     this.duration = Motion.enter,
   });
 
@@ -20,9 +21,9 @@ class FadeInUp extends StatefulWidget {
     super.key,
     required this.child,
     required int index,
-    this.offset = 10,
+    this.offset = 6,
     this.duration = Motion.enter,
-  }) : delay = Duration(milliseconds: 40 * index);
+  }) : delay = Duration(milliseconds: 24 * index.clamp(0, 8));
 
   final Widget child;
   final Duration delay;
@@ -34,35 +35,46 @@ class FadeInUp extends StatefulWidget {
 }
 
 class _FadeInUpState extends State<FadeInUp> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: widget.duration);
-  late final Animation<double> _curve = CurvedAnimation(parent: _c, curve: Motion.easeOut);
+  AnimationController? _c;
+  Animation<double>? _curve;
 
   @override
-  void initState() {
-    super.initState();
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_skipMotion(context)) {
+      _c?.dispose();
+      _c = null;
+      _curve = null;
+      return;
+    }
+    if (_c != null) return;
+    _c = AnimationController(vsync: this, duration: widget.duration);
+    _curve = CurvedAnimation(parent: _c!, curve: Motion.easeOut);
     if (widget.delay == Duration.zero) {
-      _c.forward();
+      _c!.forward();
     } else {
       Future.delayed(widget.delay, () {
-        if (mounted) _c.forward();
+        if (mounted) _c?.forward();
       });
     }
   }
 
   @override
   void dispose() {
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final curve = _curve;
+    if (curve == null || _skipMotion(context)) return widget.child;
     return AnimatedBuilder(
-      animation: _curve,
+      animation: curve,
       builder: (context, child) => Opacity(
-        opacity: _curve.value,
+        opacity: curve.value,
         child: Transform.translate(
-          offset: Offset(0, widget.offset * (1 - _curve.value)),
+          offset: Offset(0, widget.offset * (1 - curve.value)),
           child: child,
         ),
       ),
@@ -71,8 +83,7 @@ class _FadeInUpState extends State<FadeInUp> with SingleTickerProviderStateMixin
   }
 }
 
-/// `.stagger-children` — wraps a column's children so each rises 40ms after
-/// the one above it.
+/// `.stagger-children` — wraps a column's children so each rises after the one above.
 class StaggerColumn extends StatelessWidget {
   const StaggerColumn({
     super.key,
@@ -98,8 +109,7 @@ class StaggerColumn extends StatelessWidget {
   }
 }
 
-/// `@keyframes shimmer` — a highlight sweeping left to right across a
-/// placeholder block. Used by every skeleton in the app.
+/// `@keyframes shimmer` — highlight sweeping left to right across a placeholder.
 class Shimmer extends StatefulWidget {
   const Shimmer({super.key, required this.child});
   final Widget child;
@@ -109,24 +119,37 @@ class Shimmer extends StatefulWidget {
 }
 
 class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1400),
-  )..repeat();
+  AnimationController? _c;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_skipMotion(context)) {
+      _c?.dispose();
+      _c = null;
+      return;
+    }
+    _c ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
+  }
 
   @override
   void dispose() {
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final c = _c;
+    if (c == null || _skipMotion(context)) return widget.child;
     return AnimatedBuilder(
-      animation: _c,
+      animation: c,
       builder: (context, child) {
-        final v = Curves.easeInOut.transform(_c.value);
+        final v = Curves.easeInOut.transform(c.value);
         return ShaderMask(
           blendMode: BlendMode.srcATop,
           shaderCallback: (bounds) => LinearGradient(
@@ -134,7 +157,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
             end: Alignment(-0.6 + 3.2 * v, 0.35),
             colors: [
               Colors.transparent,
-              (t.isDark ? Colors.white : Colors.white).withValues(alpha: t.isDark ? 0.06 : 0.85),
+              Colors.white.withValues(alpha: t.isDark ? 0.06 : 0.85),
               Colors.transparent,
             ],
           ).createShader(bounds),
@@ -202,13 +225,30 @@ class _BouncingDotsState extends State<BouncingDots> with SingleTickerProviderSt
 
   @override
   Widget build(BuildContext context) {
+    if (_skipMotion(context)) {
+      return Row(
+        mainAxisSize: MainAxisSize.min,
+        children: List.generate(3, (i) {
+          return Padding(
+            padding: EdgeInsets.only(right: i == 2 ? 0 : widget.size * 0.66),
+            child: Container(
+              width: widget.size,
+              height: widget.size,
+              decoration: BoxDecoration(
+                color: widget.color ?? context.t.primary,
+                shape: BoxShape.circle,
+              ),
+            ),
+          );
+        }),
+      );
+    }
     final color = widget.color ?? context.t.primary;
     return AnimatedBuilder(
       animation: _c,
       builder: (context, _) => Row(
         mainAxisSize: MainAxisSize.min,
         children: List.generate(3, (i) {
-          // Each dot is 0.16 of a cycle behind the previous one.
           final phase = (_c.value - i * 0.16) % 1.0;
           final lift = phase < 0.4 ? math.sin(phase / 0.4 * math.pi) : 0.0;
           return Padding(
@@ -231,7 +271,7 @@ class _BouncingDotsState extends State<BouncingDots> with SingleTickerProviderSt
   }
 }
 
-/// `@keyframes pulse-glow` — opacity breathing between 0.6 and 1.
+/// Soft opacity breathe — disabled under Reduce motion.
 class PulseGlow extends StatefulWidget {
   const PulseGlow({super.key, required this.child, this.min = 0.6});
   final Widget child;
@@ -242,35 +282,47 @@ class PulseGlow extends StatefulWidget {
 }
 
 class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2000),
-  )..repeat(reverse: true);
+  AnimationController? _c;
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_skipMotion(context)) {
+      _c?.dispose();
+      _c = null;
+      return;
+    }
+    _c ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
+  }
 
   @override
   void dispose() {
-    _c.dispose();
+    _c?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
+    final c = _c;
+    if (c == null || _skipMotion(context)) return widget.child;
     return FadeTransition(
       opacity: Tween(begin: widget.min, end: 1.0)
-          .animate(CurvedAnimation(parent: _c, curve: Curves.easeInOut)),
+          .animate(CurvedAnimation(parent: c, curve: Curves.easeInOut)),
       child: widget.child,
     );
   }
 }
 
-/// Counts a number up on first paint — used for the hero balance and any
-/// figure large enough that the roll-up reads as deliberate.
+/// Counts a number up on first paint.
 class AnimatedNumber extends StatefulWidget {
   const AnimatedNumber({
     super.key,
     required this.value,
     required this.builder,
-    this.duration = const Duration(milliseconds: 900),
+    this.duration = const Duration(milliseconds: 480),
   });
 
   final double value;
@@ -295,9 +347,22 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
   }
 
   @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (_skipMotion(context) && _c.value != 1) {
+      _c.value = 1;
+    }
+  }
+
+  @override
   void didUpdateWidget(AnimatedNumber old) {
     super.didUpdateWidget(old);
     if (old.value != widget.value) {
+      if (_skipMotion(context)) {
+        _anim = _tween(widget.value, widget.value);
+        _c.value = 1;
+        return;
+      }
       _anim = _tween(_anim.value, widget.value);
       _c
         ..reset()
@@ -318,8 +383,7 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
       );
 }
 
-/// Scales down slightly while held — the `active:scale-95` feel from the web
-/// app's buttons, which Material's ripple alone does not reproduce.
+/// Scales down slightly while held.
 class PressableScale extends StatefulWidget {
   const PressableScale({
     super.key,
@@ -348,7 +412,9 @@ class _PressableScaleState extends State<PressableScale> {
       onTap: widget.onTap,
       child: AnimatedScale(
         scale: _down ? widget.scale : 1,
-        duration: const Duration(milliseconds: 120),
+        duration: _skipMotion(context)
+            ? Duration.zero
+            : const Duration(milliseconds: 90),
         curve: Curves.easeOut,
         child: widget.child,
       ),
@@ -412,7 +478,7 @@ class PopIn extends StatefulWidget {
 class _PopInState extends State<PopIn> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
-    duration: const Duration(milliseconds: 500),
+    duration: const Duration(milliseconds: 360),
   );
 
   @override
@@ -431,6 +497,7 @@ class _PopInState extends State<PopIn> with SingleTickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
+    if (_skipMotion(context)) return widget.child;
     final anim = CurvedAnimation(parent: _c, curve: Motion.spring);
     return ScaleTransition(
       scale: Tween(begin: 0.4, end: 1.0).animate(anim),

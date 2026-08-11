@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -11,25 +9,9 @@ import '../data/outbox_store.dart';
 import '../state/sync_state.dart';
 import 'ui.dart';
 
-/// Compact living status chip for the top bar — offline / syncing / pending / synced.
-class SyncStatusPill extends StatefulWidget {
+/// Compact status chip for the top bar — offline / syncing / pending / synced.
+class SyncStatusPill extends StatelessWidget {
   const SyncStatusPill({super.key});
-
-  @override
-  State<SyncStatusPill> createState() => _SyncStatusPillState();
-}
-
-class _SyncStatusPillState extends State<SyncStatusPill> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  )..repeat(reverse: true);
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
 
   @override
   Widget build(BuildContext context) {
@@ -39,95 +21,71 @@ class _SyncStatusPillState extends State<SyncStatusPill> with SingleTickerProvid
     final Color accent;
     final String label;
     final IconData icon;
-    final bool animate;
 
     if (sync.justSynced) {
       accent = t.success;
       label = 'Synced';
       icon = Icons.check_circle_rounded;
-      animate = true;
     } else if (!sync.online) {
       accent = const Color(0xFF38BDF8);
       label = sync.pendingCount > 0 ? 'Offline · ${sync.pendingCount}' : 'Offline';
       icon = Icons.cloud_off_rounded;
-      animate = true;
     } else if (sync.syncing) {
       accent = t.accent;
       label = 'Syncing';
       icon = Icons.sync_rounded;
-      animate = true;
     } else if (sync.errorCount > 0) {
       accent = t.danger;
       label = '${sync.errorCount} failed';
       icon = Icons.error_outline_rounded;
-      animate = true;
     } else if (sync.pendingCount > 0) {
       accent = t.warning;
       label = '${sync.pendingCount} queued';
       icon = Icons.cloud_queue_rounded;
-      animate = true;
     } else {
       return const SizedBox.shrink();
     }
 
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, _) {
-        final glow = animate ? 0.18 + _pulse.value * 0.22 : 0.12;
-        return PressableScale(
-          scale: 0.96,
-          onTap: () {
-            HapticFeedback.selectionClick();
-            showSyncSheet(context);
-          },
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(R.pill),
-              gradient: LinearGradient(
-                colors: [
-                  accent.withValues(alpha: 0.22 + glow * 0.35),
-                  accent.withValues(alpha: 0.08),
-                ],
-              ),
-              border: Border.all(color: accent.withValues(alpha: 0.45 + glow)),
-              boxShadow: [
-                BoxShadow(
-                  color: accent.withValues(alpha: 0.28 + glow * 0.4),
-                  blurRadius: 14 + _pulse.value * 8,
-                  spreadRadius: -2,
-                ),
-              ],
-            ),
-            child: Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                if (sync.syncing)
-                  SizedBox(
-                    width: 12,
-                    height: 12,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 1.6,
-                      color: accent,
-                    ),
-                  )
-                else
-                  Icon(icon, size: 13, color: accent),
-                const SizedBox(width: 6),
-                Text(
-                  label,
-                  style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.2,
-                    color: t.foreground,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        );
+    return PressableScale(
+      scale: 0.96,
+      onTap: () {
+        HapticFeedback.selectionClick();
+        showSyncSheet(context);
       },
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(R.pill),
+          color: accent.withValues(alpha: 0.14),
+          border: Border.all(color: accent.withValues(alpha: 0.4)),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (sync.syncing)
+              SizedBox(
+                width: 12,
+                height: 12,
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.6,
+                  color: accent,
+                ),
+              )
+            else
+              Icon(icon, size: 13, color: accent),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 11,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+                color: t.foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -138,7 +96,7 @@ Future<void> showSyncSheet(BuildContext context) {
     barrierDismissible: true,
     barrierLabel: 'Dismiss',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 480),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (ctx, _, _) => const Material(
       type: MaterialType.transparency,
       child: Align(
@@ -147,7 +105,7 @@ Future<void> showSyncSheet(BuildContext context) {
       ),
     ),
     transitionBuilder: (ctx, anim, _, child) {
-      final curved = CurvedAnimation(parent: anim, curve: Motion.spring);
+      final curved = CurvedAnimation(parent: anim, curve: Motion.easeOut);
       return Stack(
         fit: StackFit.expand,
         children: [
@@ -155,14 +113,11 @@ Future<void> showSyncSheet(BuildContext context) {
             opacity: anim,
             child: GestureDetector(
               onTap: () => Navigator.pop(ctx),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 12 * anim.value, sigmaY: 12 * anim.value),
-                child: Container(color: Colors.black.withValues(alpha: 0.55 * anim.value)),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.45 * anim.value)),
             ),
           ),
           SlideTransition(
-            position: Tween(begin: const Offset(0, 0.2), end: Offset.zero).animate(curved),
+            position: Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(curved),
             child: FadeTransition(opacity: curved, child: child),
           ),
         ],
@@ -184,34 +139,16 @@ class SyncSheet extends StatelessWidget {
       padding: EdgeInsets.fromLTRB(12, 0, 12, 12 + bottom),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-          child: Container(
+        child: Container(
             constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.72),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(28),
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [
-                  t.surface.withValues(alpha: t.isDark ? 0.92 : 0.95),
-                  t.surfaceMuted.withValues(alpha: t.isDark ? 0.88 : 0.92),
-                ],
-              ),
+              color: t.surface,
               border: Border.all(
                 color: (sync.online ? t.primary : const Color(0xFF38BDF8))
                     .withValues(alpha: 0.35),
               ),
-              boxShadow: [
-                BoxShadow(
-                  color: (sync.online ? t.primary : const Color(0xFF38BDF8))
-                      .withValues(alpha: 0.2),
-                  blurRadius: 40,
-                  spreadRadius: -10,
-                  offset: const Offset(0, -4),
-                ),
-                ...t.elevatedShadow,
-              ],
+              boxShadow: t.elevatedShadow,
             ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
@@ -372,77 +309,38 @@ class SyncSheet extends StatelessWidget {
             ),
           ),
         ),
-      ),
     );
   }
 }
 
-class _OrbitBadge extends StatefulWidget {
+class _OrbitBadge extends StatelessWidget {
   const _OrbitBadge({required this.online, required this.syncing});
   final bool online;
   final bool syncing;
 
   @override
-  State<_OrbitBadge> createState() => _OrbitBadgeState();
-}
-
-class _OrbitBadgeState extends State<_OrbitBadge> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat();
-
-  @override
-  void dispose() {
-    _c.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
-    final color = widget.online ? context.t.primary : const Color(0xFF38BDF8);
-    return AnimatedBuilder(
-      animation: _c,
-      builder: (context, _) {
-        return Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            gradient: SweepGradient(
-              colors: [
-                color.withValues(alpha: 0.05),
-                color.withValues(alpha: 0.55),
-                color.withValues(alpha: 0.05),
-              ],
-              transform: GradientRotation(_c.value * 6.2832),
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: color.withValues(alpha: 0.35),
-                blurRadius: 18,
-                spreadRadius: -4,
-              ),
-            ],
-          ),
-          padding: const EdgeInsets.all(3),
-          child: Container(
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: context.t.surface,
-            ),
-            child: Icon(
-              widget.syncing
-                  ? Icons.sync_rounded
-                  : widget.online
-                      ? Icons.cloud_done_rounded
-                      : Icons.cloud_off_rounded,
+    final color = online ? context.t.primary : const Color(0xFF38BDF8);
+    return Container(
+      width: 52,
+      height: 52,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        color: color.withValues(alpha: 0.12),
+        border: Border.all(color: color.withValues(alpha: 0.35)),
+      ),
+      alignment: Alignment.center,
+      child: syncing
+          ? SizedBox(
+              width: 22,
+              height: 22,
+              child: CircularProgressIndicator(strokeWidth: 2, color: color),
+            )
+          : Icon(
+              online ? Icons.cloud_done_rounded : Icons.cloud_off_rounded,
               color: color,
-              size: 22,
+              size: 24,
             ),
-          ),
-        );
-      },
     );
   }
 }

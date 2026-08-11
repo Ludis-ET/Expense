@@ -35,7 +35,7 @@ flutter run -d chrome --web-port=5173 --dart-define=API_BASE=http://localhost:40
 
 Open **http://localhost:5173**, sign in or register, and the app talks to `http://localhost:4000/api/v1`.
 
-Without `--dart-define`, the app uses the production API (`https://santim.lunafh.com/backend/api/v1`).
+Without `--dart-define`, the app uses the Render API (`https://expense-7py7.onrender.com/api/v1`).
 
 **CORS:** the browser blocks cross-origin calls unless your backend `.env` lists the Flutter web origin. Match the port you use in `flutter run --web-port=…` (5173 above).
 

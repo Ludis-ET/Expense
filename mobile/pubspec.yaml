@@ -1,7 +1,7 @@
 name: santim
 description: "Santim - know where every birr goes. Android client."
 publish_to: 'none'
-version: 1.0.0+1
+version: 1.0.3+2003
 
 environment:
   sdk: ^3.10.7
@@ -33,11 +33,34 @@ dependencies:
   permission_handler: ^11.4.0
   # Long-lived device token for SMS ingest (shown once at pair).
   flutter_secure_storage: ^9.2.4
+  # Keep native splash until first Flutter frame (Android launch handoff).
+  flutter_native_splash: ^2.4.6
 
 dev_dependencies:
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
+  flutter_launcher_icons: ^0.14.3
+
+flutter_launcher_icons:
+  android: true
+  ios: false
+  image_path: assets/brand/santim_icon.png
+  adaptive_icon_background: "#059669"
+  adaptive_icon_foreground: assets/brand/santim_icon.png
+  min_sdk_android: 21
+
+flutter_native_splash:
+  color: "#F4F6F9"
+  image: assets/brand/santim_icon.png
+  android: true
+  ios: false
+  android_12:
+    color: "#F4F6F9"
+    image: assets/brand/santim_icon.png
+    icon_background_color: "#059669"
 
 flutter:
   uses-material-design: true
+  assets:
+    - assets/brand/santim_icon.png

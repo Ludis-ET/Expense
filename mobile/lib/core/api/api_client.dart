@@ -57,7 +57,7 @@ class ApiClient {
             const String.fromEnvironment(
               // Override at build time: `flutter build apk --dart-define=API_BASE=...`
               'API_BASE',
-              defaultValue: 'https://santim.lunafh.com/backend/api/v1',
+              defaultValue: 'https://expense-7py7.onrender.com/api/v1',
             );
 
   final TokenStore tokens;

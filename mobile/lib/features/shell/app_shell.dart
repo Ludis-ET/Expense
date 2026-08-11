@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -138,15 +136,17 @@ class AppShellState extends State<AppShell> with WidgetsBindingObserver {
                   index: ShellTab.values.indexOf(_tab),
                   children: [
                     for (final tab in ShellTab.values)
-                      _TabNavigator(
-                        navigatorKey: _navKeys[tab]!,
-                        observers: [_routeObservers[tab]!],
-                        child: switch (tab) {
-                          ShellTab.home => const DashboardScreen(),
-                          ShellTab.activity => const TransactionsScreen(),
-                          ShellTab.wallets => const AccountsScreen(),
-                          ShellTab.plan => const BudgetsScreen(),
-                        },
+                      RepaintBoundary(
+                        child: _TabNavigator(
+                          navigatorKey: _navKeys[tab]!,
+                          observers: [_routeObservers[tab]!],
+                          child: switch (tab) {
+                            ShellTab.home => const DashboardScreen(),
+                            ShellTab.activity => const TransactionsScreen(),
+                            ShellTab.wallets => const AccountsScreen(),
+                            ShellTab.plan => const BudgetsScreen(),
+                          },
+                        ),
                       ),
                   ],
                 ),
@@ -226,27 +226,24 @@ class _Topbar extends StatelessWidget {
     final prefs = context.watch<PrefsState>();
     final user = context.watch<AuthState>().user;
 
-    return ClipRect(
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 14, sigmaY: 14),
-        child: Container(
-          height: 58,
-          padding: const EdgeInsets.symmetric(horizontal: 10),
-          decoration: BoxDecoration(
-            color: t.surface.withValues(alpha: t.isDark ? 0.55 : 0.72),
-            border: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.7))),
+    return Container(
+      height: 58,
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: t.surface,
+        border: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.7))),
+      ),
+      child: Row(
+        children: [
+          IconPill(
+            icon: Icons.menu_rounded,
+            background: Colors.transparent,
+            onTap: onMenu,
           ),
-          child: Row(
-            children: [
-              IconPill(
-                icon: Icons.menu_rounded,
-                background: Colors.transparent,
-                onTap: onMenu,
-              ),
-              const SizedBox(width: 2),
-              const BrandMark(size: 26),
-              const SizedBox(width: 8),
-              const BrandWord(fontSize: 17),
+          const SizedBox(width: 2),
+          const BrandMark(size: 26),
+          const SizedBox(width: 8),
+          const BrandWord(fontSize: 17),
               const Spacer(),
               const SyncStatusPill(),
               const SizedBox(width: 6),
@@ -295,8 +292,6 @@ class _Topbar extends StatelessWidget {
               const SizedBox(width: 4),
             ],
           ),
-        ),
-      ),
     );
   }
 }
@@ -410,89 +405,83 @@ class _BottomNav extends StatelessWidget {
         clipBehavior: Clip.none,
         alignment: Alignment.topCenter,
         children: [
-          // Blurred bar — starts halfway up the FAB so the button straddles the edge
           Positioned(
             left: 0,
             right: 0,
             bottom: 0,
             top: fabOverlap,
-            child: ClipRect(
-              child: BackdropFilter(
-                filter: ImageFilter.blur(sigmaX: 20, sigmaY: 20),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: t.surface.withValues(alpha: t.isDark ? 0.8 : 0.88),
-                    border: Border(top: BorderSide(color: t.border.withValues(alpha: 0.8))),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withValues(alpha: t.isDark ? 0.35 : 0.06),
-                        blurRadius: 30,
-                        offset: const Offset(0, -8),
-                      ),
-                    ],
+            child: DecoratedBox(
+              decoration: BoxDecoration(
+                color: t.surface,
+                border: Border(top: BorderSide(color: t.border.withValues(alpha: 0.8))),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: t.isDark ? 0.28 : 0.05),
+                    blurRadius: 16,
+                    offset: const Offset(0, -4),
                   ),
-                  child: Padding(
-                    padding: EdgeInsets.only(bottom: bottomInset),
-                    child: Column(
-                      children: [
-                        SizedBox(
-                          height: navRowHeight,
+                ],
+              ),
+              child: Padding(
+                padding: EdgeInsets.only(bottom: bottomInset),
+                child: Column(
+                  children: [
+                    SizedBox(
+                      height: navRowHeight,
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                          for (var i = 0; i < 2; i++)
+                            Expanded(
+                              child: _NavItem(
+                                item: _items[i],
+                                active: active,
+                                onSelect: onSelect,
+                              ),
+                            ),
+                          const SizedBox(width: fabSize + 12),
+                          for (var i = 2; i < 4; i++)
+                            Expanded(
+                              child: _NavItem(
+                                item: _items[i],
+                                active: active,
+                                onSelect: onSelect,
+                              ),
+                            ),
+                        ],
+                      ),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(12, 0, 12, askBarPadding),
+                      child: PressableScale(
+                        scale: 0.99,
+                        onTap: onAsk,
+                        child: Container(
+                          height: askBarHeight,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                            color: t.primary.withValues(alpha: 0.08),
+                            borderRadius: BorderRadius.circular(R.md),
+                          ),
                           child: Row(
-                            crossAxisAlignment: CrossAxisAlignment.center,
+                            mainAxisSize: MainAxisSize.min,
                             children: [
-                              for (var i = 0; i < 2; i++)
-                                Expanded(
-                                  child: _NavItem(
-                                    item: _items[i],
-                                    active: active,
-                                    onSelect: onSelect,
-                                  ),
+                              Icon(Icons.auto_awesome, size: 14, color: t.primary),
+                              const SizedBox(width: 7),
+                              Text(
+                                'Ask Santim',
+                                style: TextStyle(
+                                  fontSize: 12.5,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.primary,
                                 ),
-                              const SizedBox(width: fabSize + 12),
-                              for (var i = 2; i < 4; i++)
-                                Expanded(
-                                  child: _NavItem(
-                                    item: _items[i],
-                                    active: active,
-                                    onSelect: onSelect,
-                                  ),
-                                ),
+                              ),
                             ],
                           ),
                         ),
-                        Padding(
-                          padding: const EdgeInsets.fromLTRB(12, 0, 12, askBarPadding),
-                          child: PressableScale(
-                            scale: 0.99,
-                            onTap: onAsk,
-                            child: Container(
-                              height: askBarHeight,
-                              alignment: Alignment.center,
-                              decoration: BoxDecoration(
-                                color: t.primary.withValues(alpha: 0.08),
-                                borderRadius: BorderRadius.circular(R.md),
-                              ),
-                              child: Row(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Icon(Icons.auto_awesome, size: 14, color: t.primary),
-                                  const SizedBox(width: 7),
-                                  Text(
-                                    'Ask Santim',
-                                    style: TextStyle(
-                                      fontSize: 12.5,
-                                      fontWeight: FontWeight.w700,
-                                      color: t.primary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ),
-                      ],
+                      ),
                     ),
-                  ),
+                  ],
                 ),
               ),
             ),
@@ -556,63 +545,33 @@ class _NavItem extends StatelessWidget {
   }
 }
 
-/// The raised circular FAB that floats above the bottom bar with a glowing
-/// outer ring and a subtle pulse animation.
-class _AddButton extends StatefulWidget {
+/// The raised circular FAB that floats above the bottom bar.
+class _AddButton extends StatelessWidget {
   const _AddButton({required this.onTap, this.size = 56});
   final VoidCallback onTap;
   final double size;
 
   @override
-  State<_AddButton> createState() => _AddButtonState();
-}
-
-class _AddButtonState extends State<_AddButton> with SingleTickerProviderStateMixin {
-  late final AnimationController _pulse;
-
-  @override
-  void initState() {
-    super.initState();
-    _pulse = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2400),
-    )..repeat(reverse: true);
-  }
-
-  @override
-  void dispose() {
-    _pulse.dispose();
-    super.dispose();
-  }
-
-  @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final size = widget.size;
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, child) {
-        final glow = 0.25 + _pulse.value * 0.2;
-        return Container(
-          width: size + 8,
-          height: size + 8,
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: t.primary.withValues(alpha: glow),
-                blurRadius: 20,
-                spreadRadius: 1,
-              ),
-            ],
+    return Container(
+      width: size + 8,
+      height: size + 8,
+      alignment: Alignment.center,
+      decoration: BoxDecoration(
+        shape: BoxShape.circle,
+        boxShadow: [
+          BoxShadow(
+            color: t.primary.withValues(alpha: 0.32),
+            blurRadius: 14,
+            spreadRadius: 0,
+            offset: const Offset(0, 4),
           ),
-          child: child,
-        );
-      },
+        ],
+      ),
       child: PressableScale(
-        scale: 0.88,
-        onTap: widget.onTap,
+        scale: 0.9,
+        onTap: onTap,
         child: Container(
           width: size,
           height: size,

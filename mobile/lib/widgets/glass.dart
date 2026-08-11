@@ -1,21 +1,20 @@
 import 'dart:math' as math;
-import 'dart:ui';
 
 import 'package:flutter/material.dart';
 
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 
-/// The web app's `@utility glass`: surface at 80% over a 12px backdrop blur,
-/// with a hairline top highlight so the pane reads as a physical sheet.
+/// Frosted-looking card without live [BackdropFilter] (too costly on mid-range
+/// GPUs). Uses an opaque/semi-opaque gradient so scrolls stay smooth.
 class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
     this.padding = const EdgeInsets.all(16),
     this.radius = R.card,
-    this.blur = 18,
-    this.opacity = 0.72,
+    this.blur = 0,
+    this.opacity = 0.94,
     this.tint,
     this.borderColor,
     this.onTap,
@@ -27,6 +26,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final double radius;
+  /// Kept for API compatibility; blur is intentionally unused for performance.
   final double blur;
   final double opacity;
 
@@ -44,53 +44,49 @@ class GlassCard extends StatelessWidget {
 
     Widget pane = ClipRRect(
       borderRadius: br,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: blur, sigmaY: blur),
-        child: DecoratedBox(
-          decoration: BoxDecoration(
-            borderRadius: br,
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                base.withValues(alpha: opacity),
-                base.withValues(alpha: opacity * (t.isDark ? 0.82 : 0.94)),
-              ],
-            ),
-            border: Border.all(
-              color: borderColor ??
-                  (t.isDark
-                      ? Colors.white.withValues(alpha: 0.07)
-                      : Colors.white.withValues(alpha: 0.65)),
-              width: 1,
-            ),
+      child: DecoratedBox(
+        decoration: BoxDecoration(
+          borderRadius: br,
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              base.withValues(alpha: opacity),
+              base.withValues(alpha: opacity * (t.isDark ? 0.9 : 0.98)),
+            ],
           ),
-          child: Stack(
-            children: [
-              // Specular highlight along the top edge.
-              Positioned(
-                left: 0,
-                right: 0,
-                top: 0,
-                height: radius * 2,
-                child: IgnorePointer(
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topCenter,
-                        end: Alignment.bottomCenter,
-                        colors: [
-                          Colors.white.withValues(alpha: t.isDark ? 0.05 : 0.35),
-                          Colors.white.withValues(alpha: 0),
-                        ],
-                      ),
+          border: Border.all(
+            color: borderColor ??
+                (t.isDark
+                    ? Colors.white.withValues(alpha: 0.07)
+                    : Colors.white.withValues(alpha: 0.65)),
+            width: 1,
+          ),
+        ),
+        child: Stack(
+          children: [
+            Positioned(
+              left: 0,
+              right: 0,
+              top: 0,
+              height: radius * 2,
+              child: IgnorePointer(
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    gradient: LinearGradient(
+                      begin: Alignment.topCenter,
+                      end: Alignment.bottomCenter,
+                      colors: [
+                        Colors.white.withValues(alpha: t.isDark ? 0.05 : 0.28),
+                        Colors.white.withValues(alpha: 0),
+                      ],
                     ),
                   ),
                 ),
               ),
-              Padding(padding: padding, child: child),
-            ],
-          ),
+            ),
+            Padding(padding: padding, child: child),
+          ],
         ),
       ),
     );
@@ -176,14 +172,14 @@ class AppCard extends StatelessWidget {
   }
 }
 
-/// `.bg-mesh` + `.bg-grid`: two drifting radial glows over a faint grid. The
-/// orbs move on the same 7s / 8s loops as `@keyframes splash-orb`.
+/// Soft brand wash behind screens. Static by default — drifting orbs + blur
+/// masks tank FPS on mid-range Android GPUs.
 class MeshBackground extends StatefulWidget {
   const MeshBackground({
     super.key,
     required this.child,
-    this.showGrid = true,
-    this.animate = true,
+    this.showGrid = false,
+    this.animate = false,
     this.intensity = 1,
   });
 
@@ -197,34 +193,62 @@ class MeshBackground extends StatefulWidget {
 }
 
 class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStateMixin {
-  late final AnimationController _a = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 7),
-  );
-  late final AnimationController _b = AnimationController(
-    vsync: this,
-    duration: const Duration(seconds: 8),
-  );
+  AnimationController? _a;
+  AnimationController? _b;
 
   @override
   void initState() {
     super.initState();
     if (widget.animate) {
-      _a.repeat(reverse: true);
-      _b.repeat(reverse: true);
+      _a = AnimationController(vsync: this, duration: const Duration(seconds: 7))
+        ..repeat(reverse: true);
+      _b = AnimationController(vsync: this, duration: const Duration(seconds: 8))
+        ..repeat(reverse: true);
     }
   }
 
   @override
   void dispose() {
-    _a.dispose();
-    _b.dispose();
+    _a?.dispose();
+    _b?.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final intensity = widget.intensity * (t.isDark ? 0.85 : 1);
+    final mesh = widget.animate && _a != null && _b != null
+        ? AnimatedBuilder(
+            animation: Listenable.merge([_a!, _b!]),
+            builder: (context, _) {
+              final ea = Curves.easeInOut.transform(_a!.value);
+              final eb = Curves.easeInOut.transform(_b!.value);
+              return CustomPaint(
+                painter: _MeshPainter(
+                  primary: t.primary,
+                  accent: t.accent,
+                  intensity: intensity,
+                  shiftA: Offset(18 * ea, -22 * ea),
+                  shiftB: Offset(-20 * eb, 16 * eb),
+                  scaleA: 1 + 0.08 * ea,
+                  scaleB: 1 + 0.1 * eb,
+                ),
+              );
+            },
+          )
+        : CustomPaint(
+            painter: _MeshPainter(
+              primary: t.primary,
+              accent: t.accent,
+              intensity: intensity,
+              shiftA: Offset.zero,
+              shiftB: Offset.zero,
+              scaleA: 1,
+              scaleB: 1,
+            ),
+          );
+
     return Stack(
       children: [
         Positioned.fill(child: ColoredBox(color: t.background)),
@@ -238,24 +262,7 @@ class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStat
           ),
         Positioned.fill(
           child: IgnorePointer(
-            child: AnimatedBuilder(
-              animation: Listenable.merge([_a, _b]),
-              builder: (context, _) {
-                final ea = Curves.easeInOut.transform(_a.value);
-                final eb = Curves.easeInOut.transform(_b.value);
-                return CustomPaint(
-                  painter: _MeshPainter(
-                    primary: t.primary,
-                    accent: t.accent,
-                    intensity: widget.intensity * (t.isDark ? 0.85 : 1),
-                    shiftA: Offset(26 * ea, -32 * ea),
-                    shiftB: Offset(-30 * eb, 24 * eb),
-                    scaleA: 1 + 0.15 * ea,
-                    scaleB: 1 + 0.2 * eb,
-                  ),
-                );
-              },
-            ),
+            child: RepaintBoundary(child: mesh),
           ),
         ),
         widget.child,
@@ -309,30 +316,28 @@ class _MeshPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     void orb(Offset center, double radius, Color color, double alpha) {
       final rect = Rect.fromCircle(center: center, radius: radius);
+      // Soft radial only — MaskFilter.blur was a full-screen GPU tax every frame.
       canvas.drawCircle(
         center,
         radius,
         Paint()
           ..shader = RadialGradient(
             colors: [color.withValues(alpha: alpha * intensity), color.withValues(alpha: 0)],
-          ).createShader(rect)
-          ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 40),
+          ).createShader(rect),
       );
     }
 
-    // radial-gradient(ellipse 80% 60% at 10% 0%, var(--glow), ...)
     orb(
       Offset(size.width * 0.1, 0) + shiftA,
-      size.width * 0.8 * scaleA,
+      size.width * 0.75 * scaleA,
       primary,
-      0.22,
+      0.18,
     );
-    // radial-gradient(ellipse 60% 50% at 90% 10%, accent 8%, ...)
     orb(
       Offset(size.width * 0.9, size.height * 0.1) + shiftB,
-      size.width * 0.6 * scaleB,
+      size.width * 0.55 * scaleB,
       accent,
-      0.16,
+      0.12,
     );
   }
 
@@ -429,7 +434,7 @@ class _Blob extends StatelessWidget {
   }
 }
 
-/// Frosted chip used on the hero and anywhere a translucent pill is needed.
+/// Soft translucent pill (no backdrop blur — keeps list/hero scrolls cheap).
 class GlassChip extends StatelessWidget {
   const GlassChip({
     super.key,
@@ -451,21 +456,18 @@ class GlassChip extends StatelessWidget {
     final br = BorderRadius.circular(radius);
     return ClipRRect(
       borderRadius: br,
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 8, sigmaY: 8),
-        child: Material(
-          color: Colors.white.withValues(alpha: 0.15),
-          child: InkWell(
-            onTap: onTap,
-            child: Container(
-              padding: padding,
-              decoration: borderLeftColor != null
-                  ? BoxDecoration(
-                      border: Border(left: BorderSide(color: borderLeftColor!, width: 3)),
-                    )
-                  : null,
-              child: child,
-            ),
+      child: Material(
+        color: Colors.white.withValues(alpha: 0.18),
+        child: InkWell(
+          onTap: onTap,
+          child: Container(
+            padding: padding,
+            decoration: borderLeftColor != null
+                ? BoxDecoration(
+                    border: Border(left: BorderSide(color: borderLeftColor!, width: 3)),
+                  )
+                : null,
+            child: child,
           ),
         ),
       ),

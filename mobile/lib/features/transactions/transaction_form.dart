@@ -1,5 +1,3 @@
-import 'dart:ui';
-
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -29,7 +27,7 @@ Future<bool?> showTransactionForm(
     barrierDismissible: true,
     barrierLabel: 'Dismiss',
     barrierColor: Colors.transparent,
-    transitionDuration: const Duration(milliseconds: 520),
+    transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (ctx, _, _) => Material(
       type: MaterialType.transparency,
       child: SafeArea(
@@ -48,35 +46,22 @@ Future<bool?> showTransactionForm(
       ),
     ),
     transitionBuilder: (ctx, animation, _, child) {
-      final curved = CurvedAnimation(parent: animation, curve: Motion.spring);
-      final fade = CurvedAnimation(parent: animation, curve: Curves.easeOut);
+      final curved = CurvedAnimation(parent: animation, curve: Motion.easeOut);
       return Stack(
         fit: StackFit.expand,
         children: [
           FadeTransition(
-            opacity: fade,
+            opacity: curved,
             child: GestureDetector(
               onTap: () => Navigator.of(ctx).pop(),
-              child: BackdropFilter(
-                filter: ImageFilter.blur(
-                  sigmaX: 14 * animation.value,
-                  sigmaY: 14 * animation.value,
-                ),
-                child: Container(
-                  color: Colors.black.withValues(alpha: 0.62 * animation.value),
-                ),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.48 * animation.value),
               ),
             ),
           ),
           SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.18), end: Offset.zero).animate(curved),
-            child: FadeTransition(
-              opacity: curved,
-              child: ScaleTransition(
-                scale: Tween<double>(begin: 0.94, end: 1).animate(curved),
-                child: child,
-              ),
-            ),
+            position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(curved),
+            child: FadeTransition(opacity: curved, child: child),
           ),
         ],
       );
@@ -105,7 +90,7 @@ class TransactionForm extends StatefulWidget {
   State<TransactionForm> createState() => _TransactionFormState();
 }
 
-class _TransactionFormState extends State<TransactionForm> with TickerProviderStateMixin {
+class _TransactionFormState extends State<TransactionForm> {
   late final _amount = TextEditingController(
     text: widget.existing == null ? '' : toNum(widget.existing!.amount).toString(),
   );
@@ -125,11 +110,6 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
   bool _showMore = false;
   String? _error;
   bool _amountFocused = false;
-
-  late final AnimationController _headerPulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 2400),
-  )..repeat(reverse: true);
 
   bool get _isEdit => widget.existing != null;
 
@@ -178,7 +158,6 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
 
   @override
   void dispose() {
-    _headerPulse.dispose();
     _amount.dispose();
     _payee.dispose();
     _note.dispose();
@@ -410,57 +389,30 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
 
     final maxH = MediaQuery.sizeOf(context).height * 0.92;
 
-    return AnimatedBuilder(
-      animation: _headerPulse,
-      builder: (context, _) {
-        final pulse = _headerPulse.value;
-        return ConstrainedBox(
-          constraints: BoxConstraints(maxHeight: maxH),
-          child: ClipRRect(
+    return ConstrainedBox(
+      constraints: BoxConstraints(maxHeight: maxH),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(28),
+        child: DecoratedBox(
+          decoration: BoxDecoration(
+            color: t.surface,
             borderRadius: BorderRadius.circular(28),
-            child: Stack(
-              clipBehavior: Clip.none,
-              children: [
-                Positioned.fill(
-                  child: _AmbientOrbs(tint: tint, pulse: pulse),
-                ),
-                BackdropFilter(
-                  filter: ImageFilter.blur(sigmaX: 28, sigmaY: 28),
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      gradient: LinearGradient(
-                        begin: Alignment.topLeft,
-                        end: Alignment.bottomRight,
-                        colors: [
-                          t.surface.withValues(alpha: t.isDark ? 0.9 : 0.94),
-                          t.surfaceMuted.withValues(alpha: t.isDark ? 0.86 : 0.9),
-                        ],
-                      ),
-                      borderRadius: BorderRadius.circular(28),
-                      border: Border.all(color: tint.withValues(alpha: 0.28 + pulse * 0.08)),
-                      boxShadow: [
-                        BoxShadow(
-                          color: tint.withValues(alpha: 0.22 + pulse * 0.1),
-                          blurRadius: 48,
-                          spreadRadius: -12,
-                          offset: const Offset(0, -6),
-                        ),
-                        ...t.elevatedShadow,
-                      ],
-                    ),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _ModalHeader(
-                          pulse: pulse,
-                          tint: tint,
-                          icon: _kindIcon(_kind),
-                          title: _isEdit ? 'Edit transaction' : 'New transaction',
-                          subtitle: _isEdit
-                              ? 'Update the details below'
-                              : 'Log ${_kind.label.toLowerCase()} instantly',
-                          onClose: () => Navigator.pop(context),
-                        ),
+            border: Border.all(color: tint.withValues(alpha: 0.28)),
+            boxShadow: t.elevatedShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              _ModalHeader(
+                pulse: 0.4,
+                tint: tint,
+                icon: _kindIcon(_kind),
+                title: _isEdit ? 'Edit transaction' : 'New transaction',
+                subtitle: _isEdit
+                    ? 'Update the details below'
+                    : 'Log ${_kind.label.toLowerCase()} instantly',
+                onClose: () => Navigator.pop(context),
+              ),
                     Flexible(
                       child: SingleChildScrollView(
                         padding: EdgeInsets.fromLTRB(
@@ -713,10 +665,6 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
                                 onPressed: _saving ? null : _save,
                               ),
                             ),
-                          ],
-                        ),
-                      ),
-                    ),
                       ],
                     ),
                   ),
@@ -724,8 +672,7 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
               ],
             ),
           ),
-        );
-      },
+        ),
     );
   }
 }
@@ -843,52 +790,6 @@ class _ModalHeader extends StatelessWidget {
             ],
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _AmbientOrbs extends StatelessWidget {
-  const _AmbientOrbs({required this.tint, required this.pulse});
-
-  final Color tint;
-  final double pulse;
-
-  @override
-  Widget build(BuildContext context) {
-    return IgnorePointer(
-      child: Stack(
-        clipBehavior: Clip.none,
-        children: [
-          Positioned(
-            top: -50 + 18 * pulse,
-            right: -40 + 12 * pulse,
-            child: _orb(160, tint.withValues(alpha: 0.28 + pulse * 0.08)),
-          ),
-          Positioned(
-            top: 80 - 14 * pulse,
-            left: -60,
-            child: _orb(110, tint.withValues(alpha: 0.16)),
-          ),
-          Positioned(
-            bottom: -30,
-            right: 40 + 20 * pulse,
-            child: _orb(90, tint.withValues(alpha: 0.12 + pulse * 0.06)),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _orb(double size, Color color) {
-    return Container(
-      width: size,
-      height: size,
-      decoration: BoxDecoration(
-        shape: BoxShape.circle,
-        gradient: RadialGradient(
-          colors: [color, color.withValues(alpha: 0)],
-        ),
       ),
     );
   }
@@ -1024,70 +925,55 @@ class _HeroAmountField extends StatefulWidget {
   State<_HeroAmountField> createState() => _HeroAmountFieldState();
 }
 
-class _HeroAmountFieldState extends State<_HeroAmountField> with SingleTickerProviderStateMixin {
+class _HeroAmountFieldState extends State<_HeroAmountField> {
   late final FocusNode _focus = FocusNode();
-  late final AnimationController _pulse = AnimationController(
-    vsync: this,
-    duration: const Duration(milliseconds: 1800),
-  );
 
   @override
   void initState() {
     super.initState();
     _focus.addListener(_onFocus);
-    if (widget.focused) _pulse.repeat(reverse: true);
   }
 
   void _onFocus() {
     widget.onFocusChange(_focus.hasFocus);
-    if (_focus.hasFocus) {
-      _pulse.repeat(reverse: true);
-    } else {
-      _pulse.stop();
-      _pulse.value = 0;
-    }
   }
 
   @override
   void dispose() {
     _focus.removeListener(_onFocus);
     _focus.dispose();
-    _pulse.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final glow = widget.focused ? 0.12 + _pulse.value * 0.14 : 0.06;
+    final glow = widget.focused ? 0.2 : 0.06;
 
-    return AnimatedBuilder(
-      animation: _pulse,
-      builder: (context, _) {
-        return AnimatedContainer(
-          duration: Motion.fast,
-          curve: Motion.easeOut,
-          padding: const EdgeInsets.all(1.8),
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(R.xl),
-            gradient: LinearGradient(
-              begin: Alignment.topLeft,
-              end: Alignment.bottomRight,
-              colors: [
-                widget.tint.withValues(alpha: 0.55 + glow),
-                widget.tint.withValues(alpha: 0.15),
-                t.accent.withValues(alpha: 0.25),
-              ],
-            ),
-            boxShadow: [
-              BoxShadow(
-                color: widget.tint.withValues(alpha: 0.22 + glow),
-                blurRadius: 28 + _pulse.value * 8,
-                spreadRadius: -6,
-              ),
-            ],
+    return AnimatedContainer(
+      duration: Motion.fast,
+      curve: Motion.easeOut,
+      padding: const EdgeInsets.all(1.8),
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(R.xl),
+        gradient: LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            widget.tint.withValues(alpha: 0.55 + glow),
+            widget.tint.withValues(alpha: 0.15),
+            t.accent.withValues(alpha: 0.25),
+          ],
+        ),
+        boxShadow: [
+          BoxShadow(
+            color: widget.tint.withValues(alpha: 0.22 + glow),
+            blurRadius: widget.focused ? 22 : 16,
+            spreadRadius: -6,
           ),
-          child: Container(
+        ],
+      ),
+      child: Container(
             padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(R.xl - 1.8),
@@ -1172,8 +1058,6 @@ class _HeroAmountFieldState extends State<_HeroAmountField> with SingleTickerPro
               ],
             ),
           ),
-        );
-      },
     );
   }
 }

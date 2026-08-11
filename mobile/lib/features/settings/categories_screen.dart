@@ -45,7 +45,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
       appBar: AppBar(
         title: Text(
           'Categories',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           IconPill(
@@ -53,7 +57,7 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
             tooltip: 'New category',
             onTap: () => _edit(context, kind: _kind),
           ),
-          const SizedBox(width: 10),
+          const GapX(S.sm),
         ],
       ),
       body: MeshBackground(
@@ -73,13 +77,13 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                 colorOf: (k) => k == TxKind.income ? t.success : t.danger,
                 onChanged: (k) => setState(() => _kind = k),
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               if (!data.categories.hasData)
                 const PageLoader(rows: 6, hero: false)
               else ...[
                 for (var i = 0; i < active.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: FadeInUp.staggered(
                       index: i.clamp(0, 10),
                       child: _Row(
@@ -89,11 +93,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
                     ),
                   ),
                 if (archived.isNotEmpty) ...[
-                  const SizedBox(height: 12),
+                  const Gap(S.md),
                   SectionLabel('ARCHIVED'),
                   for (final c in archived)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 9),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: Opacity(
                         opacity: 0.6,
                         child: _Row(
@@ -133,7 +137,7 @@ class _Row extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 11),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       onTap: onTap,
       child: Row(
         children: [
@@ -142,7 +146,7 @@ class _Row extends StatelessWidget {
             color: parseHexColor(category.color),
             size: 38,
           ),
-          const SizedBox(width: 12),
+          const GapX(S.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -151,13 +155,13 @@ class _Row extends StatelessWidget {
                   category.name,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppType.body,
                     fontWeight: FontWeight.w600,
                     color: t.foreground,
                   ),
                 ),
                 if (category.transactionCount != null) ...[
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted(
                     '${category.transactionCount} transaction'
                     '${category.transactionCount == 1 ? '' : 's'}',
@@ -168,7 +172,7 @@ class _Row extends StatelessWidget {
             ),
           ),
           if (category.isDefault) AppBadge('Built-in', dense: true),
-          const SizedBox(width: 6),
+          const GapX(S.xs),
           Icon(Icons.chevron_right, size: 18, color: t.mutedForeground),
         ],
       ),
@@ -252,7 +256,7 @@ class _CategoryFormState extends State<_CategoryForm> {
           Center(
             child: IconTile(icon: financeIcon(_icon), color: tint, size: 56, radius: R.lg),
           ),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppTextField(
             controller: _name,
             label: 'Name',
@@ -261,13 +265,13 @@ class _CategoryFormState extends State<_CategoryForm> {
             autofocus: !_isEdit,
             textCapitalization: TextCapitalization.sentences,
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           ColorPickerRow(
             value: _color,
             colors: financeColors,
             onChanged: (c) => setState(() => _color = c),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           IconPickerGrid(
             value: _icon,
             names: iconNames,
@@ -284,10 +288,13 @@ class _CategoryFormState extends State<_CategoryForm> {
               onChanged: (v) => setState(() => _archived = v),
             ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _isEdit ? 'Save changes' : 'Create category',
             icon: Icons.check,
@@ -297,7 +304,7 @@ class _CategoryFormState extends State<_CategoryForm> {
             onPressed: _saving ? null : _save,
           ),
           if (_isEdit && !widget.existing!.isDefault) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             AppButton(
               label: 'Delete',
               icon: Icons.delete_outline,
@@ -307,14 +314,13 @@ class _CategoryFormState extends State<_CategoryForm> {
                 final ok = await confirm(
                   context,
                   title: 'Delete ${widget.existing!.name}?',
-                  message: 'Categories with transactions cannot be deleted — '
+                  message:
+                      'Categories with transactions cannot be deleted — '
                       'archive them instead.',
                 );
                 if (!ok || !context.mounted) return;
                 try {
-                  await context
-                      .read<ApiClient>()
-                      .delete('/categories/${widget.existing!.id}');
+                  await context.read<ApiClient>().delete('/categories/${widget.existing!.id}');
                   if (context.mounted) Navigator.pop(context, true);
                 } on ApiError catch (e) {
                   if (context.mounted) toast(context, e.message, error: true);

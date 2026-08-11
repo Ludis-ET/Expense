@@ -37,7 +37,7 @@ class _NotificationsList extends StatelessWidget {
           children: [
             for (var i = 0; i < 4; i++)
               const Padding(
-                padding: EdgeInsets.only(bottom: 10),
+                padding: EdgeInsets.only(bottom: S.md),
                 child: Skeleton(height: 62, radius: R.md),
               ),
           ],
@@ -81,26 +81,22 @@ class _NotificationsList extends StatelessWidget {
             shrinkWrap: true,
             padding: EdgeInsets.fromLTRB(12, 0, 12, 24 + bottom),
             itemCount: items.length,
-            separatorBuilder: (_, _) => const SizedBox(height: 8),
+            separatorBuilder: (_, _) => const Gap(S.sm),
             itemBuilder: (context, i) {
               final n = items[i];
               return FadeInUp.staggered(
                 index: i.clamp(0, 8),
                 offset: 6,
                 child: AppCard(
-                  padding: const EdgeInsets.all(13),
+                  padding: const EdgeInsets.all(S.md),
                   color: n.readFlag ? t.surface : t.primary.withValues(alpha: 0.06),
                   borderColor: n.readFlag ? t.border : t.primary.withValues(alpha: 0.25),
                   onTap: n.readFlag ? null : () => data.markNotificationRead(n.id),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconTile(
-                        icon: _iconFor(n.type),
-                        color: _toneFor(context, n.type),
-                        size: 34,
-                      ),
-                      const SizedBox(width: 11),
+                      IconTile(icon: _iconFor(n.type), color: _toneFor(context, n.type), size: 34),
+                      const GapX(S.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -108,20 +104,20 @@ class _NotificationsList extends StatelessWidget {
                             Text(
                               n.message,
                               style: TextStyle(
-                                fontSize: 13.5,
+                                fontSize: AppType.bodySm,
                                 height: 1.4,
                                 fontWeight: n.readFlag ? FontWeight.w400 : FontWeight.w600,
                                 color: t.foreground,
                               ),
                             ),
-                            const SizedBox(height: 4),
+                            const Gap(S.xxs),
                             Muted(relativeTime(n.createdAt), size: 11),
                           ],
                         ),
                       ),
                       if (!n.readFlag)
                         Container(
-                          margin: const EdgeInsets.only(top: 5, left: 6),
+                          margin: const EdgeInsets.only(top: S.xs, left: S.xs),
                           width: 7,
                           height: 7,
                           decoration: BoxDecoration(color: t.primary, shape: BoxShape.circle),

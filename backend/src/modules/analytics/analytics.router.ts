@@ -10,6 +10,7 @@ import {
   heatmapQuery,
   incomeVsExpenseQuery,
   moversQuery,
+  outlookHistoryQuery,
   payeesQuery,
   seasonalQuery,
   seriesQuery,
@@ -19,6 +20,7 @@ import {
 } from './analytics.schema.js';
 import * as analytics from './analytics.service.js';
 import * as analyticsPage from './analytics.page.js';
+import * as outlook from './analytics.outlook.js';
 import * as reports from './analytics.reports.js';
 import * as weeks from './analytics.weeks.js';
 
@@ -33,6 +35,17 @@ analyticsRouter.get(
   asyncHandler(async (req, res) => {
     const q = req.query as { month?: string; currency?: string };
     res.json(await analyticsPage.page(req.user!, q.month, q.currency));
+  }),
+);
+
+/** History the monthly outlook needs: completed months, a stable surprise
+ * buffer, and repeating payees over a 90-day window. */
+analyticsRouter.get(
+  '/outlook-history',
+  validate({ query: outlookHistoryQuery }),
+  asyncHandler(async (req, res) => {
+    const q = req.query as unknown as { currency?: string; months: number };
+    res.json(await outlook.outlookHistory(req.user!, q.currency, q.months));
   }),
 );
 

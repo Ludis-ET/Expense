@@ -2,8 +2,9 @@ import 'dart:io';
 
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/haptics.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
@@ -16,9 +17,9 @@ import 'messaging_points_screen.dart';
 
 /// First-run / re-entry wizard: permission → pair → cash wallet → battery → banks.
 Future<bool?> showSmsSetupWizard(BuildContext context) {
-  return Navigator.of(context).push<bool>(
-    MaterialPageRoute(builder: (_) => const SmsSetupWizard()),
-  );
+  return Navigator.of(
+    context,
+  ).push<bool>(MaterialPageRoute(builder: (_) => const SmsSetupWizard()));
 }
 
 class SmsSetupWizard extends StatefulWidget {
@@ -131,9 +132,9 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
     final sms = context.read<SmsState>();
     await sms.loadBanks();
     if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const MessagingPointsScreen(fromSetup: true)),
-    );
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen(fromSetup: true)));
     await sms.completeSetup();
     if (mounted) Navigator.pop(context, true);
   }
@@ -147,7 +148,7 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
         body: MeshBackground(
           child: Center(
             child: Padding(
-              padding: const EdgeInsets.all(24),
+              padding: const EdgeInsets.all(S.xxl),
               child: EmptyState(
                 icon: Icons.phone_android_rounded,
                 title: 'Android only',
@@ -163,7 +164,8 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
     final steps = [
       _Step(
         title: 'Allow SMS',
-        body: 'Santim only reads messages from the banks you approve. '
+        body:
+            'Santim only reads messages from the banks you approve. '
             'Nothing else leaves your phone.',
         action: 'Allow SMS access',
         onAction: _busy ? null : _requestPerm,
@@ -171,7 +173,8 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
       ),
       _Step(
         title: 'Pair this phone',
-        body: 'A private device token lets the phone upload drafts without '
+        body:
+            'A private device token lets the phone upload drafts without '
             'keeping you signed in for every message.',
         action: 'Pair phone',
         onAction: _busy || !_permOk ? null : _pair,
@@ -179,21 +182,24 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
       ),
       _Step(
         title: 'Cash wallet',
-        body: 'ATM cash-outs become transfers into this wallet so spending '
+        body:
+            'ATM cash-outs become transfers into this wallet so spending '
             'is not double-counted.',
         action: 'Choose cash wallet',
         onAction: _busy || !_paired ? null : _pickCash,
       ),
       _Step(
         title: 'Stay awake',
-        body: 'Android may pause background work. Exempt Santim so bank SMS '
+        body:
+            'Android may pause background work. Exempt Santim so bank SMS '
             'still land while the screen is off.',
         action: 'Battery settings',
         onAction: _busy ? null : _battery,
       ),
       _Step(
         title: 'Pick your banks',
-        body: 'Choose which senders count as messaging points, and which '
+        body:
+            'Choose which senders count as messaging points, and which '
             'wallet each one fills.',
         action: 'Choose banks',
         onAction: _busy ? null : _finish,
@@ -207,21 +213,25 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
       appBar: AppBar(
         title: Text(
           'Bank SMS setup',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
         child: Padding(
-          padding: const EdgeInsets.fromLTRB(20, 12, 20, 24),
+          padding: const EdgeInsets.fromLTRB(S.xl, S.md, S.xl, S.xxl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               _Progress(step: _step, total: steps.length),
-              const SizedBox(height: 22),
+              const Gap(S.xl),
               Expanded(
                 child: FadeInUp(
                   child: GlassCard(
-                    padding: const EdgeInsets.all(22),
+                    padding: const EdgeInsets.all(S.xxl),
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
@@ -230,34 +240,32 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
                           height: 48,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            gradient: LinearGradient(
-                              colors: [t.primary, t.accent],
-                            ),
+                            gradient: LinearGradient(colors: [t.primary, t.accent]),
                             boxShadow: [
-                              BoxShadow(
-                                color: t.primary.withValues(alpha: 0.35),
-                                blurRadius: 18,
-                              ),
+                              BoxShadow(color: t.primary.withValues(alpha: 0.35), blurRadius: 18),
                             ],
                           ),
                           child: const Icon(Icons.sms_rounded, color: Colors.white),
                         ),
-                        const SizedBox(height: 18),
+                        const Gap(S.lg),
                         Text(
                           current.title,
                           style: TextStyle(
-                            fontSize: 24,
+                            fontSize: AppType.figure,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -0.6,
                             color: t.foreground,
                           ),
                         ),
-                        const SizedBox(height: 10),
+                        const Gap(S.sm),
                         Muted(current.body, size: 14, height: 1.45, maxLines: 6),
                         const Spacer(),
                         if (_error != null) ...[
-                          Text(_error!, style: TextStyle(color: t.danger, fontSize: 13)),
-                          const SizedBox(height: 12),
+                          Text(
+                            _error!,
+                            style: TextStyle(color: t.danger, fontSize: AppType.bodySm),
+                          ),
+                          const Gap(S.md),
                         ],
                         AppButton(
                           label: _busy ? 'Working…' : current.action,
@@ -265,12 +273,12 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
                           onPressed: current.onAction == null
                               ? null
                               : () {
-                                  HapticFeedback.selectionClick();
+                                  Haptics.select();
                                   current.onAction!();
                                 },
                         ),
                         if (_step > 0) ...[
-                          const SizedBox(height: 10),
+                          const Gap(S.sm),
                           AppButton(
                             label: 'Back',
                             variant: BtnVariant.ghost,
@@ -332,7 +340,7 @@ class _Progress extends StatelessWidget {
               ),
             ),
           ),
-          if (i < total - 1) const SizedBox(width: 6),
+          if (i < total - 1) const GapX(S.xs),
         ],
       ],
     );

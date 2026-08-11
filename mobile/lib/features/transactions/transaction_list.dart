@@ -42,8 +42,8 @@ class TransactionRow extends StatelessWidget {
     final amountColor = isTransfer
         ? t.foreground
         : isIncome
-            ? t.success
-            : t.foreground;
+        ? t.success
+        : t.foreground;
 
     final meta = <String>[
       if (showDate) formatDayMonth(tx.date),
@@ -56,7 +56,7 @@ class TransactionRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(R.md),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: 4, vertical: compact ? 8 : 10),
+        padding: EdgeInsets.symmetric(horizontal: S.xxs, vertical: compact ? 8 : 10),
         child: Row(
           children: [
             Stack(
@@ -78,7 +78,7 @@ class TransactionRow extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(width: 12),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -97,21 +97,21 @@ class TransactionRow extends StatelessWidget {
                         ),
                       ),
                       if (tx.budget != null && !tx.budget!.name.contains('Unplanned')) ...[
-                        const SizedBox(width: 6),
+                        const GapX(S.xs),
                         Icon(Icons.savings_outlined, size: 12, color: t.primary),
                       ],
                       if (tx.recurringRuleId != null) ...[
-                        const SizedBox(width: 5),
+                        const GapX(S.xxs),
                         Icon(Icons.repeat, size: 12, color: t.mutedForeground),
                       ],
                     ],
                   ),
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted(meta.join(' · '), size: 11.5, maxLines: 1),
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const GapX(S.sm),
             Column(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
@@ -122,10 +122,7 @@ class TransactionRow extends StatelessWidget {
                   size: compact ? 13.5 : 14.5,
                   color: amountColor,
                 ),
-                if (tx.tags.isNotEmpty) ...[
-                  const SizedBox(height: 3),
-                  Muted('#${tx.tags.first}', size: 10),
-                ],
+                if (tx.tags.isNotEmpty) ...[const Gap(S.xxs), Muted('#${tx.tags.first}', size: 10)],
               ],
             ),
           ],

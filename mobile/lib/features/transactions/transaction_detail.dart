@@ -49,34 +49,32 @@ class _TransactionDetail extends StatelessWidget {
             child: Column(
               children: [
                 IconTile(
-                  icon: isTransfer
-                      ? Icons.swap_horiz_rounded
-                      : financeIcon(tx.category?.icon),
+                  icon: isTransfer ? Icons.swap_horiz_rounded : financeIcon(tx.category?.icon),
                   color: tint,
                   size: 56,
                   radius: R.lg,
                 ),
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Amount(
                   isTransfer ? money(tx.amount) : '${isIncome ? '+' : '−'}${money(tx.amount)}',
                   size: 30,
                   color: isTransfer
                       ? t.foreground
                       : isIncome
-                          ? t.success
-                          : t.foreground,
+                      ? t.success
+                      : t.foreground,
                 ),
-                const SizedBox(height: 4),
+                const Gap(S.xxs),
                 Text(
                   tx.title,
                   textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: 15,
+                    fontSize: AppType.body,
                     fontWeight: FontWeight.w600,
                     color: t.foreground,
                   ),
                 ),
-                const SizedBox(height: 8),
+                const Gap(S.sm),
                 Wrap(
                   spacing: 6,
                   runSpacing: 6,
@@ -87,8 +85,8 @@ class _TransactionDetail extends StatelessWidget {
                       tone: isIncome
                           ? BadgeTone.success
                           : isTransfer
-                              ? BadgeTone.info
-                              : BadgeTone.neutral,
+                          ? BadgeTone.info
+                          : BadgeTone.neutral,
                     ),
                     if (tx.recurringRuleId != null)
                       AppBadge('Recurring', tone: BadgeTone.primary, icon: Icons.repeat),
@@ -98,8 +96,12 @@ class _TransactionDetail extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 22),
-          _DetailRow(label: 'Date', value: formatDate(tx.date), icon: Icons.calendar_today_outlined),
+          const Gap(S.xl),
+          _DetailRow(
+            label: 'Date',
+            value: formatDate(tx.date),
+            icon: Icons.calendar_today_outlined,
+          ),
           _DetailRow(
             label: 'Ethiopian',
             value: formatEthiopian(tx.date),
@@ -127,8 +129,7 @@ class _TransactionDetail extends StatelessWidget {
           if (tx.budget != null)
             _DetailRow(
               label: 'Budget plan',
-              value: tx.budget!.name +
-                  (tx.budgetCycle != null ? ' · cycle ${tx.budgetCycle}' : ''),
+              value: tx.budget!.name + (tx.budgetCycle != null ? ' · cycle ${tx.budgetCycle}' : ''),
               icon: Icons.savings_outlined,
               color: parseHexColor(tx.budget!.color),
             ),
@@ -142,7 +143,23 @@ class _TransactionDetail extends StatelessWidget {
             _DetailRow(label: 'Payee', value: tx.payee!, icon: Icons.storefront_outlined),
           if (tx.note != null)
             _DetailRow(label: 'Note', value: tx.note!, icon: Icons.notes_outlined, wrap: true),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
+          // The most common thing anyone wants from a past transaction is
+          // another one just like it, so that gets the primary button.
+          if (tx.kind != TxKind.transfer)
+            AppButton(
+              label: 'Log this again',
+              icon: Icons.replay_rounded,
+              expand: true,
+              onPressed: () async {
+                final created = await showTransactionForm(context, template: tx);
+                if (created == true && context.mounted) {
+                  await context.read<DataState>().refreshAfterWrite();
+                  if (context.mounted) Navigator.pop(context, true);
+                }
+              },
+            ),
+          const Gap(S.md),
           Row(
             children: [
               Expanded(
@@ -160,7 +177,7 @@ class _TransactionDetail extends StatelessWidget {
                   },
                 ),
               ),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: AppButton(
                   label: 'Delete',
@@ -224,14 +241,14 @@ class _DetailRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 10),
+      padding: const EdgeInsets.only(bottom: S.md),
       child: Row(
         crossAxisAlignment: wrap ? CrossAxisAlignment.start : CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 16, color: color ?? t.mutedForeground),
-          const SizedBox(width: 11),
+          const GapX(S.md),
           Muted(label, size: 12.5),
-          const SizedBox(width: 14),
+          const GapX(S.md),
           Expanded(
             child: Text(
               value,
@@ -239,7 +256,7 @@ class _DetailRow extends StatelessWidget {
               maxLines: wrap ? 6 : 1,
               overflow: TextOverflow.ellipsis,
               style: TextStyle(
-                fontSize: 13.5,
+                fontSize: AppType.bodySm,
                 height: wrap ? 1.45 : null,
                 fontWeight: FontWeight.w600,
                 color: t.foreground,

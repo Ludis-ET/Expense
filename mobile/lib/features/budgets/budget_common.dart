@@ -9,13 +9,13 @@ import '../../widgets/ui.dart';
 /// Colour and tone for each `BudgetHealth`, shared by the list card, the
 /// detail header and the analytics rows.
 BadgeTone healthTone(BudgetHealth health) => switch (health) {
-      BudgetHealth.drained => BadgeTone.danger,
-      BudgetHealth.low => BadgeTone.warning,
-      BudgetHealth.ready || BudgetHealth.spending => BadgeTone.primary,
-      BudgetHealth.partlyFunded => BadgeTone.info,
-      BudgetHealth.scheduled => BadgeTone.info,
-      BudgetHealth.closed || BudgetHealth.unplanned || BudgetHealth.empty => BadgeTone.neutral,
-    };
+  BudgetHealth.drained => BadgeTone.danger,
+  BudgetHealth.low => BadgeTone.warning,
+  BudgetHealth.ready || BudgetHealth.spending => BadgeTone.primary,
+  BudgetHealth.partlyFunded => BadgeTone.info,
+  BudgetHealth.scheduled => BadgeTone.info,
+  BudgetHealth.closed || BudgetHealth.unplanned || BudgetHealth.empty => BadgeTone.neutral,
+};
 
 Color healthColor(BuildContext context, BudgetHealth health) {
   final t = context.t;
@@ -31,19 +31,17 @@ Color healthColor(BuildContext context, BudgetHealth health) {
 /// One line of plain English explaining where the plan stands, so the numbers
 /// never have to be decoded.
 String healthSentence(BudgetRow b, String Function(Object?) money) => switch (b.health) {
-      BudgetHealth.unplanned =>
-        'Spending that never went through a funded plan lands here.',
-      BudgetHealth.scheduled =>
-        'Starts ${_startPhrase(b.startsAt)} — nothing can be spent before then.',
-      BudgetHealth.empty => 'Nothing filled yet. Add money from a wallet to start.',
-      BudgetHealth.partlyFunded =>
-        '${money(b.fillable)} more can still go in before it hits the plan.',
-      BudgetHealth.ready => 'Filled and ready. ${money(b.balance)} to spend.',
-      BudgetHealth.spending => '${money(b.balance)} left of ${money(b.fundedAmount)} filled.',
-      BudgetHealth.low => 'Running low — only ${money(b.balance)} left.',
-      BudgetHealth.drained => 'Empty. Top it up or hold off until the next cycle.',
-      BudgetHealth.closed => 'Closed. Kept for the record.',
-    };
+  BudgetHealth.unplanned => 'Spending that never went through a funded plan lands here.',
+  BudgetHealth.scheduled =>
+    'Starts ${_startPhrase(b.startsAt)} — nothing can be spent before then.',
+  BudgetHealth.empty => 'Nothing filled yet. Add money from a wallet to start.',
+  BudgetHealth.partlyFunded => '${money(b.fillable)} more can still go in before it hits the plan.',
+  BudgetHealth.ready => 'Filled and ready. ${money(b.balance)} to spend.',
+  BudgetHealth.spending => '${money(b.balance)} left of ${money(b.fundedAmount)} filled.',
+  BudgetHealth.low => 'Running low — only ${money(b.balance)} left.',
+  BudgetHealth.drained => 'Empty. Top it up or hold off until the next cycle.',
+  BudgetHealth.closed => 'Closed. Kept for the record.',
+};
 
 String _startPhrase(DateTime startsAt) {
   final days = startsAt.difference(DateTime.now()).inDays;
@@ -75,7 +73,7 @@ class AdjustmentChip extends StatelessWidget {
     final up = n > 0;
     final color = up ? t.success : t.warning;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(R.pill),
@@ -89,14 +87,10 @@ class AdjustmentChip extends StatelessWidget {
             size: 13,
             color: color,
           ),
-          const SizedBox(width: 4),
+          const GapX(S.xxs),
           Text(
             '${up ? 'Raised' : 'Cut'} by ${money(n.abs())}',
-            style: TextStyle(
-              fontSize: 11.5,
-              fontWeight: FontWeight.w700,
-              color: color,
-            ),
+            style: TextStyle(fontSize: AppType.caption, fontWeight: FontWeight.w700, color: color),
           ),
         ],
       ),

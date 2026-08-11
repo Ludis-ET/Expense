@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../state/sms_state.dart';
@@ -50,10 +52,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
       final json = await context.read<SmsState>().reparse();
       if (!mounted) return;
       final updated = json['updated'];
-      toast(
-        context,
-        updated == null ? 'Reparse finished' : 'Updated $updated messages',
-      );
+      toast(context, updated == null ? 'Reparse finished' : 'Updated $updated messages');
       await _load();
     } on ApiError catch (e) {
       if (mounted) toast(context, e.message, error: true);
@@ -72,7 +71,11 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
       appBar: AppBar(
         title: Text(
           'Sender health',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           TextButton(
@@ -90,7 +93,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               GlassCard(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(S.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -103,18 +106,24 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                             borderRadius: BorderRadius.circular(12),
                             gradient: LinearGradient(colors: [t.primary, t.accent]),
                           ),
-                          child: const Icon(Icons.monitor_heart_outlined, color: Colors.white, size: 22),
+                          child: const Icon(
+                            Icons.monitor_heart_outlined,
+                            color: Colors.white,
+                            size: 22,
+                          ),
                         ),
-                        const SizedBox(width: 12),
+                        const GapX(S.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                unhealthy == 0 ? 'Parsers look healthy' : '$unhealthy need attention',
+                                unhealthy == 0
+                                    ? 'Parsers look healthy'
+                                    : '$unhealthy need attention',
                                 style: TextStyle(
                                   fontWeight: FontWeight.w800,
-                                  fontSize: 16,
+                                  fontSize: AppType.lead,
                                   color: t.foreground,
                                 ),
                               ),
@@ -132,7 +141,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               if (_loading)
                 const PageLoader(rows: 3)
               else if (_error != null)
@@ -147,12 +156,12 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                 SectionLabel('SENDERS'),
                 for (final row in _rows)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: S.sm),
                     child: AppCard(
-                      padding: const EdgeInsets.all(14),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MessagingPointsScreen()),
-                      ),
+                      padding: const EdgeInsets.all(S.lg),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
                       child: Row(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
@@ -163,7 +172,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                             color: row.unhealthy ? t.warning : t.success,
                             size: 40,
                           ),
-                          const SizedBox(width: 12),
+                          const GapX(S.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -180,7 +189,7 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                                   ].join(' · '),
                                   size: 12,
                                 ),
-                                const SizedBox(height: 8),
+                                const Gap(S.sm),
                                 Wrap(
                                   spacing: 8,
                                   runSpacing: 6,
@@ -229,7 +238,7 @@ class _StatChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xxs),
       decoration: BoxDecoration(
         color: color.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -237,7 +246,7 @@ class _StatChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: 11, fontWeight: FontWeight.w700, color: color),
+        style: TextStyle(fontSize: AppType.caption, fontWeight: FontWeight.w700, color: color),
       ),
     );
   }

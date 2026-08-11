@@ -5,4 +5,13 @@
     <color name="santim_background">#F4F6F9</color>
     <color name="santim_primary">#059669</color>
 	<color name="ic_launcher_background">#059669</color>
+
+    <!-- Home-screen widget. Same token values as `tokens.dart` light mode;
+         the night variant carries the dark set. -->
+    <color name="widget_surface">#FFFFFF</color>
+    <color name="widget_border">#DDE2EC</color>
+    <color name="widget_foreground">#0C1222</color>
+    <color name="widget_muted">#5A6478</color>
+    <color name="widget_primary">#059669</color>
+    <color name="widget_on_primary">#FFFFFF</color>
 </resources>

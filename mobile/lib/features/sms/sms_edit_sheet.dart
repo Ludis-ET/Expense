@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/theme/tokens.dart';
 import '../../models/ingest.dart';
 import '../../models/models.dart';
@@ -72,14 +74,14 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
             labelOf: (k) => k.label,
             onChanged: (k) => setState(() => _draft.kind = k),
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           AmountField(
             controller: _amount,
             currency: _draft.currency ?? data.activeCurrency,
             label: 'Amount',
             tint: kind == TxKind.income ? t.success : t.primary,
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           PickerField<Account>(
             label: 'Wallet',
             value: accounts.where((a) => a.id == _draft.accountId).firstOrNull,
@@ -88,7 +90,7 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
             onChanged: (a) => setState(() => _draft.accountId = a?.id),
           ),
           if (kind == TxKind.transfer) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             PickerField<Account>(
               label: 'To wallet',
               value: accounts.where((a) => a.id == _draft.transferAccountId).firstOrNull,
@@ -98,38 +100,30 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
             ),
           ],
           if (kind != TxKind.transfer) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             PickerField<TxCategory>(
               label: 'Category',
               value: categories.where((c) => c.id == _draft.categoryId).firstOrNull,
               options: categories
-                  .where((c) =>
-                      !c.archived &&
-                      c.kind == (kind == TxKind.income ? 'INCOME' : 'EXPENSE'))
+                  .where(
+                    (c) => !c.archived && c.kind == (kind == TxKind.income ? 'INCOME' : 'EXPENSE'),
+                  )
                   .toList(),
               labelOf: (c) => c.name,
               onChanged: (c) => setState(() => _draft.categoryId = c?.id),
             ),
           ],
-          const SizedBox(height: 12),
-          AppTextField(
-            controller: _payee,
-            label: 'Payee',
-            prefixIcon: Icons.storefront_outlined,
-          ),
-          const SizedBox(height: 12),
-          AppTextField(
-            controller: _note,
-            label: 'Note',
-            prefixIcon: Icons.notes_rounded,
-          ),
-          const SizedBox(height: 8),
+          const Gap(S.md),
+          AppTextField(controller: _payee, label: 'Payee', prefixIcon: Icons.storefront_outlined),
+          const Gap(S.md),
+          AppTextField(controller: _note, label: 'Note', prefixIcon: Icons.notes_rounded),
+          const Gap(S.sm),
           SwitchListTile(
             contentPadding: EdgeInsets.zero,
-            title: const Text('Always use these', style: TextStyle(fontSize: 14)),
+            title: const Text('Always use these', style: TextStyle(fontSize: AppType.body)),
             subtitle: const Text(
               'Remember wallet and category for this sender',
-              style: TextStyle(fontSize: 12),
+              style: TextStyle(fontSize: AppType.label),
             ),
             value: _draft.rememberMapping,
             onChanged: (v) => setState(() => _draft.rememberMapping = v),
@@ -141,14 +135,17 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
           if (_showBody)
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.all(12),
+              padding: const EdgeInsets.all(S.md),
               decoration: BoxDecoration(
                 color: t.surfaceMuted.withValues(alpha: 0.5),
                 borderRadius: BorderRadius.circular(12),
               ),
-              child: Text(widget.message.body, style: const TextStyle(fontSize: 12.5, height: 1.4)),
+              child: Text(
+                widget.message.body,
+                style: const TextStyle(fontSize: AppType.label, height: 1.4),
+              ),
             ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppButton(
             label: 'Save & record',
             expand: true,

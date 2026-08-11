@@ -17,6 +17,7 @@ import { wishlistRouter } from './modules/wishlist/wishlist.router.js';
 import { guidesRouter } from './modules/guides/guides.router.js';
 import { devicesRouter } from './modules/devices/devices.router.js';
 import { ingestRouter } from './modules/ingest/ingest.router.js';
+import { appRouter } from './modules/app/app.router.js';
 
 export const apiRouter = Router();
 
@@ -38,3 +39,4 @@ apiRouter.use('/wishlist', wishlistRouter);
 apiRouter.use('/guides', guidesRouter);
 apiRouter.use('/devices', devicesRouter);
 apiRouter.use('/ingest', ingestRouter);
+apiRouter.use('/app', appRouter);

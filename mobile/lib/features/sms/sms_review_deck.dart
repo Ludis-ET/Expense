@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/haptics.dart';
+
+import '../../core/theme/theme.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
@@ -40,7 +43,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
     if (_busy) return;
     final draft = DraftConfirm.fromMessage(m);
     if (!_canConfirm(m, draft)) {
-      HapticFeedback.heavyImpact();
+      Haptics.reject();
       final edited = await showSmsEditSheet(context, message: m);
       if (edited == null || !mounted) return;
       await _submit(m.id, edited);
@@ -56,7 +59,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
       if (!mounted) return;
       await context.read<DataState>().refreshAfterWrite();
       if (!mounted) return;
-      HapticFeedback.mediumImpact();
+      Haptics.commit();
       setState(() => _dragX = 0);
       if (context.read<SmsState>().unresolved.isEmpty) {
         Navigator.pop(context);
@@ -75,7 +78,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
     try {
       await context.read<SmsState>().reject(m.id);
       if (!mounted) return;
-      HapticFeedback.selectionClick();
+      Haptics.select();
       setState(() => _dragX = 0);
       if (context.read<SmsState>().unresolved.isEmpty) {
         Navigator.pop(context);
@@ -106,17 +109,11 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                 padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
                 child: Row(
                   children: [
-                    IconPill(
-                      icon: Icons.close_rounded,
-                      onTap: () => Navigator.pop(context),
-                    ),
+                    IconPill(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
                     const Spacer(),
                     Text(
                       list.isEmpty ? 'Done' : '${list.length} left',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w700,
-                        color: t.mutedForeground,
-                      ),
+                      style: TextStyle(fontWeight: FontWeight.w700, color: t.mutedForeground),
                     ),
                     const Spacer(),
                     const SizedBox(width: 44),
@@ -140,11 +137,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                               scale: 0.94,
                               child: Opacity(
                                 opacity: 0.55,
-                                child: _CardFace(
-                                  message: next,
-                                  money: prefs.money,
-                                  dragX: 0,
-                                ),
+                                child: _CardFace(message: next, money: prefs.money, dragX: 0),
                               ),
                             ),
                           GestureDetector(
@@ -182,7 +175,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
               ),
               if (current != null)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 8, 20, 16),
+                  padding: const EdgeInsets.fromLTRB(S.xl, S.sm, S.xl, S.lg),
                   child: Row(
                     children: [
                       Expanded(
@@ -193,7 +186,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                           onPressed: _busy ? null : () => _reject(current),
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Expanded(
                         child: AppButton(
                           label: 'Edit',
@@ -202,13 +195,12 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                           onPressed: _busy
                               ? null
                               : () async {
-                                  final body =
-                                      await showSmsEditSheet(context, message: current);
+                                  final body = await showSmsEditSheet(context, message: current);
                                   if (body != null) await _submit(current.id, body);
                                 },
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Expanded(
                         child: AppButton(
                           label: 'Record',
@@ -231,11 +223,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
 }
 
 class _CardFace extends StatelessWidget {
-  const _CardFace({
-    required this.message,
-    required this.money,
-    required this.dragX,
-  });
+  const _CardFace({required this.message, required this.money, required this.dragX});
 
   final InboxMessage message;
   final String Function(Object? v, {String currency, bool decimals, bool compact}) money;
@@ -252,133 +240,137 @@ class _CardFace extends StatelessWidget {
     final kind = message.suggestion?.kind ?? message.parsedKind;
 
     return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
       child: SizedBox(
         height: MediaQuery.sizeOf(context).height * 0.62,
         child: GlassCard(
-        padding: const EdgeInsets.fromLTRB(22, 22, 22, 18),
-        child: Stack(
-          children: [
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    _Pill(
-                      icon: Icons.account_balance_rounded,
-                      label: message.bankLabel ?? message.sender,
-                    ),
-                    const Spacer(),
-                    _Pill(
-                      label: credit ? 'Credited' : 'Debited',
-                      color: credit ? t.success : t.danger,
-                    ),
-                  ],
-                ),
-                const SizedBox(height: 28),
-                Text(
-                  amount == null ? '—' : money(amount, currency: currency),
-                  style: TextStyle(
-                    fontSize: 40,
-                    fontWeight: FontWeight.w900,
-                    letterSpacing: -1.2,
-                    color: t.foreground,
-                    height: 1,
+          padding: const EdgeInsets.fromLTRB(S.xxl, S.xxl, S.xxl, S.xl),
+          child: Stack(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      _Pill(
+                        icon: Icons.account_balance_rounded,
+                        label: message.bankLabel ?? message.sender,
+                      ),
+                      const Spacer(),
+                      _Pill(
+                        label: credit ? 'Credited' : 'Debited',
+                        color: credit ? t.success : t.danger,
+                      ),
+                    ],
                   ),
-                ),
-                const SizedBox(height: 10),
-                Text(
-                  message.parsedPayee ?? 'Unknown counterparty',
-                  style: TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.w700,
-                    color: t.foreground,
-                  ),
-                ),
-                const SizedBox(height: 6),
-                Muted(
-                  [
-                    if (kind != null) kind.label,
-                    formatDate(message.occurredAt ?? message.receivedAt),
-                    if (message.parsedRef != null) 'ref ${message.parsedRef}',
-                  ].join(' · '),
-                  size: 13,
-                ),
-                if (message.suggestion?.reason != null) ...[
-                  const SizedBox(height: 14),
-                  Container(
-                    width: double.infinity,
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: t.primary.withValues(alpha: 0.08),
-                      borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: t.primary.withValues(alpha: 0.25)),
-                    ),
-                    child: Text(
-                      message.suggestion!.reason!,
-                      style: TextStyle(fontSize: 12.5, height: 1.4, color: t.foreground),
+                  const Gap(S.xxl),
+                  Text(
+                    amount == null ? '—' : money(amount, currency: currency),
+                    style: TextStyle(
+                      fontSize: AppType.hero,
+                      fontWeight: FontWeight.w900,
+                      letterSpacing: -1.2,
+                      color: t.foreground,
+                      height: 1,
                     ),
                   ),
-                ],
-                const SizedBox(height: 16),
-                Wrap(
-                  spacing: 8,
-                  runSpacing: 8,
-                  children: [
-                    _ConfChip(confidence: message.confidence),
-                    if (message.account == null)
-                      _NeedChip(label: 'Pick wallet', color: t.warning),
-                    if ((kind ?? TxKind.expense) == TxKind.transfer &&
-                        message.suggestion?.transferAccountId == null)
-                      _NeedChip(label: 'Pick destination', color: t.warning),
-                    if (message.parsedAmount == null)
-                      _NeedChip(label: 'Set amount', color: t.danger),
-                  ],
-                ),
-                const Spacer(),
-                ExpansionTile(
-                  tilePadding: EdgeInsets.zero,
-                  childrenPadding: EdgeInsets.zero,
-                  title: Text(
-                    'Original SMS',
-                    style: TextStyle(fontSize: 13, color: t.mutedForeground),
+                  const Gap(S.sm),
+                  Text(
+                    message.parsedPayee ?? 'Unknown counterparty',
+                    style: TextStyle(
+                      fontSize: AppType.lead,
+                      fontWeight: FontWeight.w700,
+                      color: t.foreground,
+                    ),
                   ),
-                  children: [
+                  const Gap(S.xs),
+                  Muted(
+                    [
+                      if (kind != null) kind.label,
+                      formatDate(message.occurredAt ?? message.receivedAt),
+                      if (message.parsedRef != null) 'ref ${message.parsedRef}',
+                    ].join(' · '),
+                    size: 13,
+                  ),
+                  if (message.suggestion?.reason != null) ...[
+                    const Gap(S.md),
                     Container(
                       width: double.infinity,
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(S.md),
                       decoration: BoxDecoration(
-                        color: t.surfaceMuted.withValues(alpha: 0.5),
+                        color: t.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
+                        border: Border.all(color: t.primary.withValues(alpha: 0.25)),
                       ),
                       child: Text(
-                        message.body,
-                        style: TextStyle(fontSize: 12.5, height: 1.45, color: t.foreground),
+                        message.suggestion!.reason!,
+                        style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
                       ),
                     ),
                   ],
+                  const Gap(S.lg),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: [
+                      _ConfChip(confidence: message.confidence),
+                      if (message.account == null)
+                        _NeedChip(label: 'Pick wallet', color: t.warning),
+                      if ((kind ?? TxKind.expense) == TxKind.transfer &&
+                          message.suggestion?.transferAccountId == null)
+                        _NeedChip(label: 'Pick destination', color: t.warning),
+                      if (message.parsedAmount == null)
+                        _NeedChip(label: 'Set amount', color: t.danger),
+                    ],
+                  ),
+                  const Spacer(),
+                  ExpansionTile(
+                    tilePadding: EdgeInsets.zero,
+                    childrenPadding: EdgeInsets.zero,
+                    title: Text(
+                      'Original SMS',
+                      style: TextStyle(fontSize: AppType.bodySm, color: t.mutedForeground),
+                    ),
+                    children: [
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(S.md),
+                        decoration: BoxDecoration(
+                          color: t.surfaceMuted.withValues(alpha: 0.5),
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        child: Text(
+                          message.body,
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            height: 1.45,
+                            color: t.foreground,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+              Positioned(
+                top: 70,
+                left: 8,
+                child: Opacity(
+                  opacity: skipOpacity,
+                  child: _Stamp(label: 'SKIP', color: t.mutedForeground),
                 ),
-              ],
-            ),
-            Positioned(
-              top: 70,
-              left: 8,
-              child: Opacity(
-                opacity: skipOpacity,
-                child: _Stamp(label: 'SKIP', color: t.mutedForeground),
               ),
-            ),
-            Positioned(
-              top: 70,
-              right: 8,
-              child: Opacity(
-                opacity: confirmOpacity,
-                child: _Stamp(label: 'RECORD', color: t.success),
+              Positioned(
+                top: 70,
+                right: 8,
+                child: Opacity(
+                  opacity: confirmOpacity,
+                  child: _Stamp(label: 'RECORD', color: t.success),
+                ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
-      ),
       ),
     );
   }
@@ -394,7 +386,7 @@ class _Stamp extends StatelessWidget {
     return Transform.rotate(
       angle: -0.35,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
         decoration: BoxDecoration(
           border: Border.all(color: color, width: 3),
           borderRadius: BorderRadius.circular(8),
@@ -405,7 +397,7 @@ class _Stamp extends StatelessWidget {
             color: color,
             fontWeight: FontWeight.w900,
             letterSpacing: 1.2,
-            fontSize: 18,
+            fontSize: AppType.lead,
           ),
         ),
       ),
@@ -420,7 +412,11 @@ class _ConfChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final color = confidence >= 80 ? t.success : confidence >= 50 ? t.warning : t.danger;
+    final color = confidence >= 80
+        ? t.success
+        : confidence >= 50
+        ? t.warning
+        : t.danger;
     return _Pill(label: '$confidence% sure', color: color);
   }
 }
@@ -447,7 +443,7 @@ class _Pill extends StatelessWidget {
     final t = context.t;
     final c = color ?? t.primary;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
       decoration: BoxDecoration(
         color: c.withValues(alpha: 0.12),
         borderRadius: BorderRadius.circular(999),
@@ -456,13 +452,10 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
-            Icon(icon, size: 14, color: c),
-            const SizedBox(width: 5),
-          ],
+          if (icon != null) ...[Icon(icon, size: 14, color: c), const GapX(S.xxs)],
           Text(
             label,
-            style: TextStyle(fontSize: 12, fontWeight: FontWeight.w700, color: c),
+            style: TextStyle(fontSize: AppType.label, fontWeight: FontWeight.w700, color: c),
           ),
         ],
       ),
@@ -513,16 +506,16 @@ class DraftConfirm {
   }
 
   Map<String, dynamic> toBody() => {
-        if (accountId != null) 'accountId': accountId,
-        if (categoryId != null) 'categoryId': categoryId,
-        if (transferAccountId != null) 'transferAccountId': transferAccountId,
-        if (kind != null) 'kind': kind!.wire,
-        if (amount != null) 'amount': amount,
-        if (currency != null) 'currency': currency,
-        if (date != null) 'date': date!.toUtc().toIso8601String(),
-        if (payee != null) 'payee': payee,
-        if (note != null) 'note': note,
-        'rememberMapping': rememberMapping,
-        'tags': <String>[],
-      };
+    if (accountId != null) 'accountId': accountId,
+    if (categoryId != null) 'categoryId': categoryId,
+    if (transferAccountId != null) 'transferAccountId': transferAccountId,
+    if (kind != null) 'kind': kind!.wire,
+    if (amount != null) 'amount': amount,
+    if (currency != null) 'currency': currency,
+    if (date != null) 'date': date!.toUtc().toIso8601String(),
+    if (payee != null) 'payee': payee,
+    if (note != null) 'note': note,
+    'rememberMapping': rememberMapping,
+    'tags': <String>[],
+  };
 }

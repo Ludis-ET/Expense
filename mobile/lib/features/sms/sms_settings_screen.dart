@@ -4,6 +4,8 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/layout.dart';
 import '../../core/theme/tokens.dart';
@@ -58,7 +60,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
         appBar: AppBar(title: const Text('Bank SMS')),
         body: MeshBackground(
           child: Padding(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(S.xl),
             child: EmptyState(
               icon: Icons.phone_android_rounded,
               title: 'Android only',
@@ -78,7 +80,11 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
         foregroundColor: t.foreground,
         title: Text(
           'Bank SMS',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -86,7 +92,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
           padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
           children: [
             GlassCard(
-              padding: const EdgeInsets.all(16),
+              padding: const EdgeInsets.all(S.lg),
               child: SwitchListTile(
                 contentPadding: EdgeInsets.zero,
                 title: Text(
@@ -97,15 +103,13 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                   sms.isPaired
                       ? 'Live messages from approved senders upload as drafts'
                       : 'Pair this phone to start capturing',
-                  style: TextStyle(fontSize: 12, color: t.mutedForeground),
+                  style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
                 ),
                 value: sms.captureEnabled && sms.isPaired,
-                onChanged: sms.isPaired
-                    ? (v) => sms.setCaptureEnabled(v)
-                    : null,
+                onChanged: sms.isPaired ? (v) => sms.setCaptureEnabled(v) : null,
               ),
             ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             SectionLabel('THIS PHONE'),
             _Tile(
               icon: Icons.phonelink_setup_rounded,
@@ -132,18 +136,18 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                   if (context.mounted) toast(context, 'Phone unlinked');
                 },
               ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             SectionLabel('LINKED PHONES'),
             if (sms.loadingDevices && sms.pairedDevices.isEmpty)
               const Padding(
-                padding: EdgeInsets.symmetric(vertical: 12),
+                padding: EdgeInsets.symmetric(vertical: S.md),
                 child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
               )
             else if (sms.pairedDevices.where((d) => !d.revoked).isEmpty)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: S.sm),
                 child: AppCard(
-                  padding: const EdgeInsets.all(14),
+                  padding: const EdgeInsets.all(S.lg),
                   child: Muted(
                     'No active phones yet. Pair this device, or set up another phone with the same Santim account.',
                     size: 12.5,
@@ -184,7 +188,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                   : 'Each phone needs its own setup on that device',
               onTap: () => showSmsSetupWizard(context),
             ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             SectionLabel('MESSAGING'),
             _Tile(
               icon: Icons.cell_tower_rounded,
@@ -192,19 +196,19 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               subtitle: sms.senderRules.isEmpty
                   ? 'Link SMS senders to wallets (accounts) and categories'
                   : '${sms.senderRules.length} mapped · tap to edit wallet & digits',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const MessagingPointsScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
             ),
             if (sms.senderRules.isNotEmpty) ...[
               for (final r in sms.senderRules.take(4))
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
+                  padding: const EdgeInsets.only(bottom: S.sm),
                   child: AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-                    onTap: () => Navigator.of(context).push(
-                      MaterialPageRoute(builder: (_) => const MessagingPointsScreen()),
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                    onTap: () => Navigator.of(
+                      context,
+                    ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
                     child: Row(
                       children: [
                         Icon(
@@ -212,7 +216,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                           size: 18,
                           color: r.enabled ? t.primary : t.mutedForeground,
                         ),
-                        const SizedBox(width: 12),
+                        const GapX(S.md),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -221,7 +225,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                                 r.sender,
                                 style: TextStyle(
                                   fontWeight: FontWeight.w700,
-                                  fontSize: 13.5,
+                                  fontSize: AppType.bodySm,
                                   color: t.foreground,
                                 ),
                               ),
@@ -246,17 +250,17 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               icon: Icons.balance_rounded,
               title: 'Balance SMS reconciliation',
               subtitle: 'Alert when bank-reported balance drifts from a wallet',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SmsBalanceScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SmsBalanceScreen())),
             ),
             _Tile(
               icon: Icons.monitor_heart_outlined,
               title: 'Sender health',
               subtitle: 'Watch parser confidence and reparse after template changes',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SmsSenderHealthScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SmsSenderHealthScreen())),
             ),
             _Tile(
               icon: Icons.history_rounded,
@@ -270,7 +274,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               subtitle: 'Keep capture alive in the background',
               onTap: () => sms.requestBatteryExemption(),
             ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             SectionLabel('PRIVACY'),
             _Tile(
               icon: Icons.delete_sweep_outlined,
@@ -281,19 +285,12 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                 if (context.mounted) toast(context, 'Local queue cleared');
               },
             ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             SectionLabel('PASTE PREVIEW'),
-            AppTextField(
-              controller: _previewSender,
-              label: 'Sender',
-            ),
-            const SizedBox(height: 10),
-            AppTextField(
-              controller: _previewBody,
-              label: 'Message body',
-              maxLines: 4,
-            ),
-            const SizedBox(height: 10),
+            AppTextField(controller: _previewSender, label: 'Sender'),
+            const Gap(S.sm),
+            AppTextField(controller: _previewBody, label: 'Message body', maxLines: 4),
+            const Gap(S.sm),
             AppButton(
               label: _previewBusy ? 'Parsing…' : 'Preview parse',
               expand: true,
@@ -319,10 +316,13 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                     },
             ),
             if (_previewResult != null) ...[
-              const SizedBox(height: 10),
-              Text(_previewResult!, style: TextStyle(fontSize: 12, color: t.mutedForeground)),
+              const Gap(S.sm),
+              Text(
+                _previewResult!,
+                style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+              ),
             ],
-            const SizedBox(height: 18),
+            const Gap(S.lg),
             Muted(
               'Santim is distributed by direct APK install. Google Play does not '
               'allow expense apps to request SMS permission. Pair each phone you '
@@ -339,11 +339,7 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
 }
 
 class _DeviceCard extends StatelessWidget {
-  const _DeviceCard({
-    required this.device,
-    required this.isThisPhone,
-    required this.onRevoke,
-  });
+  const _DeviceCard({required this.device, required this.isThisPhone, required this.onRevoke});
 
   final PairedDevice device;
   final bool isThisPhone;
@@ -353,9 +349,9 @@ class _DeviceCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         child: Row(
           children: [
             Icon(
@@ -363,7 +359,7 @@ class _DeviceCard extends StatelessWidget {
               size: 20,
               color: isThisPhone ? t.primary : t.mutedForeground,
             ),
-            const SizedBox(width: 12),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -372,7 +368,7 @@ class _DeviceCard extends StatelessWidget {
                     device.name,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14,
+                      fontSize: AppType.body,
                       color: t.foreground,
                     ),
                   ),
@@ -391,7 +387,10 @@ class _DeviceCard extends StatelessWidget {
             TextButton(
               onPressed: onRevoke,
               style: TextButton.styleFrom(foregroundColor: t.danger),
-              child: Text(isThisPhone ? 'Unlink' : 'Revoke', style: const TextStyle(fontSize: 12.5)),
+              child: Text(
+                isThisPhone ? 'Unlink' : 'Revoke',
+                style: const TextStyle(fontSize: AppType.label),
+              ),
             ),
           ],
         ),
@@ -417,14 +416,14 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         onTap: onTap,
         child: Row(
           children: [
             Icon(icon, size: 19, color: t.mutedForeground),
-            const SizedBox(width: 14),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,7 +432,7 @@ class _Tile extends StatelessWidget {
                     title,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       color: t.foreground,
                     ),
                   ),

@@ -62,26 +62,21 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   ScaleTransition(
-                    scale: Tween(begin: 0.72, end: 1.0).animate(
-                      CurvedAnimation(parent: _pop, curve: Motion.easeOut),
-                    ),
-                    child: FadeTransition(
-                      opacity: _pop,
-                      child: const BrandMark(size: 84),
-                    ),
+                    scale: Tween(
+                      begin: 0.72,
+                      end: 1.0,
+                    ).animate(CurvedAnimation(parent: _pop, curve: Motion.easeOut)),
+                    child: FadeTransition(opacity: _pop, child: const BrandMark(size: 84)),
                   ),
-                  const SizedBox(height: 24),
+                  const Gap(S.xxl),
                   FadeTransition(
                     opacity: _pop,
-                    child: const BrandWord(fontSize: 32),
+                    child: const BrandWord(fontSize: AppType.display),
                   ),
-                  const SizedBox(height: 8),
+                  const Gap(S.sm),
                   FadeTransition(
                     opacity: _pop,
-                    child: Muted(
-                      widget.label ?? 'Know where every birr goes',
-                      size: 14,
-                    ),
+                    child: Muted(widget.label ?? 'Know where every birr goes', size: 14),
                   ),
                 ],
               ),
@@ -122,7 +117,7 @@ class AppLoader extends StatelessWidget {
                     ),
                   ),
                   Container(
-                    padding: const EdgeInsets.all(8),
+                    padding: const EdgeInsets.all(S.sm),
                     decoration: BoxDecoration(
                       color: t.surface,
                       borderRadius: BorderRadius.circular(R.xl),
@@ -132,11 +127,11 @@ class AppLoader extends StatelessWidget {
                   ),
                 ],
               ),
-              const SizedBox(height: 24),
+              const Gap(S.xxl),
               Text(
                 label,
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w500,
                   color: t.foreground,
                 ),

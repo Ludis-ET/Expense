@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../../core/haptics.dart';
 
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
@@ -65,40 +66,35 @@ class CycleView {
   }
 
   factory CycleView.fromSnapshot(BudgetCycleSnapshot c) => CycleView(
-        index: c.index,
-        label: c.label,
-        startedAt: c.startedAt,
-        endedAt: c.endedAt,
-        openingPlanned: c.openingPlanned,
-        adjustedAmount: c.adjustedAmount,
-        plannedAmount: c.plannedAmount,
-        carriedIn: c.carriedIn,
-        fundedAmount: c.fundedAmount,
-        spentAmount: c.spentAmount,
-        leftoverAmount: c.leftoverAmount,
-        txCount: c.txCount,
-        adjustments: c.adjustments,
-        current: false,
-      );
+    index: c.index,
+    label: c.label,
+    startedAt: c.startedAt,
+    endedAt: c.endedAt,
+    openingPlanned: c.openingPlanned,
+    adjustedAmount: c.adjustedAmount,
+    plannedAmount: c.plannedAmount,
+    carriedIn: c.carriedIn,
+    fundedAmount: c.fundedAmount,
+    spentAmount: c.spentAmount,
+    leftoverAmount: c.leftoverAmount,
+    txCount: c.txCount,
+    adjustments: c.adjustments,
+    current: false,
+  );
 }
 
 /// Recurring plan: period cards (current + history). Tap to open cycle sheet.
 class BudgetCycleSections extends StatelessWidget {
-  const BudgetCycleSections({
-    super.key,
-    required this.plan,
-    required this.money,
-    this.onChanged,
-  });
+  const BudgetCycleSections({super.key, required this.plan, required this.money, this.onChanged});
 
   final BudgetDetail plan;
   final String Function(Object?) money;
   final VoidCallback? onChanged;
 
   List<CycleView> get _cycles => [
-        CycleView.current(plan),
-        ...plan.cycles.map(CycleView.fromSnapshot),
-      ];
+    CycleView.current(plan),
+    ...plan.cycles.map(CycleView.fromSnapshot),
+  ];
 
   @override
   Widget build(BuildContext context) {
@@ -113,31 +109,28 @@ class BudgetCycleSections extends StatelessWidget {
         Row(
           children: [
             Icon(Icons.repeat_rounded, size: 16, color: t.mutedForeground),
-            const SizedBox(width: 8),
+            const GapX(S.sm),
             Expanded(
               child: Text(
                 'Every $noun',
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppType.body,
                   fontWeight: FontWeight.w700,
                   color: t.foreground,
                 ),
               ),
             ),
-            Muted(
-              '${cycles.length} ${cycles.length == 1 ? 'period' : 'periods'}',
-              size: 11,
-            ),
+            Muted('${cycles.length} ${cycles.length == 1 ? 'period' : 'periods'}', size: 11),
           ],
         ),
-        const SizedBox(height: 4),
+        const Gap(S.xxs),
         Muted(
           'Each $noun keeps the amount it opened with. Tap a card to see its spending.',
           size: 11.5,
         ),
-        const SizedBox(height: 12),
+        const Gap(S.md),
         for (var i = 0; i < cycles.length; i++) ...[
-          if (i > 0) const SizedBox(height: 10),
+          if (i > 0) const Gap(S.sm),
           FadeInUp.staggered(
             index: i.clamp(0, 6),
             child: _CycleCard(
@@ -149,7 +142,7 @@ class BudgetCycleSections extends StatelessWidget {
           ),
         ],
         if (plan.cycles.isEmpty) ...[
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           Muted(
             'Finished ${noun}s appear here once this one rolls over. '
             'Quiet periods where nothing moved are skipped.',
@@ -161,17 +154,12 @@ class BudgetCycleSections extends StatelessWidget {
   }
 
   Future<void> _openCycle(BuildContext context, CycleView cycle) async {
-    HapticFeedback.selectionClick();
+    Haptics.select();
     await showAppSheet<void>(
       context,
       title: cycle.label,
       subtitle: cycle.current ? 'Running now' : 'Closed period',
-      builder: (ctx) => _CycleSheet(
-        plan: plan,
-        cycle: cycle,
-        money: money,
-        onChanged: onChanged,
-      ),
+      builder: (ctx) => _CycleSheet(plan: plan, cycle: cycle, money: money, onChanged: onChanged),
     );
   }
 }
@@ -214,9 +202,7 @@ class _CycleCard extends StatelessWidget {
               ],
             ),
             border: Border.all(
-              color: cycle.current
-                  ? tint.withValues(alpha: 0.45)
-                  : t.border.withValues(alpha: 0.8),
+              color: cycle.current ? tint.withValues(alpha: 0.45) : t.border.withValues(alpha: 0.8),
             ),
             boxShadow: cycle.current
                 ? [
@@ -230,7 +216,7 @@ class _CycleCard extends StatelessWidget {
                 : t.cardShadow,
           ),
           child: Padding(
-            padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.all(S.lg),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
@@ -248,19 +234,19 @@ class _CycleCard extends StatelessWidget {
                                   cycle.label,
                                   overflow: TextOverflow.ellipsis,
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: AppType.body,
                                     fontWeight: FontWeight.w700,
                                     color: t.foreground,
                                   ),
                                 ),
                               ),
                               if (cycle.current) ...[
-                                const SizedBox(width: 8),
+                                const GapX(S.sm),
                                 AppBadge('Running', tone: BadgeTone.primary, dense: true),
                               ],
                             ],
                           ),
-                          const SizedBox(height: 4),
+                          const Gap(S.xxs),
                           Muted(
                             '${formatDate(cycle.startedAt)} → ${formatDate(cycle.endedAt)}'
                             ' · ${cycle.txCount} expense${cycle.txCount == 1 ? '' : 's'}',
@@ -270,25 +256,25 @@ class _CycleCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 10),
+                    const GapX(S.sm),
                     Column(
                       crossAxisAlignment: CrossAxisAlignment.end,
                       children: [
                         Amount(money(cycle.openingPlanned), size: 16),
-                        const SizedBox(height: 2),
+                        const Gap(S.hair),
                         Muted('planned at start', size: 10),
                       ],
                     ),
                   ],
                 ),
                 if (adjusted != 0) ...[
-                  const SizedBox(height: 10),
+                  const Gap(S.sm),
                   Align(
                     alignment: Alignment.centerLeft,
                     child: AdjustmentChip(amount: cycle.adjustedAmount, money: money),
                   ),
                 ],
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Stack(
                   children: [
                     ProgressBar(
@@ -299,12 +285,18 @@ class _CycleCard extends StatelessWidget {
                     ProgressBar(value: spentPct, height: 8, tone: BadgeTone.primary),
                   ],
                 ),
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Row(
                   children: [
-                    Expanded(child: _MiniStat(label: 'Filled', value: money(cycle.fundedAmount))),
-                    Expanded(child: _MiniStat(label: 'Spent', value: money(cycle.spentAmount))),
-                    Expanded(child: _MiniStat(label: 'Carried in', value: money(cycle.carriedIn))),
+                    Expanded(
+                      child: _MiniStat(label: 'Filled', value: money(cycle.fundedAmount)),
+                    ),
+                    Expanded(
+                      child: _MiniStat(label: 'Spent', value: money(cycle.spentAmount)),
+                    ),
+                    Expanded(
+                      child: _MiniStat(label: 'Carried in', value: money(cycle.carriedIn)),
+                    ),
                     Expanded(
                       child: _MiniStat(
                         label: cycle.current ? 'Left' : 'Carried out',
@@ -314,7 +306,7 @@ class _CycleCard extends StatelessWidget {
                     ),
                   ],
                 ),
-                const SizedBox(height: 6),
+                const Gap(S.xs),
                 Row(
                   mainAxisAlignment: MainAxisAlignment.end,
                   children: [
@@ -345,14 +337,14 @@ class _MiniStat extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Muted(label, size: 10),
-        const SizedBox(height: 2),
+        const Gap(S.hair),
         FittedBox(
           fit: BoxFit.scaleDown,
           alignment: Alignment.centerLeft,
           child: Text(
             value,
             style: TextStyle(
-              fontSize: 12,
+              fontSize: AppType.label,
               fontWeight: FontWeight.w700,
               color: accent ? t.primary : t.foreground,
               fontFeatures: const [FontFeature.tabularFigures()],
@@ -365,12 +357,7 @@ class _MiniStat extends StatelessWidget {
 }
 
 class _CycleSheet extends StatelessWidget {
-  const _CycleSheet({
-    required this.plan,
-    required this.cycle,
-    required this.money,
-    this.onChanged,
-  });
+  const _CycleSheet({required this.plan, required this.cycle, required this.money, this.onChanged});
 
   final BudgetDetail plan;
   final CycleView cycle;
@@ -394,7 +381,7 @@ class _CycleSheet extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Amount(money(cycle.openingPlanned), size: 26),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Muted('opening planned', size: 12),
                   ],
                 ),
@@ -402,19 +389,25 @@ class _CycleSheet extends StatelessWidget {
               if (adjusted != 0) AdjustmentChip(amount: cycle.adjustedAmount, money: money),
             ],
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Row(
             children: [
-              Expanded(child: _FigTile(label: 'Filled', value: money(cycle.fundedAmount))),
-              const SizedBox(width: 8),
-              Expanded(child: _FigTile(label: 'Spent', value: money(cycle.spentAmount))),
+              Expanded(
+                child: _FigTile(label: 'Filled', value: money(cycle.fundedAmount)),
+              ),
+              const GapX(S.sm),
+              Expanded(
+                child: _FigTile(label: 'Spent', value: money(cycle.spentAmount)),
+              ),
             ],
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           Row(
             children: [
-              Expanded(child: _FigTile(label: 'Carried in', value: money(cycle.carriedIn))),
-              const SizedBox(width: 8),
+              Expanded(
+                child: _FigTile(label: 'Carried in', value: money(cycle.carriedIn)),
+              ),
+              const GapX(S.sm),
               Expanded(
                 child: _FigTile(
                   label: cycle.current ? 'Left' : 'Carried out',
@@ -425,17 +418,21 @@ class _CycleSheet extends StatelessWidget {
             ],
           ),
           if (cycle.adjustments.isNotEmpty) ...[
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             Text(
               'Adjustments',
-              style: TextStyle(fontSize: 13, fontWeight: FontWeight.w700, color: t.foreground),
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                fontWeight: FontWeight.w700,
+                color: t.foreground,
+              ),
             ),
-            const SizedBox(height: 8),
+            const Gap(S.sm),
             for (final a in cycle.adjustments)
               Padding(
-                padding: const EdgeInsets.only(bottom: 8),
+                padding: const EdgeInsets.only(bottom: S.sm),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
                   decoration: BoxDecoration(
                     color: t.surfaceMuted.withValues(alpha: 0.6),
                     borderRadius: BorderRadius.circular(R.md),
@@ -447,7 +444,7 @@ class _CycleSheet extends StatelessWidget {
                         size: 16,
                         color: toNum(a.amount) >= 0 ? t.success : t.warning,
                       ),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -457,7 +454,7 @@ class _CycleSheet extends StatelessWidget {
                                   ? a.reason!
                                   : (toNum(a.amount) >= 0 ? 'Raised' : 'Cut'),
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: AppType.bodySm,
                                 fontWeight: FontWeight.w600,
                                 color: t.foreground,
                               ),
@@ -476,7 +473,7 @@ class _CycleSheet extends StatelessWidget {
                 ),
               ),
           ],
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           BudgetTransactionsPanel(
             plan: plan,
             lockedCycle: cycle.index,
@@ -501,7 +498,7 @@ class _FigTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(R.md),
@@ -510,7 +507,7 @@ class _FigTile extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Muted(label, size: 10.5),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

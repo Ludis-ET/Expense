@@ -63,26 +63,34 @@ class _WishlistScreenState extends State<WishlistScreen> {
     final items = data == null
         ? const <WishlistItem>[]
         : _filter == null
-            ? data.items
-            : data.items.where((w) => w.status == _filter).toList();
+        ? data.items
+        : data.items.where((w) => w.status == _filter).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'Wishlist',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
-          IconPill(
-            icon: Icons.add,
-            tooltip: 'Add a want',
-            onTap: () async {
-              final saved = await showWishForm(context);
-              if (saved == true) _load();
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: S.sm),
+            child: Center(
+              child: HeaderAction(
+                icon: Icons.add_rounded,
+                label: 'Add want',
+                onTap: () async {
+                  final saved = await showWishForm(context);
+                  if (saved == true) _load();
+                },
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
         ],
       ),
       body: MeshBackground(
@@ -109,7 +117,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
 
               if (data != null)
                 SingleChildScrollView(
@@ -122,28 +130,28 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         active: _filter == WishlistStatus.wanting,
                         onTap: () => setState(() => _filter = WishlistStatus.wanting),
                       ),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       _Tab(
                         label: 'Planned',
                         count: data.planned,
                         active: _filter == WishlistStatus.planned,
                         onTap: () => setState(() => _filter = WishlistStatus.planned),
                       ),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       _Tab(
                         label: 'Bought',
                         count: data.bought,
                         active: _filter == WishlistStatus.bought,
                         onTap: () => setState(() => _filter = WishlistStatus.bought),
                       ),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       _Tab(
                         label: 'Dropped',
                         count: data.dropped,
                         active: _filter == WishlistStatus.dropped,
                         onTap: () => setState(() => _filter = WishlistStatus.dropped),
                       ),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       _Tab(
                         label: 'All',
                         count: data.total,
@@ -153,7 +161,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
                     ],
                   ),
                 ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
 
               if (_loading && data == null)
                 const PageLoader(rows: 4, hero: false)
@@ -167,8 +175,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
               else if (items.isEmpty)
                 EmptyState(
                   icon: Icons.favorite_border,
+                  art: EmptyArt.wish,
                   title: _filter == null ? 'Nothing on the list yet' : 'Nothing here',
-                  description: 'Add the things you want. No price needed — '
+                  description:
+                      'Add the things you want. No price needed — '
                       'you decide the cost when you turn one into a plan.',
                   action: AppButton(
                     label: 'Add a want',
@@ -183,13 +193,10 @@ class _WishlistScreenState extends State<WishlistScreen> {
               else
                 for (var i = 0; i < items.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 11),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: FadeInUp.staggered(
                       index: i,
-                      child: _WishCard(
-                        item: items[i],
-                        onChanged: _load,
-                      ),
+                      child: _WishCard(item: items[i], onChanged: _load),
                     ),
                   ),
             ],
@@ -201,12 +208,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
 }
 
 class _Tab extends StatelessWidget {
-  const _Tab({
-    required this.label,
-    required this.count,
-    required this.active,
-    required this.onTap,
-  });
+  const _Tab({required this.label, required this.count, required this.active, required this.onTap});
 
   final String label;
   final int count;
@@ -219,7 +221,7 @@ class _Tab extends StatelessWidget {
     return PressableScale(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
         decoration: BoxDecoration(
           color: active ? t.primary.withValues(alpha: 0.12) : t.surface,
           borderRadius: BorderRadius.circular(R.pill),
@@ -231,16 +233,16 @@ class _Tab extends StatelessWidget {
             Text(
               label,
               style: TextStyle(
-                fontSize: 12.5,
+                fontSize: AppType.label,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: active ? t.primary : t.foreground,
               ),
             ),
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             Text(
               '$count',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppType.caption,
                 fontWeight: FontWeight.w700,
                 color: active ? t.primary : t.mutedForeground,
               ),
@@ -265,7 +267,7 @@ class _WishCard extends StatelessWidget {
     final plan = item.plan;
 
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(S.lg),
       onTap: () => _openMenu(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -280,9 +282,9 @@ class _WishCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(R.md),
                 ),
                 alignment: Alignment.center,
-                child: Text(item.emoji ?? '✨', style: const TextStyle(fontSize: 20)),
+                child: Text(item.emoji ?? '✨', style: const TextStyle(fontSize: AppType.heading)),
               ),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -291,7 +293,7 @@ class _WishCard extends StatelessWidget {
                       item.name,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                         decoration: item.status == WishlistStatus.dropped
@@ -299,7 +301,7 @@ class _WishCard extends StatelessWidget {
                             : null,
                       ),
                     ),
-                    const SizedBox(height: 4),
+                    const Gap(S.xxs),
                     Row(
                       children: [
                         AppBadge(
@@ -312,7 +314,7 @@ class _WishCard extends StatelessWidget {
                           },
                           dense: true,
                         ),
-                        const SizedBox(width: 6),
+                        const GapX(S.xs),
                         _PriorityDots(priority: item.priority),
                       ],
                     ),
@@ -323,18 +325,18 @@ class _WishCard extends StatelessWidget {
             ],
           ),
           if (item.note != null) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             Text(
               item.note!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: 12.5, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(fontSize: AppType.label, height: 1.45, color: t.mutedForeground),
             ),
           ],
           if (plan != null) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.all(10),
+              padding: const EdgeInsets.all(S.md),
               decoration: BoxDecoration(
                 color: t.primary.withValues(alpha: 0.07),
                 borderRadius: BorderRadius.circular(R.md),
@@ -347,7 +349,7 @@ class _WishCard extends StatelessWidget {
                     color: parseHexColor(plan.color) ?? t.primary,
                     size: 30,
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -356,7 +358,7 @@ class _WishCard extends StatelessWidget {
                           plan.name,
                           overflow: TextOverflow.ellipsis,
                           style: TextStyle(
-                            fontSize: 12.5,
+                            fontSize: AppType.label,
                             fontWeight: FontWeight.w600,
                             color: t.foreground,
                           ),
@@ -398,22 +400,13 @@ class _WishCard extends StatelessWidget {
                 value: 'make-plan',
               ),
             if (item.status != WishlistStatus.bought)
-              _Action(
-                icon: Icons.check_circle_outline,
-                label: 'Mark as bought',
-                value: 'bought',
-              ),
+              _Action(icon: Icons.check_circle_outline, label: 'Mark as bought', value: 'bought'),
             if (item.link != null)
               _Action(icon: Icons.open_in_new, label: 'Open link', value: 'link'),
             _Action(icon: Icons.edit_outlined, label: 'Edit', value: 'edit'),
             if (item.status != WishlistStatus.dropped)
               _Action(icon: Icons.block, label: 'Drop it', value: 'drop'),
-            _Action(
-              icon: Icons.delete_outline,
-              label: 'Delete',
-              value: 'delete',
-              danger: true,
-            ),
+            _Action(icon: Icons.delete_outline, label: 'Delete', value: 'delete', danger: true),
           ],
         ),
       ),
@@ -422,9 +415,9 @@ class _WishCard extends StatelessWidget {
 
     switch (action) {
       case 'plan':
-        await Navigator.of(context).push(
-          MaterialPageRoute(builder: (_) => BudgetDetailScreen(budgetId: item.plan!.id)),
-        );
+        await Navigator.of(
+          context,
+        ).push(MaterialPageRoute(builder: (_) => BudgetDetailScreen(budgetId: item.plan!.id)));
         onChanged();
       case 'make-plan':
         final made = await showWishPlanSheet(context, item: item);
@@ -434,10 +427,7 @@ class _WishCard extends StatelessWidget {
         }
       case 'bought':
         try {
-          final result = await context.read<SyncState>().wishlistBought(
-                item.id,
-                name: item.name,
-              );
+          final result = await context.read<SyncState>().wishlistBought(item.id, name: item.name);
           if (result.queued && context.mounted) {
             toast(context, 'Queued offline — will sync when you are back online');
           }
@@ -454,10 +444,10 @@ class _WishCard extends StatelessWidget {
       case 'drop':
         try {
           final result = await context.read<SyncState>().saveWishlist(
-                id: item.id,
-                name: item.name,
-                body: {'status': 'DROPPED'},
-              );
+            id: item.id,
+            name: item.name,
+            body: {'status': 'DROPPED'},
+          );
           if (result.queued && context.mounted) {
             toast(context, 'Queued offline — will sync when you are back online');
           }
@@ -473,10 +463,7 @@ class _WishCard extends StatelessWidget {
         );
         if (!ok || !context.mounted) return;
         try {
-          final result = await context.read<SyncState>().deleteWishlist(
-                item.id,
-                name: item.name,
-              );
+          final result = await context.read<SyncState>().deleteWishlist(item.id, name: item.name);
           if (result.queued && context.mounted) {
             toast(context, 'Delete queued — will sync when you are back online');
           }
@@ -510,7 +497,7 @@ class _Action extends StatelessWidget {
       title: Text(
         label,
         style: TextStyle(
-          fontSize: 14.5,
+          fontSize: AppType.body,
           fontWeight: FontWeight.w500,
           color: danger ? t.danger : t.foreground,
         ),
@@ -575,8 +562,26 @@ class _WishFormState extends State<_WishForm> {
   String? _error;
 
   static const _emojis = [
-    '✨', '📱', '💻', '🚗', '🏠', '👟', '👕', '🎧', '📷', '⌚', '🚲', '✈️',
-    '🎮', '📚', '🛋️', '🧳', '💍', '🎸', '🏋️', '🍽️',
+    '✨',
+    '📱',
+    '💻',
+    '🚗',
+    '🏠',
+    '👟',
+    '👕',
+    '🎧',
+    '📷',
+    '⌚',
+    '🚲',
+    '✈️',
+    '🎮',
+    '📚',
+    '🛋️',
+    '🧳',
+    '💍',
+    '🎸',
+    '🏋️',
+    '🍽️',
   ];
 
   @override
@@ -605,10 +610,10 @@ class _WishFormState extends State<_WishForm> {
     };
     try {
       final result = await context.read<SyncState>().saveWishlist(
-            body: body,
-            id: widget.existing?.id,
-            name: _name.text.trim(),
-          );
+        body: body,
+        id: widget.existing?.id,
+        name: _name.text.trim(),
+      );
       if (!mounted) return;
       if (result.queued) {
         toast(context, 'Saved offline — will sync when you are back online');
@@ -638,7 +643,7 @@ class _WishFormState extends State<_WishForm> {
             prefixIcon: Icons.favorite_border,
             autofocus: widget.existing == null,
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           FieldShell(
             label: 'Emoji',
             child: Wrap(
@@ -663,13 +668,13 @@ class _WishFormState extends State<_WishForm> {
                         ),
                       ),
                       alignment: Alignment.center,
-                      child: Text(e, style: const TextStyle(fontSize: 18)),
+                      child: Text(e, style: const TextStyle(fontSize: AppType.lead)),
                     ),
                   ),
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           FieldShell(
             label: 'Priority ${_priority.round()} of 5',
             hint: '1 is the thing you want most.',
@@ -689,7 +694,7 @@ class _WishFormState extends State<_WishForm> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -697,7 +702,7 @@ class _WishFormState extends State<_WishForm> {
             maxLines: 2,
             prefixIcon: Icons.notes_outlined,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _link,
             label: 'Link',
@@ -707,10 +712,13 @@ class _WishFormState extends State<_WishForm> {
             textCapitalization: TextCapitalization.none,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: widget.existing == null ? 'Add to wishlist' : 'Save changes',
             icon: Icons.check,
@@ -772,18 +780,18 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
     });
     try {
       final result = await context.read<SyncState>().wishlistPlan(
-            id: widget.item.id,
-            name: _name.text.trim(),
-            body: {
-              'name': _name.text.trim(),
-              'plannedAmount': amount,
-              'currency': context.read<DataState>().activeCurrency,
-              'kind': _kind.wire,
-              'startsAt': _startsAt.toUtc().toIso8601String(),
-              'endDate': _endDate?.toUtc().toIso8601String(),
-              if (_kind == BudgetKind.recurring) 'recurrenceUnit': _unit!.wire,
-            },
-          );
+        id: widget.item.id,
+        name: _name.text.trim(),
+        body: {
+          'name': _name.text.trim(),
+          'plannedAmount': amount,
+          'currency': context.read<DataState>().activeCurrency,
+          'kind': _kind.wire,
+          'startsAt': _startsAt.toUtc().toIso8601String(),
+          'endDate': _endDate?.toUtc().toIso8601String(),
+          if (_kind == BudgetKind.recurring) 'recurrenceUnit': _unit!.wire,
+        },
+      );
       if (!mounted) return;
       if (result.queued) {
         toast(context, 'Saved offline — will sync when you are back online');
@@ -815,13 +823,9 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
             tint: t.primary,
             autofocus: true,
           ),
-          const SizedBox(height: 16),
-          AppTextField(
-            controller: _name,
-            label: 'Plan name',
-            prefixIcon: Icons.badge_outlined,
-          ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
+          AppTextField(controller: _name, label: 'Plan name', prefixIcon: Icons.badge_outlined),
+          const Gap(S.lg),
           SegmentedTabs<BudgetKind>(
             value: _kind,
             options: const [BudgetKind.oneTime, BudgetKind.recurring],
@@ -830,7 +834,7 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
             onChanged: (k) => setState(() => _kind = k),
           ),
           if (_kind == BudgetKind.recurring) ...[
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             PickerField<RecurrenceUnit>(
               label: 'Repeats every',
               value: _unit,
@@ -839,13 +843,13 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
               onChanged: (u) => setState(() => _unit = u ?? _unit),
             ),
           ],
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Starts',
             value: _startsAt,
             onChanged: (d) => setState(() => _startsAt = d ?? _startsAt),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Target date',
             placeholder: 'No deadline',
@@ -855,10 +859,13 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
             onChanged: (d) => setState(() => _endDate = d),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: 'Create the plan',
             icon: Icons.savings_outlined,

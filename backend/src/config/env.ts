@@ -17,6 +17,25 @@ const schema = z.object({
   // Base URL used when building shareable invite links.
   APP_URL: z.string().default('http://localhost:3000'),
   LOG_LEVEL: z.enum(['fatal', 'error', 'warn', 'info', 'debug', 'trace']).default('info'),
+  // Optional Android OTA: when set, GET /app/android-update advertises a newer APK.
+  ANDROID_LATEST_VERSION_CODE: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce.number().int().positive().optional(),
+  ),
+  ANDROID_LATEST_VERSION_NAME: z.string().optional(),
+  ANDROID_APK_URL: z.preprocess(
+    (v) => (typeof v === 'string' && v.trim() === '' ? undefined : v),
+    z.string().url().optional(),
+  ),
+  ANDROID_CHANGELOG: z.string().default(''),
+  ANDROID_FORCE_UPDATE: z
+    .string()
+    .optional()
+    .transform((v) => v === '1' || v?.toLowerCase() === 'true'),
+  ANDROID_MIN_VERSION_CODE: z.preprocess(
+    (v) => (v === '' || v === undefined || v === null ? undefined : v),
+    z.coerce.number().int().positive().optional(),
+  ),
 });
 
 const parsed = schema.safeParse(process.env);

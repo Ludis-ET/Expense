@@ -1,7 +1,8 @@
 import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
+
+import '../core/haptics.dart';
 
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
@@ -12,6 +13,51 @@ class Slice {
   final String label;
   final double value;
   final Color color;
+}
+
+/// Gives a painted chart one spoken sentence.
+///
+/// Every chart in this file is a [CustomPaint], which a screen reader reports
+/// as an empty rectangle. Wrapping the painted region in a single semantic
+/// node — with the painter itself excluded — turns silence into "Spending by
+/// category. Groceries 32 percent, transport 18 percent…".
+class ChartSemantics extends StatelessWidget {
+  const ChartSemantics({
+    super.key,
+    required this.summary,
+    required this.child,
+    this.excludeChild = true,
+  });
+
+  final String summary;
+  final Widget child;
+
+  /// Leave false when the chart's own labels are real [Text] widgets worth
+  /// reading — ranked bars, for example, already announce themselves.
+  final bool excludeChild;
+
+  @override
+  Widget build(BuildContext context) => Semantics(
+    container: true,
+    label: summary,
+    child: excludeChild ? ExcludeSemantics(child: child) : child,
+  );
+}
+
+/// "Groceries 32 percent, Transport 18 percent, …" — the top [take] shares.
+String describeShares(String title, List<Slice> data, {int take = 5}) {
+  final total = data.fold<double>(0, (sum, s) => sum + s.value.abs());
+  if (data.isEmpty || total <= 0) return '$title. No data yet.';
+
+  final ranked = [...data]..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
+  final parts = ranked.take(take).map((s) {
+    final pct = (s.value.abs() / total * 100).round();
+    return '${s.label} $pct percent';
+  });
+  final rest = ranked.length - take;
+
+  return '$title. ${parts.join(', ')}'
+      '${rest > 0 ? ', and $rest more' : ''}.';
 }
 
 /// Donut with tappable segments and a centre readout — the mobile port of
@@ -71,7 +117,7 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
     for (var i = 0; i < widget.data.length; i++) {
       acc += widget.data[i].value / total * 2 * math.pi;
       if (angle <= acc) {
-        HapticFeedback.selectionClick();
+        Haptics.select();
         setState(() => _selected = _selected == i ? null : i);
         if (_selected != null) widget.onSelect?.call(widget.data[i], i);
         return;
@@ -84,53 +130,58 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
     final t = context.t;
     final total = widget.data.fold<double>(0, (s, d) => s + d.value);
     final fmt = widget.format ?? (v) => v.toStringAsFixed(0);
-    final sel = _selected != null && _selected! < widget.data.length ? widget.data[_selected!] : null;
+    final sel = _selected != null && _selected! < widget.data.length
+        ? widget.data[_selected!]
+        : null;
 
     return Column(
       children: [
-        GestureDetector(
-          onTapDown: (d) => _tapAt(d.localPosition),
-          child: SizedBox(
-            width: widget.size,
-            height: widget.size,
-            child: AnimatedBuilder(
-              animation: _c,
-              builder: (context, _) => CustomPaint(
-                painter: _DonutPainter(
-                  data: widget.data,
-                  total: total,
-                  thickness: widget.thickness,
-                  track: t.surfaceMuted,
-                  progress: Curves.easeOutCubic.transform(_c.value),
-                  selected: _selected,
-                ),
-                child: Center(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Amount(fmt(sel?.value ?? total), size: 17),
-                      const SizedBox(height: 2),
-                      SizedBox(
-                        width: widget.size - widget.thickness * 2 - 12,
-                        child: Text(
-                          sel?.label ?? widget.centerLabel,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 10.5, color: t.mutedForeground),
+        ChartSemantics(
+          summary: describeShares('Breakdown, total ${fmt(total)}', widget.data),
+          child: GestureDetector(
+            onTapDown: (d) => _tapAt(d.localPosition),
+            child: SizedBox(
+              width: widget.size,
+              height: widget.size,
+              child: AnimatedBuilder(
+                animation: _c,
+                builder: (context, _) => CustomPaint(
+                  painter: _DonutPainter(
+                    data: widget.data,
+                    total: total,
+                    thickness: widget.thickness,
+                    track: t.surfaceMuted,
+                    progress: Curves.easeOutCubic.transform(_c.value),
+                    selected: _selected,
+                  ),
+                  child: Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Amount(fmt(sel?.value ?? total), size: 17),
+                        const Gap(S.hair),
+                        SizedBox(
+                          width: widget.size - widget.thickness * 2 - 12,
+                          child: Text(
+                            sel?.label ?? widget.centerLabel,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
+                          ),
                         ),
-                      ),
-                    ],
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
         ),
-        const SizedBox(height: 16),
+        const Gap(S.lg),
         Wrap(
-          spacing: 12,
-          runSpacing: 8,
+          spacing: S.md,
+          runSpacing: S.sm,
           alignment: WrapAlignment.center,
           children: [
             for (var i = 0; i < widget.data.length; i++)
@@ -149,10 +200,10 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
                           borderRadius: BorderRadius.circular(3),
                         ),
                       ),
-                      const SizedBox(width: 6),
+                      const GapX(S.xs),
                       Text(
                         widget.data[i].label,
-                        style: TextStyle(fontSize: 11.5, color: t.mutedForeground),
+                        style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
                       ),
                     ],
                   ),
@@ -250,8 +301,7 @@ class IncomeExpenseLine extends StatefulWidget {
   State<IncomeExpenseLine> createState() => _IncomeExpenseLineState();
 }
 
-class _IncomeExpenseLineState extends State<IncomeExpenseLine>
-    with SingleTickerProviderStateMixin {
+class _IncomeExpenseLineState extends State<IncomeExpenseLine> with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 950),
@@ -284,58 +334,84 @@ class _IncomeExpenseLineState extends State<IncomeExpenseLine>
         Row(
           children: [
             _LegendDot(color: t.success, label: 'Income'),
-            const SizedBox(width: 14),
-            _LegendDot(color: t.danger, label: 'Expense'),
+            const GapX(S.md),
+            // Dashed swatch: income and expense must stay apart for a viewer
+            // who cannot separate the green from the red.
+            _LegendDot(color: t.danger, label: 'Expense', dashed: true),
             const Spacer(),
             if (active != null)
               Text(
                 active.label,
-                style: TextStyle(fontSize: 11.5, fontWeight: FontWeight.w600, color: t.foreground),
+                style: TextStyle(
+                  fontSize: AppType.caption,
+                  fontWeight: FontWeight.w600,
+                  color: t.foreground,
+                ),
               ),
           ],
         ),
         if (active != null)
           Padding(
-            padding: const EdgeInsets.only(top: 4),
+            padding: const EdgeInsets.only(top: S.xxs),
             child: Row(
               children: [
-                Amount(widget.format(active.income), size: 12.5, color: t.success),
-                const SizedBox(width: 12),
-                Amount(widget.format(active.expense), size: 12.5, color: t.danger),
+                Amount('+${widget.format(active.income)}', size: AppType.label, color: t.success),
+                const GapX(S.md),
+                Amount('−${widget.format(active.expense)}', size: AppType.label, color: t.danger),
               ],
             ),
           ),
-        const SizedBox(height: 10),
-        LayoutBuilder(
-          builder: (context, box) {
-            final width = box.maxWidth;
-            return GestureDetector(
-              onTapDown: (d) => _select(d.localPosition.dx, width),
-              onHorizontalDragUpdate: (d) => _select(d.localPosition.dx, width),
-              onHorizontalDragEnd: (_) => setState(() => _active = null),
-              child: SizedBox(
-                height: widget.height,
-                width: width,
-                child: AnimatedBuilder(
-                  animation: _c,
-                  builder: (context, _) => CustomPaint(
-                    painter: _LinePainter(
-                      points: widget.points,
-                      income: t.success,
-                      expense: t.danger,
-                      grid: t.border,
-                      label: t.mutedForeground,
-                      progress: Curves.easeOutCubic.transform(_c.value),
-                      active: _active,
+        const Gap(S.sm),
+        ChartSemantics(
+          summary: _spokenSummary(),
+          child: LayoutBuilder(
+            builder: (context, box) {
+              final width = box.maxWidth;
+              return GestureDetector(
+                onTapDown: (d) => _select(d.localPosition.dx, width),
+                onHorizontalDragUpdate: (d) => _select(d.localPosition.dx, width),
+                onHorizontalDragEnd: (_) => setState(() => _active = null),
+                child: SizedBox(
+                  height: widget.height,
+                  width: width,
+                  child: AnimatedBuilder(
+                    animation: _c,
+                    builder: (context, _) => CustomPaint(
+                      painter: _LinePainter(
+                        points: widget.points,
+                        income: t.success,
+                        expense: t.danger,
+                        grid: t.border,
+                        label: t.mutedForeground,
+                        progress: Curves.easeOutCubic.transform(_c.value),
+                        active: _active,
+                      ),
                     ),
                   ),
                 ),
-              ),
-            );
-          },
+              );
+            },
+          ),
         ),
       ],
     );
+  }
+
+  /// The whole plot in one sentence: the span it covers, both totals, and
+  /// which way the balance went.
+  String _spokenSummary() {
+    final pts = widget.points;
+    if (pts.isEmpty) return 'Income and expense chart. No data yet.';
+
+    final income = pts.fold<double>(0, (sum, p) => sum + p.income);
+    final expense = pts.fold<double>(0, (sum, p) => sum + p.expense);
+    final net = income - expense;
+
+    return 'Income and expense over ${pts.length} points, '
+        '${pts.first.label} to ${pts.last.label}. '
+        'Income ${widget.format(income)}. '
+        'Expense ${widget.format(expense)}. '
+        '${net >= 0 ? 'Up' : 'Down'} ${widget.format(net.abs())} overall.';
   }
 
   void _select(double dx, double width) {
@@ -344,11 +420,9 @@ class _IncomeExpenseLineState extends State<IncomeExpenseLine>
     final usable = width - padL - padR;
     final n = widget.points.length;
     if (n == 0 || usable <= 0) return;
-    final i = n == 1
-        ? 0
-        : (((dx - padL) / usable) * (n - 1)).round().clamp(0, n - 1);
+    final i = n == 1 ? 0 : (((dx - padL) / usable) * (n - 1)).round().clamp(0, n - 1);
     if (i != _active) {
-      HapticFeedback.selectionClick();
+      Haptics.select();
       setState(() => _active = i);
     }
   }
@@ -373,18 +447,20 @@ class _LinePainter extends CustomPainter {
   final double progress;
   final int? active;
 
-  static const _pad = EdgeInsets.fromLTRB(6, 12, 6, 24);
+  static const _pad = EdgeInsets.fromLTRB(S.xs, S.md, S.xs, S.xxl);
 
   @override
   void paint(Canvas canvas, Size size) {
-    final maxY = math.max(
+    final maxY =
+        math.max(
           1.0,
           points.fold<double>(0, (m, p) => math.max(m, math.max(p.income, p.expense))),
         ) *
         1.1;
 
     double x(int i) =>
-        _pad.left + (points.length == 1 ? 0.5 : i / (points.length - 1)) * (size.width - _pad.horizontal);
+        _pad.left +
+        (points.length == 1 ? 0.5 : i / (points.length - 1)) * (size.width - _pad.horizontal);
     double y(double v) => size.height - _pad.bottom - (v / maxY) * (size.height - _pad.vertical);
 
     // Horizontal guides.
@@ -396,7 +472,7 @@ class _LinePainter extends CustomPainter {
       canvas.drawLine(Offset(0, gy), Offset(size.width, gy), gridPaint);
     }
 
-    void series(double Function(SeriesPoint) pick, Color color) {
+    void series(double Function(SeriesPoint) pick, Color color, {bool dash = false}) {
       final path = Path();
       final area = Path();
       for (var i = 0; i < points.length; i++) {
@@ -423,15 +499,14 @@ class _LinePainter extends CustomPainter {
             colors: [color.withValues(alpha: 0.22), color.withValues(alpha: 0)],
           ).createShader(Rect.fromLTWH(0, 0, size.width, size.height)),
       );
-      canvas.drawPath(
-        path,
-        Paint()
-          ..style = PaintingStyle.stroke
-          ..strokeWidth = 2.4
-          ..strokeCap = StrokeCap.round
-          ..strokeJoin = StrokeJoin.round
-          ..color = color,
-      );
+      final stroke = Paint()
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 2.4
+        ..strokeCap = StrokeCap.round
+        ..strokeJoin = StrokeJoin.round
+        ..color = color;
+
+      canvas.drawPath(dash ? _dashPath(path, on: 7, off: 5) : path, stroke);
 
       if (active != null && active! < points.length) {
         final dot = Offset(x(active!), y(pick(points[active!]) * progress));
@@ -448,7 +523,9 @@ class _LinePainter extends CustomPainter {
     }
 
     series((p) => p.income, income);
-    series((p) => p.expense, expense);
+    // Dashed so the two series stay distinguishable without colour vision —
+    // Santim's income green and expense red sit at similar luminance.
+    series((p) => p.expense, expense, dash: true);
 
     if (active != null && active! < points.length) {
       final px = x(active!);
@@ -468,7 +545,7 @@ class _LinePainter extends CustomPainter {
       final tp = TextPainter(
         text: TextSpan(
           text: points[i].label,
-          style: TextStyle(fontSize: 9.5, color: label),
+          style: TextStyle(fontSize: AppType.micro, color: label),
         ),
         textDirection: TextDirection.ltr,
       )..layout();
@@ -482,24 +559,66 @@ class _LinePainter extends CustomPainter {
       old.progress != progress || old.active != active || old.points != points;
 }
 
+/// Re-walks [source] emitting [on]-long segments separated by [off] gaps.
+/// Flutter has no dashed-stroke paint style, so the path has to be rebuilt.
+Path _dashPath(Path source, {required double on, required double off}) {
+  final out = Path();
+  for (final metric in source.computeMetrics()) {
+    var distance = 0.0;
+    var draw = true;
+    while (distance < metric.length) {
+      final step = draw ? on : off;
+      final next = math.min(distance + step, metric.length);
+      if (draw) out.addPath(metric.extractPath(distance, next), Offset.zero);
+      distance = next;
+      draw = !draw;
+    }
+  }
+  return out;
+}
+
 class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label});
+  const _LegendDot({required this.color, required this.label, this.dashed = false});
   final Color color;
   final String label;
 
+  /// Draws the swatch as a dashed bar rather than a dot, matching the dashed
+  /// stroke used for the same series in the plot.
+  final bool dashed;
+
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      if (dashed)
+        SizedBox(
+          width: 14,
+          height: 8,
+          child: Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              for (var i = 0; i < 2; i++)
+                Container(
+                  width: 5,
+                  height: 3,
+                  decoration: BoxDecoration(
+                    color: color,
+                    borderRadius: BorderRadius.circular(R.pill),
+                  ),
+                ),
+            ],
           ),
-          const SizedBox(width: 5),
-          Muted(label, size: 11.5),
-        ],
-      );
+        )
+      else
+        Container(
+          width: 8,
+          height: 8,
+          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        ),
+      const GapX(S.xxs),
+      Muted(label, size: AppType.caption),
+    ],
+  );
 }
 
 class BarDatum {
@@ -513,13 +632,7 @@ class BarDatum {
 /// Horizontal ranked bars — the port of `charts/bar.tsx`, used for top payees,
 /// category movers and day-of-week averages.
 class RankedBars extends StatelessWidget {
-  const RankedBars({
-    super.key,
-    required this.data,
-    required this.format,
-    this.max,
-    this.onTap,
-  });
+  const RankedBars({super.key, required this.data, required this.format, this.max, this.onTap});
 
   final List<BarDatum> data;
   final String Function(double) format;
@@ -532,55 +645,63 @@ class RankedBars extends StatelessWidget {
     if (data.isEmpty) return const EmptyState(title: 'Nothing to show yet', compact: true);
     final peak = max ?? data.fold<double>(1, (m, d) => math.max(m, d.value.abs()));
 
-    return Column(
-      children: [
-        for (var i = 0; i < data.length; i++)
-          Padding(
-            padding: EdgeInsets.only(bottom: i == data.length - 1 ? 0 : 12),
-            child: FadeInUp.staggered(
-              index: i,
-              offset: 6,
-              child: GestureDetector(
-                onTap: onTap == null ? null : () => onTap!(i),
-                behavior: HitTestBehavior.opaque,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Expanded(
-                          child: Text(
-                            data[i].label,
-                            overflow: TextOverflow.ellipsis,
-                            style: TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w500,
-                              color: t.foreground,
+    // The bars carry real Text labels and values, so they are left readable
+    // and only the ranking itself is announced up front.
+    return ChartSemantics(
+      summary:
+          'Ranked bars, ${data.length} rows, '
+          'largest ${data.first.label} at ${format(data.first.value)}.',
+      excludeChild: false,
+      child: Column(
+        children: [
+          for (var i = 0; i < data.length; i++)
+            Padding(
+              padding: EdgeInsets.only(bottom: i == data.length - 1 ? 0 : S.md),
+              child: FadeInUp.staggered(
+                index: i,
+                offset: 6,
+                child: GestureDetector(
+                  onTap: onTap == null ? null : () => onTap!(i),
+                  behavior: HitTestBehavior.opaque,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Expanded(
+                            child: Text(
+                              data[i].label,
+                              overflow: TextOverflow.ellipsis,
+                              style: TextStyle(
+                                fontSize: AppType.bodySm,
+                                fontWeight: FontWeight.w500,
+                                color: t.foreground,
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(width: 8),
-                        Amount(format(data[i].value), size: 12.5),
+                          const GapX(S.sm),
+                          Amount(format(data[i].value), size: 12.5),
+                        ],
+                      ),
+                      const Gap(S.xs),
+                      ProgressBar(
+                        value: peak <= 0 ? 0 : (data[i].value.abs() / peak) * 100,
+                        height: 7,
+                        gradient: data[i].color == null
+                            ? null
+                            : [data[i].color!, data[i].color!.withValues(alpha: 0.65)],
+                      ),
+                      if (data[i].caption != null) ...[
+                        const Gap(S.xxs),
+                        Muted(data[i].caption!, size: 11),
                       ],
-                    ),
-                    const SizedBox(height: 6),
-                    ProgressBar(
-                      value: peak <= 0 ? 0 : (data[i].value.abs() / peak) * 100,
-                      height: 7,
-                      gradient: data[i].color == null
-                          ? null
-                          : [data[i].color!, data[i].color!.withValues(alpha: 0.65)],
-                    ),
-                    if (data[i].caption != null) ...[
-                      const SizedBox(height: 4),
-                      Muted(data[i].caption!, size: 11),
                     ],
-                  ],
+                  ),
                 ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -615,87 +736,98 @@ class SpendHeatmap extends StatelessWidget {
     final start = first.subtract(Duration(days: first.weekday % 7));
     final weeks = ((last.difference(start).inDays) / 7).ceil() + 1;
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          reverse: true,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              for (var w = 0; w < weeks; w++)
-                Padding(
-                  padding: const EdgeInsets.only(right: 3),
-                  child: Column(
-                    children: [
-                      for (var d = 0; d < 7; d++)
-                        Builder(
-                          builder: (context) {
-                            final day = start.add(Duration(days: w * 7 + d));
-                            final key = DateTime(day.year, day.month, day.day);
-                            final amount = days[key];
-                            final within = !day.isBefore(DateTime(first.year, first.month, first.day)) &&
-                                !day.isAfter(DateTime(last.year, last.month, last.day));
-                            final ratio = (amount == null || peak <= 0) ? 0.0 : amount / peak;
-                            return Padding(
-                              padding: const EdgeInsets.only(bottom: 3),
-                              child: GestureDetector(
-                                onTap: within && onTapDay != null
-                                    ? () => onTapDay!(key, amount ?? 0)
-                                    : null,
-                                child: Container(
-                                  width: cell,
-                                  height: cell,
-                                  decoration: BoxDecoration(
-                                    color: !within
-                                        ? Colors.transparent
-                                        : ratio <= 0
-                                            ? t.surfaceMuted
-                                            : Color.lerp(
-                                                t.primary.withValues(alpha: 0.22),
-                                                t.primary,
-                                                math.pow(ratio, 0.6).toDouble(),
-                                              ),
-                                    borderRadius: BorderRadius.circular(2.5),
+    final spentDays = days.values.where((v) => v > 0).length;
+    final busiest = sorted.reduce((a, b) => (days[a] ?? 0) >= (days[b] ?? 0) ? a : b);
+
+    return ChartSemantics(
+      summary:
+          'Daily spending heatmap, ${days.length} days. '
+          'Spent on $spentDays of them. '
+          'Heaviest day ${busiest.day}/${busiest.month} at '
+          '${format(days[busiest] ?? 0)}. Peak ${format(peak)}.',
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            reverse: true,
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (var w = 0; w < weeks; w++)
+                  Padding(
+                    padding: const EdgeInsets.only(right: S.xxs),
+                    child: Column(
+                      children: [
+                        for (var d = 0; d < 7; d++)
+                          Builder(
+                            builder: (context) {
+                              final day = start.add(Duration(days: w * 7 + d));
+                              final key = DateTime(day.year, day.month, day.day);
+                              final amount = days[key];
+                              final within =
+                                  !day.isBefore(DateTime(first.year, first.month, first.day)) &&
+                                  !day.isAfter(DateTime(last.year, last.month, last.day));
+                              final ratio = (amount == null || peak <= 0) ? 0.0 : amount / peak;
+                              return Padding(
+                                padding: const EdgeInsets.only(bottom: S.xxs),
+                                child: GestureDetector(
+                                  onTap: within && onTapDay != null
+                                      ? () => onTapDay!(key, amount ?? 0)
+                                      : null,
+                                  child: Container(
+                                    width: cell,
+                                    height: cell,
+                                    decoration: BoxDecoration(
+                                      color: !within
+                                          ? Colors.transparent
+                                          : ratio <= 0
+                                          ? t.surfaceMuted
+                                          : Color.lerp(
+                                              t.primary.withValues(alpha: 0.22),
+                                              t.primary,
+                                              math.pow(ratio, 0.6).toDouble(),
+                                            ),
+                                      borderRadius: BorderRadius.circular(2.5),
+                                    ),
                                   ),
                                 ),
-                              ),
-                            );
-                          },
-                        ),
-                    ],
+                              );
+                            },
+                          ),
+                      ],
+                    ),
+                  ),
+              ],
+            ),
+          ),
+          const Gap(S.sm),
+          Row(
+            children: [
+              Muted('Less', size: 10.5),
+              const GapX(S.xs),
+              for (final step in [0.0, 0.25, 0.5, 0.75, 1.0])
+                Padding(
+                  padding: const EdgeInsets.only(right: S.xxs),
+                  child: Container(
+                    width: 10,
+                    height: 10,
+                    decoration: BoxDecoration(
+                      color: step == 0
+                          ? t.surfaceMuted
+                          : Color.lerp(t.primary.withValues(alpha: 0.22), t.primary, step),
+                      borderRadius: BorderRadius.circular(2.5),
+                    ),
                   ),
                 ),
+              const GapX(S.xxs),
+              Muted('More', size: AppType.micro),
+              const Spacer(),
+              Muted('Peak ${format(peak)}', size: AppType.micro),
             ],
           ),
-        ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Muted('Less', size: 10.5),
-            const SizedBox(width: 6),
-            for (final step in [0.0, 0.25, 0.5, 0.75, 1.0])
-              Padding(
-                padding: const EdgeInsets.only(right: 3),
-                child: Container(
-                  width: 10,
-                  height: 10,
-                  decoration: BoxDecoration(
-                    color: step == 0
-                        ? t.surfaceMuted
-                        : Color.lerp(t.primary.withValues(alpha: 0.22), t.primary, step),
-                    borderRadius: BorderRadius.circular(2.5),
-                  ),
-                ),
-              ),
-            const SizedBox(width: 3),
-            Muted('More', size: 10.5),
-            const Spacer(),
-            Muted('Peak ${format(peak)}', size: 10.5),
-          ],
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -703,11 +835,7 @@ class SpendHeatmap extends StatelessWidget {
 /// The dot strip on the dashboard: one dot per day, filled when the day's spend
 /// stayed under the running average.
 class SpendStrip extends StatelessWidget {
-  const SpendStrip({
-    super.key,
-    required this.days,
-    this.dotSize = 9,
-  });
+  const SpendStrip({super.key, required this.days, this.dotSize = 9});
 
   /// `(under, spent)` per day, oldest first.
   final List<(bool under, bool spent)> days;
@@ -716,30 +844,39 @@ class SpendStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return Wrap(
-      spacing: 4,
-      runSpacing: 4,
-      children: [
-        for (var i = 0; i < days.length; i++)
-          TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: 1),
-            duration: Duration(milliseconds: 260 + i * 12),
-            curve: Motion.spring,
-            builder: (context, v, child) => Transform.scale(scale: v, child: child),
-            child: Container(
-              width: dotSize,
-              height: dotSize,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: !days[i].$2
-                    ? t.surfaceMuted
-                    : days[i].$1
-                        ? t.success
-                        : t.danger.withValues(alpha: 0.85),
+    final under = days.where((d) => d.$2 && d.$1).length;
+    final over = days.where((d) => d.$2 && !d.$1).length;
+    final quiet = days.where((d) => !d.$2).length;
+
+    return ChartSemantics(
+      summary:
+          '${days.length} day spending strip. '
+          '$under under average, $over over, $quiet with no spending.',
+      child: Wrap(
+        spacing: S.xxs,
+        runSpacing: S.xxs,
+        children: [
+          for (var i = 0; i < days.length; i++)
+            TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: 1),
+              duration: Duration(milliseconds: 260 + i * 12),
+              curve: Motion.spring,
+              builder: (context, v, child) => Transform.scale(scale: v, child: child),
+              child: Container(
+                width: dotSize,
+                height: dotSize,
+                decoration: BoxDecoration(
+                  shape: BoxShape.circle,
+                  color: !days[i].$2
+                      ? t.surfaceMuted
+                      : days[i].$1
+                      ? t.success
+                      : t.danger.withValues(alpha: 0.85),
+                ),
               ),
             ),
-          ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -763,19 +900,27 @@ class Sparkline extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     if (values.length < 2) return SizedBox(height: height);
-    return SizedBox(
-      height: height,
-      width: double.infinity,
-      child: TweenAnimationBuilder<double>(
-        tween: Tween(begin: 0, end: 1),
-        duration: const Duration(milliseconds: 800),
-        curve: Motion.easeOut,
-        builder: (context, v, _) => CustomPaint(
-          painter: _SparkPainter(
-            values: values,
-            color: color ?? t.primary,
-            progress: v,
-            fill: fill,
+
+    final first = values.first;
+    final last = values.last;
+    final direction = last > first ? 'rising' : (last < first ? 'falling' : 'flat');
+
+    return ChartSemantics(
+      summary: 'Trend over ${values.length} points, $direction.',
+      child: SizedBox(
+        height: height,
+        width: double.infinity,
+        child: TweenAnimationBuilder<double>(
+          tween: Tween(begin: 0, end: 1),
+          duration: const Duration(milliseconds: 800),
+          curve: Motion.easeOut,
+          builder: (context, v, _) => CustomPaint(
+            painter: _SparkPainter(
+              values: values,
+              color: color ?? t.primary,
+              progress: v,
+              fill: fill,
+            ),
           ),
         ),
       ),
@@ -816,7 +961,10 @@ class _SparkPainter extends CustomPainter {
       }
       area.lineTo(x, y);
     }
-    area.lineTo(math.min(count - 1, values.length - 1) / (values.length - 1) * size.width, size.height);
+    area.lineTo(
+      math.min(count - 1, values.length - 1) / (values.length - 1) * size.width,
+      size.height,
+    );
     area.close();
 
     if (fill) {
@@ -847,12 +995,7 @@ class _SparkPainter extends CustomPainter {
 
 /// Vertical bar column chart used for weekly / monthly comparisons.
 class ColumnChart extends StatelessWidget {
-  const ColumnChart({
-    super.key,
-    required this.data,
-    required this.format,
-    this.height = 150,
-  });
+  const ColumnChart({super.key, required this.data, required this.format, this.height = 150});
 
   final List<BarDatum> data;
   final String Function(double) format;
@@ -863,57 +1006,64 @@ class ColumnChart extends StatelessWidget {
     final t = context.t;
     if (data.isEmpty) return const EmptyState(title: 'No data yet', compact: true);
     final peak = data.fold<double>(1, (m, d) => math.max(m, d.value));
+    final tallest = data.reduce((a, b) => a.value >= b.value ? a : b);
 
-    return SizedBox(
-      height: height,
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
-        children: [
-          for (var i = 0; i < data.length; i++)
-            Expanded(
-              child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 3),
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.end,
-                  children: [
-                    Text(
-                      format(data[i].value),
-                      maxLines: 1,
-                      overflow: TextOverflow.clip,
-                      style: TextStyle(fontSize: 9, color: t.mutedForeground),
-                    ),
-                    const SizedBox(height: 4),
-                    TweenAnimationBuilder<double>(
-                      tween: Tween(begin: 0, end: (data[i].value / peak).clamp(0.02, 1.0)),
-                      duration: Duration(milliseconds: 600 + i * 60),
-                      curve: Motion.easeOut,
-                      builder: (context, v, _) => Container(
-                        height: (height - 42) * v,
-                        decoration: BoxDecoration(
-                          borderRadius: BorderRadius.circular(5),
-                          gradient: LinearGradient(
-                            begin: Alignment.topCenter,
-                            end: Alignment.bottomCenter,
-                            colors: [
-                              data[i].color ?? t.primary,
-                              (data[i].color ?? t.primary).withValues(alpha: 0.45),
-                            ],
+    return ChartSemantics(
+      summary:
+          '${data.length} columns, ${data.first.label} to ${data.last.label}. '
+          'Highest ${tallest.label} at ${format(tallest.value)}.',
+      excludeChild: false,
+      child: SizedBox(
+        height: height,
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.end,
+          children: [
+            for (var i = 0; i < data.length; i++)
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: S.xxs),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.end,
+                    children: [
+                      Text(
+                        format(data[i].value),
+                        maxLines: 1,
+                        overflow: TextOverflow.clip,
+                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
+                      ),
+                      const Gap(S.xxs),
+                      TweenAnimationBuilder<double>(
+                        tween: Tween(begin: 0, end: (data[i].value / peak).clamp(0.02, 1.0)),
+                        duration: Duration(milliseconds: 600 + i * 60),
+                        curve: Motion.easeOut,
+                        builder: (context, v, _) => Container(
+                          height: (height - 42) * v,
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(5),
+                            gradient: LinearGradient(
+                              begin: Alignment.topCenter,
+                              end: Alignment.bottomCenter,
+                              colors: [
+                                data[i].color ?? t.primary,
+                                (data[i].color ?? t.primary).withValues(alpha: 0.45),
+                              ],
+                            ),
                           ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 6),
-                    Text(
-                      data[i].label,
-                      maxLines: 1,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(fontSize: 10, color: t.mutedForeground),
-                    ),
-                  ],
+                      const Gap(S.xs),
+                      Text(
+                        data[i].label,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
+                      ),
+                    ],
+                  ),
                 ),
               ),
-            ),
-        ],
+          ],
+        ),
       ),
     );
   }

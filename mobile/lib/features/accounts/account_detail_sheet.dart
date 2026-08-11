@@ -86,12 +86,12 @@ class _AccountDetailState extends State<_AccountDetail> {
                   size: 56,
                   radius: R.lg,
                 ),
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Amount(money(a.balance), size: 30),
-                const SizedBox(height: 2),
+                const Gap(S.hair),
                 Muted('available to spend', size: 12),
                 if (a.isDefault || a.isShared || a.archived) ...[
-                  const SizedBox(height: 10),
+                  const Gap(S.sm),
                   Wrap(
                     spacing: 6,
                     children: [
@@ -104,11 +104,13 @@ class _AccountDetailState extends State<_AccountDetail> {
               ],
             ),
           ),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           Row(
             children: [
-              Expanded(child: _Figure(label: 'Real balance', value: money(a.realBalance))),
-              const SizedBox(width: 10),
+              Expanded(
+                child: _Figure(label: 'Real balance', value: money(a.realBalance)),
+              ),
+              const GapX(S.sm),
               Expanded(
                 child: _Figure(
                   label: 'Set aside in plans',
@@ -118,15 +120,19 @@ class _AccountDetailState extends State<_AccountDetail> {
               ),
             ],
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Row(
             children: [
-              Expanded(child: _Figure(label: 'Opening balance', value: money(a.openingBalance))),
-              const SizedBox(width: 10),
-              Expanded(child: _Figure(label: 'Currency', value: a.currency)),
+              Expanded(
+                child: _Figure(label: 'Opening balance', value: money(a.openingBalance)),
+              ),
+              const GapX(S.sm),
+              Expanded(
+                child: _Figure(label: 'Currency', value: a.currency),
+              ),
             ],
           ),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           Row(
             children: [
               Expanded(
@@ -144,7 +150,7 @@ class _AccountDetailState extends State<_AccountDetail> {
                   },
                 ),
               ),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Expanded(
                 child: AppButton(
                   label: 'Edit',
@@ -162,13 +168,13 @@ class _AccountDetailState extends State<_AccountDetail> {
               ),
             ],
           ),
-          const SizedBox(height: 22),
+          const Gap(S.xl),
           SectionLabel('RECENT MOVEMENTS'),
           if (_loading)
             const Column(
               children: [
                 Skeleton(height: 54, radius: R.md),
-                SizedBox(height: 8),
+                Gap(S.sm),
                 Skeleton(height: 54, radius: R.md),
               ],
             )
@@ -176,7 +182,7 @@ class _AccountDetailState extends State<_AccountDetail> {
             const EmptyState(title: 'Nothing yet in this wallet', compact: true)
           else
             AppCard(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+              padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xxs),
               child: TransactionList(
                 items: _recent!,
                 money: moneyIn,
@@ -187,7 +193,7 @@ class _AccountDetailState extends State<_AccountDetail> {
                 },
               ),
             ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           AppButton(
             label: a.archived ? 'Delete wallet' : 'Archive wallet',
             icon: a.archived ? Icons.delete_outline : Icons.inventory_2_outlined,
@@ -209,7 +215,8 @@ class _AccountDetailState extends State<_AccountDetail> {
       final ok = await confirm(
         context,
         title: 'Delete ${a.name}?',
-        message: 'This is permanent. Wallets with transactions cannot be deleted — '
+        message:
+            'This is permanent. Wallets with transactions cannot be deleted — '
             'archive them instead.',
       );
       if (!ok || !context.mounted) return;
@@ -220,9 +227,7 @@ class _AccountDetailState extends State<_AccountDetail> {
           Navigator.pop(context);
           toast(
             context,
-            result.queued
-                ? 'Delete queued — will sync when you are back online'
-                : 'Wallet deleted',
+            result.queued ? 'Delete queued — will sync when you are back online' : 'Wallet deleted',
           );
         }
       } on ApiError catch (e) {
@@ -234,26 +239,21 @@ class _AccountDetailState extends State<_AccountDetail> {
     final ok = await confirm(
       context,
       title: 'Archive ${a.name}?',
-      message: 'It disappears from pickers and totals. Its history stays intact '
+      message:
+          'It disappears from pickers and totals. Its history stays intact '
           'and you can bring it back any time.',
       confirmLabel: 'Archive',
       danger: false,
     );
     if (!ok || !context.mounted) return;
     try {
-      final result = await sync.saveAccount(
-        id: a.id,
-        name: a.name,
-        body: {'archived': true},
-      );
+      final result = await sync.saveAccount(id: a.id, name: a.name, body: {'archived': true});
       await data.refreshAfterWrite();
       if (context.mounted) {
         Navigator.pop(context);
         toast(
           context,
-          result.queued
-              ? 'Archive queued — will sync when you are back online'
-              : 'Wallet archived',
+          result.queued ? 'Archive queued — will sync when you are back online' : 'Wallet archived',
         );
       }
     } on ApiError catch (e) {
@@ -273,7 +273,7 @@ class _Figure extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(R.md),
@@ -282,7 +282,7 @@ class _Figure extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Muted(label, size: 10.5, maxLines: 1),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

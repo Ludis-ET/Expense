@@ -54,3 +54,8 @@ export const seasonalQuery = z.object({
 });
 
 export const moversQuery = z.object({ month: monthStr.optional(), currency: currencyStr });
+
+export const outlookHistoryQuery = z.object({
+  currency: currencyStr,
+  months: z.coerce.number().int().min(1).max(24).default(6),
+});

@@ -140,7 +140,7 @@ export default function DashboardPage() {
 
       <SmartInsight data={viewData} money={money} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <WeeklySnapshot data={data.weeklySnapshot} money={money} />
         <SpendingStreaks data={data.spendingStreak} />
         <TabWidget tab={data.tab} money={money} />
@@ -154,7 +154,7 @@ export default function DashboardPage() {
 
       <HouseholdWidget household={data.household} money={money} />
 
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+      <div className="grid items-start gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatMini label="Net this month" value={money(month.net)} icon={<TrendingUp className="h-4 w-4" />} positive={Number(month.net) >= 0} />
         <StatMini label="Avg daily spend" value={money(month.avgDailySpend)} icon={<TrendingDown className="h-4 w-4" />} />
         <StatMini label="Unnecessary" value={money(data.unnecessary.total)} icon={<Flame className="h-4 w-4" />} warning={Number(data.unnecessary.total) > 0} />

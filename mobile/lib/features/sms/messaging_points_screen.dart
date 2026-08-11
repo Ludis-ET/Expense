@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/haptics.dart';
+
+import '../../core/theme/theme.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/layout.dart';
@@ -96,7 +99,7 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                   children: [
                     if (sample != null && sample.trim().isNotEmpty) ...[
                       Container(
-                        padding: const EdgeInsets.all(12),
+                        padding: const EdgeInsets.all(S.md),
                         decoration: BoxDecoration(
                           color: t.surfaceMuted.withValues(alpha: 0.5),
                           borderRadius: BorderRadius.circular(12),
@@ -105,40 +108,50 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                           sample.replaceAll('\n', ' '),
                           maxLines: 4,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, height: 1.4, color: t.foreground),
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            height: 1.4,
+                            color: t.foreground,
+                          ),
                         ),
                       ),
-                      const SizedBox(height: 14),
+                      const Gap(S.md),
                     ],
-                    Text('Which bank is this?', style: TextStyle(fontSize: 12, color: t.mutedForeground)),
-                    const SizedBox(height: 6),
+                    Text(
+                      'Which bank is this?',
+                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                    ),
+                    const Gap(S.xs),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         for (final b in sms.banks)
                           ChoiceChip(
-                            label: Text(b.label, style: const TextStyle(fontSize: 12)),
+                            label: Text(b.label, style: const TextStyle(fontSize: AppType.label)),
                             selected: bankKey == b.key,
                             onSelected: (_) => setLocal(() => bankKey = b.key),
                           ),
                         ChoiceChip(
-                          label: const Text('Generic', style: TextStyle(fontSize: 12)),
+                          label: const Text('Generic', style: TextStyle(fontSize: AppType.label)),
                           selected: bankKey == 'generic',
                           onSelected: (_) => setLocal(() => bankKey = 'generic'),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 14),
-                    Text('Deposit into wallet', style: TextStyle(fontSize: 12, color: t.mutedForeground)),
-                    const SizedBox(height: 6),
+                    const Gap(S.md),
+                    Text(
+                      'Deposit into wallet',
+                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                    ),
+                    const Gap(S.xs),
                     Wrap(
                       spacing: 8,
                       runSpacing: 8,
                       children: [
                         for (final a in accounts)
                           ChoiceChip(
-                            label: Text(a.name, style: const TextStyle(fontSize: 12)),
+                            label: Text(a.name, style: const TextStyle(fontSize: AppType.label)),
                             selected: accountId == a.id,
                             onSelected: (_) => setLocal(() {
                               accountId = a.id;
@@ -150,7 +163,7 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                           ),
                       ],
                     ),
-                    const SizedBox(height: 12),
+                    const Gap(S.md),
                     AppTextField(
                       controller: digitsCtrl,
                       label: 'Account digits (last 4+)',
@@ -159,7 +172,7 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       keyboardType: TextInputType.number,
                       textCapitalization: TextCapitalization.none,
                     ),
-                    const SizedBox(height: 10),
+                    const Gap(S.sm),
                     PickerField<TxCategory>(
                       label: 'Default category',
                       value: (data.categories.data ?? const <TxCategory>[])
@@ -175,25 +188,31 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Treat as bank message', style: TextStyle(fontSize: 14)),
+                      title: const Text(
+                        'Treat as bank message',
+                        style: TextStyle(fontSize: AppType.body),
+                      ),
                       subtitle: const Text(
                         'Off = ignore this sender',
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: AppType.label),
                       ),
                       value: enabled,
                       onChanged: (v) => setLocal(() => enabled = v),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
-                      title: const Text('Record without asking', style: TextStyle(fontSize: 14)),
+                      title: const Text(
+                        'Record without asking',
+                        style: TextStyle(fontSize: AppType.body),
+                      ),
                       subtitle: const Text(
                         'Needs wallet, category, and a confident parse.',
-                        style: TextStyle(fontSize: 12),
+                        style: TextStyle(fontSize: AppType.label),
                       ),
                       value: autoCommit,
                       onChanged: (v) => setLocal(() => autoCommit = v),
                     ),
-                    const SizedBox(height: 12),
+                    const Gap(S.md),
                     AppButton(
                       label: 'Save mapping',
                       expand: true,
@@ -252,14 +271,15 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
         foregroundColor: t.foreground,
         title: Text(
           'Messaging points',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           if (widget.fromSetup)
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Done'),
-            ),
+            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
         ],
       ),
       body: MeshBackground(
@@ -279,10 +299,10 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       maxLines: 4,
                     ),
                     if (_error != null) ...[
-                      const SizedBox(height: 12),
+                      const Gap(S.md),
                       Text(_error!, style: TextStyle(color: t.danger)),
                     ],
-                    const SizedBox(height: 18),
+                    const Gap(S.lg),
                     SectionLabel('MAPPED BANK SENDERS'),
                     if (sms.senderRules.isEmpty)
                       const EmptyState(
@@ -301,7 +321,7 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                             await sms.deleteSenderRule(r.id);
                           },
                         ),
-                    const SizedBox(height: 18),
+                    const Gap(S.lg),
                     SectionLabel('FROM YOUR MESSAGES'),
                     if (_scanned.isEmpty)
                       const EmptyState(
@@ -327,25 +347,32 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                             bank: _matchBank(sms.banks, s.sender),
                           ),
                         ),
-                    const SizedBox(height: 18),
+                    const Gap(S.lg),
                     SectionLabel('KNOWN BANKS'),
                     for (final b in sms.banks)
                       AppCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+                        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
                         onTap: () {
-                          HapticFeedback.selectionClick();
+                          Haptics.select();
                           final sender = b.senders.firstOrNull ?? b.key;
                           _editRule(sender: sender.toUpperCase(), bank: b);
                         },
                         child: Row(
                           children: [
-                            IconTile(icon: Icons.account_balance_rounded, color: t.primary, size: 38),
-                            const SizedBox(width: 12),
+                            IconTile(
+                              icon: Icons.account_balance_rounded,
+                              color: t.primary,
+                              size: 38,
+                            ),
+                            const GapX(S.md),
                             Expanded(
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
                                 children: [
-                                  Text(b.label, style: const TextStyle(fontWeight: FontWeight.w700)),
+                                  Text(
+                                    b.label,
+                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                  ),
                                   Muted(b.senders.take(3).join(' · '), size: 12),
                                 ],
                               ),
@@ -372,9 +399,9 @@ class _RuleTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         onTap: onTap,
         child: Row(
           children: [
@@ -383,7 +410,7 @@ class _RuleTile extends StatelessWidget {
               color: rule.enabled ? t.primary : t.mutedForeground,
               size: 38,
             ),
-            const SizedBox(width: 12),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -432,14 +459,14 @@ class _ScanTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         onTap: already ? null : onTap,
         child: Row(
           children: [
             IconTile(icon: Icons.sms_outlined, color: t.accent, size: 38),
-            const SizedBox(width: 12),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -462,7 +489,7 @@ class _ScanTile extends StatelessWidget {
               style: TextStyle(
                 color: already ? t.success : t.primary,
                 fontWeight: FontWeight.w700,
-                fontSize: 12,
+                fontSize: AppType.label,
               ),
             ),
           ],

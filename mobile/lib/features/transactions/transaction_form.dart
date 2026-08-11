@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/haptics.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
@@ -18,6 +20,7 @@ import '../../widgets/ui.dart';
 Future<bool?> showTransactionForm(
   BuildContext context, {
   Transaction? existing,
+  Transaction? template,
   String? presetKind,
   String? presetBudgetId,
   String? presetAccountId,
@@ -37,6 +40,7 @@ Future<bool?> showTransactionForm(
             padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
             child: TransactionForm(
               existing: existing,
+              template: template,
               presetKind: presetKind,
               presetBudgetId: presetBudgetId,
               presetAccountId: presetAccountId,
@@ -54,9 +58,7 @@ Future<bool?> showTransactionForm(
             opacity: curved,
             child: GestureDetector(
               onTap: () => Navigator.of(ctx).pop(),
-              child: Container(
-                color: Colors.black.withValues(alpha: 0.48 * animation.value),
-              ),
+              child: Container(color: Colors.black.withValues(alpha: 0.48 * animation.value)),
             ),
           ),
           SlideTransition(
@@ -76,15 +78,27 @@ class TransactionForm extends StatefulWidget {
   const TransactionForm({
     super.key,
     this.existing,
+    this.template,
     this.presetKind,
     this.presetBudgetId,
     this.presetAccountId,
   });
 
+  /// Editing this transaction — the save writes back over it.
   final Transaction? existing;
+
+  /// Copying this transaction. Every field is prefilled but the save creates a
+  /// new entry, which is what "log again" needs: the coffee you buy five
+  /// mornings a week should not start from an empty form.
+  final Transaction? template;
+
   final String? presetKind;
   final String? presetBudgetId;
   final String? presetAccountId;
+
+  /// The transaction whose values seed the fields, whether we are editing it
+  /// or copying it.
+  Transaction? get seed => existing ?? template;
 
   @override
   State<TransactionForm> createState() => _TransactionFormState();
@@ -92,11 +106,11 @@ class TransactionForm extends StatefulWidget {
 
 class _TransactionFormState extends State<TransactionForm> {
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : toNum(widget.existing!.amount).toString(),
+    text: widget.seed == null ? '' : toNum(widget.seed!.amount).toString(),
   );
-  late final _payee = TextEditingController(text: widget.existing?.payee ?? '');
-  late final _note = TextEditingController(text: widget.existing?.note ?? '');
-  late final _tags = TextEditingController(text: widget.existing?.tags.join(', ') ?? '');
+  late final _payee = TextEditingController(text: widget.seed?.payee ?? '');
+  late final _note = TextEditingController(text: widget.seed?.note ?? '');
+  late final _tags = TextEditingController(text: widget.seed?.tags.join(', ') ?? '');
 
   late TxKind _kind;
   String? _accountId;
@@ -121,9 +135,9 @@ class _TransactionFormState extends State<TransactionForm> {
   @override
   void initState() {
     super.initState();
-    final tx = widget.existing;
+    final tx = widget.seed;
     _kind = tx?.kind ?? TxKind.parse(widget.presetKind ?? 'EXPENSE');
-    _date = tx?.date ?? DateTime.now();
+    _date = widget.existing?.date ?? DateTime.now();
     _accountId = tx?.accountId ?? widget.presetAccountId;
     _transferAccountId = tx?.transferAccountId;
     _categoryId = tx?.categoryId;
@@ -143,8 +157,7 @@ class _TransactionFormState extends State<TransactionForm> {
       setState(() {
         if (_accountId == null) {
           final accounts = data.scopedAccounts;
-          final fallback =
-              accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+          final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
           if (fallback != null) _accountId = fallback.id;
         }
         // Preset plan (e.g. Spend from plan detail) should also adopt its category.
@@ -166,16 +179,37 @@ class _TransactionFormState extends State<TransactionForm> {
   }
 
   Color _kindColor(BuildContext context, TxKind kind) => switch (kind) {
-        TxKind.income => context.t.success,
-        TxKind.expense => context.t.danger,
-        TxKind.transfer => context.t.accent,
-      };
+    TxKind.income => context.t.success,
+    TxKind.expense => context.t.danger,
+    TxKind.transfer => context.t.accent,
+  };
 
   IconData _kindIcon(TxKind kind) => switch (kind) {
-        TxKind.income => Icons.south_west_rounded,
-        TxKind.expense => Icons.north_east_rounded,
-        TxKind.transfer => Icons.swap_horiz_rounded,
-      };
+    TxKind.income => Icons.south_west_rounded,
+    TxKind.expense => Icons.north_east_rounded,
+    TxKind.transfer => Icons.swap_horiz_rounded,
+  };
+
+  /// The payees seen most often in recent activity, for the current kind,
+  /// paired with the category they usually carry. Ranked by frequency and
+  /// capped at five so the row never wraps.
+  List<({String payee, String? categoryId})> _recentPayees(DataState data) {
+    final recent = data.dashboard.data?.recentTransactions ?? const <Transaction>[];
+
+    final counts = <String, int>{};
+    final categoryOf = <String, String?>{};
+    for (final tx in recent) {
+      if (tx.kind != _kind) continue;
+      final payee = tx.payee?.trim();
+      if (payee == null || payee.isEmpty) continue;
+      counts[payee] = (counts[payee] ?? 0) + 1;
+      categoryOf.putIfAbsent(payee, () => tx.categoryId);
+    }
+
+    final ranked = counts.keys.toList()..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+
+    return [for (final payee in ranked.take(5)) (payee: payee, categoryId: categoryOf[payee])];
+  }
 
   BudgetSpendSource? _plan(DataState data) {
     if (_budgetId == null) return null;
@@ -216,11 +250,11 @@ class _TransactionFormState extends State<TransactionForm> {
     final problem = _validate(data);
     if (problem != null) {
       setState(() => _error = problem);
-      HapticFeedback.heavyImpact();
+      Haptics.reject();
       return;
     }
 
-    HapticFeedback.mediumImpact();
+    Haptics.commit();
     setState(() {
       _saving = true;
       _error = null;
@@ -291,10 +325,16 @@ class _TransactionFormState extends State<TransactionForm> {
 
       Ref? accountRef(Account? a) => a == null
           ? null
-          : Ref(id: a.id, name: a.name, icon: a.icon, color: a.color, currency: a.currency, type: a.type.wire);
-      Ref? categoryRef(TxCategory? c) => c == null
-          ? null
-          : Ref(id: c.id, name: c.name, icon: c.icon, color: c.color);
+          : Ref(
+              id: a.id,
+              name: a.name,
+              icon: a.icon,
+              color: a.color,
+              currency: a.currency,
+              type: a.type.wire,
+            );
+      Ref? categoryRef(TxCategory? c) =>
+          c == null ? null : Ref(id: c.id, name: c.name, icon: c.icon, color: c.color);
 
       if (_isEdit) {
         final existing = widget.existing!;
@@ -360,7 +400,7 @@ class _TransactionFormState extends State<TransactionForm> {
 
   void _setKind(TxKind k) {
     if (k == _kind) return;
-    HapticFeedback.selectionClick();
+    Haptics.select();
     setState(() {
       _kind = k;
       _categoryId = null;
@@ -413,266 +453,285 @@ class _TransactionFormState extends State<TransactionForm> {
                     : 'Log ${_kind.label.toLowerCase()} instantly',
                 onClose: () => Navigator.pop(context),
               ),
-                    Flexible(
-                      child: SingleChildScrollView(
-                        padding: EdgeInsets.fromLTRB(
-                          20,
-                          0,
-                          20,
-                          20 + MediaQuery.paddingOf(context).bottom,
+              Flexible(
+                child: SingleChildScrollView(
+                  padding: EdgeInsets.fromLTRB(
+                    20,
+                    0,
+                    20,
+                    20 + MediaQuery.paddingOf(context).bottom,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: [
+                      if (!_isEdit) ...[
+                        FadeInUp.staggered(
+                          index: 0,
+                          child: _FuturisticKindPicker(
+                            value: _kind,
+                            colorOf: (k) => _kindColor(context, k),
+                            iconOf: _kindIcon,
+                            onChanged: _setKind,
+                          ),
                         ),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.stretch,
-                          children: [
-                            if (!_isEdit) ...[
-                              FadeInUp.staggered(
-                                index: 0,
-                                child: _FuturisticKindPicker(
-                                  value: _kind,
-                                  colorOf: (k) => _kindColor(context, k),
-                                  iconOf: _kindIcon,
-                                  onChanged: _setKind,
-                                ),
-                              ),
-                              const SizedBox(height: 20),
-                            ],
-
-                            FadeInUp.staggered(
-                              index: _isEdit ? 0 : 1,
-                              child: _HeroAmountField(
-                                controller: _amount,
-                                currency: data.activeCurrency,
-                                tint: tint,
-                                autofocus: !_isEdit,
-                                focused: _amountFocused,
-                                onFocusChange: (f) => setState(() => _amountFocused = f),
-                              ),
-                            ),
-                            const SizedBox(height: 18),
-
-                            AnimatedSwitcher(
-                              duration: Motion.fast,
-                              switchInCurve: Motion.easeOut,
-                              switchOutCurve: Motion.easeOut,
-                              transitionBuilder: (child, anim) => FadeTransition(
-                                opacity: anim,
-                                child: SlideTransition(
-                                  position: Tween<Offset>(
-                                    begin: const Offset(0, 0.04),
-                                    end: Offset.zero,
-                                  ).animate(anim),
-                                  child: child,
-                                ),
-                              ),
-                              child: StaggerColumn(
-                                key: ValueKey('fields-${_kind.wire}'),
-                                spacing: 14,
-                                startIndex: _isEdit ? 1 : 2,
-                                children: [
-                                  if (_kind == TxKind.expense && plans.isNotEmpty && !_isEdit)
-                                    PickerField<BudgetSpendSource>(
-                                      label: 'Pay from',
-                                      hint: 'Choosing a plan spends its reserved money instead of your '
-                                          'free balance. "Unplanned" is the catch-all for spending that '
-                                          'was never budgeted.',
-                                      value: plan,
-                                      options: plans,
-                                      labelOf: (p) => p.isUnplanned
-                                          ? '${p.name} (from an account)'
-                                          : '${p.name} · ${formatMoney(p.balance, currency: p.currency)} left',
-                                      iconOf: (p) => p.isUnplanned
-                                          ? Icons.account_balance_wallet_outlined
-                                          : financeIcon(p.icon),
-                                      colorOf: (p) => parseHexColor(p.color) ?? t.primary,
-                                      onChanged: (p) => setState(() {
-                                        _budgetId = p?.id;
-                                        _budgetSourceAccountId = null;
-                                        if (p != null && !p.isUnplanned && p.sources.length == 1) {
-                                          _budgetSourceAccountId = p.sources.first.account?.id;
-                                        }
-                                        // Plans with a linked category pre-select it.
-                                        final planCat = p?.categoryId;
-                                        if (planCat != null) _categoryId = planCat;
-                                      }),
-                                      allowClear: true,
-                                      placeholder: 'Straight from an account',
-                                      sheetTitle: 'Pay from',
-                                    ),
-
-                                  if (payingFromPot && plan.sources.length > 1)
-                                    PickerField<BudgetSource>(
-                                      label: 'Free the reservation on',
-                                      hint: 'This plan was filled from more than one wallet. '
-                                          'Pick which one the money actually leaves.',
-                                      value: plan.sources
-                                          .where((s) => s.account?.id == _budgetSourceAccountId)
-                                          .firstOrNull,
-                                      options: plan.sources,
-                                      labelOf: (s) =>
-                                          '${s.account?.name ?? 'Unknown'} · ${formatMoney(s.available, currency: plan.currency)}',
-                                      iconOf: (s) => accountTypeIcon(s.account?.type ?? 'OTHER'),
-                                      onChanged: (s) =>
-                                          setState(() => _budgetSourceAccountId = s?.account?.id),
-                                      sheetTitle: 'Funding wallet',
-                                    ),
-
-                                  if (_kind != TxKind.transfer)
-                                    PickerField<TxCategory>(
-                                      label: 'Category',
-                                      value: categoryById(_categoryId),
-                                      options: categories,
-                                      labelOf: (c) => c.name,
-                                      iconOf: (c) => financeIcon(c.icon),
-                                      colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
-                                      onChanged: (c) => setState(() => _categoryId = c?.id),
-                                      placeholder: 'Pick a category',
-                                      sheetTitle: '${_kind.label} category',
-                                    ),
-
-                                  if (!payingFromPot)
-                                    PickerField<Account>(
-                                      label: _kind == TxKind.transfer
-                                          ? 'From account'
-                                          : _kind == TxKind.income
-                                              ? 'Into account'
-                                              : 'Account',
-                                      value: accountById(_accountId),
-                                      options: accounts,
-                                      labelOf: (a) => a.name,
-                                      subtitleOf: (a) =>
-                                          '${formatMoney(a.balance, currency: a.currency)} available',
-                                      iconOf: (a) => accountTypeIcon(a.type.wire),
-                                      colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
-                                      onChanged: (a) => setState(() => _accountId = a?.id),
-                                      placeholder: 'Pick an account',
-                                    ),
-
-                                  if (_kind == TxKind.transfer)
-                                    PickerField<Account>(
-                                      label: 'To account',
-                                      value: accountById(_transferAccountId),
-                                      options: accounts.where((a) => a.id != _accountId).toList(),
-                                      labelOf: (a) => a.name,
-                                      subtitleOf: (a) =>
-                                          '${formatMoney(a.balance, currency: a.currency)} available',
-                                      iconOf: (a) => accountTypeIcon(a.type.wire),
-                                      colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
-                                      onChanged: (a) => setState(() => _transferAccountId = a?.id),
-                                      placeholder: 'Pick a destination',
-                                    ),
-
-                                  DateField(
-                                    label: 'Date',
-                                    value: _date,
-                                    onChanged: (d) => setState(() => _date = d ?? _date),
-                                  ),
-                                ],
-                              ),
-                            ),
-
-                            const SizedBox(height: 6),
-                            _MoreDetailsToggle(
-                              expanded: _showMore,
-                              onTap: () => setState(() => _showMore = !_showMore),
-                            ),
-                            AnimatedSize(
-                              duration: Motion.fast,
-                              curve: Motion.easeOut,
-                              alignment: Alignment.topCenter,
-                              child: _showMore
-                                  ? FadeInUp(
-                                      delay: const Duration(milliseconds: 60),
-                                      child: Column(
-                                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                                        children: [
-                                          const SizedBox(height: 12),
-                                          AppTextField(
-                                            controller: _payee,
-                                            label: 'Payee',
-                                            placeholder:
-                                                _kind == TxKind.income ? 'Who paid you' : 'Who you paid',
-                                            prefixIcon: Icons.storefront_outlined,
-                                          ),
-                                          const SizedBox(height: 14),
-                                          AppTextField(
-                                            controller: _note,
-                                            label: 'Note',
-                                            placeholder: 'What was it for?',
-                                            maxLines: 3,
-                                            prefixIcon: Icons.notes_outlined,
-                                          ),
-                                          const SizedBox(height: 14),
-                                          AppTextField(
-                                            controller: _tags,
-                                            label: 'Tags',
-                                            hint: 'Comma-separated. Tags let you slice spending in '
-                                                'ways categories cannot — "wedding", "trip", "unnecessary".',
-                                            placeholder: 'unnecessary, trip',
-                                            prefixIcon: Icons.sell_outlined,
-                                            textCapitalization: TextCapitalization.none,
-                                          ),
-                                        ],
-                                      ),
-                                    )
-                                  : const SizedBox.shrink(),
-                            ),
-
-                            if (_error != null) ...[
-                              const SizedBox(height: 14),
-                              FadeInUp(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
-                                  decoration: BoxDecoration(
-                                    color: t.danger.withValues(alpha: 0.12),
-                                    borderRadius: BorderRadius.circular(R.lg),
-                                    border: Border.all(color: t.danger.withValues(alpha: 0.35)),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: t.danger.withValues(alpha: 0.15),
-                                        blurRadius: 16,
-                                        spreadRadius: -4,
-                                      ),
-                                    ],
-                                  ),
-                                  child: Row(
-                                    children: [
-                                      Icon(Icons.error_outline_rounded, size: 18, color: t.danger),
-                                      const SizedBox(width: 10),
-                                      Expanded(
-                                        child: Text(
-                                          _error!,
-                                          style: TextStyle(
-                                            fontSize: 13,
-                                            height: 1.4,
-                                            color: t.foreground,
-                                          ),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ],
-
-                            const SizedBox(height: 22),
-                            FadeInUp.staggered(
-                              index: 8,
-                              child: _GlowSubmitButton(
-                                label: _isEdit ? 'Save changes' : 'Add ${_kind.label.toLowerCase()}',
-                                tint: tint,
-                                loading: _saving,
-                                ready: _amountReady,
-                                onPressed: _saving ? null : _save,
-                              ),
-                            ),
+                        const Gap(S.xl),
                       ],
-                    ),
+
+                      FadeInUp.staggered(
+                        index: _isEdit ? 0 : 1,
+                        child: _HeroAmountField(
+                          controller: _amount,
+                          currency: data.activeCurrency,
+                          tint: tint,
+                          autofocus: !_isEdit,
+                          focused: _amountFocused,
+                          onFocusChange: (f) => setState(() => _amountFocused = f),
+                        ),
+                      ),
+                      const Gap(S.lg),
+
+                      // The five payees you actually use, so a repeat
+                      // entry never starts from an empty field.
+                      if (!_isEdit && _kind != TxKind.transfer)
+                        _RecentPayees(
+                          payees: _recentPayees(data),
+                          onPick: (payee, categoryId) {
+                            Haptics.select();
+                            setState(() {
+                              _payee.text = payee;
+                              _categoryId ??= categoryId;
+                              _showMore = true;
+                            });
+                          },
+                        ),
+
+                      AnimatedSwitcher(
+                        duration: Motion.fast,
+                        switchInCurve: Motion.easeOut,
+                        switchOutCurve: Motion.easeOut,
+                        transitionBuilder: (child, anim) => FadeTransition(
+                          opacity: anim,
+                          child: SlideTransition(
+                            position: Tween<Offset>(
+                              begin: const Offset(0, 0.04),
+                              end: Offset.zero,
+                            ).animate(anim),
+                            child: child,
+                          ),
+                        ),
+                        child: StaggerColumn(
+                          key: ValueKey('fields-${_kind.wire}'),
+                          spacing: 14,
+                          startIndex: _isEdit ? 1 : 2,
+                          children: [
+                            if (_kind == TxKind.expense && plans.isNotEmpty && !_isEdit)
+                              PickerField<BudgetSpendSource>(
+                                label: 'Pay from',
+                                hint:
+                                    'Choosing a plan spends its reserved money instead of your '
+                                    'free balance. "Unplanned" is the catch-all for spending that '
+                                    'was never budgeted.',
+                                value: plan,
+                                options: plans,
+                                labelOf: (p) => p.isUnplanned
+                                    ? '${p.name} (from an account)'
+                                    : '${p.name} · ${formatMoney(p.balance, currency: p.currency)} left',
+                                iconOf: (p) => p.isUnplanned
+                                    ? Icons.account_balance_wallet_outlined
+                                    : financeIcon(p.icon),
+                                colorOf: (p) => parseHexColor(p.color) ?? t.primary,
+                                onChanged: (p) => setState(() {
+                                  _budgetId = p?.id;
+                                  _budgetSourceAccountId = null;
+                                  if (p != null && !p.isUnplanned && p.sources.length == 1) {
+                                    _budgetSourceAccountId = p.sources.first.account?.id;
+                                  }
+                                  // Plans with a linked category pre-select it.
+                                  final planCat = p?.categoryId;
+                                  if (planCat != null) _categoryId = planCat;
+                                }),
+                                allowClear: true,
+                                placeholder: 'Straight from an account',
+                                sheetTitle: 'Pay from',
+                              ),
+
+                            if (payingFromPot && plan.sources.length > 1)
+                              PickerField<BudgetSource>(
+                                label: 'Free the reservation on',
+                                hint:
+                                    'This plan was filled from more than one wallet. '
+                                    'Pick which one the money actually leaves.',
+                                value: plan.sources
+                                    .where((s) => s.account?.id == _budgetSourceAccountId)
+                                    .firstOrNull,
+                                options: plan.sources,
+                                labelOf: (s) =>
+                                    '${s.account?.name ?? 'Unknown'} · ${formatMoney(s.available, currency: plan.currency)}',
+                                iconOf: (s) => accountTypeIcon(s.account?.type ?? 'OTHER'),
+                                onChanged: (s) =>
+                                    setState(() => _budgetSourceAccountId = s?.account?.id),
+                                sheetTitle: 'Funding wallet',
+                              ),
+
+                            if (_kind != TxKind.transfer)
+                              PickerField<TxCategory>(
+                                label: 'Category',
+                                value: categoryById(_categoryId),
+                                options: categories,
+                                labelOf: (c) => c.name,
+                                iconOf: (c) => financeIcon(c.icon),
+                                colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
+                                onChanged: (c) => setState(() => _categoryId = c?.id),
+                                placeholder: 'Pick a category',
+                                sheetTitle: '${_kind.label} category',
+                              ),
+
+                            if (!payingFromPot)
+                              PickerField<Account>(
+                                label: _kind == TxKind.transfer
+                                    ? 'From account'
+                                    : _kind == TxKind.income
+                                    ? 'Into account'
+                                    : 'Account',
+                                value: accountById(_accountId),
+                                options: accounts,
+                                labelOf: (a) => a.name,
+                                subtitleOf: (a) =>
+                                    '${formatMoney(a.balance, currency: a.currency)} available',
+                                iconOf: (a) => accountTypeIcon(a.type.wire),
+                                colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
+                                onChanged: (a) => setState(() => _accountId = a?.id),
+                                placeholder: 'Pick an account',
+                              ),
+
+                            if (_kind == TxKind.transfer)
+                              PickerField<Account>(
+                                label: 'To account',
+                                value: accountById(_transferAccountId),
+                                options: accounts.where((a) => a.id != _accountId).toList(),
+                                labelOf: (a) => a.name,
+                                subtitleOf: (a) =>
+                                    '${formatMoney(a.balance, currency: a.currency)} available',
+                                iconOf: (a) => accountTypeIcon(a.type.wire),
+                                colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
+                                onChanged: (a) => setState(() => _transferAccountId = a?.id),
+                                placeholder: 'Pick a destination',
+                              ),
+
+                            DateField(
+                              label: 'Date',
+                              value: _date,
+                              onChanged: (d) => setState(() => _date = d ?? _date),
+                            ),
+                          ],
+                        ),
+                      ),
+
+                      const Gap(S.xs),
+                      _MoreDetailsToggle(
+                        expanded: _showMore,
+                        onTap: () => setState(() => _showMore = !_showMore),
+                      ),
+                      AnimatedSize(
+                        duration: Motion.fast,
+                        curve: Motion.easeOut,
+                        alignment: Alignment.topCenter,
+                        child: _showMore
+                            ? FadeInUp(
+                                delay: const Duration(milliseconds: 60),
+                                child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  children: [
+                                    const Gap(S.md),
+                                    AppTextField(
+                                      controller: _payee,
+                                      label: 'Payee',
+                                      placeholder: _kind == TxKind.income
+                                          ? 'Who paid you'
+                                          : 'Who you paid',
+                                      prefixIcon: Icons.storefront_outlined,
+                                    ),
+                                    const Gap(S.md),
+                                    AppTextField(
+                                      controller: _note,
+                                      label: 'Note',
+                                      placeholder: 'What was it for?',
+                                      maxLines: 3,
+                                      prefixIcon: Icons.notes_outlined,
+                                    ),
+                                    const Gap(S.md),
+                                    AppTextField(
+                                      controller: _tags,
+                                      label: 'Tags',
+                                      hint:
+                                          'Comma-separated. Tags let you slice spending in '
+                                          'ways categories cannot — "wedding", "trip", "unnecessary".',
+                                      placeholder: 'unnecessary, trip',
+                                      prefixIcon: Icons.sell_outlined,
+                                      textCapitalization: TextCapitalization.none,
+                                    ),
+                                  ],
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                      ),
+
+                      if (_error != null) ...[
+                        const Gap(S.md),
+                        FadeInUp(
+                          child: Container(
+                            padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                            decoration: BoxDecoration(
+                              color: t.danger.withValues(alpha: 0.12),
+                              borderRadius: BorderRadius.circular(R.lg),
+                              border: Border.all(color: t.danger.withValues(alpha: 0.35)),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: t.danger.withValues(alpha: 0.15),
+                                  blurRadius: 16,
+                                  spreadRadius: -4,
+                                ),
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                Icon(Icons.error_outline_rounded, size: 18, color: t.danger),
+                                const GapX(S.sm),
+                                Expanded(
+                                  child: Text(
+                                    _error!,
+                                    style: TextStyle(
+                                      fontSize: AppType.bodySm,
+                                      height: 1.4,
+                                      color: t.foreground,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        ),
+                      ],
+
+                      const Gap(S.xl),
+                      FadeInUp.staggered(
+                        index: 8,
+                        child: _GlowSubmitButton(
+                          label: _isEdit ? 'Save changes' : 'Add ${_kind.label.toLowerCase()}',
+                          tint: tint,
+                          loading: _saving,
+                          ready: _amountReady,
+                          onPressed: _saving ? null : _save,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
-              ],
-            ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
@@ -700,7 +759,7 @@ class _ModalHeader extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.fromLTRB(20, 14, 12, 16),
+      padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.md, S.lg),
       child: Column(
         children: [
           Container(
@@ -715,15 +774,11 @@ class _ModalHeader extends StatelessWidget {
                 ],
               ),
               boxShadow: [
-                BoxShadow(
-                  color: tint.withValues(alpha: 0.35),
-                  blurRadius: 8,
-                  spreadRadius: -1,
-                ),
+                BoxShadow(color: tint.withValues(alpha: 0.35), blurRadius: 8, spreadRadius: -1),
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -753,7 +808,7 @@ class _ModalHeader extends StatelessWidget {
                 ),
                 child: Icon(icon, color: tint, size: 24),
               ),
-              const SizedBox(width: 14),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -761,17 +816,17 @@ class _ModalHeader extends StatelessWidget {
                     Text(
                       title,
                       style: TextStyle(
-                        fontSize: 20,
+                        fontSize: AppType.heading,
                         fontWeight: FontWeight.w700,
                         letterSpacing: -0.4,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const Gap(S.xxs),
                     Text(
                       subtitle,
                       style: TextStyle(
-                        fontSize: 13,
+                        fontSize: AppType.bodySm,
                         color: t.mutedForeground,
                         height: 1.3,
                       ),
@@ -796,6 +851,68 @@ class _ModalHeader extends StatelessWidget {
 }
 
 // ─── Kind picker ─────────────────────────────────────────────────────────────
+
+/// Horizontal row of recent-payee chips above the detail fields.
+class _RecentPayees extends StatelessWidget {
+  const _RecentPayees({required this.payees, required this.onPick});
+
+  final List<({String payee, String? categoryId})> payees;
+  final void Function(String payee, String? categoryId) onPick;
+
+  @override
+  Widget build(BuildContext context) {
+    if (payees.isEmpty) return const SizedBox.shrink();
+    final t = context.t;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: S.lg),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Eyebrow('Recent'),
+          const Gap(S.sm),
+          SizedBox(
+            height: 34,
+            child: ListView.separated(
+              scrollDirection: Axis.horizontal,
+              itemCount: payees.length,
+              separatorBuilder: (_, _) => const GapX(S.sm),
+              itemBuilder: (context, i) {
+                final entry = payees[i];
+                return PressableScale(
+                  onTap: () => onPick(entry.payee, entry.categoryId),
+                  child: Semantics(
+                    button: true,
+                    label: 'Use payee ${entry.payee}',
+                    child: ExcludeSemantics(
+                      child: Container(
+                        alignment: Alignment.center,
+                        padding: const EdgeInsets.symmetric(horizontal: S.md),
+                        decoration: BoxDecoration(
+                          color: t.surfaceMuted.withValues(alpha: 0.7),
+                          borderRadius: BorderRadius.circular(R.pill),
+                          border: Border.all(color: t.border),
+                        ),
+                        child: Text(
+                          entry.payee,
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            fontWeight: W.medium,
+                            color: t.foreground,
+                          ),
+                        ),
+                      ),
+                    ),
+                  ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
 
 class _FuturisticKindPicker extends StatelessWidget {
   const _FuturisticKindPicker({
@@ -842,10 +959,7 @@ class _FuturisticKindPicker extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [
-                        active.withValues(alpha: 0.38),
-                        active.withValues(alpha: 0.14),
-                      ],
+                      colors: [active.withValues(alpha: 0.38), active.withValues(alpha: 0.14)],
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -872,7 +986,7 @@ class _FuturisticKindPicker extends StatelessWidget {
                             duration: Motion.fast,
                             curve: Motion.easeOut,
                             style: TextStyle(
-                              fontSize: 12,
+                              fontSize: AppType.label,
                               fontWeight: k == value ? FontWeight.w700 : FontWeight.w500,
                               color: k == value ? active : t.mutedForeground,
                             ),
@@ -884,7 +998,7 @@ class _FuturisticKindPicker extends StatelessWidget {
                                   size: 18,
                                   color: k == value ? active : t.mutedForeground,
                                 ),
-                                const SizedBox(height: 3),
+                                const Gap(S.xxs),
                                 Text(k.label),
                               ],
                             ),
@@ -953,7 +1067,7 @@ class _HeroAmountFieldState extends State<_HeroAmountField> {
     return AnimatedContainer(
       duration: Motion.fast,
       curve: Motion.easeOut,
-      padding: const EdgeInsets.all(1.8),
+      padding: const EdgeInsets.all(S.hair),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(R.xl),
         gradient: LinearGradient(
@@ -974,90 +1088,88 @@ class _HeroAmountFieldState extends State<_HeroAmountField> {
         ],
       ),
       child: Container(
-            padding: const EdgeInsets.fromLTRB(18, 16, 18, 14),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(R.xl - 1.8),
-              color: t.surface.withValues(alpha: t.isDark ? 0.72 : 0.88),
+        padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.xl, S.lg),
+        decoration: BoxDecoration(
+          borderRadius: BorderRadius.circular(R.xl - 1.8),
+          color: t.surface.withValues(alpha: t.isDark ? 0.72 : 0.88),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Amount',
+              style: TextStyle(
+                fontSize: AppType.caption,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.8,
+                color: widget.tint.withValues(alpha: 0.85),
+              ),
             ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+            const Gap(S.xs),
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.center,
               children: [
-                Text(
-                  'Amount',
+                AnimatedDefaultTextStyle(
+                  duration: Motion.fast,
                   style: TextStyle(
-                    fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.8,
-                    color: widget.tint.withValues(alpha: 0.85),
+                    fontSize: AppType.figure,
+                    fontWeight: FontWeight.w700,
+                    color: widget.tint.withValues(alpha: 0.65),
+                  ),
+                  child: Text(currencySymbol(widget.currency)),
+                ),
+                const GapX(S.sm),
+                Expanded(
+                  child: TextField(
+                    controller: widget.controller,
+                    focusNode: _focus,
+                    autofocus: widget.autofocus,
+                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                    cursorColor: widget.tint,
+                    style: TextStyle(
+                      fontSize: AppType.hero,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: -1.5,
+                      color: widget.tint,
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      height: 1.1,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: '0',
+                      hintStyle: TextStyle(
+                        fontSize: AppType.hero,
+                        fontWeight: FontWeight.w800,
+                        color: t.mutedForeground.withValues(alpha: 0.28),
+                      ),
+                      border: InputBorder.none,
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                    ),
                   ),
                 ),
-                const SizedBox(height: 6),
-                Row(
-                  crossAxisAlignment: CrossAxisAlignment.center,
-                  children: [
-                    AnimatedDefaultTextStyle(
-                      duration: Motion.fast,
-                      style: TextStyle(
-                        fontSize: 26,
-                        fontWeight: FontWeight.w700,
-                        color: widget.tint.withValues(alpha: 0.65),
-                      ),
-                      child: Text(currencySymbol(widget.currency)),
+                Container(
+                  padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
+                  decoration: BoxDecoration(
+                    color: widget.tint.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(R.pill),
+                    border: Border.all(color: widget.tint.withValues(alpha: 0.25)),
+                  ),
+                  child: Text(
+                    widget.currency,
+                    style: TextStyle(
+                      fontSize: AppType.caption,
+                      fontWeight: FontWeight.w700,
+                      letterSpacing: 0.6,
+                      color: widget.tint,
                     ),
-                    const SizedBox(width: 8),
-                    Expanded(
-                      child: TextField(
-                        controller: widget.controller,
-                        focusNode: _focus,
-                        autofocus: widget.autofocus,
-                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                        inputFormatters: [
-                          FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                        ],
-                        cursorColor: widget.tint,
-                        style: TextStyle(
-                          fontSize: 38,
-                          fontWeight: FontWeight.w800,
-                          letterSpacing: -1.5,
-                          color: widget.tint,
-                          fontFeatures: const [FontFeature.tabularFigures()],
-                          height: 1.1,
-                        ),
-                        decoration: InputDecoration(
-                          hintText: '0',
-                          hintStyle: TextStyle(
-                            fontSize: 38,
-                            fontWeight: FontWeight.w800,
-                            color: t.mutedForeground.withValues(alpha: 0.28),
-                          ),
-                          border: InputBorder.none,
-                          isDense: true,
-                          contentPadding: EdgeInsets.zero,
-                        ),
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: widget.tint.withValues(alpha: 0.12),
-                        borderRadius: BorderRadius.circular(R.pill),
-                        border: Border.all(color: widget.tint.withValues(alpha: 0.25)),
-                      ),
-                      child: Text(
-                        widget.currency,
-                        style: TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w700,
-                          letterSpacing: 0.6,
-                          color: widget.tint,
-                        ),
-                      ),
-                    ),
-                  ],
+                  ),
                 ),
               ],
             ),
-          ),
+          ],
+        ),
+      ),
     );
   }
 }
@@ -1079,7 +1191,7 @@ class _MoreDetailsToggle extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(R.lg),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 4),
+          padding: const EdgeInsets.symmetric(vertical: S.sm, horizontal: S.xxs),
           child: Row(
             children: [
               AnimatedRotation(
@@ -1088,17 +1200,21 @@ class _MoreDetailsToggle extends StatelessWidget {
                 curve: Motion.easeOut,
                 child: Icon(Icons.expand_more_rounded, size: 20, color: t.primary),
               ),
-              const SizedBox(width: 6),
+              const GapX(S.xs),
               Text(
                 expanded ? 'Fewer details' : 'More details',
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w600,
                   color: t.primary,
                 ),
               ),
               const Spacer(),
-              Icon(Icons.auto_awesome_outlined, size: 14, color: t.mutedForeground.withValues(alpha: 0.6)),
+              Icon(
+                Icons.auto_awesome_outlined,
+                size: 14,
+                color: t.mutedForeground.withValues(alpha: 0.6),
+              ),
             ],
           ),
         ),
@@ -1139,10 +1255,7 @@ class _GlowSubmitButton extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           colors: enabled
-              ? [
-                  tint,
-                  Color.lerp(tint, t.accent, 0.45)!,
-                ]
+              ? [tint, Color.lerp(tint, t.accent, 0.45)!]
               : [
                   t.mutedForeground.withValues(alpha: 0.35),
                   t.mutedForeground.withValues(alpha: 0.25),
@@ -1169,20 +1282,17 @@ class _GlowSubmitButton extends StatelessWidget {
                 ? SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2.5,
-                      color: t.primaryForeground,
-                    ),
+                    child: CircularProgressIndicator(strokeWidth: 2.5, color: t.primaryForeground),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Icon(Icons.bolt_rounded, color: t.primaryForeground, size: 20),
-                      const SizedBox(width: 8),
+                      const GapX(S.sm),
                       Text(
                         label,
                         style: TextStyle(
-                          fontSize: 16,
+                          fontSize: AppType.lead,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.2,
                           color: t.primaryForeground,

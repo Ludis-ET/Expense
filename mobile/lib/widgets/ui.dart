@@ -1,11 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 
+import '../core/haptics.dart';
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 import '../core/utils/format.dart';
+import 'empty_art.dart';
 import 'motion.dart';
 
+export 'empty_art.dart';
 export 'glass.dart';
 export 'motion.dart';
 
@@ -76,7 +78,10 @@ class BrandWord extends StatelessWidget {
         ),
         children: [
           const TextSpan(text: 'San'),
-          TextSpan(text: 'tim', style: TextStyle(color: t.primary)),
+          TextSpan(
+            text: 'tim',
+            style: TextStyle(color: t.primary),
+          ),
         ],
       ),
     );
@@ -114,17 +119,17 @@ class Avatar extends StatelessWidget {
           colors: colors,
         ),
         boxShadow: [
-          BoxShadow(color: colors.first.withValues(alpha: 0.3), blurRadius: 8, offset: const Offset(0, 2)),
+          BoxShadow(
+            color: colors.first.withValues(alpha: 0.3),
+            blurRadius: 8,
+            offset: const Offset(0, 2),
+          ),
         ],
       ),
       alignment: Alignment.center,
       child: Text(
         initials(name),
-        style: TextStyle(
-          fontSize: size * 0.36,
-          fontWeight: FontWeight.w700,
-          color: Colors.white,
-        ),
+        style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w700, color: Colors.white),
       ),
     );
   }
@@ -171,10 +176,13 @@ class AppButton extends StatelessWidget {
       BtnVariant.danger => (t.danger, Colors.white, null),
     };
 
+    // `sm` was 34dp, below Android's 48dp minimum, and it is used in card
+    // corners where a mis-tap is most likely. The pill keeps a compact look at
+    // 40dp; the hit area below grows it to 48 without changing the visual.
     final (height, hPad, fontSize) = switch (size) {
-      BtnSize.sm => (34.0, 12.0, 13.0),
-      BtnSize.md => (44.0, 18.0, 14.0),
-      BtnSize.lg => (52.0, 24.0, 15.5),
+      BtnSize.sm => (40.0, AppType.label, AppType.bodySm),
+      BtnSize.md => (44.0, 18.0, AppType.body),
+      BtnSize.lg => (52.0, AppType.figure, AppType.lead),
     };
 
     final child = Row(
@@ -189,7 +197,7 @@ class AppButton extends StatelessWidget {
           )
         else if (icon != null)
           Icon(icon, size: fontSize + 3, color: fg),
-        if (loading || icon != null) const SizedBox(width: 8),
+        if (loading || icon != null) const GapX(S.sm),
         Flexible(
           child: Text(
             label,
@@ -200,36 +208,46 @@ class AppButton extends StatelessWidget {
       ],
     );
 
-    return Opacity(
-      opacity: enabled ? 1 : 0.5,
-      child: PressableScale(
-        scale: 0.98,
-        onTap: enabled
-            ? () {
-                HapticFeedback.lightImpact();
-                onPressed!();
-              }
-            : null,
-        child: Container(
-          height: height,
-          width: expand ? double.infinity : null,
-          padding: EdgeInsets.symmetric(horizontal: hPad),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: bg,
-            borderRadius: BorderRadius.circular(R.md),
-            border: border != null ? Border.all(color: border) : null,
-            boxShadow: variant == BtnVariant.primary && enabled
-                ? [
-                    BoxShadow(
-                      color: t.primary.withValues(alpha: 0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    ),
-                  ]
+    return Semantics(
+      button: true,
+      enabled: enabled,
+      label: loading ? '$label, working' : label,
+      child: ExcludeSemantics(
+        child: Opacity(
+          opacity: enabled ? 1 : 0.5,
+          child: PressableScale(
+            scale: 0.98,
+            onTap: enabled
+                ? () {
+                    Haptics.toggle();
+                    onPressed!();
+                  }
                 : null,
+            // Keeps the drawn pill at `height` while guaranteeing the 48dp
+            // minimum touch target Android asks for.
+            minTapTarget: 48,
+            child: Container(
+              height: height,
+              width: expand ? double.infinity : null,
+              padding: EdgeInsets.symmetric(horizontal: hPad),
+              alignment: Alignment.center,
+              decoration: BoxDecoration(
+                color: bg,
+                borderRadius: BorderRadius.circular(R.md),
+                border: border != null ? Border.all(color: border) : null,
+                boxShadow: variant == BtnVariant.primary && enabled
+                    ? [
+                        BoxShadow(
+                          color: t.primary.withValues(alpha: 0.3),
+                          blurRadius: 12,
+                          offset: const Offset(0, 4),
+                        ),
+                      ]
+                    : null,
+              ),
+              child: child,
+            ),
           ),
-          child: child,
         ),
       ),
     );
@@ -260,30 +278,50 @@ class IconPill extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    Widget button = Material(
-      color: background ?? t.surfaceMuted.withValues(alpha: 0.7),
-      shape: const CircleBorder(),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: onTap,
-        child: SizedBox(
-          width: size,
-          height: size,
-          child: Icon(icon, size: size * 0.48, color: color ?? t.foreground),
+
+    // The pill is drawn at `size` (38dp by default) but the gesture lives on a
+    // box of at least 48dp — Android's minimum — so the transparent ring
+    // around the circle is tappable too. `InkResponse.radius` keeps the splash
+    // the size of the visible circle rather than the larger hit area.
+    final tap = size < 48 ? 48.0 : size;
+
+    Widget button = SizedBox(
+      width: tap,
+      height: tap,
+      child: Material(
+        color: Colors.transparent,
+        child: InkResponse(
+          onTap: onTap,
+          radius: size / 2,
+          containedInkWell: true,
+          customBorder: const CircleBorder(),
+          child: Center(
+            child: Container(
+              width: size,
+              height: size,
+              decoration: BoxDecoration(
+                color: background ?? t.surfaceMuted.withValues(alpha: 0.7),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(icon, size: size * 0.48, color: color ?? t.foreground),
+            ),
+          ),
         ),
       ),
     );
 
     if (badge != null && badge! > 0) {
+      // Hug the drawn circle, not the larger hit box.
+      final inset = (tap - size) / 2 - 1;
       button = Stack(
         clipBehavior: Clip.none,
         children: [
           button,
           Positioned(
-            right: -1,
-            top: -1,
+            right: inset,
+            top: inset,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 5, vertical: 1.5),
+              padding: const EdgeInsets.symmetric(horizontal: S.xs, vertical: 1.5),
               constraints: const BoxConstraints(minWidth: 17),
               decoration: BoxDecoration(
                 color: t.danger,
@@ -294,7 +332,7 @@ class IconPill extends StatelessWidget {
                 badge! > 99 ? '99+' : '$badge',
                 textAlign: TextAlign.center,
                 style: const TextStyle(
-                  fontSize: 9,
+                  fontSize: AppType.micro,
                   height: 1.2,
                   fontWeight: FontWeight.w700,
                   color: Colors.white,
@@ -306,7 +344,140 @@ class IconPill extends StatelessWidget {
       );
     }
 
-    return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
+    if (tooltip != null) button = Tooltip(message: tooltip!, child: button);
+
+    // An icon on its own announces nothing. The tooltip string is already the
+    // human name for this control, so it doubles as the spoken label; the
+    // badge count rides along as the value.
+    return Semantics(
+      button: onTap != null,
+      enabled: onTap != null,
+      label: tooltip,
+      value: badge != null && badge! > 0 ? '$badge' : null,
+      child: ExcludeSemantics(child: button),
+    );
+  }
+}
+
+/// Labeled header CTA — icon + text, with a soft pulse so add/recurring actions
+/// feel alive instead of being cryptic icon-only pills.
+class HeaderAction extends StatefulWidget {
+  const HeaderAction({
+    super.key,
+    required this.icon,
+    required this.label,
+    this.onTap,
+    this.primary = true,
+  });
+
+  final IconData icon;
+  final String label;
+  final VoidCallback? onTap;
+  final bool primary;
+
+  @override
+  State<HeaderAction> createState() => _HeaderActionState();
+}
+
+class _HeaderActionState extends State<HeaderAction> with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse = AnimationController(
+    vsync: this,
+    duration: const Duration(milliseconds: 1800),
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    if (widget.primary && !WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
+      _pulse.repeat(reverse: true);
+    }
+  }
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final reduceMotion = MediaQuery.disableAnimationsOf(context);
+
+    final child = PressableScale(
+      scale: 0.96,
+      onTap: widget.onTap == null
+          ? null
+          : () {
+              Haptics.toggle();
+              widget.onTap!();
+            },
+      child: AnimatedBuilder(
+        animation: _pulse,
+        builder: (context, child) {
+          final glow = widget.primary && !reduceMotion ? 0.18 + (_pulse.value * 0.14) : 0.22;
+          return Container(
+            height: 40,
+            padding: const EdgeInsets.fromLTRB(10, 0, 14, 0),
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(R.pill),
+              gradient: widget.primary
+                  ? LinearGradient(colors: [t.primary, t.accent])
+                  : null,
+              color: widget.primary ? null : t.surfaceMuted,
+              border: widget.primary ? null : Border.all(color: t.border),
+              boxShadow: widget.primary
+                  ? [
+                      BoxShadow(
+                        color: t.primary.withValues(alpha: glow),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
+                      ),
+                    ]
+                  : null,
+            ),
+            child: child,
+          );
+        },
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 24,
+              height: 24,
+              decoration: BoxDecoration(
+                color: widget.primary
+                    ? Colors.white.withValues(alpha: 0.22)
+                    : t.primary.withValues(alpha: 0.12),
+                shape: BoxShape.circle,
+              ),
+              child: Icon(
+                widget.icon,
+                size: 15,
+                color: widget.primary ? t.primaryForeground : t.primary,
+              ),
+            ),
+            const GapX(S.sm),
+            Text(
+              widget.label,
+              style: TextStyle(
+                fontSize: AppType.label,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 0.1,
+                color: widget.primary ? t.primaryForeground : t.foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+
+    return Semantics(
+      button: true,
+      enabled: widget.onTap != null,
+      label: widget.label,
+      child: ExcludeSemantics(child: child),
+    );
   }
 }
 
@@ -322,18 +493,20 @@ class Eyebrow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text.toUpperCase(),
-        style: TextStyle(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          letterSpacing: 0.8,
-          color: color ?? context.t.mutedForeground,
-        ),
-      );
+    text.toUpperCase(),
+    style: TextStyle(
+      fontSize: AppType.micro,
+      fontWeight: FontWeight.w700,
+      letterSpacing: 0.8,
+      color: color ?? context.t.mutedForeground,
+    ),
+  );
 }
 
+/// Secondary copy. `size` is snapped onto [AppType], so a call site can pass a
+/// legacy value like 11.5 and still land on the scale.
 class Muted extends StatelessWidget {
-  const Muted(this.text, {super.key, this.size = 12.5, this.maxLines, this.height});
+  const Muted(this.text, {super.key, this.size = AppType.label, this.maxLines, this.height});
   final String text;
   final double size;
   final int? maxLines;
@@ -341,21 +514,28 @@ class Muted extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        maxLines: maxLines,
-        overflow: maxLines != null ? TextOverflow.ellipsis : null,
-        style: TextStyle(fontSize: size, height: height, color: context.t.mutedForeground),
-      );
+    text,
+    maxLines: maxLines,
+    overflow: maxLines != null ? TextOverflow.ellipsis : null,
+    style: TextStyle(
+      fontSize: AppType.snap(size),
+      height: height,
+      color: context.t.mutedForeground,
+    ),
+  );
 }
 
-/// Money figure with tabular digits so columns line up.
+/// Money figure with tabular digits so columns line up. Reads its value aloud
+/// as words — see [spokenAmount] — because "ETB 1,234.50" is punctuation soup
+/// to a screen reader.
 class Amount extends StatelessWidget {
   const Amount(
     this.text, {
     super.key,
-    this.size = 15,
-    this.weight = FontWeight.w700,
+    this.size = AppType.body,
+    this.weight = W.bold,
     this.color,
+    this.semanticsLabel,
   });
 
   final String text;
@@ -363,23 +543,60 @@ class Amount extends StatelessWidget {
   final FontWeight weight;
   final Color? color;
 
+  /// Overrides the spoken form when the caller has more context (for example
+  /// "spent 240 birr of 1,000").
+  final String? semanticsLabel;
+
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: TextStyle(
-          fontSize: size,
-          fontWeight: weight,
-          color: color ?? context.t.foreground,
-          fontFeatures: const [FontFeature.tabularFigures()],
-          letterSpacing: -0.3,
-        ),
-      );
+    text,
+    semanticsLabel: semanticsLabel ?? spokenAmount(text),
+    style: TextStyle(
+      fontSize: AppType.snap(size),
+      fontWeight: weight,
+      color: color ?? context.t.foreground,
+      fontFeatures: const [FontFeature.tabularFigures()],
+      letterSpacing: -0.3,
+    ),
+  );
+}
+
+/// Turns a rendered money string into something a screen reader can speak.
+/// `ETB 1,234.50` becomes `1,234.50 ETB`; `-240 br` becomes `minus 240 br`.
+String spokenAmount(String text) {
+  var out = text.trim();
+  if (out.isEmpty) return out;
+
+  // Amounts are masked when the user hides them; say so rather than spelling
+  // out the bullets.
+  if (RegExp(r'^[•*•\s]+$').hasMatch(out)) return 'hidden';
+
+  var negative = false;
+  if (out.startsWith('-') || out.startsWith('−')) {
+    negative = true;
+    out = out.substring(1).trimLeft();
+  }
+
+  // Move a leading currency code or symbol to the end, the way it is spoken.
+  final lead = RegExp(r'^([A-Za-z]{2,3}|[^\d\s.,-])\s*');
+  final match = lead.firstMatch(out);
+  if (match != null) {
+    out = '${out.substring(match.end)} ${match.group(1)}'.trim();
+  }
+
+  return negative ? 'minus $out' : out;
 }
 
 enum BadgeTone { neutral, primary, success, warning, danger, info }
 
 class AppBadge extends StatelessWidget {
-  const AppBadge(this.label, {super.key, this.tone = BadgeTone.neutral, this.icon, this.dense = false});
+  const AppBadge(
+    this.label, {
+    super.key,
+    this.tone = BadgeTone.neutral,
+    this.icon,
+    this.dense = false,
+  });
 
   final String label;
   final BadgeTone tone;
@@ -408,7 +625,7 @@ class AppBadge extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 11, color: fg), const SizedBox(width: 3)],
+          if (icon != null) ...[Icon(icon, size: 11, color: fg), const GapX(S.xxs)],
           Text(
             label,
             style: TextStyle(
@@ -468,13 +685,7 @@ class IconTile extends StatelessWidget {
 /// `PageHeader` — title, an optional `(i)` hint, a badge and one action. The
 /// description lives behind the icon rather than as subtitle copy.
 class PageHeader extends StatelessWidget {
-  const PageHeader({
-    super.key,
-    required this.title,
-    this.description,
-    this.action,
-    this.badge,
-  });
+  const PageHeader({super.key, required this.title, this.description, this.action, this.badge});
 
   final String title;
   final String? description;
@@ -484,7 +695,7 @@ class PageHeader extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.only(bottom: 16),
+      padding: const EdgeInsets.only(bottom: S.lg),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -492,7 +703,7 @@ class PageHeader extends StatelessWidget {
             child: Text(
               title,
               style: TextStyle(
-                fontSize: 24,
+                fontSize: AppType.figure,
                 fontWeight: FontWeight.bold,
                 letterSpacing: -0.6,
                 color: context.t.foreground,
@@ -500,10 +711,10 @@ class PageHeader extends StatelessWidget {
             ),
           ),
           if (description != null) ...[
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             InfoHint(label: 'About $title', body: description!),
           ],
-          if (badge != null) ...[const SizedBox(width: 8), badge!],
+          if (badge != null) ...[const GapX(S.sm), badge!],
           const Spacer(),
           ?action,
         ],
@@ -525,17 +736,17 @@ class InfoHint extends StatelessWidget {
     final t = context.t;
     return GestureDetector(
       onTap: () {
-        HapticFeedback.selectionClick();
+        Haptics.select();
         showModalBottomSheet<void>(
           context: context,
           backgroundColor: Colors.transparent,
           builder: (_) => SheetShell(
             title: label,
             child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 28),
+              padding: const EdgeInsets.fromLTRB(S.xl, S.xxs, S.xl, S.huge),
               child: Text(
                 body,
-                style: TextStyle(fontSize: 14, height: 1.55, color: t.mutedForeground),
+                style: TextStyle(fontSize: AppType.body, height: 1.55, color: t.mutedForeground),
               ),
             ),
           ),
@@ -544,10 +755,7 @@ class InfoHint extends StatelessWidget {
       child: Container(
         width: size + 4,
         height: size + 4,
-        decoration: BoxDecoration(
-          color: t.surfaceMuted,
-          shape: BoxShape.circle,
-        ),
+        decoration: BoxDecoration(color: t.surfaceMuted, shape: BoxShape.circle),
         alignment: Alignment.center,
         child: Icon(Icons.info_outline, size: size - 4, color: t.mutedForeground),
       ),
@@ -579,21 +787,19 @@ class CardTitleRow extends StatelessWidget {
     final t = context.t;
     return Row(
       children: [
-        if (icon != null) ...[
-          Icon(icon, size: 16, color: t.mutedForeground),
-          const SizedBox(width: 7),
-        ],
+        if (icon != null) ...[Icon(icon, size: 16, color: t.mutedForeground), const GapX(S.xs)],
         Flexible(
           child: Text(
             title,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: 14.5, fontWeight: FontWeight.w700, color: t.foreground),
+            style: TextStyle(
+              fontSize: AppType.body,
+              fontWeight: FontWeight.w700,
+              color: t.foreground,
+            ),
           ),
         ),
-        if (hint != null) ...[
-          const SizedBox(width: 5),
-          InfoHint(label: title, body: hint!, size: 14),
-        ],
+        if (hint != null) ...[const GapX(S.xxs), InfoHint(label: title, body: hint!, size: 14)],
         const Spacer(),
         if (trailing != null)
           trailing!
@@ -605,7 +811,11 @@ class CardTitleRow extends StatelessWidget {
               children: [
                 Text(
                   trailingLabel!,
-                  style: TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: t.primary),
+                  style: TextStyle(
+                    fontSize: AppType.label,
+                    fontWeight: FontWeight.w600,
+                    color: t.primary,
+                  ),
                 ),
                 Icon(Icons.chevron_right, size: 15, color: t.primary),
               ],
@@ -624,6 +834,7 @@ class ProgressBar extends StatelessWidget {
     this.tone = BadgeTone.primary,
     this.height = 8,
     this.gradient,
+    this.label,
   });
 
   /// 0–100.
@@ -632,10 +843,16 @@ class ProgressBar extends StatelessWidget {
   final double height;
   final List<Color>? gradient;
 
+  /// What the bar is measuring, e.g. "Groceries budget". Announced with the
+  /// percentage; without it the bar still reports its value rather than
+  /// staying silent.
+  final String? label;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final colors = gradient ??
+    final colors =
+        gradient ??
         switch (tone) {
           BadgeTone.primary => [t.primary, t.accent],
           BadgeTone.success => [const Color(0xFF10B981), const Color(0xFF14B8A6)],
@@ -645,23 +862,27 @@ class ProgressBar extends StatelessWidget {
           BadgeTone.neutral => [t.mutedForeground, t.mutedForeground],
         };
 
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(R.pill),
-      child: Container(
-        height: height,
-        color: t.surfaceMuted,
-        child: Align(
-          alignment: Alignment.centerLeft,
-          child: TweenAnimationBuilder<double>(
-            tween: Tween(begin: 0, end: (value / 100).clamp(0.0, 1.0)),
-            duration: const Duration(milliseconds: 700),
-            curve: Motion.easeOut,
-            builder: (context, v, _) => FractionallySizedBox(
-              widthFactor: v,
-              child: Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(R.pill),
-                  gradient: LinearGradient(colors: colors),
+    return Semantics(
+      label: label,
+      value: '${value.clamp(0, 100).round()} percent',
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(R.pill),
+        child: Container(
+          height: height,
+          color: t.surfaceMuted,
+          child: Align(
+            alignment: Alignment.centerLeft,
+            child: TweenAnimationBuilder<double>(
+              tween: Tween(begin: 0, end: (value / 100).clamp(0.0, 1.0)),
+              duration: const Duration(milliseconds: 700),
+              curve: Motion.easeOut,
+              builder: (context, v, _) => FractionallySizedBox(
+                widthFactor: v,
+                child: Container(
+                  decoration: BoxDecoration(
+                    borderRadius: BorderRadius.circular(R.pill),
+                    gradient: LinearGradient(colors: colors),
+                  ),
                 ),
               ),
             ),
@@ -673,6 +894,10 @@ class ProgressBar extends StatelessWidget {
 }
 
 /// `EmptyState` — dashed border, muted icon tile, optional action.
+/// What an empty state draws above its copy. [EmptyArt.none] falls back to the
+/// plain icon tile.
+enum EmptyArt { none, ledger, wallet, plan, wish, search, calendar }
+
 class EmptyState extends StatelessWidget {
   const EmptyState({
     super.key,
@@ -681,6 +906,7 @@ class EmptyState extends StatelessWidget {
     this.icon,
     this.action,
     this.compact = false,
+    this.art = EmptyArt.none,
   });
 
   final String title;
@@ -689,12 +915,18 @@ class EmptyState extends StatelessWidget {
   final Widget? action;
   final bool compact;
 
+  /// A drawn illustration instead of the muted icon tile. Zero-data screens are
+  /// the ones a new user sees most, so they are worth more than a grey glyph.
+  final EmptyArt art;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final showArt = art != EmptyArt.none && !compact;
+
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: 20, vertical: compact ? 22 : 40),
+      padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: compact ? S.xxl : 40),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(R.md),
@@ -703,7 +935,10 @@ class EmptyState extends StatelessWidget {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[
+          if (showArt) ...[
+            ExcludeSemantics(child: EmptyStateArt(art: art)),
+            const Gap(S.lg),
+          ] else if (icon != null) ...[
             Container(
               width: 48,
               height: 48,
@@ -713,22 +948,26 @@ class EmptyState extends StatelessWidget {
               ),
               child: Icon(icon, size: 22, color: t.mutedForeground),
             ),
-            const SizedBox(height: 12),
+            const Gap(S.md),
           ],
           Text(
             title,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: t.foreground),
+            style: TextStyle(
+              fontSize: AppType.body,
+              fontWeight: FontWeight.w600,
+              color: t.foreground,
+            ),
           ),
           if (description != null) ...[
-            const SizedBox(height: 5),
+            const Gap(S.xxs),
             Text(
               description!,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: 13, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.mutedForeground),
             ),
           ],
-          if (action != null) ...[const SizedBox(height: 16), action!],
+          if (action != null) ...[const Gap(S.lg), action!],
         ],
       ),
     );
@@ -747,7 +986,7 @@ class ErrorState extends StatelessWidget {
     final t = context.t;
     return Container(
       width: double.infinity,
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(S.xl),
       decoration: BoxDecoration(
         color: t.danger.withValues(alpha: 0.07),
         borderRadius: BorderRadius.circular(R.md),
@@ -756,15 +995,21 @@ class ErrorState extends StatelessWidget {
       child: Column(
         children: [
           Icon(Icons.cloud_off_outlined, size: 26, color: t.danger),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: 13.5, height: 1.45, color: t.foreground),
+            style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.foreground),
           ),
           if (onRetry != null) ...[
-            const SizedBox(height: 14),
-            AppButton(label: 'Try again', size: BtnSize.sm, variant: BtnVariant.outline, onPressed: onRetry, icon: Icons.refresh),
+            const Gap(S.md),
+            AppButton(
+              label: 'Try again',
+              size: BtnSize.sm,
+              variant: BtnVariant.outline,
+              onPressed: onRetry,
+              icon: Icons.refresh,
+            ),
           ],
         ],
       ),
@@ -785,23 +1030,20 @@ class PageLoader extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         const Skeleton(height: 28, width: 170),
-        const SizedBox(height: 16),
-        if (hero) ...[
-          const Skeleton(height: 168, radius: R.xl),
-          const SizedBox(height: 16),
-        ],
+        const Gap(S.lg),
+        if (hero) ...[const Skeleton(height: 168, radius: R.xl), const Gap(S.lg)],
         Row(
           children: [
             for (var i = 0; i < 3; i++) ...[
-              if (i > 0) const SizedBox(width: 10),
+              if (i > 0) const GapX(S.sm),
               const Expanded(child: Skeleton(height: 84, radius: R.card)),
             ],
           ],
         ),
-        const SizedBox(height: 16),
+        const Gap(S.lg),
         for (var i = 0; i < rows; i++)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: S.md),
             child: Skeleton(height: 62, radius: R.card, margin: EdgeInsets.zero),
           ),
       ],
@@ -811,29 +1053,33 @@ class PageLoader extends StatelessWidget {
 
 /// Section label between blocks of a scrolling page.
 class SectionLabel extends StatelessWidget {
-  const SectionLabel(this.text, {super.key, this.trailing});
+  const SectionLabel(this.text, {super.key, this.trailing, this.hint});
   final String text;
   final Widget? trailing;
 
+  /// Explanatory copy, shown behind an (i) rather than as subtitle text.
+  final String? hint;
+
   @override
   Widget build(BuildContext context) => Padding(
-        padding: const EdgeInsets.only(bottom: 10, top: 2),
-        child: Row(
-          children: [
-            Text(
-              text,
-              style: TextStyle(
-                fontSize: 12,
-                fontWeight: FontWeight.w700,
-                letterSpacing: 0.4,
-                color: context.t.mutedForeground,
-              ),
-            ),
-            const Spacer(),
-            ?trailing,
-          ],
+    padding: const EdgeInsets.only(bottom: S.md, top: S.hair),
+    child: Row(
+      children: [
+        Text(
+          text,
+          style: TextStyle(
+            fontSize: AppType.label,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.4,
+            color: context.t.mutedForeground,
+          ),
         ),
-      );
+        if (hint != null) ...[const GapX(S.xs), InfoHint(label: text, body: hint!, size: 14)],
+        const Spacer(),
+        ?trailing,
+      ],
+    ),
+  );
 }
 
 // ---------------------------------------------------------------------------
@@ -867,20 +1113,17 @@ class SheetShell extends StatelessWidget {
       mainAxisSize: MainAxisSize.min,
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        const SizedBox(height: 10),
+        const Gap(S.sm),
         Center(
           child: Container(
             width: 38,
             height: 4,
-            decoration: BoxDecoration(
-              color: t.border,
-              borderRadius: BorderRadius.circular(R.pill),
-            ),
+            decoration: BoxDecoration(color: t.border, borderRadius: BorderRadius.circular(R.pill)),
           ),
         ),
         if (title != null)
           Padding(
-            padding: const EdgeInsets.fromLTRB(20, 16, 12, 14),
+            padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.md, S.lg),
             child: Row(
               children: [
                 Expanded(
@@ -890,16 +1133,13 @@ class SheetShell extends StatelessWidget {
                       Text(
                         title!,
                         style: TextStyle(
-                          fontSize: 17,
+                          fontSize: AppType.lead,
                           fontWeight: FontWeight.w700,
                           letterSpacing: -0.3,
                           color: t.foreground,
                         ),
                       ),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: 3),
-                        Muted(subtitle!),
-                      ],
+                      if (subtitle != null) ...[const Gap(S.xxs), Muted(subtitle!)],
                     ],
                   ),
                 ),
@@ -952,12 +1192,8 @@ Future<T?> showAppSheet<T>(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) => SheetShell(
-      title: title,
-      subtitle: subtitle,
-      scrollable: scrollable,
-      child: builder(ctx),
-    ),
+    builder: (ctx) =>
+        SheetShell(title: title, subtitle: subtitle, scrollable: scrollable, child: builder(ctx)),
   );
 }
 
@@ -977,11 +1213,11 @@ Future<bool> confirm(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.xl)),
       title: Text(
         title,
-        style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+        style: TextStyle(fontSize: AppType.lead, fontWeight: FontWeight.w700, color: t.foreground),
       ),
       content: Text(
         message,
-        style: TextStyle(fontSize: 14, height: 1.5, color: t.mutedForeground),
+        style: TextStyle(fontSize: AppType.body, height: 1.5, color: t.mutedForeground),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       actions: [
@@ -1017,14 +1253,17 @@ void toast(BuildContext context, String message, {bool error = false}) {
               size: 18,
               color: error ? t.danger : t.primary,
             ),
-            const SizedBox(width: 10),
+            const GapX(S.sm),
             Expanded(
-              child: Text(message, style: TextStyle(fontSize: 13.5, color: t.foreground)),
+              child: Text(
+                message,
+                style: TextStyle(fontSize: AppType.bodySm, color: t.foreground),
+              ),
             ),
           ],
         ),
         duration: const Duration(seconds: 3),
-        margin: const EdgeInsets.fromLTRB(14, 0, 14, 14),
+        margin: const EdgeInsets.fromLTRB(S.lg, 0, S.lg, S.lg),
       ),
     );
 }

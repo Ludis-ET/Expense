@@ -76,15 +76,19 @@ class _GuidesScreenState extends State<GuidesScreen> {
     final guides = data == null
         ? const <Guide>[]
         : _category == null
-            ? data.guides
-            : data.guides.where((g) => g.category == _category).toList();
+        ? data.guides
+        : data.guides.where((g) => g.category == _category).toList();
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'Guides',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -111,7 +115,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
                   SectionLabel('FOR YOU'),
                   for (var i = 0; i < data.suggestions.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 11),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: FadeInUp.staggered(
                         index: i,
                         child: _SuggestionCard(
@@ -120,7 +124,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
                         ),
                       ),
                     ),
-                  const SizedBox(height: 10),
+                  const Gap(S.sm),
                 ],
 
                 SingleChildScrollView(
@@ -133,7 +137,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
                         onTap: () => setState(() => _category = null),
                       ),
                       for (final entry in _categories.entries) ...[
-                        const SizedBox(width: 8),
+                        const GapX(S.sm),
                         _Chip(
                           label: entry.value,
                           active: _category == entry.key,
@@ -143,14 +147,14 @@ class _GuidesScreenState extends State<GuidesScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const Gap(S.lg),
 
                 if (guides.isEmpty)
                   const EmptyState(title: 'Nothing here yet', compact: true)
                 else
                   for (var i = 0; i < guides.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 11),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: FadeInUp.staggered(
                         index: i,
                         child: _GuideCard(guide: guides[i]),
@@ -178,7 +182,7 @@ class _Chip extends StatelessWidget {
     return PressableScale(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
         decoration: BoxDecoration(
           color: active ? t.primary.withValues(alpha: 0.12) : t.surface,
           borderRadius: BorderRadius.circular(R.pill),
@@ -187,7 +191,7 @@ class _Chip extends StatelessWidget {
         child: Text(
           label,
           style: TextStyle(
-            fontSize: 12.5,
+            fontSize: AppType.label,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: active ? t.primary : t.foreground,
           ),
@@ -217,20 +221,20 @@ class _SuggestionCard extends StatelessWidget {
         : guides.where((g) => g.id == suggestion.guideId).firstOrNull;
 
     return GlassCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(S.lg),
       tint: tone,
       opacity: 0.09,
       borderColor: tone.withValues(alpha: 0.25),
       onTap: linked == null
           ? null
-          : () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => GuideReader(guide: linked)),
-              ),
+          : () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => GuideReader(guide: linked))),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           IconTile(icon: icon, color: tone, size: 36),
-          const SizedBox(width: 12),
+          const GapX(S.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -238,24 +242,24 @@ class _SuggestionCard extends StatelessWidget {
                 Text(
                   suggestion.title,
                   style: TextStyle(
-                    fontSize: 14,
+                    fontSize: AppType.body,
                     fontWeight: FontWeight.w700,
                     color: t.foreground,
                   ),
                 ),
-                const SizedBox(height: 4),
+                const Gap(S.xxs),
                 Text(
                   suggestion.body,
-                  style: TextStyle(fontSize: 12.5, height: 1.5, color: t.mutedForeground),
+                  style: TextStyle(fontSize: AppType.label, height: 1.5, color: t.mutedForeground),
                 ),
                 if (linked != null) ...[
-                  const SizedBox(height: 8),
+                  const Gap(S.sm),
                   Row(
                     children: [
                       Text(
                         suggestion.cta ?? 'Read the guide',
                         style: TextStyle(
-                          fontSize: 12,
+                          fontSize: AppType.label,
                           fontWeight: FontWeight.w700,
                           color: tone,
                         ),
@@ -281,10 +285,9 @@ class _GuideCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(14),
-      onTap: () => Navigator.of(context).push(
-        MaterialPageRoute(builder: (_) => GuideReader(guide: guide)),
-      ),
+      padding: const EdgeInsets.all(S.lg),
+      onTap: () =>
+          Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuideReader(guide: guide))),
       child: Row(
         children: [
           Container(
@@ -295,9 +298,9 @@ class _GuideCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(R.md),
             ),
             alignment: Alignment.center,
-            child: Text(guide.emoji, style: const TextStyle(fontSize: 21)),
+            child: Text(guide.emoji, style: const TextStyle(fontSize: AppType.heading)),
           ),
-          const SizedBox(width: 12),
+          const GapX(S.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -306,18 +309,18 @@ class _GuideCard extends StatelessWidget {
                   guide.title,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: AppType.body,
                     fontWeight: FontWeight.w700,
                     color: t.foreground,
                   ),
                 ),
-                const SizedBox(height: 3),
+                const Gap(S.xxs),
                 Muted(guide.tagline, size: 12, maxLines: 2, height: 1.35),
-                const SizedBox(height: 6),
+                const Gap(S.xs),
                 Row(
                   children: [
                     Icon(Icons.schedule, size: 11, color: t.mutedForeground),
-                    const SizedBox(width: 4),
+                    const GapX(S.xxs),
                     Muted('${guide.readMins} min read', size: 10.5),
                   ],
                 ),
@@ -342,10 +345,7 @@ class GuideReader extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(
-          guide.emoji,
-          style: const TextStyle(fontSize: 20),
-        ),
+        title: Text(guide.emoji, style: const TextStyle(fontSize: AppType.heading)),
       ),
       body: MeshBackground(
         showGrid: false,
@@ -356,7 +356,7 @@ class GuideReader extends StatelessWidget {
               child: Text(
                 guide.title,
                 style: TextStyle(
-                  fontSize: 25,
+                  fontSize: AppType.figure,
                   height: 1.25,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -0.6,
@@ -364,43 +364,40 @@ class GuideReader extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 8),
+            const Gap(S.sm),
             FadeInUp(
               delay: const Duration(milliseconds: 50),
               child: Text(
                 guide.tagline,
-                style: TextStyle(fontSize: 14.5, height: 1.5, color: t.mutedForeground),
+                style: TextStyle(fontSize: AppType.body, height: 1.5, color: t.mutedForeground),
               ),
             ),
-            const SizedBox(height: 12),
+            const Gap(S.md),
             Row(
               children: [
-                AppBadge(
-                  guide.category.replaceAll('-', ' '),
-                  tone: BadgeTone.primary,
-                ),
-                const SizedBox(width: 8),
+                AppBadge(guide.category.replaceAll('-', ' '), tone: BadgeTone.primary),
+                const GapX(S.sm),
                 Muted('${guide.readMins} min read', size: 11.5),
               ],
             ),
-            const SizedBox(height: 24),
+            const Gap(S.xxl),
             for (var i = 0; i < guide.sections.length; i++)
               FadeInUp.staggered(
                 index: i,
                 child: Padding(
-                  padding: const EdgeInsets.only(bottom: 24),
+                  padding: const EdgeInsets.only(bottom: S.xxl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
                         guide.sections[i].heading,
                         style: TextStyle(
-                          fontSize: 16.5,
+                          fontSize: AppType.lead,
                           fontWeight: FontWeight.w700,
                           color: t.foreground,
                         ),
                       ),
-                      const SizedBox(height: 8),
+                      const Gap(S.sm),
                       _Markdown(text: guide.sections[i].body),
                     ],
                   ),
@@ -428,20 +425,17 @@ class _Markdown extends StatelessWidget {
       children: [
         for (final line in blocks)
           Padding(
-            padding: const EdgeInsets.only(bottom: 10),
+            padding: const EdgeInsets.only(bottom: S.md),
             child: line.trimLeft().startsWith('- ') || line.trimLeft().startsWith('* ')
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Padding(
-                        padding: const EdgeInsets.only(top: 7, right: 10),
+                        padding: const EdgeInsets.only(top: S.sm, right: S.md),
                         child: Container(
                           width: 5,
                           height: 5,
-                          decoration: BoxDecoration(
-                            color: t.primary,
-                            shape: BoxShape.circle,
-                          ),
+                          decoration: BoxDecoration(color: t.primary, shape: BoxShape.circle),
                         ),
                       ),
                       Expanded(child: _rich(context, line.trimLeft().substring(2))),
@@ -463,17 +457,19 @@ class _Markdown extends StatelessWidget {
       if (match.start > index) {
         spans.add(TextSpan(text: line.substring(index, match.start)));
       }
-      spans.add(TextSpan(
-        text: match.group(1),
-        style: const TextStyle(fontWeight: FontWeight.w700),
-      ));
+      spans.add(
+        TextSpan(
+          text: match.group(1),
+          style: const TextStyle(fontWeight: FontWeight.w700),
+        ),
+      );
       index = match.end;
     }
     if (index < line.length) spans.add(TextSpan(text: line.substring(index)));
 
     return RichText(
       text: TextSpan(
-        style: TextStyle(fontSize: 14, height: 1.65, color: t.mutedForeground),
+        style: TextStyle(fontSize: AppType.body, height: 1.65, color: t.mutedForeground),
         children: spans.isEmpty ? [TextSpan(text: line)] : spans,
       ),
     );

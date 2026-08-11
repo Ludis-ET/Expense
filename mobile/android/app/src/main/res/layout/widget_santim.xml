@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Home-screen widget. Tapping anywhere opens Santim; the round button opens
+  the add-transaction sheet directly.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/widget_root"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:gravity="center_vertical"
+    android:padding="16dp"
+    android:background="@drawable/widget_background">
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:orientation="vertical">
+
+        <TextView
+            android:id="@+id/widget_caption"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/widget_default_caption"
+            android:textSize="11sp"
+            android:letterSpacing="0.06"
+            android:textAllCaps="true"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widget_muted" />
+
+        <TextView
+            android:id="@+id/widget_remaining"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="4dp"
+            android:text="@string/widget_default_amount"
+            android:textSize="24sp"
+            android:textStyle="bold"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widget_foreground" />
+
+        <TextView
+            android:id="@+id/widget_spent"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginTop="2dp"
+            android:textSize="12sp"
+            android:maxLines="1"
+            android:ellipsize="end"
+            android:textColor="@color/widget_muted" />
+    </LinearLayout>
+
+    <ImageView
+        android:id="@+id/widget_add"
+        android:layout_width="48dp"
+        android:layout_height="48dp"
+        android:layout_marginStart="12dp"
+        android:padding="12dp"
+        android:src="@drawable/widget_ic_add"
+        android:background="@drawable/widget_add_background"
+        android:contentDescription="@string/widget_add_description" />
+</LinearLayout>

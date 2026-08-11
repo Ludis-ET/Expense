@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../state/sms_state.dart';
@@ -93,16 +95,19 @@ class _ImportSheetState extends State<_ImportSheet> {
                 ),
             ],
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Text(
             _count == null ? 'Counting messages…' : 'About $_count messages in range',
             style: TextStyle(fontWeight: FontWeight.w700, color: t.foreground),
           ),
           if (_error != null) ...[
-            const SizedBox(height: 8),
-            Text(_error!, style: TextStyle(color: t.danger, fontSize: 13)),
+            const Gap(S.sm),
+            Text(
+              _error!,
+              style: TextStyle(color: t.danger, fontSize: AppType.bodySm),
+            ),
           ],
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           AppButton(
             label: _busy ? 'Working…' : 'Import into queue',
             expand: true,

@@ -70,8 +70,8 @@ class ApiClient {
 
   String get baseUrl => _defaultBase;
 
-  Future<T> get<T>(String path, {Map<String, dynamic>? query}) =>
-      _request<T>('GET', path, query: query);
+  Future<T> get<T>(String path, {Map<String, dynamic>? query, bool skipAuth = false}) =>
+      _request<T>('GET', path, query: query, skipAuth: skipAuth);
 
   Future<T> post<T>(String path, {Object? body, bool skipAuth = false}) =>
       _request<T>('POST', path, body: body, skipAuth: skipAuth);

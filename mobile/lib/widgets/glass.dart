@@ -11,7 +11,7 @@ class GlassCard extends StatelessWidget {
   const GlassCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(S.lg),
     this.radius = R.card,
     this.blur = 0,
     this.opacity = 0.94,
@@ -26,6 +26,7 @@ class GlassCard extends StatelessWidget {
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
   final double radius;
+
   /// Kept for API compatibility; blur is intentionally unused for performance.
   final double blur;
   final double opacity;
@@ -56,7 +57,8 @@ class GlassCard extends StatelessWidget {
             ],
           ),
           border: Border.all(
-            color: borderColor ??
+            color:
+                borderColor ??
                 (t.isDark
                     ? Colors.white.withValues(alpha: 0.07)
                     : Colors.white.withValues(alpha: 0.65)),
@@ -122,41 +124,77 @@ class GlassCard extends StatelessWidget {
   }
 }
 
+/// How much visual weight a card claims. Before this existed every card in the
+/// app was identical, so a screen of seventeen of them gave the eye no entry
+/// point — importance was communicated only by scroll position.
+enum Prominence {
+  /// The one thing on the screen that matters most. Tinted border, lifted
+  /// shadow, wider radius.
+  hero,
+
+  /// The default — a normal content card.
+  standard,
+
+  /// Supporting detail. Sits back into the page: no shadow, muted fill.
+  quiet,
+}
+
 /// Opaque sibling of [GlassCard] — the web app's `.card`. Cheaper to paint, so
 /// it is the default for list rows and anything that repeats.
 class AppCard extends StatelessWidget {
   const AppCard({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(16),
+    this.padding = const EdgeInsets.all(S.lg),
     this.margin,
-    this.radius = R.card,
+    this.radius,
     this.onTap,
     this.color,
     this.borderColor,
     this.elevated = false,
+    this.prominence = Prominence.standard,
   });
 
   final Widget child;
   final EdgeInsetsGeometry padding;
   final EdgeInsetsGeometry? margin;
-  final double radius;
+
+  /// Overrides the radius implied by [prominence].
+  final double? radius;
   final VoidCallback? onTap;
   final Color? color;
   final Color? borderColor;
+
+  /// Legacy flag, equivalent to [Prominence.hero]'s shadow alone.
   final bool elevated;
+  final Prominence prominence;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final br = BorderRadius.circular(radius);
+    final hero = prominence == Prominence.hero;
+    final quiet = prominence == Prominence.quiet;
+
+    final br = BorderRadius.circular(radius ?? (hero ? R.xl : R.card));
+
+    final fill =
+        color ??
+        switch (prominence) {
+          Prominence.hero => t.surfaceElevated,
+          Prominence.standard => elevated ? t.surfaceElevated : t.surface,
+          Prominence.quiet => t.surfaceMuted.withValues(alpha: t.isDark ? 0.45 : 0.6),
+        };
+
+    final stroke =
+        borderColor ?? (hero ? t.primary.withValues(alpha: t.isDark ? 0.35 : 0.28) : t.border);
+
     return Container(
       margin: margin,
       decoration: BoxDecoration(
-        color: color ?? (elevated ? t.surfaceElevated : t.surface),
+        color: fill,
         borderRadius: br,
-        border: Border.all(color: borderColor ?? t.border),
-        boxShadow: elevated ? t.elevatedShadow : t.cardShadow,
+        border: Border.all(color: stroke, width: hero ? 1.5 : 1),
+        boxShadow: quiet ? null : (hero || elevated ? t.elevatedShadow : t.cardShadow),
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -261,9 +299,7 @@ class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStat
             ),
           ),
         Positioned.fill(
-          child: IgnorePointer(
-            child: RepaintBoundary(child: mesh),
-          ),
+          child: IgnorePointer(child: RepaintBoundary(child: mesh)),
         ),
         widget.child,
       ],
@@ -322,17 +358,15 @@ class _MeshPainter extends CustomPainter {
         radius,
         Paint()
           ..shader = RadialGradient(
-            colors: [color.withValues(alpha: alpha * intensity), color.withValues(alpha: 0)],
+            colors: [
+              color.withValues(alpha: alpha * intensity),
+              color.withValues(alpha: 0),
+            ],
           ).createShader(rect),
       );
     }
 
-    orb(
-      Offset(size.width * 0.1, 0) + shiftA,
-      size.width * 0.75 * scaleA,
-      primary,
-      0.18,
-    );
+    orb(Offset(size.width * 0.1, 0) + shiftA, size.width * 0.75 * scaleA, primary, 0.18);
     orb(
       Offset(size.width * 0.9, size.height * 0.1) + shiftB,
       size.width * 0.55 * scaleB,
@@ -352,7 +386,7 @@ class GradientHero extends StatelessWidget {
   const GradientHero({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.all(20),
+    this.padding = const EdgeInsets.all(S.xl),
     this.radius = R.xl,
   });
 
@@ -399,9 +433,7 @@ class GradientHero extends StatelessWidget {
               ),
               Positioned.fill(
                 child: IgnorePointer(
-                  child: CustomPaint(
-                    painter: _GridPainter(Colors.white.withValues(alpha: 0.10)),
-                  ),
+                  child: CustomPaint(painter: _GridPainter(Colors.white.withValues(alpha: 0.10))),
                 ),
               ),
               Padding(padding: padding, child: child),
@@ -439,7 +471,7 @@ class GlassChip extends StatelessWidget {
   const GlassChip({
     super.key,
     required this.child,
-    this.padding = const EdgeInsets.symmetric(horizontal: 12, vertical: 7),
+    this.padding = const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
     this.radius = R.md,
     this.onTap,
     this.borderLeftColor,

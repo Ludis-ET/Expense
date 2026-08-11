@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
@@ -64,7 +66,11 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
       appBar: AppBar(
         title: Text(
           'Household',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -90,7 +96,8 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                 EmptyState(
                   icon: Icons.group_outlined,
                   title: 'No household yet',
-                  description: 'Create one to share chosen wallets with a partner. '
+                  description:
+                      'Create one to share chosen wallets with a partner. '
                       'Nothing is shared until you mark a wallet as shared.',
                   action: AppButton(
                     label: 'Create a household',
@@ -101,14 +108,14 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                 )
               else ...[
                 AppCard(
-                  padding: const EdgeInsets.all(16),
+                  padding: const EdgeInsets.all(S.lg),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       Row(
                         children: [
                           IconTile(icon: Icons.home_outlined, color: t.primary, size: 44),
-                          const SizedBox(width: 13),
+                          const GapX(S.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -116,12 +123,12 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                                 Text(
                                   h.name,
                                   style: TextStyle(
-                                    fontSize: 16,
+                                    fontSize: AppType.lead,
                                     fontWeight: FontWeight.w700,
                                     color: t.foreground,
                                   ),
                                 ),
-                                const SizedBox(height: 2),
+                                const Gap(S.hair),
                                 Muted(
                                   '${h.members.length} member'
                                   '${h.members.length == 1 ? '' : 's'} · you are '
@@ -133,7 +140,7 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const Gap(S.lg),
                       Row(
                         children: [
                           Muted('Shared balance', size: 11.5),
@@ -147,18 +154,18 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 16),
+                const Gap(S.lg),
 
                 SectionLabel('MEMBERS'),
                 for (final m in h.members)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 12),
+                      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
                       child: Row(
                         children: [
                           Avatar(name: m.name, avatarId: m.avatarId, size: 38),
-                          const SizedBox(width: 12),
+                          const GapX(S.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -166,7 +173,7 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                                 Text(
                                   m.isYou ? '${m.name} (you)' : m.name,
                                   style: TextStyle(
-                                    fontSize: 14,
+                                    fontSize: AppType.body,
                                     fontWeight: FontWeight.w600,
                                     color: t.foreground,
                                   ),
@@ -185,10 +192,10 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                     ),
                   ),
                 if (h.pendingInvites > 0) ...[
-                  const SizedBox(height: 4),
+                  const Gap(S.xxs),
                   Muted('${h.pendingInvites} invite pending', size: 11.5),
                 ],
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 AppButton(
                   label: 'Invite someone',
                   icon: Icons.person_add_alt,
@@ -196,7 +203,7 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                   expand: true,
                   onPressed: () => _invite(context),
                 ),
-                const SizedBox(height: 20),
+                const Gap(S.xl),
 
                 SectionLabel('SHARED WALLETS'),
                 Muted(
@@ -205,9 +212,9 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                   size: 11.5,
                   height: 1.4,
                 ),
-                const SizedBox(height: 10),
+                const Gap(S.sm),
                 AppCard(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.all(S.md),
                   child: Column(
                     children: [
                       for (final a in data.scopedAccounts)
@@ -221,7 +228,7 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                     ],
                   ),
                 ),
-                const SizedBox(height: 20),
+                const Gap(S.xl),
                 AppButton(
                   label: 'Leave household',
                   icon: Icons.logout_rounded,
@@ -256,15 +263,16 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
               autofocus: true,
               textCapitalization: TextCapitalization.words,
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
             AppButton(
               label: 'Create',
               expand: true,
               onPressed: () async {
                 try {
-                  await ctx.read<ApiClient>().post('/household', body: {
-                    if (name.text.trim().isNotEmpty) 'name': name.text.trim(),
-                  });
+                  await ctx.read<ApiClient>().post(
+                    '/household',
+                    body: {if (name.text.trim().isNotEmpty) 'name': name.text.trim()},
+                  );
                   if (ctx.mounted) Navigator.pop(ctx, true);
                 } on ApiError catch (e) {
                   if (ctx.mounted) toast(ctx, e.message, error: true);
@@ -299,7 +307,7 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
               textCapitalization: TextCapitalization.none,
               autofocus: true,
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
             AppButton(
               label: 'Send invite',
               icon: Icons.send_outlined,
@@ -326,9 +334,10 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
 
   Future<void> _toggleShare(BuildContext context, Account account, bool shared) async {
     try {
-      await context
-          .read<ApiClient>()
-          .put('/household/accounts/${account.id}/share', body: {'shared': shared});
+      await context.read<ApiClient>().put(
+        '/household/accounts/${account.id}/share',
+        body: {'shared': shared},
+      );
       await _load();
       if (context.mounted) await context.read<DataState>().refreshAfterWrite();
     } on ApiError catch (e) {

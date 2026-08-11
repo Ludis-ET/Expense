@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
@@ -19,6 +21,7 @@ import 'exchange_rates_screen.dart';
 import 'household_screen.dart';
 import '../lock/app_lock_settings_screen.dart';
 import '../sms/sms_settings_screen.dart';
+import '../update/app_update_sheet.dart';
 
 /// Settings. Everything that shapes how the app behaves, grouped by what it
 /// affects rather than by which endpoint owns it.
@@ -39,7 +42,11 @@ class SettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Settings',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -49,12 +56,12 @@ class SettingsScreen extends StatelessWidget {
           children: [
             FadeInUp(
               child: AppCard(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(S.lg),
                 onTap: () => _editProfile(context),
                 child: Row(
                   children: [
                     Avatar(name: user?.name ?? '?', avatarId: user?.avatarId, size: 52),
-                    const SizedBox(width: 14),
+                    const GapX(S.md),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -62,12 +69,12 @@ class SettingsScreen extends StatelessWidget {
                           Text(
                             user?.name ?? '',
                             style: TextStyle(
-                              fontSize: 16,
+                              fontSize: AppType.lead,
                               fontWeight: FontWeight.w700,
                               color: t.foreground,
                             ),
                           ),
-                          const SizedBox(height: 2),
+                          const Gap(S.hair),
                           Muted(user?.email ?? '', size: 12.5, maxLines: 1),
                         ],
                       ),
@@ -77,11 +84,11 @@ class SettingsScreen extends StatelessWidget {
                 ),
               ),
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             SectionLabel('APPEARANCE'),
             AppCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(S.lg),
               child: Column(
                 children: [
                   FieldShell(
@@ -102,7 +109,7 @@ class SettingsScreen extends StatelessWidget {
                       onChanged: prefs.setThemeMode,
                     ),
                   ),
-                  const SizedBox(height: 6),
+                  const Gap(S.xs),
                   SwitchRow(
                     title: 'Hide amounts',
                     subtitle: 'Masks every figure until you tap the eye.',
@@ -120,24 +127,24 @@ class SettingsScreen extends StatelessWidget {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             SectionLabel('MONEY'),
             _Tile(
               icon: Icons.sell_outlined,
               title: 'Categories',
               subtitle: '${(data.categories.data ?? const <TxCategory>[]).length} in use',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const CategoriesScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const CategoriesScreen())),
             ),
             _Tile(
               icon: Icons.currency_exchange,
               title: 'Exchange rates',
               subtitle: 'Needed to combine currencies into one total',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const ExchangeRatesScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const ExchangeRatesScreen())),
             ),
             _Tile(
               icon: Icons.payments_outlined,
@@ -151,26 +158,26 @@ class SettingsScreen extends StatelessWidget {
               subtitle: _cashWalletName(data, user) ?? 'Not set',
               onTap: () => _pickCashWallet(context),
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             SectionLabel('PEOPLE & AI'),
             _Tile(
               icon: Icons.group_outlined,
               title: 'Household',
               subtitle: 'Share wallets with a partner',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const HouseholdScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const HouseholdScreen())),
             ),
             _Tile(
               icon: Icons.auto_awesome,
               title: 'AI providers',
               subtitle: 'Bring your own key for Ask Santim',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AiProvidersScreen())),
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             SectionLabel('APP'),
             _Tile(
@@ -179,17 +186,23 @@ class SettingsScreen extends StatelessWidget {
               subtitle: lock.enabled
                   ? (lock.biometricEnabled ? 'PIN + biometrics on' : 'PIN on')
                   : 'Off — protect your money privately',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const AppLockSettingsScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const AppLockSettingsScreen())),
             ),
             _Tile(
               icon: Icons.sms_rounded,
               title: 'Bank SMS',
               subtitle: 'Capture & review messaging points',
-              onTap: () => Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const SmsSettingsScreen()),
-              ),
+              onTap: () => Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SmsSettingsScreen())),
+            ),
+            _Tile(
+              icon: Icons.system_update_alt_rounded,
+              title: 'Check for updates',
+              subtitle: 'Download the latest Santim APK in-app',
+              onTap: () => maybePromptAppUpdate(context, manual: true),
             ),
             _Tile(
               icon: Icons.calendar_today_outlined,
@@ -197,7 +210,7 @@ class SettingsScreen extends StatelessWidget {
               subtitle: 'Gregorian with Ethiopian alongside',
               onTap: null,
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             AppButton(
               label: 'Sign out',
@@ -214,14 +227,14 @@ class SettingsScreen extends StatelessWidget {
                 if (ok && context.mounted) await context.read<AuthState>().logout();
               },
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
             Center(
               child: Column(
                 children: [
                   const BrandMark(size: 34),
-                  const SizedBox(height: 10),
+                  const Gap(S.sm),
                   Muted('Santim · version 1.0.0', size: 11),
-                  const SizedBox(height: 3),
+                  const Gap(S.xxs),
                   Muted('Know where every birr goes', size: 11),
                 ],
               ),
@@ -258,14 +271,14 @@ class SettingsScreen extends StatelessWidget {
               prefixIcon: Icons.person_outline,
               textCapitalization: TextCapitalization.words,
             ),
-            const SizedBox(height: 14),
+            const Gap(S.md),
             AppTextField(
               label: 'Email',
               placeholder: auth.user?.email ?? '',
               prefixIcon: Icons.alternate_email,
               enabled: false,
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
             AppButton(
               label: 'Save',
               expand: true,
@@ -303,8 +316,10 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => Navigator.pop(ctx, c),
                 selected: c == auth.user?.currency,
                 selectedTileColor: ctx.t.primary.withValues(alpha: 0.08),
-                title: Text('$c · ${currencySymbol(c)}',
-                    style: const TextStyle(fontSize: 14.5)),
+                title: Text(
+                  '$c · ${currencySymbol(c)}',
+                  style: const TextStyle(fontSize: AppType.body),
+                ),
                 trailing: c == auth.user?.currency
                     ? Icon(Icons.check_circle, size: 20, color: ctx.t.primary)
                     : null,
@@ -347,7 +362,7 @@ class SettingsScreen extends StatelessWidget {
                   color: parseHexColor(a.color),
                   size: 34,
                 ),
-                title: Text(a.name, style: const TextStyle(fontSize: 14.5)),
+                title: Text(a.name, style: const TextStyle(fontSize: AppType.body)),
                 trailing: a.id == auth.user?.cashAccountId
                     ? Icon(Icons.check_circle, size: 20, color: ctx.t.primary)
                     : null,
@@ -383,14 +398,14 @@ class _Tile extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 9),
+      padding: const EdgeInsets.only(bottom: S.md),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         onTap: onTap,
         child: Row(
           children: [
             Icon(icon, size: 19, color: t.mutedForeground),
-            const SizedBox(width: 14),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -398,18 +413,17 @@ class _Tile extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: AppType.body,
                       fontWeight: FontWeight.w600,
                       color: t.foreground,
                     ),
                   ),
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted(subtitle, size: 11.5, maxLines: 1),
                 ],
               ),
             ),
-            if (onTap != null)
-              Icon(Icons.chevron_right, size: 19, color: t.mutedForeground),
+            if (onTap != null) Icon(Icons.chevron_right, size: 19, color: t.mutedForeground),
           ],
         ),
       ),

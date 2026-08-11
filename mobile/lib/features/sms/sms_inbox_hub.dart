@@ -1,6 +1,9 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../../core/haptics.dart';
+
+import '../../core/theme/theme.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/layout.dart';
@@ -47,9 +50,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
       toast(context, 'Nothing to review right now');
       return;
     }
-    await Navigator.of(context).push(
-      MaterialPageRoute(builder: (_) => const SmsReviewDeck()),
-    );
+    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SmsReviewDeck()));
     if (mounted) await sms.loadUnresolved(force: true);
   }
 
@@ -67,17 +68,21 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
         foregroundColor: t.foreground,
         title: Text(
           'Message inbox',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           IconPill(
             icon: Icons.settings_outlined,
             size: 34,
-            onTap: () => Navigator.of(context).push(
-              MaterialPageRoute(builder: (_) => const SmsSettingsScreen()),
-            ),
+            onTap: () => Navigator.of(
+              context,
+            ).push(MaterialPageRoute(builder: (_) => const SmsSettingsScreen())),
           ),
-          const SizedBox(width: 8),
+          const GapX(S.sm),
         ],
       ),
       body: MeshBackground(
@@ -90,7 +95,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
             children: [
               FadeInUp(
                 child: GlassCard(
-                  padding: const EdgeInsets.all(20),
+                  padding: const EdgeInsets.all(S.xl),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -103,10 +108,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                               borderRadius: BorderRadius.circular(14),
                               gradient: LinearGradient(colors: [t.primary, t.accent]),
                               boxShadow: [
-                                BoxShadow(
-                                  color: t.primary.withValues(alpha: 0.4),
-                                  blurRadius: 16,
-                                ),
+                                BoxShadow(color: t.primary.withValues(alpha: 0.4), blurRadius: 16),
                               ],
                             ),
                             child: Icon(
@@ -114,7 +116,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                               color: t.primaryForeground,
                             ),
                           ),
-                          const SizedBox(width: 12),
+                          const GapX(S.md),
                           Expanded(
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,7 +124,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                                 Text(
                                   '${sms.needsReview} to review',
                                   style: TextStyle(
-                                    fontSize: 20,
+                                    fontSize: AppType.heading,
                                     fontWeight: FontWeight.w800,
                                     letterSpacing: -0.4,
                                     color: t.foreground,
@@ -132,8 +134,8 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                                   needsSetup
                                       ? 'Set up this phone to capture bank SMS'
                                       : sms.localPendingUploads > 0
-                                          ? '${sms.localPendingUploads} waiting to upload'
-                                          : 'Swipe right to record · left to skip',
+                                      ? '${sms.localPendingUploads} waiting to upload'
+                                      : 'Swipe right to record · left to skip',
                                   size: 12,
                                 ),
                               ],
@@ -141,20 +143,18 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                           ),
                         ],
                       ),
-                      const SizedBox(height: 16),
+                      const Gap(S.lg),
                       AppButton(
                         label: needsSetup ? 'Set up capture' : 'Review all',
                         icon: needsSetup ? Icons.phonelink_setup_rounded : Icons.style_rounded,
                         expand: true,
-                        onPressed: needsSetup
-                            ? () => showSmsSetupWizard(context)
-                            : _openDeck,
+                        onPressed: needsSetup ? () => showSmsSetupWizard(context) : _openDeck,
                       ),
                     ],
                   ),
                 ),
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
               Row(
                 children: [
                   Expanded(
@@ -173,7 +173,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                     ),
                   ),
                   if (needsSetup) ...[
-                    const SizedBox(width: 8),
+                    const GapX(S.sm),
                     Expanded(
                       child: AppButton(
                         label: 'Setup',
@@ -185,7 +185,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                   ],
                 ],
               ),
-              const SizedBox(height: 18),
+              const Gap(S.lg),
               SectionLabel('UNRESOLVED'),
               if (sms.loadingInbox && sms.unresolved.isEmpty)
                 const PageLoader(rows: 3)
@@ -221,7 +221,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                       }
                     },
                     onSkip: () async {
-                      HapticFeedback.lightImpact();
+                      Haptics.toggle();
                       try {
                         await sms.reject(m.id);
                       } on ApiError catch (e) {
@@ -256,9 +256,9 @@ class _InboxRow extends StatelessWidget {
     final credit = message.isCredit;
     final amount = message.parsedAmount;
     return Padding(
-      padding: const EdgeInsets.only(bottom: 8),
+      padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         onTap: onTap,
         child: Row(
           children: [
@@ -267,7 +267,7 @@ class _InboxRow extends StatelessWidget {
               color: credit ? t.success : t.danger,
               size: 40,
             ),
-            const SizedBox(width: 12),
+            const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -276,7 +276,7 @@ class _InboxRow extends StatelessWidget {
                     message.parsedPayee ?? message.bankLabel ?? message.sender,
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       color: t.foreground,
                     ),
                     maxLines: 1,
@@ -309,7 +309,7 @@ class _InboxRow extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     foregroundColor: t.mutedForeground,
                   ),
-                  child: const Text('Skip', style: TextStyle(fontSize: 12)),
+                  child: const Text('Skip', style: TextStyle(fontSize: AppType.label)),
                 ),
               ],
             ),

@@ -36,9 +36,7 @@ class _BudgetFormState extends State<_BudgetForm> {
     text: widget.existing == null ? '' : toNum(widget.existing!.plannedAmount).toString(),
   );
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
-  late final _interval = TextEditingController(
-    text: '${widget.existing?.recurrenceInterval ?? 1}',
-  );
+  late final _interval = TextEditingController(text: '${widget.existing?.recurrenceInterval ?? 1}');
 
   late BudgetKind _kind = widget.existing?.kind ?? BudgetKind.oneTime;
   late RecurrenceUnit? _unit = widget.existing?.recurrenceUnit ?? RecurrenceUnit.month;
@@ -150,14 +148,9 @@ class _BudgetFormState extends State<_BudgetForm> {
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
-            child: IconTile(
-              icon: financeIcon(_icon),
-              color: tint,
-              size: 56,
-              radius: R.lg,
-            ),
+            child: IconTile(icon: financeIcon(_icon), color: tint, size: 56, radius: R.lg),
           ),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppTextField(
             controller: _name,
             label: 'Name',
@@ -166,21 +159,21 @@ class _BudgetFormState extends State<_BudgetForm> {
             autofocus: !_isEdit,
             textCapitalization: TextCapitalization.sentences,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AmountField(
             controller: _amount,
             currency: widget.existing?.currency ?? data.activeCurrency,
             label: 'Planned per cycle',
             tint: tint,
           ),
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           Muted(
             'This is both what you intend to spend and the ceiling the pot can '
             'be filled to.',
             size: 11.5,
             height: 1.4,
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
 
           SegmentedTabs<BudgetKind>(
             value: _kind,
@@ -189,7 +182,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             iconOf: (k) => k == BudgetKind.oneTime ? Icons.flag_outlined : Icons.autorenew,
             onChanged: (k) => setState(() => _kind = k),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
 
           if (_kind == BudgetKind.recurring) ...[
             Row(
@@ -204,7 +197,7 @@ class _BudgetFormState extends State<_BudgetForm> {
                     keyboardType: TextInputType.number,
                   ),
                 ),
-                const SizedBox(width: 12),
+                const GapX(S.md),
                 Expanded(
                   child: PickerField<RecurrenceUnit>(
                     label: 'Period',
@@ -216,12 +209,13 @@ class _BudgetFormState extends State<_BudgetForm> {
                 ),
               ],
             ),
-            const SizedBox(height: 16),
+            const Gap(S.lg),
           ],
 
           PickerField<TxCategory>(
             label: 'Category',
-            hint: 'Optional. It only pre-selects itself when you spend from '
+            hint:
+                'Optional. It only pre-selects itself when you spend from '
                 'this plan — it does not restrict what the pot can pay for.',
             value: categories.where((c) => c.id == _categoryId).firstOrNull,
             options: categories,
@@ -232,7 +226,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             allowClear: true,
             placeholder: 'No category',
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
 
           DateField(
             label: 'Starts',
@@ -240,7 +234,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             value: _startsAt,
             onChanged: (d) => setState(() => _startsAt = d ?? _startsAt),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Ends',
             placeholder: 'No end date',
@@ -249,7 +243,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             firstDate: _startsAt,
             onChanged: (d) => setState(() => _endDate = d),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
 
           FieldShell(
             label: 'Alert at ${_alertThreshold.round()}% spent',
@@ -271,14 +265,14 @@ class _BudgetFormState extends State<_BudgetForm> {
               ),
             ),
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
 
           ColorPickerRow(
             value: _color,
             colors: financeColors,
             onChanged: (c) => setState(() => _color = c),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           IconPickerGrid(
             value: _icon,
             names: iconNames,
@@ -286,7 +280,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             tint: tint,
             onChanged: (i) => setState(() => _icon = i),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -296,9 +290,9 @@ class _BudgetFormState extends State<_BudgetForm> {
           ),
 
           if (_error != null) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -307,18 +301,18 @@ class _BudgetFormState extends State<_BudgetForm> {
               child: Row(
                 children: [
                   Icon(Icons.error_outline, size: 16, color: t.danger),
-                  const SizedBox(width: 9),
+                  const GapX(S.sm),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: 13, height: 1.4, color: t.foreground),
+                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _isEdit ? 'Save changes' : 'Create plan',
             icon: Icons.check,
@@ -405,14 +399,17 @@ class _FundSheetState extends State<_FundSheet> {
       return;
     }
     if (!widget.release && amount > toNum(b.fillable)) {
-      setState(() => _error =
-          'Only ${formatMoney(b.fillable, currency: b.currency)} more can go in before '
-          'this hits the plan amount.');
+      setState(
+        () => _error =
+            'Only ${formatMoney(b.fillable, currency: b.currency)} more can go in before '
+            'this hits the plan amount.',
+      );
       return;
     }
     if (widget.release && amount > toNum(b.balance)) {
-      setState(() => _error =
-          'The pot only holds ${formatMoney(b.balance, currency: b.currency)}.');
+      setState(
+        () => _error = 'The pot only holds ${formatMoney(b.balance, currency: b.currency)}.',
+      );
       return;
     }
 
@@ -429,12 +426,12 @@ class _FundSheetState extends State<_FundSheet> {
         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
       };
       final result = await context.read<SyncState>().budgetAction(
-            budgetId: b.id,
-            action: widget.release ? OutboxAction.release : OutboxAction.fund,
-            label: widget.release ? 'Give money back' : 'Fill the pot',
-            detail: b.name,
-            body: body,
-          );
+        budgetId: b.id,
+        action: widget.release ? OutboxAction.release : OutboxAction.fund,
+        label: widget.release ? 'Give money back' : 'Fill the pot',
+        detail: b.name,
+        body: body,
+      );
       if (!mounted) return;
       if (result.queued) {
         toast(context, 'Saved offline — will sync when you are back online');
@@ -458,9 +455,9 @@ class _FundSheetState extends State<_FundSheet> {
     // Releasing can only go back to a wallet that actually funded the pot.
     final options = widget.release
         ? widget.detail.sources
-            .where((s) => s.account != null)
-            .map((s) => (s.account!.id, s.account!.name, s.available))
-            .toList()
+              .where((s) => s.account != null)
+              .map((s) => (s.account!.id, s.account!.name, s.available))
+              .toList()
         : data.scopedAccounts.map((a) => (a.id, a.name, a.balance)).toList();
 
     final ceiling = widget.release ? b.balance : b.fillable;
@@ -476,20 +473,18 @@ class _FundSheetState extends State<_FundSheet> {
             tint: widget.release ? t.warning : t.primary,
             autofocus: true,
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Row(
             children: [
               for (final pct in const [25, 50, 100]) ...[
-                if (pct != 25) const SizedBox(width: 8),
+                if (pct != 25) const GapX(S.sm),
                 Expanded(
                   child: _QuickFill(
                     label: pct == 100 ? 'Max' : '$pct%',
                     onTap: () {
                       final cap = toNum(ceiling);
                       final v = pct == 100 ? cap : (cap * pct / 100);
-                      _amount.text = v == v.roundToDouble()
-                          ? '${v.round()}'
-                          : v.toStringAsFixed(2);
+                      _amount.text = v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(2);
                       setState(() {});
                     },
                   ),
@@ -497,14 +492,14 @@ class _FundSheetState extends State<_FundSheet> {
               ],
             ],
           ),
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           Muted(
             widget.release
                 ? 'Up to ${formatMoney(ceiling, currency: b.currency)} in the pot'
                 : 'Up to ${formatMoney(ceiling, currency: b.currency)} still fits',
             size: 11.5,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<(String, String, String)>(
             label: widget.release ? 'Give back to' : 'Take from',
             value: options.where((o) => o.$1 == _accountId).firstOrNull,
@@ -515,13 +510,13 @@ class _FundSheetState extends State<_FundSheet> {
             iconOf: (_) => Icons.account_balance_wallet_outlined,
             onChanged: (o) => setState(() => _accountId = o?.$1),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Date',
             value: _date,
             onChanged: (d) => setState(() => _date = d ?? _date),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -529,9 +524,9 @@ class _FundSheetState extends State<_FundSheet> {
             prefixIcon: Icons.notes_outlined,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -540,18 +535,18 @@ class _FundSheetState extends State<_FundSheet> {
               child: Row(
                 children: [
                   Icon(Icons.error_outline, size: 16, color: t.danger),
-                  const SizedBox(width: 9),
+                  const GapX(S.sm),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: 13, height: 1.4, color: t.foreground),
+                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: widget.release ? 'Give back' : 'Fill the pot',
             icon: widget.release ? Icons.undo : Icons.savings_outlined,
@@ -591,7 +586,7 @@ class _QuickFill extends StatelessWidget {
           child: Text(
             label,
             style: TextStyle(
-              fontSize: 12.5,
+              fontSize: AppType.label,
               fontWeight: FontWeight.w700,
               color: t.primary,
             ),
@@ -647,16 +642,16 @@ class _AdjustSheetState extends State<_AdjustSheet> {
     });
     try {
       final result = await context.read<SyncState>().budgetAction(
-            budgetId: widget.budget.id,
-            action: OutboxAction.adjust,
-            label: _add ? 'Raise plan amount' : 'Cut plan amount',
-            detail: widget.budget.name,
-            body: {
-              'direction': _add ? 'ADD' : 'DEDUCT',
-              'amount': amount,
-              if (_reason.text.trim().isNotEmpty) 'reason': _reason.text.trim(),
-            },
-          );
+        budgetId: widget.budget.id,
+        action: OutboxAction.adjust,
+        label: _add ? 'Raise plan amount' : 'Cut plan amount',
+        detail: widget.budget.name,
+        body: {
+          'direction': _add ? 'ADD' : 'DEDUCT',
+          'amount': amount,
+          if (_reason.text.trim().isNotEmpty) 'reason': _reason.text.trim(),
+        },
+      );
       if (!mounted) return;
       if (result.queued) {
         toast(context, 'Saved offline — will sync when you are back online');
@@ -689,16 +684,16 @@ class _AdjustSheetState extends State<_AdjustSheet> {
             colorOf: (v) => v ? t.success : t.warning,
             onChanged: (v) => setState(() => _add = v),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           AmountField(
             controller: _amount,
             currency: b.currency,
             tint: _add ? t.success : t.warning,
             autofocus: true,
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Container(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.all(S.md),
             decoration: BoxDecoration(
               color: t.surfaceMuted.withValues(alpha: 0.6),
               borderRadius: BorderRadius.circular(R.md),
@@ -739,7 +734,7 @@ class _AdjustSheetState extends State<_AdjustSheet> {
               ],
             ),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _reason,
             label: 'Reason',
@@ -747,9 +742,9 @@ class _AdjustSheetState extends State<_AdjustSheet> {
             prefixIcon: Icons.help_outline,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -758,18 +753,18 @@ class _AdjustSheetState extends State<_AdjustSheet> {
               child: Row(
                 children: [
                   Icon(Icons.error_outline, size: 16, color: t.danger),
-                  const SizedBox(width: 9),
+                  const GapX(S.sm),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: 13, height: 1.4, color: t.foreground),
+                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _add ? 'Raise the plan' : 'Cut the plan',
             icon: Icons.check,

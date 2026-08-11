@@ -92,187 +92,187 @@ class _AuthScreenState extends State<AuthScreen> {
             ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
             : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
         child: MeshBackground(
-        intensity: 1.2,
-        child: SafeArea(
-          child: Stack(
-            children: [
-              Positioned(
-                right: 8,
-                top: 6,
-                child: IconPill(
-                  icon: Theme.of(context).brightness == Brightness.dark
-                      ? Icons.light_mode_outlined
-                      : Icons.dark_mode_outlined,
-                  onTap: () {
-                    final brightness = Theme.of(context).brightness;
-                    // Always flip the *effective* look so System+dark OS still
-                    // responds on the first tap.
-                    prefs.setThemeMode(
-                      brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
-                    );
-                  },
+          intensity: 1.2,
+          child: SafeArea(
+            child: Stack(
+              children: [
+                Positioned(
+                  right: 8,
+                  top: 6,
+                  child: IconPill(
+                    icon: Theme.of(context).brightness == Brightness.dark
+                        ? Icons.light_mode_outlined
+                        : Icons.dark_mode_outlined,
+                    onTap: () {
+                      final brightness = Theme.of(context).brightness;
+                      // Always flip the *effective* look so System+dark OS still
+                      // responds on the first tap.
+                      prefs.setThemeMode(
+                        brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
+                      );
+                    },
+                  ),
                 ),
-              ),
-              Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.fromLTRB(20, 56, 20, 32),
-                  child: ConstrainedBox(
-                    constraints: const BoxConstraints(maxWidth: 440),
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.stretch,
-                      children: [
-                        FadeInUp(
-                          child: Row(
-                            children: [
-                              const BrandMark(size: 44),
-                              const SizedBox(width: 12),
-                              const BrandWord(fontSize: 23),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 28),
-                        FadeInUp(
-                          delay: const Duration(milliseconds: 60),
-                          child: _Hero(register: _register),
-                        ),
-                        const SizedBox(height: 20),
-                        FadeInUp(
-                          delay: const Duration(milliseconds: 120),
-                          child: GlassCard(
-                            padding: const EdgeInsets.all(20),
-                            radius: R.xl,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                Center(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.fromLTRB(20, 56, 20, 32),
+                    child: ConstrainedBox(
+                      constraints: const BoxConstraints(maxWidth: 440),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                          FadeInUp(
+                            child: Row(
                               children: [
-                                Text(
-                                  _register ? 'Create your account' : 'Welcome back',
-                                  style: TextStyle(
-                                    fontSize: 20,
-                                    fontWeight: FontWeight.bold,
-                                    letterSpacing: -0.5,
-                                    color: t.foreground,
+                                const BrandMark(size: 44),
+                                const GapX(S.md),
+                                const BrandWord(fontSize: AppType.figure),
+                              ],
+                            ),
+                          ),
+                          const Gap(S.xxl),
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 60),
+                            child: _Hero(register: _register),
+                          ),
+                          const Gap(S.xl),
+                          FadeInUp(
+                            delay: const Duration(milliseconds: 120),
+                            child: GlassCard(
+                              padding: const EdgeInsets.all(S.xl),
+                              radius: R.xl,
+                              child: Column(
+                                crossAxisAlignment: CrossAxisAlignment.stretch,
+                                children: [
+                                  Text(
+                                    _register ? 'Create your account' : 'Welcome back',
+                                    style: TextStyle(
+                                      fontSize: AppType.heading,
+                                      fontWeight: FontWeight.bold,
+                                      letterSpacing: -0.5,
+                                      color: t.foreground,
+                                    ),
                                   ),
-                                ),
-                                const SizedBox(height: 4),
-                                Muted(
-                                  _register
-                                      ? 'Start tracking every birr today.'
-                                      : 'Sign in to your money.',
-                                  size: 13.5,
-                                ),
-                                const SizedBox(height: 20),
-                                AnimatedSize(
-                                  duration: Motion.fast,
-                                  curve: Motion.easeOut,
-                                  child: Column(
-                                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (_register) ...[
+                                  const Gap(S.xxs),
+                                  Muted(
+                                    _register
+                                        ? 'Start tracking every birr today.'
+                                        : 'Sign in to your money.',
+                                    size: 13.5,
+                                  ),
+                                  const Gap(S.xl),
+                                  AnimatedSize(
+                                    duration: Motion.fast,
+                                    curve: Motion.easeOut,
+                                    child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      children: [
+                                        if (_register) ...[
+                                          AppTextField(
+                                            controller: _name,
+                                            label: 'Name',
+                                            placeholder: 'Abebe Bekele',
+                                            prefixIcon: Icons.person_outline,
+                                            textCapitalization: TextCapitalization.words,
+                                            textInputAction: TextInputAction.next,
+                                          ),
+                                          const Gap(S.md),
+                                        ],
                                         AppTextField(
-                                          controller: _name,
-                                          label: 'Name',
-                                          placeholder: 'Abebe Bekele',
-                                          prefixIcon: Icons.person_outline,
-                                          textCapitalization: TextCapitalization.words,
+                                          controller: _email,
+                                          label: 'Email',
+                                          placeholder: 'you@example.com',
+                                          prefixIcon: Icons.alternate_email,
+                                          keyboardType: TextInputType.emailAddress,
+                                          textCapitalization: TextCapitalization.none,
                                           textInputAction: TextInputAction.next,
                                         ),
-                                        const SizedBox(height: 14),
-                                      ],
-                                      AppTextField(
-                                        controller: _email,
-                                        label: 'Email',
-                                        placeholder: 'you@example.com',
-                                        prefixIcon: Icons.alternate_email,
-                                        keyboardType: TextInputType.emailAddress,
-                                        textCapitalization: TextCapitalization.none,
-                                        textInputAction: TextInputAction.next,
-                                      ),
-                                      const SizedBox(height: 14),
-                                      AppTextField(
-                                        controller: _password,
-                                        label: 'Password',
-                                        placeholder: '••••••••',
-                                        prefixIcon: Icons.lock_outline,
-                                        obscure: _obscure,
-                                        textCapitalization: TextCapitalization.none,
-                                        textInputAction: TextInputAction.done,
-                                        onSubmitted: (_) => _submit(),
-                                        suffix: IconButton(
-                                          icon: Icon(
-                                            _obscure
-                                                ? Icons.visibility_outlined
-                                                : Icons.visibility_off_outlined,
-                                            size: 18,
-                                            color: t.mutedForeground,
+                                        const Gap(S.md),
+                                        AppTextField(
+                                          controller: _password,
+                                          label: 'Password',
+                                          placeholder: '••••••••',
+                                          prefixIcon: Icons.lock_outline,
+                                          obscure: _obscure,
+                                          textCapitalization: TextCapitalization.none,
+                                          textInputAction: TextInputAction.done,
+                                          onSubmitted: (_) => _submit(),
+                                          suffix: IconButton(
+                                            icon: Icon(
+                                              _obscure
+                                                  ? Icons.visibility_outlined
+                                                  : Icons.visibility_off_outlined,
+                                              size: 18,
+                                              color: t.mutedForeground,
+                                            ),
+                                            onPressed: () => setState(() => _obscure = !_obscure),
                                           ),
-                                          onPressed: () => setState(() => _obscure = !_obscure),
                                         ),
-                                      ),
-                                    ],
+                                      ],
+                                    ),
                                   ),
-                                ),
-                                if (_error != null) ...[
-                                  const SizedBox(height: 14),
-                                  _ErrorBanner(message: _error!),
-                                ],
-                                const SizedBox(height: 20),
-                                AppButton(
-                                  label: _register ? 'Create account' : 'Sign in',
-                                  icon: Icons.arrow_forward,
-                                  size: BtnSize.lg,
-                                  expand: true,
-                                  loading: _loading,
-                                  onPressed: _loading ? null : _submit,
-                                ),
-                                const SizedBox(height: 16),
-                                Center(
-                                  child: GestureDetector(
-                                    onTap: () => setState(() {
-                                      _register = !_register;
-                                      _error = null;
-                                    }),
-                                    behavior: HitTestBehavior.opaque,
-                                    child: Padding(
-                                      padding: const EdgeInsets.symmetric(vertical: 4),
-                                      child: RichText(
-                                        text: TextSpan(
-                                          style: TextStyle(
-                                            fontSize: 13.5,
-                                            color: t.mutedForeground,
-                                          ),
-                                          children: [
-                                            TextSpan(
-                                              text: _register
-                                                  ? 'Already have an account? '
-                                                  : "Don't have an account? ",
+                                  if (_error != null) ...[
+                                    const Gap(S.md),
+                                    _ErrorBanner(message: _error!),
+                                  ],
+                                  const Gap(S.xl),
+                                  AppButton(
+                                    label: _register ? 'Create account' : 'Sign in',
+                                    icon: Icons.arrow_forward,
+                                    size: BtnSize.lg,
+                                    expand: true,
+                                    loading: _loading,
+                                    onPressed: _loading ? null : _submit,
+                                  ),
+                                  const Gap(S.lg),
+                                  Center(
+                                    child: GestureDetector(
+                                      onTap: () => setState(() {
+                                        _register = !_register;
+                                        _error = null;
+                                      }),
+                                      behavior: HitTestBehavior.opaque,
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: S.xxs),
+                                        child: RichText(
+                                          text: TextSpan(
+                                            style: TextStyle(
+                                              fontSize: AppType.bodySm,
+                                              color: t.mutedForeground,
                                             ),
-                                            TextSpan(
-                                              text: _register ? 'Sign in' : 'Create one',
-                                              style: TextStyle(
-                                                fontWeight: FontWeight.w700,
-                                                color: t.primary,
+                                            children: [
+                                              TextSpan(
+                                                text: _register
+                                                    ? 'Already have an account? '
+                                                    : "Don't have an account? ",
                                               ),
-                                            ),
-                                          ],
+                                              TextSpan(
+                                                text: _register ? 'Sign in' : 'Create one',
+                                                style: TextStyle(
+                                                  fontWeight: FontWeight.w700,
+                                                  color: t.primary,
+                                                ),
+                                              ),
+                                            ],
+                                          ),
                                         ),
                                       ),
                                     ),
                                   ),
-                                ),
-                              ],
+                                ],
+                              ),
                             ),
                           ),
-                        ),
-                        const SizedBox(height: 20),
-                      ],
+                          const Gap(S.xl),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
-      ),
       ),
     );
   }
@@ -286,31 +286,31 @@ class _Hero extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GradientHero(
-      padding: const EdgeInsets.all(22),
+      padding: const EdgeInsets.all(S.xxl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           const Text(
             'Know where every birr goes.',
             style: TextStyle(
-              fontSize: 21,
+              fontSize: AppType.heading,
               height: 1.3,
               fontWeight: FontWeight.bold,
               letterSpacing: -0.5,
               color: Colors.white,
             ),
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Text(
             'Track income and spending, set budgets, save towards goals, '
             'and get insights — all private to you.',
             style: TextStyle(
-              fontSize: 13,
+              fontSize: AppType.bodySm,
               height: 1.5,
               color: Colors.white.withValues(alpha: 0.82),
             ),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -334,17 +334,17 @@ class _HeroChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassChip(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
       radius: R.sm,
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           Icon(icon, size: 13, color: Colors.white.withValues(alpha: 0.9)),
-          const SizedBox(width: 5),
+          const GapX(S.xxs),
           Text(
             label,
             style: const TextStyle(
-              fontSize: 11.5,
+              fontSize: AppType.caption,
               fontWeight: FontWeight.w600,
               color: Colors.white,
             ),
@@ -366,7 +366,7 @@ class _ErrorBanner extends StatelessWidget {
       offset: 4,
       duration: Motion.fast,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
         decoration: BoxDecoration(
           color: t.danger.withValues(alpha: 0.1),
           borderRadius: BorderRadius.circular(R.md),
@@ -375,11 +375,11 @@ class _ErrorBanner extends StatelessWidget {
         child: Row(
           children: [
             Icon(Icons.error_outline, size: 16, color: t.danger),
-            const SizedBox(width: 9),
+            const GapX(S.sm),
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(fontSize: 13, height: 1.4, color: t.foreground),
+                style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
               ),
             ),
           ],

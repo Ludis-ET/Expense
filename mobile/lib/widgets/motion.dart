@@ -129,10 +129,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
       _c = null;
       return;
     }
-    _c ??= AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1400),
-    )..repeat();
+    _c ??= AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
   }
 
   @override
@@ -171,13 +168,7 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
 
 /// A shimmering placeholder block.
 class Skeleton extends StatelessWidget {
-  const Skeleton({
-    super.key,
-    this.height = 16,
-    this.width,
-    this.radius = R.md,
-    this.margin,
-  });
+  const Skeleton({super.key, this.height = 16, this.width, this.radius = R.md, this.margin});
 
   final double height;
   final double? width;
@@ -292,10 +283,8 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
       _c = null;
       return;
     }
-    _c ??= AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 2000),
-    )..repeat(reverse: true);
+    _c ??= AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))
+      ..repeat(reverse: true);
   }
 
   @override
@@ -309,8 +298,10 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
     final c = _c;
     if (c == null || _skipMotion(context)) return widget.child;
     return FadeTransition(
-      opacity: Tween(begin: widget.min, end: 1.0)
-          .animate(CurvedAnimation(parent: c, curve: Curves.easeInOut)),
+      opacity: Tween(
+        begin: widget.min,
+        end: 1.0,
+      ).animate(CurvedAnimation(parent: c, curve: Curves.easeInOut)),
       child: widget.child,
     );
   }
@@ -337,8 +328,8 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
   late final AnimationController _c = AnimationController(vsync: this, duration: widget.duration);
   late Animation<double> _anim = _tween(0, widget.value);
 
-  Animation<double> _tween(double from, double to) => Tween(begin: from, end: to)
-      .animate(CurvedAnimation(parent: _c, curve: Motion.easeOut));
+  Animation<double> _tween(double from, double to) =>
+      Tween(begin: from, end: to).animate(CurvedAnimation(parent: _c, curve: Motion.easeOut));
 
   @override
   void initState() {
@@ -378,9 +369,9 @@ class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProvid
 
   @override
   Widget build(BuildContext context) => AnimatedBuilder(
-        animation: _anim,
-        builder: (context, _) => widget.builder(context, _anim.value),
-      );
+    animation: _anim,
+    builder: (context, _) => widget.builder(context, _anim.value),
+  );
 }
 
 /// Scales down slightly while held.
@@ -389,12 +380,20 @@ class PressableScale extends StatefulWidget {
     super.key,
     required this.child,
     this.onTap,
+    this.onLongPress,
     this.scale = 0.96,
+    this.minTapTarget,
   });
 
   final Widget child;
   final VoidCallback? onTap;
+  final VoidCallback? onLongPress;
   final double scale;
+
+  /// Grows the *hit area* to at least this many logical pixels in both axes
+  /// without changing the drawn size. Use 48 to meet Android's minimum on a
+  /// control that is deliberately drawn smaller.
+  final double? minTapTarget;
 
   @override
   State<PressableScale> createState() => _PressableScaleState();
@@ -405,20 +404,41 @@ class _PressableScaleState extends State<PressableScale> {
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: widget.onTap == null ? null : (_) => setState(() => _down = true),
-      onTapUp: widget.onTap == null ? null : (_) => setState(() => _down = false),
-      onTapCancel: widget.onTap == null ? null : () => setState(() => _down = false),
-      onTap: widget.onTap,
-      child: AnimatedScale(
-        scale: _down ? widget.scale : 1,
-        duration: _skipMotion(context)
-            ? Duration.zero
-            : const Duration(milliseconds: 90),
-        curve: Curves.easeOut,
-        child: widget.child,
-      ),
+    final interactive = widget.onTap != null || widget.onLongPress != null;
+    final min = widget.minTapTarget;
+
+    Widget visual = AnimatedScale(
+      scale: _down ? widget.scale : 1,
+      duration: _skipMotion(context) ? Duration.zero : const Duration(milliseconds: 90),
+      curve: Curves.easeOut,
+      child: widget.child,
     );
+
+    // `Center` hands the visual loose constraints, so the minimum below grows
+    // only the transparent hit area around it — the drawn control keeps its
+    // own size.
+    if (min != null) {
+      visual = Center(widthFactor: 1, heightFactor: 1, child: visual);
+    }
+
+    Widget result = GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTapDown: interactive ? (_) => setState(() => _down = true) : null,
+      onTapUp: interactive ? (_) => setState(() => _down = false) : null,
+      onTapCancel: interactive ? () => setState(() => _down = false) : null,
+      onTap: widget.onTap,
+      onLongPress: widget.onLongPress,
+      child: visual,
+    );
+
+    if (min != null) {
+      result = ConstrainedBox(
+        constraints: BoxConstraints(minWidth: min, minHeight: min),
+        child: result,
+      );
+    }
+
+    return result;
   }
 }
 

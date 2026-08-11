@@ -54,7 +54,7 @@ class HeroBalance extends StatelessWidget {
     final white = Colors.white;
 
     return GradientHero(
-      padding: const EdgeInsets.fromLTRB(20, 20, 20, 18),
+      padding: const EdgeInsets.fromLTRB(S.xl, S.xl, S.xl, S.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -68,31 +68,37 @@ class HeroBalance extends StatelessWidget {
                     Text(
                       '${greeting(now)}${userName != null ? ', $userName' : ''}',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: AppType.bodySm,
                         fontWeight: FontWeight.w600,
                         color: white.withValues(alpha: 0.85),
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const Gap(S.xs),
                     Row(
                       children: [
-                        Icon(Icons.calendar_today_outlined,
-                            size: 11, color: white.withValues(alpha: 0.7)),
-                        const SizedBox(width: 5),
+                        Icon(
+                          Icons.calendar_today_outlined,
+                          size: 11,
+                          color: white.withValues(alpha: 0.7),
+                        ),
+                        const GapX(S.xxs),
                         Flexible(
                           child: Text(
                             formatLongDate(now),
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: 11, color: white.withValues(alpha: 0.75)),
+                            style: TextStyle(
+                              fontSize: AppType.caption,
+                              color: white.withValues(alpha: 0.75),
+                            ),
                           ),
                         ),
                       ],
                     ),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Text(
                       'ግዕዝ · ${formatEthiopian(now)}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppType.caption,
                         fontWeight: FontWeight.w600,
                         color: white.withValues(alpha: 0.9),
                       ),
@@ -111,12 +117,12 @@ class HeroBalance extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Text(
             'Available to spend · $currency',
-            style: TextStyle(fontSize: 11, color: white.withValues(alpha: 0.65)),
+            style: TextStyle(fontSize: AppType.caption, color: white.withValues(alpha: 0.65)),
           ),
-          const SizedBox(height: 5),
+          const Gap(S.xxs),
           AnimatedNumber(
             value: toNum(balance),
             builder: (context, v) => FittedBox(
@@ -125,7 +131,7 @@ class HeroBalance extends StatelessWidget {
               child: Text(
                 money(v),
                 style: TextStyle(
-                  fontSize: 38,
+                  fontSize: AppType.hero,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -1.4,
                   height: 1.1,
@@ -136,12 +142,12 @@ class HeroBalance extends StatelessWidget {
             ),
           ),
           if (locked > 0) ...[
-            const SizedBox(height: 6),
+            const Gap(S.xs),
             Text(
               '${money(breakdown?.realBalance ?? data.realBalance ?? balance)} in your accounts · '
               '${money(locked)} set aside in budget plans',
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppType.caption,
                 height: 1.4,
                 color: white.withValues(alpha: 0.78),
               ),
@@ -150,14 +156,18 @@ class HeroBalance extends StatelessWidget {
           if (data.convertedTotal != null &&
               !data.convertedTotal!.complete &&
               data.convertedTotal!.missingRates.isNotEmpty) ...[
-            const SizedBox(height: 6),
+            const Gap(S.xs),
             Text(
               'Other currencies are not included. Add exchange rates in Settings '
               'to see a combined total.',
-              style: TextStyle(fontSize: 10.5, height: 1.4, color: white.withValues(alpha: 0.75)),
+              style: TextStyle(
+                fontSize: AppType.caption,
+                height: 1.4,
+                color: white.withValues(alpha: 0.75),
+              ),
             ),
           ],
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Wrap(
             spacing: 8,
             runSpacing: 8,
@@ -174,12 +184,11 @@ class HeroBalance extends StatelessWidget {
                 value: money(expense),
                 delta: month.expenseDeltaPct,
               ),
-              if (savingsRate != null)
-                _HeroStat(label: 'Saved', value: '$savingsRate%'),
+              if (savingsRate != null) _HeroStat(label: 'Saved', value: '$savingsRate%'),
             ],
           ),
           if (accounts.isNotEmpty) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             Wrap(
               spacing: 7,
               runSpacing: 7,
@@ -187,12 +196,12 @@ class HeroBalance extends StatelessWidget {
                 for (final a in accounts.take(4))
                   GlassChip(
                     radius: R.sm,
-                    padding: const EdgeInsets.fromLTRB(9, 5, 9, 5),
+                    padding: const EdgeInsets.fromLTRB(S.md, S.xs, S.md, S.xs),
                     borderLeftColor: parseHexColor(a.color),
                     child: Text(
                       '${a.name}${a.isShared ? ' · shared' : ''}: ${money(a.balance)}',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppType.caption,
                         fontWeight: FontWeight.w600,
                         color: white,
                       ),
@@ -201,12 +210,12 @@ class HeroBalance extends StatelessWidget {
                 if (accounts.length > 4)
                   GlassChip(
                     radius: R.sm,
-                    padding: const EdgeInsets.fromLTRB(9, 5, 9, 5),
+                    padding: const EdgeInsets.fromLTRB(S.md, S.xs, S.md, S.xs),
                     onTap: onManageAccounts,
                     child: Text(
                       '+${accounts.length - 4} more',
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppType.caption,
                         fontWeight: FontWeight.w600,
                         color: white,
                       ),
@@ -215,7 +224,7 @@ class HeroBalance extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 14),
+          const Gap(S.md),
           GestureDetector(
             onTap: onManageAccounts,
             behavior: HitTestBehavior.opaque,
@@ -225,12 +234,12 @@ class HeroBalance extends StatelessWidget {
                 Text(
                   'Manage accounts',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppType.bodySm,
                     fontWeight: FontWeight.w600,
                     color: white.withValues(alpha: 0.85),
                   ),
                 ),
-                const SizedBox(width: 5),
+                const GapX(S.xxs),
                 Icon(Icons.arrow_forward, size: 13, color: white.withValues(alpha: 0.85)),
               ],
             ),
@@ -253,13 +262,13 @@ class _HeroStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final white = Colors.white;
     return GlassChip(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
           if (icon != null) ...[
             Icon(icon, size: 15, color: white.withValues(alpha: 0.8)),
-            const SizedBox(width: 7),
+            const GapX(S.xs),
           ],
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
@@ -268,17 +277,17 @@ class _HeroStat extends StatelessWidget {
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: AppType.micro,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6,
                   color: white.withValues(alpha: 0.7),
                 ),
               ),
-              const SizedBox(height: 1),
+              const Gap(S.hair),
               Text(
                 value,
                 style: TextStyle(
-                  fontSize: 13,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w700,
                   color: white,
                   fontFeatures: const [FontFeature.tabularFigures()],
@@ -287,11 +296,11 @@ class _HeroStat extends StatelessWidget {
             ],
           ),
           if (delta != null) ...[
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             Text(
               formatPct(delta),
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppType.caption,
                 fontWeight: FontWeight.w600,
                 color: white.withValues(alpha: 0.85),
               ),
@@ -365,8 +374,8 @@ class FinancialHealthCard extends StatelessWidget {
       detail: activePlans == 0
           ? 'no plans yet'
           : atRisk == 0
-              ? 'all $activePlans on track'
-              : '$atRisk of $activePlans running low',
+          ? 'all $activePlans on track'
+          : '$atRisk of $activePlans running low',
       icon: Icons.shield_outlined,
     );
 
@@ -390,8 +399,8 @@ class FinancialHealthCard extends StatelessWidget {
       detail: wasteShare == null
           ? 'no spending yet this month'
           : unnecessary == 0
-              ? 'nothing flagged unnecessary'
-              : '${money(unnecessary)} unnecessary (${wasteShare.round()}%)',
+          ? 'nothing flagged unnecessary'
+          : '${money(unnecessary)} unnecessary (${wasteShare.round()}%)',
       icon: Icons.monitor_heart_outlined,
     );
 
@@ -410,7 +419,7 @@ class FinancialHealthCard extends StatelessWidget {
     };
 
     return AppCard(
-      padding: const EdgeInsets.all(18),
+      padding: const EdgeInsets.all(S.xl),
       child: Column(
         children: [
           Row(
@@ -418,7 +427,7 @@ class FinancialHealthCard extends StatelessWidget {
               Text(
                 'Financial health',
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w600,
                   color: t.mutedForeground,
                 ),
@@ -426,14 +435,15 @@ class FinancialHealthCard extends StatelessWidget {
               const Spacer(),
               InfoHint(
                 label: 'Financial health',
-                body: 'Averaged over the ${scored.length} factor'
+                body:
+                    'Averaged over the ${scored.length} factor'
                     '${scored.length == 1 ? '' : 's'} there is data for. '
                     'Each factor shows the real figure it came from.',
                 size: 15,
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           SizedBox(
             width: 124,
             height: 124,
@@ -460,7 +470,7 @@ class FinancialHealthCard extends StatelessWidget {
                     Text(
                       score?.toString() ?? '-',
                       style: TextStyle(
-                        fontSize: 30,
+                        fontSize: AppType.display,
                         fontWeight: FontWeight.bold,
                         color: t.foreground,
                         fontFeatures: const [FontFeature.tabularFigures()],
@@ -469,7 +479,7 @@ class FinancialHealthCard extends StatelessWidget {
                     Text(
                       label,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppType.caption,
                         fontWeight: FontWeight.w700,
                         color: color,
                       ),
@@ -479,12 +489,12 @@ class FinancialHealthCard extends StatelessWidget {
               ],
             ),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           for (final f in factors)
             Padding(
-              padding: const EdgeInsets.only(bottom: 6),
+              padding: const EdgeInsets.only(bottom: S.xs),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+                padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
                 decoration: BoxDecoration(
                   color: t.surfaceMuted.withValues(alpha: 0.6),
                   borderRadius: BorderRadius.circular(R.sm + 2),
@@ -492,7 +502,7 @@ class FinancialHealthCard extends StatelessWidget {
                 child: Row(
                   children: [
                     Icon(f.icon, size: 15, color: t.mutedForeground),
-                    const SizedBox(width: 10),
+                    const GapX(S.sm),
                     Expanded(
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
@@ -500,7 +510,7 @@ class FinancialHealthCard extends StatelessWidget {
                           Text(
                             f.label,
                             style: TextStyle(
-                              fontSize: 11.5,
+                              fontSize: AppType.caption,
                               fontWeight: FontWeight.w600,
                               color: t.foreground,
                             ),
@@ -509,7 +519,7 @@ class FinancialHealthCard extends StatelessWidget {
                         ],
                       ),
                     ),
-                    const SizedBox(width: 8),
+                    const GapX(S.sm),
                     if (f.score == null)
                       Muted('-', size: 10)
                     else ...[
@@ -522,24 +532,24 @@ class FinancialHealthCard extends StatelessWidget {
                             f.score! >= 70
                                 ? t.success
                                 : f.score! >= 40
-                                    ? t.primary
-                                    : t.warning,
+                                ? t.primary
+                                : t.warning,
                             f.score! >= 70
                                 ? t.success
                                 : f.score! >= 40
-                                    ? t.accent
-                                    : t.warning,
+                                ? t.accent
+                                : t.warning,
                           ],
                         ),
                       ),
-                      const SizedBox(width: 7),
+                      const GapX(S.xs),
                       SizedBox(
                         width: 24,
                         child: Text(
                           '${f.score!.round()}',
                           textAlign: TextAlign.right,
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: AppType.caption,
                             fontWeight: FontWeight.w700,
                             color: t.foreground,
                             fontFeatures: const [FontFeature.tabularFigures()],
@@ -616,22 +626,68 @@ class SmartInsightCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final month = data.month;
+    final net = toNum(month.net);
+    final insight = _insight();
+
     return GlassCard(
-      padding: const EdgeInsets.all(15),
-      child: Row(
+      padding: const EdgeInsets.all(S.lg),
+      child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconTile(icon: Icons.lightbulb_outline, color: t.primary, size: 36),
-          const SizedBox(width: 12),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              IconTile(icon: Icons.lightbulb_outline, color: t.primary, size: 36),
+              const GapX(S.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Eyebrow('Smart insight'),
+                    const Gap(S.xxs),
+                    Text(
+                      insight,
+                      style: TextStyle(fontSize: AppType.bodySm, height: 1.5, color: t.foreground),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const Gap(S.md),
+          Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+            decoration: BoxDecoration(
+              color: t.primary.withValues(alpha: 0.07),
+              borderRadius: BorderRadius.circular(R.md),
+            ),
+            child: Row(
               children: [
-                Eyebrow('Smart insight'),
-                const SizedBox(height: 4),
+                Icon(
+                  net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
+                  size: 15,
+                  color: net >= 0 ? t.success : t.danger,
+                ),
+                const GapX(S.sm),
+                Expanded(
+                  child: Text(
+                    'Net this month · ${money(month.net)}',
+                    style: TextStyle(
+                      fontSize: AppType.caption,
+                      fontWeight: FontWeight.w700,
+                      color: t.foreground,
+                    ),
+                  ),
+                ),
                 Text(
-                  _insight(),
-                  style: TextStyle(fontSize: 13.5, height: 1.5, color: t.foreground),
+                  'Swipe →',
+                  style: TextStyle(
+                    fontSize: AppType.micro,
+                    fontWeight: FontWeight.w700,
+                    color: t.mutedForeground,
+                  ),
                 ),
               ],
             ),
@@ -662,7 +718,7 @@ class WeeklySnapshotCard extends StatelessWidget {
         prefs.money(v, currency: data.currency, compact: compact);
 
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -676,12 +732,12 @@ class WeeklySnapshotCard extends StatelessWidget {
                     Text(
                       'Weekly snapshot',
                       style: TextStyle(
-                        fontSize: 13.5,
+                        fontSize: AppType.bodySm,
                         fontWeight: FontWeight.w600,
                         color: t.mutedForeground,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Muted(
                       '${formatDayMonth(cur.weekStart)} - '
                       '${formatDayMonth(cur.weekEnd.subtract(const Duration(days: 1)))}',
@@ -693,43 +749,54 @@ class WeeklySnapshotCard extends StatelessWidget {
               Icon(Icons.calendar_month_outlined, size: 16, color: t.mutedForeground),
             ],
           ),
-          const SizedBox(height: 14),
-          _MiniRow(label: 'Income', value: money(cur.income), delta: data.incomeDelta, goodWhenUp: true),
-          const SizedBox(height: 6),
-          _MiniRow(label: 'Spent', value: money(cur.expense), delta: data.expenseDelta, goodWhenUp: false),
-          const SizedBox(height: 6),
+          const Gap(S.md),
+          _MiniRow(
+            label: 'Income',
+            value: money(cur.income),
+            delta: data.incomeDelta,
+            goodWhenUp: true,
+          ),
+          const Gap(S.xs),
+          _MiniRow(
+            label: 'Spent',
+            value: money(cur.expense),
+            delta: data.expenseDelta,
+            goodWhenUp: false,
+          ),
+          const Gap(S.xs),
           _MiniRow(
             label: 'Net',
             value: money(cur.net),
             emphasise: true,
             tone: toNum(cur.net) >= 0 ? t.success : t.danger,
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Divider(color: t.border, height: 1),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           _CompareBar(
             label: 'This week',
             value: money(cur.expense, compact: true),
             pct: math.max(2, toNum(cur.expense) / peak * 100),
             active: true,
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           _CompareBar(
             label: 'Last week',
             value: money(prev.expense, compact: true),
             pct: math.max(2, toNum(prev.expense) / peak * 100),
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           if (toNum(prev.expense) == 0 && toNum(cur.expense) == 0)
             Muted('No spending either week.', size: 11, height: 1.4)
           else
             RichText(
               text: TextSpan(
-                style: TextStyle(fontSize: 11, height: 1.45, color: t.mutedForeground),
+                style: TextStyle(fontSize: AppType.caption, height: 1.45, color: t.mutedForeground),
                 children: [
                   const TextSpan(text: 'You have spent '),
                   TextSpan(
-                    text: '${money(toNum(data.expenseAmount).abs(), compact: true)} '
+                    text:
+                        '${money(toNum(data.expenseAmount).abs(), compact: true)} '
                         '${spentMore ? 'more' : 'less'}',
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
@@ -772,7 +839,7 @@ class _MiniRow extends StatelessWidget {
         : (goodWhenUp! ? delta! >= 0 : delta! <= 0);
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(R.md),
@@ -785,25 +852,21 @@ class _MiniRow extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
-              child: Amount(
-                value,
-                size: emphasise ? 14.5 : 13,
-                color: tone ?? t.foreground,
-              ),
+              child: Amount(value, size: emphasise ? 14.5 : 13, color: tone ?? t.foreground),
             ),
           ),
           if (delta != null) ...[
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             Text(
               formatPct(delta),
               style: TextStyle(
-                fontSize: 10.5,
+                fontSize: AppType.caption,
                 fontWeight: FontWeight.w700,
                 color: positive == null
                     ? t.mutedForeground
                     : positive
-                        ? t.success
-                        : t.danger,
+                    ? t.success
+                    : t.danger,
               ),
             ),
           ],
@@ -839,7 +902,7 @@ class _CompareBar extends StatelessWidget {
             Amount(value, size: 11, weight: FontWeight.w600),
           ],
         ),
-        const SizedBox(height: 4),
+        const Gap(S.xxs),
         ProgressBar(
           value: pct,
           height: 5,
@@ -862,7 +925,7 @@ class SpendingStreaksCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -871,7 +934,7 @@ class SpendingStreaksCard extends StatelessWidget {
               Text(
                 'Spending streak',
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w600,
                   color: t.mutedForeground,
                 ),
@@ -880,32 +943,29 @@ class SpendingStreaksCard extends StatelessWidget {
               Icon(Icons.local_fire_department_outlined, size: 16, color: t.warning),
             ],
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Amount('${data.currentDays}', size: 30),
-              const SizedBox(width: 6),
+              const GapX(S.xs),
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding: const EdgeInsets.only(bottom: S.xxs),
                 child: Muted('day${data.currentDays == 1 ? '' : 's'} under pace', size: 11.5),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          const Gap(S.xxs),
           Muted(
             'Pace ${prefs.money(data.avgDailySpend, currency: data.currency)}/day · '
             'best ${data.bestStreak}',
             size: 11,
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           SpendStrip(days: [for (final d in data.days) (d.under, d.spent)]),
-          const SizedBox(height: 12),
-          Muted(
-            '${data.daysUnder} of ${data.dayCount} days under · ${data.label}',
-            size: 10.5,
-          ),
+          const Gap(S.md),
+          Muted('${data.daysUnder} of ${data.dayCount} days under · ${data.label}', size: 10.5),
         ],
       ),
     );
@@ -914,12 +974,7 @@ class SpendingStreaksCard extends StatelessWidget {
 
 /// `TabWidget` — open lends and borrows with the settle-on-time forecast.
 class TabWidgetCard extends StatelessWidget {
-  const TabWidgetCard({
-    super.key,
-    required this.tab,
-    required this.money,
-    this.onOpen,
-  });
+  const TabWidgetCard({super.key, required this.tab, required this.money, this.onOpen});
 
   final LedgerSummary tab;
   final Money money;
@@ -931,7 +986,7 @@ class TabWidgetCard extends StatelessWidget {
     final net = toNum(tab.netPosition);
 
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       onTap: onOpen,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -941,7 +996,7 @@ class TabWidgetCard extends StatelessWidget {
               Text(
                 'Money Tab',
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w600,
                   color: t.mutedForeground,
                 ),
@@ -953,18 +1008,11 @@ class TabWidgetCard extends StatelessWidget {
                 Icon(Icons.volunteer_activism_outlined, size: 16, color: t.mutedForeground),
             ],
           ),
-          const SizedBox(height: 12),
-          Amount(
-            money(net.abs()),
-            size: 24,
-            color: net >= 0 ? t.success : t.danger,
-          ),
-          const SizedBox(height: 2),
-          Muted(
-            net >= 0 ? 'owed to you, net' : 'you owe, net',
-            size: 11,
-          ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
+          Amount(money(net.abs()), size: 24, color: net >= 0 ? t.success : t.danger),
+          const Gap(S.hair),
+          Muted(net >= 0 ? 'owed to you, net' : 'you owe, net', size: 11),
+          const Gap(S.md),
           Row(
             children: [
               Expanded(
@@ -974,18 +1022,14 @@ class TabWidgetCard extends StatelessWidget {
                   color: t.success,
                 ),
               ),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Expanded(
-                child: _TinyStat(
-                  label: 'You owe',
-                  value: money(tab.payable),
-                  color: t.danger,
-                ),
+                child: _TinyStat(label: 'You owe', value: money(tab.payable), color: t.danger),
               ),
             ],
           ),
           if (tab.openCount > 0) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             Muted(
               '${tab.openCount} open · forecast ${money(tab.netIfOnTime)} if all settle',
               size: 10.5,
@@ -1009,7 +1053,7 @@ class _TinyStat extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 8),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(R.sm + 2),
@@ -1018,7 +1062,7 @@ class _TinyStat extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Muted(label, size: 10, maxLines: 1),
-          const SizedBox(height: 2),
+          const Gap(S.hair),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -1042,7 +1086,7 @@ class WishlistWidgetCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       onTap: onOpen,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1052,7 +1096,7 @@ class WishlistWidgetCard extends StatelessWidget {
               Text(
                 'Wishlist',
                 style: TextStyle(
-                  fontSize: 13.5,
+                  fontSize: AppType.bodySm,
                   fontWeight: FontWeight.w600,
                   color: t.mutedForeground,
                 ),
@@ -1061,39 +1105,38 @@ class WishlistWidgetCard extends StatelessWidget {
               Icon(Icons.favorite_border, size: 16, color: t.mutedForeground),
             ],
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
               Amount('${wishlist.activeCount}', size: 30),
-              const SizedBox(width: 6),
+              const GapX(S.xs),
               Padding(
-                padding: const EdgeInsets.only(bottom: 3),
+                padding: const EdgeInsets.only(bottom: S.xxs),
                 child: Muted('want${wishlist.activeCount == 1 ? '' : 's'}', size: 11.5),
               ),
             ],
           ),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           Muted('${wishlist.plannedCount} turned into a plan', size: 11),
           if (wishlist.top.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             for (final w in wishlist.top.take(3))
               Padding(
-                padding: const EdgeInsets.only(bottom: 6),
+                padding: const EdgeInsets.only(bottom: S.xs),
                 child: Row(
                   children: [
-                    Text(w.emoji ?? '✨', style: const TextStyle(fontSize: 13)),
-                    const SizedBox(width: 7),
+                    Text(w.emoji ?? '✨', style: const TextStyle(fontSize: AppType.bodySm)),
+                    const GapX(S.xs),
                     Expanded(
                       child: Text(
                         w.name,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: 12, color: t.foreground),
+                        style: TextStyle(fontSize: AppType.label, color: t.foreground),
                       ),
                     ),
-                    if (w.plan != null)
-                      AppBadge('planned', tone: BadgeTone.primary, dense: true),
+                    if (w.plan != null) AppBadge('planned', tone: BadgeTone.primary, dense: true),
                   ],
                 ),
               ),
@@ -1115,7 +1158,7 @@ class CategoryHeatCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1124,7 +1167,7 @@ class CategoryHeatCard extends StatelessWidget {
             icon: Icons.local_fire_department_outlined,
             hint: 'Categories where this month is well ahead of last month.',
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           if (alerts.isEmpty)
             const EmptyState(
               title: 'Nothing is spiking',
@@ -1145,7 +1188,7 @@ class CategoryHeatCard extends StatelessWidget {
                         color: parseHexColor(alerts[i].category?.color),
                         size: 34,
                       ),
-                      const SizedBox(width: 11),
+                      const GapX(S.md),
                       Expanded(
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -1154,7 +1197,7 @@ class CategoryHeatCard extends StatelessWidget {
                               alerts[i].category?.name ?? 'Uncategorised',
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 13,
+                                fontSize: AppType.bodySm,
                                 fontWeight: FontWeight.w600,
                                 color: t.foreground,
                               ),
@@ -1198,7 +1241,7 @@ class FamilySupportCard extends StatelessWidget {
     final total = toNum(data.total);
 
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1207,21 +1250,18 @@ class FamilySupportCard extends StatelessWidget {
             icon: Icons.volunteer_activism_outlined,
             hint: 'What you have sent this month, against last month.',
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           if (total == 0 && data.recent.isEmpty)
-            const EmptyState(
-              title: 'Nothing sent this month',
-              compact: true,
-            )
+            const EmptyState(title: 'Nothing sent this month', compact: true)
           else ...[
             Row(
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Amount(money(total), size: 24),
-                const SizedBox(width: 10),
+                const GapX(S.sm),
                 if (data.deltaPct != null)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(bottom: S.xxs),
                     child: AppBadge(
                       formatPct(data.deltaPct),
                       tone: data.deltaPct! > 0 ? BadgeTone.warning : BadgeTone.success,
@@ -1230,28 +1270,28 @@ class FamilySupportCard extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 3),
+            const Gap(S.xxs),
             Muted(
               '${data.count} transfer${data.count == 1 ? '' : 's'} · '
               'last month ${money(data.prevTotal)}',
               size: 11,
             ),
             if (data.recent.isNotEmpty) ...[
-              const SizedBox(height: 14),
+              const Gap(S.md),
               for (final tx in data.recent.take(3))
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 7),
+                  padding: const EdgeInsets.only(bottom: S.sm),
                   child: Row(
                     children: [
                       Expanded(
                         child: Text(
                           tx.payee ?? tx.note ?? 'Transfer',
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: 12.5, color: t.foreground),
+                          style: TextStyle(fontSize: AppType.label, color: t.foreground),
                         ),
                       ),
                       Muted(formatDayMonth(tx.date), size: 11),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Amount(money(tx.amount), size: 12.5),
                     ],
                   ),
@@ -1275,7 +1315,7 @@ class HouseholdCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1284,19 +1324,19 @@ class HouseholdCard extends StatelessWidget {
             icon: Icons.group_outlined,
             hint: 'Shared wallets are visible to everyone in the household.',
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Row(
             children: [
               for (final m in household.members)
                 Padding(
-                  padding: const EdgeInsets.only(right: 8),
+                  padding: const EdgeInsets.only(right: S.sm),
                   child: Column(
                     children: [
                       Avatar(name: m.name, avatarId: m.avatarId, size: 34),
-                      const SizedBox(height: 4),
+                      const Gap(S.xxs),
                       Text(
                         m.isYou ? 'You' : m.name.split(' ').first,
-                        style: TextStyle(fontSize: 10, color: t.mutedForeground),
+                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
                       ),
                     ],
                   ),
@@ -1312,28 +1352,25 @@ class HouseholdCard extends StatelessWidget {
             ],
           ),
           if (household.sharedAccounts.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             Wrap(
               spacing: 7,
               runSpacing: 7,
               children: [
                 for (final a in household.sharedAccounts)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+                    padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
                     decoration: BoxDecoration(
                       color: t.surfaceMuted.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(R.sm),
                       border: Border(
-                        left: BorderSide(
-                          color: parseHexColor(a.color) ?? t.primary,
-                          width: 3,
-                        ),
+                        left: BorderSide(color: parseHexColor(a.color) ?? t.primary, width: 3),
                       ),
                     ),
                     child: Text(
                       a.name,
                       style: TextStyle(
-                        fontSize: 11,
+                        fontSize: AppType.caption,
                         fontWeight: FontWeight.w600,
                         color: t.foreground,
                       ),
@@ -1343,7 +1380,7 @@ class HouseholdCard extends StatelessWidget {
             ),
           ],
           if (household.pendingInvites > 0) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             Muted('${household.pendingInvites} invite pending', size: 11),
           ],
         ],
@@ -1376,17 +1413,18 @@ class SpendingPaceCard extends StatelessWidget {
     final pctSpent = income > 0 ? (expense / income * 100).clamp(0, 200).toDouble() : 0.0;
 
     return AppCard(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CardTitleRow(
             title: 'Spending pace',
             icon: Icons.speed_outlined,
-            hint: 'Projects the month from what you have spent so far. '
+            hint:
+                'Projects the month from what you have spent so far. '
                 'It assumes the rest of the month looks like the part already gone.',
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -1395,7 +1433,7 @@ class SpendingPaceCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Muted('Spent so far', size: 11),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Amount(money(expense), size: 20),
                   ],
                 ),
@@ -1404,17 +1442,13 @@ class SpendingPaceCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Muted('On this pace', size: 11),
-                  const SizedBox(height: 2),
-                  Amount(
-                    money(projected),
-                    size: 20,
-                    color: onTrack ? t.foreground : t.danger,
-                  ),
+                  const Gap(S.hair),
+                  Amount(money(projected), size: 20, color: onTrack ? t.foreground : t.danger),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Stack(
             alignment: Alignment.centerLeft,
             children: [
@@ -1424,8 +1458,8 @@ class SpendingPaceCard extends StatelessWidget {
                 tone: !onTrack
                     ? BadgeTone.danger
                     : pctSpent > pctOfMonth
-                        ? BadgeTone.warning
-                        : BadgeTone.primary,
+                    ? BadgeTone.warning
+                    : BadgeTone.primary,
               ),
               // The day marker: where a straight-line budget would be today.
               if (income > 0)
@@ -1445,7 +1479,7 @@ class SpendingPaceCard extends StatelessWidget {
                 ),
             ],
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Row(
             children: [
               Muted('Day $elapsed of $daysInMonth', size: 11),
@@ -1489,13 +1523,13 @@ class StatMini extends StatelessWidget {
     final color = positive == true
         ? t.success
         : positive == false
-            ? t.danger
-            : warning
-                ? t.warning
-                : t.foreground;
+        ? t.danger
+        : warning
+        ? t.warning
+        : t.foreground;
 
     return AppCard(
-      padding: const EdgeInsets.all(13),
+      padding: const EdgeInsets.all(S.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -1505,16 +1539,13 @@ class StatMini extends StatelessWidget {
               Icon(icon, size: 14, color: t.mutedForeground),
             ],
           ),
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Amount(value, size: 18, color: color),
           ),
-          if (hint != null) ...[
-            const SizedBox(height: 2),
-            Muted(hint!, size: 9.5),
-          ],
+          if (hint != null) ...[const Gap(S.hair), Muted(hint!, size: 9.5)],
         ],
       ),
     );

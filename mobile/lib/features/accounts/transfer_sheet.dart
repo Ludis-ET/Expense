@@ -79,8 +79,10 @@ class _TransferSheetState extends State<_TransferSheet> {
     }
     final source = data.scopedAccounts.where((a) => a.id == _fromId).firstOrNull;
     if (source != null && amount > toNum(source.balance)) {
-      setState(() => _error =
-          '${source.name} only has ${formatMoney(source.balance, currency: source.currency)} available.');
+      setState(
+        () => _error =
+            '${source.name} only has ${formatMoney(source.balance, currency: source.currency)} available.',
+      );
       return;
     }
 
@@ -147,8 +149,7 @@ class _TransferSheetState extends State<_TransferSheet> {
     final data = context.watch<DataState>();
     final accounts = data.scopedAccounts;
 
-    Account? byId(String? id) =>
-        id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
+    Account? byId(String? id) => id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
@@ -161,7 +162,7 @@ class _TransferSheetState extends State<_TransferSheet> {
             tint: t.accent,
             autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<Account>(
             label: 'From',
             value: byId(_fromId),
@@ -175,7 +176,7 @@ class _TransferSheetState extends State<_TransferSheet> {
               if (_toId == _fromId) _toId = null;
             }),
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Center(
             child: Container(
               width: 34,
@@ -187,7 +188,7 @@ class _TransferSheetState extends State<_TransferSheet> {
               child: Icon(Icons.arrow_downward_rounded, size: 17, color: t.accent),
             ),
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           PickerField<Account>(
             label: 'To',
             value: byId(_toId),
@@ -198,13 +199,13 @@ class _TransferSheetState extends State<_TransferSheet> {
             colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
             onChanged: (a) => setState(() => _toId = a?.id),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Date',
             value: _date,
             onChanged: (d) => setState(() => _date = d ?? _date),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -212,9 +213,9 @@ class _TransferSheetState extends State<_TransferSheet> {
             prefixIcon: Icons.notes_outlined,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -223,18 +224,18 @@ class _TransferSheetState extends State<_TransferSheet> {
               child: Row(
                 children: [
                   Icon(Icons.error_outline, size: 16, color: t.danger),
-                  const SizedBox(width: 9),
+                  const GapX(S.sm),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: 13, height: 1.4, color: t.foreground),
+                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: 'Transfer',
             icon: Icons.swap_horiz_rounded,

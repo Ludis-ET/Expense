@@ -142,7 +142,11 @@ class _TabScreenState extends State<TabScreen> {
       appBar: AppBar(
         title: Text(
           'Money Tab',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           IconPill(
@@ -156,7 +160,7 @@ class _TabScreenState extends State<TabScreen> {
               }
             },
           ),
-          const SizedBox(width: 10),
+          const GapX(S.sm),
         ],
       ),
       body: MeshBackground(
@@ -180,14 +184,16 @@ class _TabScreenState extends State<TabScreen> {
                   onRetry: _load,
                 )
               else if (s != null) ...[
-                FadeInUp(child: _SummaryHero(summary: s, money: money)),
-                const SizedBox(height: 14),
+                FadeInUp(
+                  child: _SummaryHero(summary: s, money: money),
+                ),
+                const Gap(S.md),
 
                 if (s.overdue.isNotEmpty) ...[
                   FadeInUp(
                     delay: const Duration(milliseconds: 60),
                     child: AppCard(
-                      padding: const EdgeInsets.all(14),
+                      padding: const EdgeInsets.all(S.lg),
                       color: t.danger.withValues(alpha: 0.06),
                       borderColor: t.danger.withValues(alpha: 0.25),
                       child: Column(
@@ -196,32 +202,35 @@ class _TabScreenState extends State<TabScreen> {
                           Row(
                             children: [
                               Icon(Icons.warning_amber_rounded, size: 17, color: t.danger),
-                              const SizedBox(width: 8),
+                              const GapX(S.sm),
                               Text(
                                 '${s.overdueCount} overdue',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: AppType.body,
                                   fontWeight: FontWeight.w700,
                                   color: t.danger,
                                 ),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 10),
+                          const Gap(S.sm),
                           for (final e in s.overdue.take(4))
                             Padding(
-                              padding: const EdgeInsets.only(bottom: 6),
+                              padding: const EdgeInsets.only(bottom: S.xs),
                               child: Row(
                                 children: [
                                   Expanded(
                                     child: Text(
                                       '${e.counterparty}${e.title != null ? ' · ${e.title}' : ''}',
                                       overflow: TextOverflow.ellipsis,
-                                      style: TextStyle(fontSize: 12.5, color: t.foreground),
+                                      style: TextStyle(
+                                        fontSize: AppType.label,
+                                        color: t.foreground,
+                                      ),
                                     ),
                                   ),
                                   Muted(formatDayMonth(e.dueDate), size: 11),
-                                  const SizedBox(width: 10),
+                                  const GapX(S.sm),
                                   Amount(money(e.remaining), size: 12.5, color: t.danger),
                                 ],
                               ),
@@ -230,7 +239,7 @@ class _TabScreenState extends State<TabScreen> {
                       ),
                     ),
                   ),
-                  const SizedBox(height: 14),
+                  const Gap(S.md),
                 ],
 
                 Row(
@@ -252,8 +261,10 @@ class _TabScreenState extends State<TabScreen> {
                 if (_people.isEmpty)
                   EmptyState(
                     icon: Icons.volunteer_activism_outlined,
+                    art: EmptyArt.ledger,
                     title: 'Nothing on the tab',
-                    description: 'Track money you lent, borrowed, or are still '
+                    description:
+                        'Track money you lent, borrowed, or are still '
                         'expecting — so nobody has to remember it.',
                     action: AppButton(
                       label: 'Add an entry',
@@ -268,7 +279,7 @@ class _TabScreenState extends State<TabScreen> {
                 else
                   for (var i = 0; i < _people.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 12),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: FadeInUp.staggered(
                         index: i,
                         child: _PersonCard(
@@ -302,15 +313,18 @@ class _SummaryHero extends StatelessWidget {
   Widget build(BuildContext context) {
     final net = toNum(summary.netPosition);
     return GradientHero(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(S.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             net >= 0 ? 'Net owed to you' : 'Net you owe',
-            style: TextStyle(fontSize: 11.5, color: Colors.white.withValues(alpha: 0.72)),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
           ),
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           AnimatedNumber(
             value: net.abs(),
             builder: (context, v) => FittedBox(
@@ -319,7 +333,7 @@ class _SummaryHero extends StatelessWidget {
               child: Text(
                 money(v),
                 style: const TextStyle(
-                  fontSize: 33,
+                  fontSize: AppType.hero,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -1.2,
                   color: Colors.white,
@@ -328,28 +342,36 @@ class _SummaryHero extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Row(
             children: [
-              Expanded(child: _Fig(label: 'Owed to you', value: money(summary.receivable))),
-              const SizedBox(width: 10),
-              Expanded(child: _Fig(label: 'You owe', value: money(summary.payable))),
+              Expanded(
+                child: _Fig(label: 'Owed to you', value: money(summary.receivable)),
+              ),
+              const GapX(S.sm),
+              Expanded(
+                child: _Fig(label: 'You owe', value: money(summary.payable)),
+              ),
             ],
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           Row(
             children: [
-              Expanded(child: _Fig(label: 'Expected in', value: money(summary.expectedIn))),
-              const SizedBox(width: 10),
-              Expanded(child: _Fig(label: 'Expected out', value: money(summary.expectedOut))),
+              Expanded(
+                child: _Fig(label: 'Expected in', value: money(summary.expectedIn)),
+              ),
+              const GapX(S.sm),
+              Expanded(
+                child: _Fig(label: 'Expected out', value: money(summary.expectedOut)),
+              ),
             ],
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Text(
             '${summary.openCount} open · forecast ${money(summary.netIfOnTime)} '
             'if everything due settles this month',
             style: TextStyle(
-              fontSize: 11,
+              fontSize: AppType.caption,
               height: 1.4,
               color: Colors.white.withValues(alpha: 0.8),
             ),
@@ -368,27 +390,27 @@ class _Fig extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassChip(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              fontSize: 9,
+              fontSize: AppType.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
               color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 14.5,
+                fontSize: AppType.body,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
                 fontFeatures: [FontFeature.tabularFigures()],
@@ -402,11 +424,7 @@ class _Fig extends StatelessWidget {
 }
 
 class _PersonCard extends StatefulWidget {
-  const _PersonCard({
-    required this.group,
-    required this.money,
-    required this.onChanged,
-  });
+  const _PersonCard({required this.group, required this.money, required this.onChanged});
 
   final LedgerPersonGroup group;
   final String Function(Object?) money;
@@ -426,7 +444,7 @@ class _PersonCardState extends State<_PersonCard> {
     final inbound = g.netDirection == 'in';
 
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(S.lg),
       onTap: () => setState(() => _open = !_open),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -434,7 +452,7 @@ class _PersonCardState extends State<_PersonCard> {
           Row(
             children: [
               Avatar(name: g.counterparty, size: 40),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -443,12 +461,12 @@ class _PersonCardState extends State<_PersonCard> {
                       g.counterparty,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Muted('${g.openCount} open item${g.openCount == 1 ? '' : 's'}', size: 11.5),
                   ],
                 ),
@@ -461,11 +479,11 @@ class _PersonCardState extends State<_PersonCard> {
                     size: 15.5,
                     color: inbound ? t.success : t.danger,
                   ),
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted(inbound ? 'owes you' : 'you owe', size: 10.5),
                 ],
               ),
-              const SizedBox(width: 4),
+              const GapX(S.xxs),
               AnimatedRotation(
                 turns: _open ? 0.5 : 0,
                 duration: Motion.fast,
@@ -481,10 +499,10 @@ class _PersonCardState extends State<_PersonCard> {
                 : Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const SizedBox(height: 14),
+                      const Gap(S.md),
                       for (final e in g.entries)
                         Padding(
-                          padding: const EdgeInsets.only(bottom: 9),
+                          padding: const EdgeInsets.only(bottom: S.md),
                           child: _EntryRow(
                             entry: e,
                             money: widget.money,
@@ -501,11 +519,7 @@ class _PersonCardState extends State<_PersonCard> {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({
-    required this.entry,
-    required this.money,
-    required this.onChanged,
-  });
+  const _EntryRow({required this.entry, required this.money, required this.onChanged});
 
   final LedgerEntry entry;
   final String Function(Object?) money;
@@ -518,13 +532,11 @@ class _EntryRow extends StatelessWidget {
     final tone = e.isOverdue ? t.danger : (e.kind.inbound ? t.success : t.warning);
 
     return Container(
-      padding: const EdgeInsets.all(11),
+      padding: const EdgeInsets.all(S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(R.md),
-        border: e.isOverdue
-            ? Border.all(color: t.danger.withValues(alpha: 0.3))
-            : null,
+        border: e.isOverdue ? Border.all(color: t.danger.withValues(alpha: 0.3)) : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -536,13 +548,13 @@ class _EntryRow extends StatelessWidget {
                 size: 15,
                 color: tone,
               ),
-              const SizedBox(width: 8),
+              const GapX(S.sm),
               Expanded(
                 child: Text(
                   e.title ?? e.kind.label,
                   overflow: TextOverflow.ellipsis,
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppType.bodySm,
                     fontWeight: FontWeight.w600,
                     color: t.foreground,
                   ),
@@ -555,13 +567,13 @@ class _EntryRow extends StatelessWidget {
             ],
           ),
           if (e.isOpen) ...[
-            const SizedBox(height: 8),
+            const Gap(S.sm),
             ProgressBar(
               value: e.pct,
               height: 5,
               tone: e.isOverdue ? BadgeTone.danger : BadgeTone.primary,
             ),
-            const SizedBox(height: 7),
+            const Gap(S.xs),
             Row(
               children: [
                 Muted('${money(e.paid)} of ${money(e.totalAmount)} paid', size: 11),
@@ -575,7 +587,7 @@ class _EntryRow extends StatelessWidget {
                   ),
               ],
             ),
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             Row(
               children: [
                 Expanded(
@@ -591,12 +603,8 @@ class _EntryRow extends StatelessWidget {
                     },
                   ),
                 ),
-                const SizedBox(width: 8),
-                IconPill(
-                  icon: Icons.more_horiz,
-                  size: 34,
-                  onTap: () => _menu(context),
-                ),
+                const GapX(S.sm),
+                IconPill(icon: Icons.more_horiz, size: 34, onTap: () => _menu(context)),
               ],
             ),
           ],
@@ -619,19 +627,19 @@ class _EntryRow extends StatelessWidget {
             ListTile(
               onTap: () => Navigator.pop(ctx, 'edit'),
               leading: const Icon(Icons.edit_outlined, size: 20),
-              title: const Text('Edit', style: TextStyle(fontSize: 14.5)),
+              title: const Text('Edit', style: TextStyle(fontSize: AppType.body)),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'cancel'),
               leading: const Icon(Icons.block, size: 20),
-              title: const Text('Cancel this entry', style: TextStyle(fontSize: 14.5)),
+              title: const Text('Cancel this entry', style: TextStyle(fontSize: AppType.body)),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'delete'),
               leading: Icon(Icons.delete_outline, size: 20, color: ctx.t.danger),
               title: Text(
                 'Delete',
-                style: TextStyle(fontSize: 14.5, color: ctx.t.danger),
+                style: TextStyle(fontSize: AppType.body, color: ctx.t.danger),
               ),
             ),
           ],
@@ -647,9 +655,9 @@ class _EntryRow extends StatelessWidget {
       case 'cancel':
         try {
           final result = await context.read<SyncState>().ledgerCancel(
-                entry.id,
-                label: entry.counterparty,
-              );
+            entry.id,
+            label: entry.counterparty,
+          );
           if (result.queued && context.mounted) {
             toast(context, 'Queued offline — will sync when you are back online');
           }
@@ -666,9 +674,9 @@ class _EntryRow extends StatelessWidget {
         if (!ok || !context.mounted) return;
         try {
           final result = await context.read<SyncState>().deleteLedger(
-                entry.id,
-                label: entry.counterparty,
-              );
+            entry.id,
+            label: entry.counterparty,
+          );
           if (result.queued && context.mounted) {
             toast(context, 'Delete queued — will sync when you are back online');
           }
@@ -701,8 +709,7 @@ class _LedgerFormState extends State<_LedgerForm> {
   late final _amount = TextEditingController(
     text: widget.existing == null ? '' : toNum(widget.existing!.totalAmount).toString(),
   );
-  late final _counterparty =
-      TextEditingController(text: widget.existing?.counterparty ?? '');
+  late final _counterparty = TextEditingController(text: widget.existing?.counterparty ?? '');
   late final _title = TextEditingController(text: widget.existing?.title ?? '');
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
 
@@ -820,13 +827,11 @@ class _LedgerFormState extends State<_LedgerForm> {
               value: _kind,
               options: LedgerKind.values,
               labelOf: (k) => k.label,
-              iconOf: (k) => k.inbound
-                  ? Icons.south_west_rounded
-                  : Icons.north_east_rounded,
+              iconOf: (k) => k.inbound ? Icons.south_west_rounded : Icons.north_east_rounded,
               colorOf: (k) => k.inbound ? t.success : t.warning,
               onChanged: (k) => setState(() => _kind = k ?? _kind),
             ),
-            const SizedBox(height: 16),
+            const Gap(S.lg),
           ],
           AmountField(
             controller: _amount,
@@ -834,7 +839,7 @@ class _LedgerFormState extends State<_LedgerForm> {
             tint: _kind.inbound ? t.success : t.warning,
             autofocus: !_isEdit,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _counterparty,
             label: 'With who?',
@@ -842,14 +847,14 @@ class _LedgerFormState extends State<_LedgerForm> {
             prefixIcon: Icons.person_outline,
             textCapitalization: TextCapitalization.words,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _title,
             label: 'What for?',
             placeholder: 'Rent share, taxi money…',
             prefixIcon: Icons.label_outline,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Due',
             placeholder: 'No due date',
@@ -858,7 +863,7 @@ class _LedgerFormState extends State<_LedgerForm> {
             onChanged: (d) => setState(() => _dueDate = d),
           ),
           if (!_isEdit && canMove) ...[
-            const SizedBox(height: 8),
+            const Gap(S.sm),
             SwitchRow(
               title: _kind == LedgerKind.lent
                   ? 'Money left my wallet now'
@@ -869,7 +874,7 @@ class _LedgerFormState extends State<_LedgerForm> {
               onChanged: (v) => setState(() => _recordMovement = v),
             ),
             if (_recordMovement) ...[
-              const SizedBox(height: 10),
+              const Gap(S.sm),
               PickerField<Account>(
                 label: _kind == LedgerKind.lent ? 'From wallet' : 'Into wallet',
                 value: accounts.where((a) => a.id == _sourceAccountId).firstOrNull,
@@ -881,7 +886,7 @@ class _LedgerFormState extends State<_LedgerForm> {
               ),
             ],
           ],
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -890,10 +895,13 @@ class _LedgerFormState extends State<_LedgerForm> {
             prefixIcon: Icons.notes_outlined,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _isEdit ? 'Save changes' : 'Add to the tab',
             icon: Icons.check,
@@ -914,7 +922,8 @@ Future<bool?> showPaymentSheet(BuildContext context, {required LedgerEntry entry
   return showAppSheet<bool>(
     context,
     title: 'Record payment',
-    subtitle: '${entry.counterparty} · ${formatMoney(entry.remaining, currency: entry.currency)} left',
+    subtitle:
+        '${entry.counterparty} · ${formatMoney(entry.remaining, currency: entry.currency)} left',
     builder: (ctx) => _PaymentSheet(entry: entry),
   );
 }
@@ -963,8 +972,10 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       return;
     }
     if (amount > toNum(widget.entry.remaining)) {
-      setState(() => _error =
-          'Only ${formatMoney(widget.entry.remaining, currency: widget.entry.currency)} is outstanding.');
+      setState(
+        () => _error =
+            'Only ${formatMoney(widget.entry.remaining, currency: widget.entry.currency)} is outstanding.',
+      );
       return;
     }
     setState(() {
@@ -973,16 +984,16 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     });
     try {
       final result = await context.read<SyncState>().ledgerPayment(
-            entryId: widget.entry.id,
-            label: widget.entry.counterparty,
-            body: {
-              'amount': amount,
-              'date': _date.toUtc().toIso8601String(),
-              if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-              'recordTransaction': _recordTransaction,
-              if (_recordTransaction && _accountId != null) 'accountId': _accountId,
-            },
-          );
+        entryId: widget.entry.id,
+        label: widget.entry.counterparty,
+        body: {
+          'amount': amount,
+          'date': _date.toUtc().toIso8601String(),
+          if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+          'recordTransaction': _recordTransaction,
+          if (_recordTransaction && _accountId != null) 'accountId': _accountId,
+        },
+      );
       if (!mounted) return;
       if (result.queued) {
         toast(context, 'Saved offline — will sync when you are back online');
@@ -1014,13 +1025,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             tint: inbound ? t.success : t.warning,
             autofocus: true,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Date',
             value: _date,
             onChanged: (d) => setState(() => _date = d ?? _date),
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           SwitchRow(
             title: 'Also record the transaction',
             subtitle: inbound
@@ -1031,7 +1042,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             onChanged: (v) => setState(() => _recordTransaction = v),
           ),
           if (_recordTransaction) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             PickerField<Account>(
               label: inbound ? 'Into wallet' : 'From wallet',
               value: accounts.where((a) => a.id == _accountId).firstOrNull,
@@ -1042,7 +1053,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               onChanged: (a) => setState(() => _accountId = a?.id),
             ),
           ],
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -1050,10 +1061,13 @@ class _PaymentSheetState extends State<_PaymentSheet> {
             prefixIcon: Icons.notes_outlined,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: 'Record payment',
             icon: Icons.check,

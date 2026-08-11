@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/format.dart';
@@ -36,8 +38,8 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
     });
     try {
       final drifts = await context.read<SmsState>().loadBalanceReconciliation(
-            threshold: _threshold,
-          );
+        threshold: _threshold,
+      );
       setState(() => _drifts = drifts);
     } on ApiError catch (e) {
       setState(() => _error = e.message);
@@ -58,7 +60,11 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
       appBar: AppBar(
         title: Text(
           'Balance check',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -70,7 +76,7 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               GlassCard(
-                padding: const EdgeInsets.all(16),
+                padding: const EdgeInsets.all(S.lg),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
@@ -78,11 +84,11 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                       'SMS vs wallet',
                       style: TextStyle(
                         fontWeight: FontWeight.w800,
-                        fontSize: 16,
+                        fontSize: AppType.lead,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 6),
+                    const Gap(S.xs),
                     Muted(
                       'When a bank SMS includes a remaining balance, Santim '
                       'compares it to the mapped wallet. Soft alerts only — '
@@ -91,10 +97,10 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                       height: 1.4,
                       maxLines: 5,
                     ),
-                    const SizedBox(height: 14),
+                    const Gap(S.md),
                     Text(
                       'Alert when drift ≥ ${_threshold.toStringAsFixed(0)}',
-                      style: TextStyle(fontSize: 12, color: t.mutedForeground),
+                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
                     ),
                     Slider(
                       value: _threshold,
@@ -108,7 +114,7 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               if (_loading)
                 const PageLoader(rows: 3)
               else if (_error != null)
@@ -125,23 +131,19 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                 SectionLabel('${_drifts.length} ALERTS'),
                 for (final d in _drifts)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: S.sm),
                     child: AppCard(
-                      padding: const EdgeInsets.all(14),
-                      onTap: () => Navigator.of(context).push(
-                        MaterialPageRoute(builder: (_) => const MessagingPointsScreen()),
-                      ),
+                      padding: const EdgeInsets.all(S.lg),
+                      onTap: () => Navigator.of(
+                        context,
+                      ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              IconTile(
-                                icon: Icons.balance_rounded,
-                                color: t.warning,
-                                size: 40,
-                              ),
-                              const SizedBox(width: 12),
+                              IconTile(icon: Icons.balance_rounded, color: t.warning, size: 40),
+                              const GapX(S.md),
                               Expanded(
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -150,23 +152,17 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                                       d.account.name,
                                       style: const TextStyle(fontWeight: FontWeight.w800),
                                     ),
-                                    Muted(
-                                      d.message.bankLabel ?? d.message.sender,
-                                      size: 12,
-                                    ),
+                                    Muted(d.message.bankLabel ?? d.message.sender, size: 12),
                                   ],
                                 ),
                               ),
                               Text(
                                 'Δ ${prefs.money(d.drift, currency: d.account.currency)}',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  color: t.warning,
-                                ),
+                                style: TextStyle(fontWeight: FontWeight.w800, color: t.warning),
                               ),
                             ],
                           ),
-                          const SizedBox(height: 12),
+                          const Gap(S.md),
                           Row(
                             children: [
                               Expanded(
@@ -183,7 +179,7 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                               ),
                             ],
                           ),
-                          const SizedBox(height: 8),
+                          const Gap(S.sm),
                           Muted(
                             'From SMS ${formatDate(d.message.receivedAt)}'
                             '${d.message.parsedRef != null ? ' · ref ${d.message.parsedRef}' : ''}',
@@ -213,8 +209,14 @@ class _Fig extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label, style: TextStyle(fontSize: 11, color: t.mutedForeground)),
-        Text(value, style: const TextStyle(fontWeight: FontWeight.w700, fontSize: 14)),
+        Text(
+          label,
+          style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
+        ),
+        Text(
+          value,
+          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: AppType.body),
+        ),
       ],
     );
   }

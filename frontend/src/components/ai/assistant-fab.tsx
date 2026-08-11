@@ -109,9 +109,9 @@ export function AssistantFab() {
                   <Sparkles className="h-4.5 w-4.5" />
                 </span>
                 <div>
-                  <p className="font-semibold leading-tight">Money assistant</p>
+                  <p className="font-semibold leading-tight">Ask Santim</p>
                   <p className="text-[11px] text-muted">
-                    Ask about your finances
+                    Chat saved in this browser
                   </p>
                 </div>
               </div>

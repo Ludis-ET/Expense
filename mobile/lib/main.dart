@@ -9,6 +9,7 @@ import 'core/theme/theme.dart';
 import 'core/theme/tokens.dart';
 import 'features/auth/auth_screen.dart';
 import 'features/lock/app_lock_screen.dart';
+import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
 import 'features/splash/splash_screen.dart';
 import 'state/app_lock_state.dart';
@@ -36,6 +37,12 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   final tokens = TokenStore(prefs);
   final api = ApiClient(tokens: tokens);
+
+  // Anyone already signed in when this build arrived has been using Santim for
+  // a while — the intro is for new accounts, not for an upgrade.
+  if (!prefs.containsKey(PrefsState.onboardedKey) && tokens.refresh != null) {
+    await prefs.setBool(PrefsState.onboardedKey, true);
+  }
 
   runApp(SantimApp(prefs: prefs, api: api));
 }
@@ -81,8 +88,13 @@ class SantimApp extends StatelessWidget {
           darkTheme: buildTheme(SantimTokens.dark),
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(
+              // The ceiling used to be 1.25, which meant someone who set 200%
+              // text in Android settings got 125% — the app overriding an
+              // accessibility control rather than honouring it. 1.6 covers the
+              // large-text range; beyond that the densest screens (analytics
+              // tables, the ledger) stop fitting on a phone at all.
               textScaler: TextScaler.linear(
-                MediaQuery.textScalerOf(context).scale(1).clamp(0.85, 1.25),
+                MediaQuery.textScalerOf(context).scale(1).clamp(0.85, 1.6),
               ),
               disableAnimations: prefsState.reduceMotion,
             ),
@@ -125,6 +137,8 @@ class _GateState extends State<_Gate> {
       child = const AuthScreen(key: ValueKey('auth'));
     } else if (lock.requiresUnlock) {
       child = const AppLockScreen(key: ValueKey('lock'));
+    } else if (!context.watch<PrefsState>().onboarded) {
+      child = const OnboardingScreen(key: ValueKey('onboarding'));
     } else {
       child = const AppShell(key: ValueKey('shell'));
     }

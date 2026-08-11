@@ -74,8 +74,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
   @override
   void didUpdateWidget(covariant BudgetTransactionsPanel old) {
     super.didUpdateWidget(old);
-    if (old.plan.row.id != widget.plan.row.id ||
-        old.lockedCycle != widget.lockedCycle) {
+    if (old.plan.row.id != widget.plan.row.id || old.lockedCycle != widget.lockedCycle) {
       if (widget.lockedCycle != null) _cycle = '${widget.lockedCycle}';
       _page = 1;
       _fetch();
@@ -131,9 +130,9 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
         if (_to != null) 'to': _to!.toUtc().toIso8601String(),
       };
       final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
-            '/transactions',
-            query: query,
-          );
+        '/transactions',
+        query: query,
+      );
       if (!mounted) return;
       setState(() {
         _data = TransactionPage.fromJson(json);
@@ -175,9 +174,8 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
 
     String money(Object? v) => prefs.money(v, currency: b.currency);
 
-    final categories = data.categories.data
-            ?.where((c) => c.kind == 'EXPENSE' && !c.archived)
-            .toList() ??
+    final categories =
+        data.categories.data?.where((c) => c.kind == 'EXPENSE' && !c.archived).toList() ??
         const <TxCategory>[];
 
     final body = Column(
@@ -189,17 +187,16 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
               child: Text(
                 widget.heading,
                 style: TextStyle(
-                  fontSize: 14,
+                  fontSize: AppType.body,
                   fontWeight: FontWeight.w700,
                   color: t.foreground,
                 ),
               ),
             ),
-            if (total > 0)
-              Muted('$total · ${money(pageTotal)} on page', size: 11),
+            if (total > 0) Muted('$total · ${money(pageTotal)} on page', size: 11),
           ],
         ),
-        const SizedBox(height: 12),
+        const Gap(S.md),
 
         // Search + filter toggle
         Row(
@@ -212,7 +209,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
                 textCapitalization: TextCapitalization.none,
               ),
             ),
-            const SizedBox(width: 8),
+            const GapX(S.sm),
             _FilterChipButton(
               active: _showFilters || _activeFilters > 0,
               count: _activeFilters,
@@ -227,7 +224,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
           alignment: Alignment.topCenter,
           child: _showFilters
               ? Padding(
-                  padding: const EdgeInsets.only(top: 12),
+                  padding: const EdgeInsets.only(top: S.md),
                   child: _FiltersPanel(
                     categories: categories,
                     cycles: widget.plan.cycles,
@@ -278,11 +275,11 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
               : const SizedBox.shrink(),
         ),
 
-        const SizedBox(height: 14),
+        const Gap(S.md),
 
         if (_loading && _data == null)
           const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
+            padding: EdgeInsets.symmetric(vertical: S.xxl),
             child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
           )
         else if (_error != null && _data == null)
@@ -303,7 +300,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
         else ...[
           if (_loading)
             Padding(
-              padding: const EdgeInsets.only(bottom: 8),
+              padding: const EdgeInsets.only(bottom: S.sm),
               child: LinearProgressIndicator(
                 minHeight: 2,
                 color: t.primary,
@@ -326,7 +323,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
             ),
           ],
           if (pages > 1) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             Row(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
@@ -342,7 +339,7 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
                 Text(
                   '$_page / $pages',
                   style: TextStyle(
-                    fontSize: 13,
+                    fontSize: AppType.bodySm,
                     fontWeight: FontWeight.w600,
                     color: t.foreground,
                   ),
@@ -364,16 +361,12 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
     );
 
     if (widget.embedded) return body;
-    return AppCard(padding: const EdgeInsets.all(14), child: body);
+    return AppCard(padding: const EdgeInsets.all(S.lg), child: body);
   }
 }
 
 class _FilterChipButton extends StatelessWidget {
-  const _FilterChipButton({
-    required this.active,
-    required this.count,
-    required this.onTap,
-  });
+  const _FilterChipButton({required this.active, required this.count, required this.onTap});
 
   final bool active;
   final int count;
@@ -390,24 +383,18 @@ class _FilterChipButton extends StatelessWidget {
         borderRadius: BorderRadius.circular(R.lg),
         child: Container(
           height: 48,
-          padding: const EdgeInsets.symmetric(horizontal: 12),
+          padding: const EdgeInsets.symmetric(horizontal: S.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(R.lg),
-            border: Border.all(
-              color: active ? t.primary.withValues(alpha: 0.35) : t.border,
-            ),
+            border: Border.all(color: active ? t.primary.withValues(alpha: 0.35) : t.border),
           ),
           child: Row(
             children: [
-              Icon(
-                Icons.tune_rounded,
-                size: 18,
-                color: active ? t.primary : t.mutedForeground,
-              ),
+              Icon(Icons.tune_rounded, size: 18, color: active ? t.primary : t.mutedForeground),
               if (count > 0) ...[
-                const SizedBox(width: 6),
+                const GapX(S.xs),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+                  padding: const EdgeInsets.symmetric(horizontal: S.xs, vertical: S.hair),
                   decoration: BoxDecoration(
                     color: t.primary,
                     borderRadius: BorderRadius.circular(R.pill),
@@ -415,7 +402,7 @@ class _FilterChipButton extends StatelessWidget {
                   child: Text(
                     '$count',
                     style: TextStyle(
-                      fontSize: 10,
+                      fontSize: AppType.micro,
                       fontWeight: FontWeight.w700,
                       color: t.primaryForeground,
                     ),
@@ -467,7 +454,7 @@ class _FiltersPanel extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.55),
         borderRadius: BorderRadius.circular(R.lg),
@@ -489,7 +476,7 @@ class _FiltersPanel extends StatelessWidget {
             sheetTitle: 'Category',
           ),
           if (lockedCycle == null && cycles.isNotEmpty) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             PickerField<_CycleOpt>(
               label: 'Cycle',
               value: _cycleOpts(cycles).where((o) => o.id == cycle).firstOrNull,
@@ -500,29 +487,19 @@ class _FiltersPanel extends StatelessWidget {
               sheetTitle: 'Cycle',
             ),
           ],
-          const SizedBox(height: 12),
+          const Gap(S.md),
           Row(
             children: [
               Expanded(
-                child: DateField(
-                  label: 'From',
-                  value: from,
-                  onChanged: onFrom,
-                  allowClear: true,
-                ),
+                child: DateField(label: 'From', value: from, onChanged: onFrom, allowClear: true),
               ),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Expanded(
-                child: DateField(
-                  label: 'To',
-                  value: to,
-                  onChanged: onTo,
-                  allowClear: true,
-                ),
+                child: DateField(label: 'To', value: to, onChanged: onTo, allowClear: true),
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           PickerField<_SortOpt>(
             label: 'Sort',
             value: _sorts.where((s) => s.id == sort).firstOrNull,
@@ -534,13 +511,10 @@ class _FiltersPanel extends StatelessWidget {
             sheetTitle: 'Sort',
           ),
           if (onClear != null) ...[
-            const SizedBox(height: 10),
+            const Gap(S.sm),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(
-                onPressed: onClear,
-                child: const Text('Clear filters'),
-              ),
+              child: TextButton(onPressed: onClear, child: const Text('Clear filters')),
             ),
           ],
         ],
@@ -549,10 +523,10 @@ class _FiltersPanel extends StatelessWidget {
   }
 
   static List<_CycleOpt> _cycleOpts(List<BudgetCycleSnapshot> cycles) => [
-        const _CycleOpt('all', 'All time'),
-        const _CycleOpt('current', 'Current cycle'),
-        for (final c in cycles) _CycleOpt('${c.index}', c.label),
-      ];
+    const _CycleOpt('all', 'All time'),
+    const _CycleOpt('current', 'Current cycle'),
+    for (final c in cycles) _CycleOpt('${c.index}', c.label),
+  ];
 }
 
 class _CycleOpt {

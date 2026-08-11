@@ -79,8 +79,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           if (_trends != null) return;
           final results = await Future.wait([
             api.get<Map<String, dynamic>>('/analytics/income-vs-expense', query: {'months': 12}),
-            api.get<Map<String, dynamic>>('/analytics/heatmap',
-                query: {'year': DateTime.now().year}),
+            api.get<Map<String, dynamic>>(
+              '/analytics/heatmap',
+              query: {'year': DateTime.now().year},
+            ),
           ]);
           if (!mounted) return;
           setState(() {
@@ -90,12 +92,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         case _Section.categories:
           if (_categories != null) return;
           final results = await Future.wait([
-            api.get<Map<String, dynamic>>('/analytics/categories',
-                query: {'month': monthKey(_month), 'kind': 'EXPENSE'}),
-            api.get<Map<String, dynamic>>('/analytics/movers',
-                query: {'month': monthKey(_month)}),
-            api.get<Map<String, dynamic>>('/analytics/payees',
-                query: {'month': monthKey(_month), 'limit': 8}),
+            api.get<Map<String, dynamic>>(
+              '/analytics/categories',
+              query: {'month': monthKey(_month), 'kind': 'EXPENSE'},
+            ),
+            api.get<Map<String, dynamic>>('/analytics/movers', query: {'month': monthKey(_month)}),
+            api.get<Map<String, dynamic>>(
+              '/analytics/payees',
+              query: {'month': monthKey(_month), 'limit': 8},
+            ),
           ]);
           if (!mounted) return;
           setState(() {
@@ -137,15 +142,21 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     String money(Object? v) => prefs.money(v, currency: currency);
     String compact(Object? v) => prefs.money(v, currency: currency, compact: true);
 
-    final canGoForward = DateTime(_month.year, _month.month)
-        .isBefore(DateTime(DateTime.now().year, DateTime.now().month));
+    final canGoForward = DateTime(
+      _month.year,
+      _month.month,
+    ).isBefore(DateTime(DateTime.now().year, DateTime.now().month));
 
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
         title: Text(
           'Analytics',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -164,16 +175,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           Text(
                             formatMonthKey(monthKey(_month)),
                             style: TextStyle(
-                              fontSize: 14.5,
+                              fontSize: AppType.body,
                               fontWeight: FontWeight.w700,
                               color: t.foreground,
                             ),
                           ),
                           if (_page != null && _page!.inProgress)
-                            Muted(
-                              'day ${_page!.daysElapsed} of ${_page!.daysInMonth}',
-                              size: 10.5,
-                            ),
+                            Muted('day ${_page!.daysElapsed} of ${_page!.daysInMonth}', size: 10.5),
                         ],
                       ),
                     ),
@@ -248,24 +256,24 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     return [
       if (!p.scopeComplete && p.missingRates.isNotEmpty) ...[
         AppCard(
-          padding: const EdgeInsets.all(13),
+          padding: const EdgeInsets.all(S.md),
           color: t.warning.withValues(alpha: 0.08),
           borderColor: t.warning.withValues(alpha: 0.25),
           child: Row(
             children: [
               Icon(Icons.info_outline, size: 16, color: t.warning),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Expanded(
                 child: Text(
                   '${p.missingRates.join(', ')} left out — no exchange rate into '
                   '${p.currency}. Add one in Settings.',
-                  style: TextStyle(fontSize: 12, height: 1.4, color: t.foreground),
+                  style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
                 ),
               ),
             ],
           ),
         ),
-        const SizedBox(height: 12),
+        const Gap(S.md),
       ],
 
       // 1. Cash flow
@@ -273,7 +281,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Cash flow',
           icon: Icons.swap_vert_rounded,
-          hint: 'Income minus spending for the month, against the same figures '
+          hint:
+              'Income minus spending for the month, against the same figures '
               'last month. Savings rate is what share of income you kept.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -286,7 +295,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Muted('Net', size: 11),
-                        const SizedBox(height: 3),
+                        const Gap(S.xxs),
                         FittedBox(
                           fit: BoxFit.scaleDown,
                           alignment: Alignment.centerLeft,
@@ -306,15 +315,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
               Row(
                 children: [
-                  Expanded(child: _Fig(label: 'Income', value: money(p.income), color: t.success)),
-                  const SizedBox(width: 10),
-                  Expanded(child: _Fig(label: 'Spent', value: money(p.expense), color: t.danger)),
+                  Expanded(
+                    child: _Fig(label: 'Income', value: money(p.income), color: t.success),
+                  ),
+                  const GapX(S.sm),
+                  Expanded(
+                    child: _Fig(label: 'Spent', value: money(p.expense), color: t.danger),
+                  ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const Gap(S.sm),
               Row(
                 children: [
                   Expanded(
@@ -323,14 +336,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       value: p.savingsRate == null ? '-' : '${p.savingsRate!.round()}%',
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(label: 'Last month net', value: money(p.prevNet)),
                   ),
                 ],
               ),
               if (p.deltaExpensePct != null) ...[
-                const SizedBox(height: 10),
+                const Gap(S.sm),
                 Muted(
                   'Spending is ${formatPct(p.deltaExpensePct)} on last month '
                   '(${money(p.prevExpense)}).',
@@ -342,7 +355,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 2. Where your cash sits
       FadeInUp(
@@ -350,15 +363,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Where your cash sits',
           icon: Icons.account_balance_wallet_outlined,
-          hint: 'Real is what is physically in your accounts. Locked is what '
+          hint:
+              'Real is what is physically in your accounts. Locked is what '
               'budget plans have reserved. Available is what is genuinely free.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  Expanded(child: _Fig(label: 'Real', value: money(p.cashReal))),
-                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _Fig(label: 'Real', value: money(p.cashReal)),
+                  ),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Locked in plans',
@@ -366,15 +382,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       color: t.primary,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(label: 'Available', value: money(p.cashAvailable)),
                   ),
                 ],
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
               ProgressBar(value: p.lockedPct, height: 8, tone: BadgeTone.info),
-              const SizedBox(height: 8),
+              const Gap(S.sm),
               Muted(
                 '${p.lockedPct.round()}% of your money is reserved across '
                 '${p.accountCount} wallet${p.accountCount == 1 ? '' : 's'}.',
@@ -384,7 +400,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 3. Unplanned spending
       FadeInUp(
@@ -392,7 +408,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Unplanned spending',
           icon: Icons.more_horiz,
-          hint: 'Spending that never went through a funded plan. A high share '
+          hint:
+              'Spending that never went through a funded plan. A high share '
               'means your plans are not covering how you actually spend.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -405,9 +422,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     size: 24,
                     color: p.unplannedPct > 50 ? t.warning : t.foreground,
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 4),
+                    padding: const EdgeInsets.only(bottom: S.xxs),
                     child: AppBadge(
                       '${p.unplannedPct.round()}% of spend',
                       tone: p.unplannedPct > 50 ? BadgeTone.warning : BadgeTone.neutral,
@@ -416,22 +433,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const Gap(S.md),
               ProgressBar(
                 value: p.unplannedPct,
                 height: 8,
                 tone: p.unplannedPct > 50 ? BadgeTone.warning : BadgeTone.primary,
               ),
-              const SizedBox(height: 8),
-              Muted(
-                'of ${money(p.unplannedTotalExpense)} spent this month.',
-                size: 11.5,
-              ),
+              const Gap(S.sm),
+              Muted('of ${money(p.unplannedTotalExpense)} spent this month.', size: 11.5),
             ],
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 4. Plans
       FadeInUp(
@@ -439,15 +453,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Plans this month',
           icon: Icons.savings_outlined,
-          hint: 'Spend is measured against what each cycle opened with, so a '
+          hint:
+              'Spend is measured against what each cycle opened with, so a '
               'mid-cycle raise cannot quietly hide an overspend.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  Expanded(child: _Fig(label: 'Opened at', value: money(p.planOpening))),
-                  const SizedBox(width: 10),
+                  Expanded(
+                    child: _Fig(label: 'Opened at', value: money(p.planOpening)),
+                  ),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Adjusted',
@@ -455,12 +472,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       color: toNum(p.planAdjusted) >= 0 ? t.success : t.warning,
                     ),
                   ),
-                  const SizedBox(width: 10),
-                  Expanded(child: _Fig(label: 'Spent', value: money(p.planSpent))),
+                  const GapX(S.sm),
+                  Expanded(
+                    child: _Fig(label: 'Spent', value: money(p.planSpent)),
+                  ),
                 ],
               ),
               if (p.overspentCount > 0 || p.adjustedCount > 0) ...[
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Wrap(
                   spacing: 8,
                   runSpacing: 8,
@@ -472,18 +491,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         icon: Icons.warning_amber_rounded,
                       ),
                     if (p.adjustedCount > 0)
-                      AppBadge(
-                        '${p.adjustedCount} adjusted mid-cycle',
-                        tone: BadgeTone.warning,
-                      ),
+                      AppBadge('${p.adjustedCount} adjusted mid-cycle', tone: BadgeTone.warning),
                   ],
                 ),
               ],
               if (p.plans.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const Gap(S.md),
                 for (var i = 0; i < math.min(p.plans.length, 6); i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 11),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: _PlanRow(plan: p.plans[i], money: money),
                   ),
               ],
@@ -491,7 +507,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 5. Commitments
       FadeInUp(
@@ -499,7 +515,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Fixed commitments',
           icon: Icons.repeat,
-          hint: 'Every recurring rule normalised to a monthly figure, so a '
+          hint:
+              'Every recurring rule normalised to a monthly figure, so a '
               'weekly bill and a yearly one can be compared.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -513,34 +530,30 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       color: t.danger,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
-                    child: _Fig(
-                      label: 'In per month',
-                      value: money(p.monthlyIn),
-                      color: t.success,
-                    ),
+                    child: _Fig(label: 'In per month', value: money(p.monthlyIn), color: t.success),
                   ),
                 ],
               ),
               if (p.shareOfIncome != null) ...[
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 ProgressBar(
                   value: p.shareOfIncome!,
                   height: 8,
                   tone: p.shareOfIncome! > 60 ? BadgeTone.danger : BadgeTone.primary,
                 ),
-                const SizedBox(height: 8),
+                const Gap(S.sm),
                 Muted(
                   '${p.shareOfIncome!.round()}% of your income is already spoken for.',
                   size: 11.5,
                 ),
               ],
               if (p.commitments.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const Gap(S.md),
                 for (final c in p.commitments.take(6))
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: S.sm),
                     child: Row(
                       children: [
                         IconTile(
@@ -548,7 +561,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           color: parseHexColor(c.category?.color),
                           size: 32,
                         ),
-                        const SizedBox(width: 10),
+                        const GapX(S.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -557,7 +570,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 c.name,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: AppType.label,
                                   fontWeight: FontWeight.w600,
                                   color: t.foreground,
                                 ),
@@ -578,7 +591,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 6. Wishlist
       FadeInUp(
@@ -586,44 +599,49 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Wishlist',
           icon: Icons.favorite_border,
-          hint: 'How wants move through the list: how long they sit before you '
+          hint:
+              'How wants move through the list: how long they sit before you '
               'plan them, and how long a plan takes to become a purchase.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
               Row(
                 children: [
-                  Expanded(child: _Fig(label: 'Wanting', value: '${p.wishWanting}')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _Fig(label: 'Planned', value: '${p.wishPlanned}')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _Fig(label: 'Bought', value: '${p.wishBought}')),
-                  const SizedBox(width: 8),
-                  Expanded(child: _Fig(label: 'Dropped', value: '${p.wishDropped}')),
+                  Expanded(
+                    child: _Fig(label: 'Wanting', value: '${p.wishWanting}'),
+                  ),
+                  const GapX(S.sm),
+                  Expanded(
+                    child: _Fig(label: 'Planned', value: '${p.wishPlanned}'),
+                  ),
+                  const GapX(S.sm),
+                  Expanded(
+                    child: _Fig(label: 'Bought', value: '${p.wishBought}'),
+                  ),
+                  const GapX(S.sm),
+                  Expanded(
+                    child: _Fig(label: 'Dropped', value: '${p.wishDropped}'),
+                  ),
                 ],
               ),
-              const SizedBox(height: 12),
+              const Gap(S.md),
               Row(
                 children: [
                   Expanded(
                     child: _Fig(label: 'Planned value', value: money(p.wishPlannedValue)),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Want → plan',
-                      value: p.avgDaysToPlan == null
-                          ? '-'
-                          : '${p.avgDaysToPlan!.round()} days',
+                      value: p.avgDaysToPlan == null ? '-' : '${p.avgDaysToPlan!.round()} days',
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Plan → bought',
-                      value: p.avgDaysToBuy == null
-                          ? '-'
-                          : '${p.avgDaysToBuy!.round()} days',
+                      value: p.avgDaysToBuy == null ? '-' : '${p.avgDaysToBuy!.round()} days',
                     ),
                   ),
                 ],
@@ -632,7 +650,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ),
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
 
       // 7. Money Tab
       FadeInUp(
@@ -640,7 +658,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: _Card(
           title: 'Money Tab',
           icon: Icons.volunteer_activism_outlined,
-          hint: 'What is outstanding either way. Expected items are ones you '
+          hint:
+              'What is outstanding either way. Expected items are ones you '
               'are counting on but have not moved yet.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -654,7 +673,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       color: t.success,
                     ),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Borrowed (${p.borrowedCount})',
@@ -664,20 +683,20 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 10),
+              const Gap(S.sm),
               Row(
                 children: [
                   Expanded(
                     child: _Fig(label: 'Expected in', value: money(p.ledgerExpectedIn)),
                   ),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                   Expanded(
                     child: _Fig(label: 'Expected out', value: money(p.ledgerExpectedOut)),
                   ),
                 ],
               ),
               if (p.overdueCount > 0) ...[
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 AppBadge(
                   '${p.overdueCount} overdue',
                   tone: BadgeTone.danger,
@@ -685,14 +704,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ),
               ],
               if (p.counterparties.isNotEmpty) ...[
-                const SizedBox(height: 14),
+                const Gap(S.md),
                 for (final c in p.counterparties.take(6))
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
+                    padding: const EdgeInsets.only(bottom: S.sm),
                     child: Row(
                       children: [
                         Avatar(name: c.name, size: 28),
-                        const SizedBox(width: 10),
+                        const GapX(S.sm),
                         Expanded(
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
@@ -701,7 +720,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                 c.name,
                                 overflow: TextOverflow.ellipsis,
                                 style: TextStyle(
-                                  fontSize: 12.5,
+                                  fontSize: AppType.label,
                                   fontWeight: FontWeight.w600,
                                   color: t.foreground,
                                 ),
@@ -721,8 +740,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                           color: c.overdue
                               ? t.danger
                               : c.kind.inbound
-                                  ? t.success
-                                  : t.foreground,
+                              ? t.success
+                              : t.foreground,
                         ),
                       ],
                     ),
@@ -762,7 +781,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           format: compact,
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
       _Card(
         title: 'Savings rate',
         icon: Icons.percent,
@@ -779,7 +798,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       ),
       if (_heatmap != null) ...[
-        const SizedBox(height: 12),
+        const Gap(S.md),
         _Card(
           title: 'Spending heatmap ${_heatmap!.year}',
           icon: Icons.grid_view_rounded,
@@ -790,10 +809,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 DateTime(d.date.year, d.date.month, d.date.day): toNum(d.total),
             },
             format: compact,
-            onTapDay: (day, amount) => toast(
-              context,
-              '${formatDate(day)} · ${money(amount)}',
-            ),
+            onTapDay: (day, amount) => toast(context, '${formatDate(day)} · ${money(amount)}'),
           ),
         ),
       ],
@@ -821,19 +837,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: slices.isEmpty
             ? const EmptyState(title: 'No spending this month', compact: true)
             : Center(
-                child: DonutChart(
-                  data: slices,
-                  format: money,
-                  centerLabel: 'spent',
-                ),
+                child: DonutChart(data: slices, format: money, centerLabel: 'spent'),
               ),
       ),
       if (_movers != null && _movers!.hasPrevious) ...[
-        const SizedBox(height: 12),
+        const Gap(S.md),
         _Card(
           title: 'Biggest movers',
           icon: Icons.trending_up,
-          hint: 'Categories that changed most against last month. New ones show '
+          hint:
+              'Categories that changed most against last month. New ones show '
               'no percentage — a percentage off zero says nothing.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -850,14 +863,14 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         caption: m.isNew
                             ? 'new this month'
                             : '${money(m.previous)} → ${money(m.current)} '
-                                '(${formatPct(m.changePct)})',
+                                  '(${formatPct(m.changePct)})',
                       ),
                   ],
                   format: money,
                 ),
               ],
               if (_movers!.down.isNotEmpty) ...[
-                const SizedBox(height: 16),
+                const Gap(S.lg),
                 SectionLabel('DOWN'),
                 RankedBars(
                   data: [
@@ -869,7 +882,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         caption: m.stopped
                             ? 'stopped this month'
                             : '${money(m.previous)} → ${money(m.current)} '
-                                '(${formatPct(m.changePct)})',
+                                  '(${formatPct(m.changePct)})',
                       ),
                   ],
                   format: money,
@@ -880,7 +893,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       ],
       if (_payees != null && _payees!.items.isNotEmpty) ...[
-        const SizedBox(height: 12),
+        const Gap(S.md),
         _Card(
           title: 'Top payees',
           icon: Icons.storefront_outlined,
@@ -913,6 +926,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       return [
         const EmptyState(
           icon: Icons.calendar_month_outlined,
+          art: EmptyArt.calendar,
           title: 'Not enough history yet',
           description: 'Seasonal patterns need at least two months of data.',
         ),
@@ -923,7 +937,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
       _Card(
         title: 'Month by month',
         icon: Icons.calendar_month_outlined,
-        hint: 'Average spend for each calendar month across '
+        hint:
+            'Average spend for each calendar month across '
             '${s.monthsObserved} months of history.',
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -940,11 +955,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               format: money,
             ),
             if (s.dearestMonth != null) ...[
-              const SizedBox(height: 14),
+              const Gap(S.md),
               Row(
                 children: [
                   Icon(Icons.local_fire_department_outlined, size: 15, color: t.warning),
-                  const SizedBox(width: 7),
+                  const GapX(S.xs),
                   Expanded(
                     child: Muted(
                       '${s.dearestMonth!.name} is your dearest month '
@@ -961,11 +976,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           ],
         ),
       ),
-      const SizedBox(height: 12),
+      const Gap(S.md),
       _Card(
         title: 'Day of the week',
         icon: Icons.view_week_outlined,
-        hint: 'Average spend per weekday — useful for spotting the day your '
+        hint:
+            'Average spend per weekday — useful for spotting the day your '
             'money quietly disappears.',
         child: ColumnChart(
           data: [
@@ -980,7 +996,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         ),
       ),
       if (s.years.isNotEmpty) ...[
-        const SizedBox(height: 12),
+        const Gap(S.md),
         _Card(
           title: 'By year',
           icon: Icons.history,
@@ -989,7 +1005,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
             children: [
               for (final y in s.years)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: S.md),
                   child: Row(
                     children: [
                       SizedBox(
@@ -997,7 +1013,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         child: Text(
                           '${y.year}',
                           style: TextStyle(
-                            fontSize: 13,
+                            fontSize: AppType.bodySm,
                             fontWeight: FontWeight.w700,
                             color: t.foreground,
                           ),
@@ -1010,7 +1026,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             Row(
                               children: [
                                 Muted('in ${money(y.income)}', size: 11),
-                                const SizedBox(width: 10),
+                                const GapX(S.sm),
                                 Muted('out ${money(y.expense)}', size: 11),
                                 const Spacer(),
                                 if (y.savingsRate != null)
@@ -1023,13 +1039,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                                   ),
                               ],
                             ),
-                            const SizedBox(height: 5),
+                            const Gap(S.xxs),
                             ProgressBar(
                               value: toNum(y.income) <= 0
                                   ? 0
                                   : (toNum(y.expense) / toNum(y.income) * 100)
-                                      .clamp(0, 100)
-                                      .toDouble(),
+                                        .clamp(0, 100)
+                                        .toDouble(),
                               height: 5,
                             ),
                           ],
@@ -1069,12 +1085,12 @@ class _SectionTabs extends StatelessWidget {
         children: [
           for (final s in _Section.values)
             Padding(
-              padding: const EdgeInsets.only(right: 8),
+              padding: const EdgeInsets.only(right: S.sm),
               child: PressableScale(
                 onTap: () => onChanged(s),
                 child: AnimatedContainer(
                   duration: Motion.fast,
-                  padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                  padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.sm),
                   decoration: BoxDecoration(
                     color: s == value ? t.primary.withValues(alpha: 0.12) : t.surface,
                     borderRadius: BorderRadius.circular(R.pill),
@@ -1085,7 +1101,7 @@ class _SectionTabs extends StatelessWidget {
                   child: Text(
                     _labels[s]!,
                     style: TextStyle(
-                      fontSize: 12.5,
+                      fontSize: AppType.label,
                       fontWeight: s == value ? FontWeight.w700 : FontWeight.w500,
                       color: s == value ? t.primary : t.foreground,
                     ),
@@ -1100,12 +1116,7 @@ class _SectionTabs extends StatelessWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({
-    required this.title,
-    required this.icon,
-    required this.child,
-    this.hint,
-  });
+  const _Card({required this.title, required this.icon, required this.child, this.hint});
 
   final String title;
   final IconData icon;
@@ -1115,12 +1126,12 @@ class _Card extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           CardTitleRow(title: title, icon: icon, hint: hint),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           child,
         ],
       ),
@@ -1139,7 +1150,7 @@ class _Fig extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.6),
         borderRadius: BorderRadius.circular(R.md),
@@ -1148,7 +1159,7 @@ class _Fig extends StatelessWidget {
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Muted(label, size: 10, maxLines: 1),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
@@ -1182,32 +1193,28 @@ class _PlanRow extends StatelessWidget {
               color: parseHexColor(plan.color) ?? t.primary,
               size: 28,
             ),
-            const SizedBox(width: 9),
+            const GapX(S.sm),
             Expanded(
               child: Text(
                 plan.name,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: AppType.label,
                   fontWeight: FontWeight.w600,
                   color: t.foreground,
                 ),
               ),
             ),
-            Amount(
-              money(plan.spent),
-              size: 12.5,
-              color: over ? t.danger : t.foreground,
-            ),
+            Amount(money(plan.spent), size: 12.5, color: over ? t.danger : t.foreground),
           ],
         ),
-        const SizedBox(height: 6),
+        const Gap(S.xs),
         ProgressBar(
           value: plan.pctOfOpening.clamp(0, 100).toDouble(),
           height: 6,
           tone: over ? BadgeTone.danger : BadgeTone.primary,
         ),
-        const SizedBox(height: 4),
+        const Gap(S.xxs),
         Row(
           children: [
             Muted(
@@ -1217,10 +1224,7 @@ class _PlanRow extends StatelessWidget {
             ),
             const Spacer(),
             if (adjusted != 0)
-              Muted(
-                '${adjusted >= 0 ? 'raised' : 'cut'} ${money(adjusted.abs())}',
-                size: 10.5,
-              ),
+              Muted('${adjusted >= 0 ? 'raised' : 'cut'} ${money(adjusted.abs())}', size: 10.5),
           ],
         ),
       ],

@@ -35,10 +35,16 @@ class RecurringScreen extends StatelessWidget {
 
     final monthlyOut = active
         .where((r) => r.kind == TxKind.expense)
-        .fold<double>(0, (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval));
+        .fold<double>(
+          0,
+          (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
+        );
     final monthlyIn = active
         .where((r) => r.kind == TxKind.income)
-        .fold<double>(0, (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval));
+        .fold<double>(
+          0,
+          (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
+        );
 
     String money(Object? v) => prefs.money(v, currency: data.activeCurrency);
 
@@ -47,20 +53,28 @@ class RecurringScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'Recurring',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
-          IconPill(
-            icon: Icons.add,
-            tooltip: 'New rule',
-            onTap: () async {
-              final saved = await showRecurringForm(context);
-              if (saved == true && context.mounted) {
-                await context.read<DataState>().loadRecurring(force: true);
-              }
-            },
+          Padding(
+            padding: const EdgeInsets.only(right: S.sm),
+            child: Center(
+              child: HeaderAction(
+                icon: Icons.add_rounded,
+                label: 'New rule',
+                onTap: () async {
+                  final saved = await showRecurringForm(context);
+                  if (saved == true && context.mounted) {
+                    await context.read<DataState>().loadRecurring(force: true);
+                  }
+                },
+              ),
+            ),
           ),
-          const SizedBox(width: 10),
         ],
       ),
       body: MeshBackground(
@@ -94,7 +108,7 @@ class RecurringScreen extends StatelessWidget {
                           icon: Icons.north_east_rounded,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Expanded(
                         child: _Stat(
                           label: 'Expected in',
@@ -107,24 +121,26 @@ class RecurringScreen extends StatelessWidget {
                     ],
                   ),
                 ),
-                const SizedBox(height: 10),
+                const Gap(S.sm),
                 AppButton(
                   label: 'Open monthly outlook',
                   icon: Icons.insights_rounded,
                   expand: true,
                   variant: BtnVariant.outline,
                   size: BtnSize.sm,
-                  onPressed: () => Navigator.of(context).push(
-                    MaterialPageRoute(builder: (_) => const MonthlyOutlookScreen()),
-                  ),
+                  onPressed: () => Navigator.of(
+                    context,
+                  ).push(MaterialPageRoute(builder: (_) => const MonthlyOutlookScreen())),
                 ),
-                const SizedBox(height: 16),
+                const Gap(S.lg),
 
                 if (active.isEmpty && paused.isEmpty)
                   EmptyState(
                     icon: Icons.repeat,
+                    art: EmptyArt.calendar,
                     title: 'No recurring plans yet',
-                    description: 'Set up rent, salary or a subscription once and '
+                    description:
+                        'Set up rent, salary or a subscription once and '
                         'let it post itself.',
                     action: AppButton(
                       label: 'Add a rule',
@@ -143,7 +159,7 @@ class RecurringScreen extends StatelessWidget {
                   SectionLabel('ACTIVE'),
                   for (var i = 0; i < active.length; i++)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 11),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: FadeInUp.staggered(
                         index: i,
                         child: _RuleCard(rule: active[i], money: money),
@@ -152,11 +168,11 @@ class RecurringScreen extends StatelessWidget {
                 ],
 
                 if (paused.isNotEmpty) ...[
-                  const SizedBox(height: 8),
+                  const Gap(S.sm),
                   SectionLabel('PAUSED'),
                   for (final r in paused)
                     Padding(
-                      padding: const EdgeInsets.only(bottom: 11),
+                      padding: const EdgeInsets.only(bottom: S.md),
                       child: Opacity(
                         opacity: 0.6,
                         child: _RuleCard(rule: r, money: money),
@@ -190,24 +206,24 @@ class _Stat extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(icon, size: 14, color: color),
-              const SizedBox(width: 6),
+              const GapX(S.xs),
               Expanded(child: Muted(label, size: 11.5, maxLines: 1)),
             ],
           ),
-          const SizedBox(height: 7),
+          const Gap(S.xs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Amount(value, size: 19, color: color),
           ),
-          const SizedBox(height: 2),
+          const Gap(S.hair),
           Muted(hint, size: 10.5),
         ],
       ),
@@ -230,7 +246,7 @@ class _RuleCard extends StatelessWidget {
     final due = r.nextRun.difference(DateTime.now()).inDays;
 
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(S.lg),
       onTap: () => _menu(context),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -238,7 +254,7 @@ class _RuleCard extends StatelessWidget {
           Row(
             children: [
               IconTile(icon: financeIcon(r.category?.icon), color: tint, size: 42),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -247,16 +263,16 @@ class _RuleCard extends StatelessWidget {
                       r.name,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const Gap(S.xxs),
                     Row(
                       children: [
                         AppBadge(r.cadence, tone: BadgeTone.neutral, dense: true),
-                        const SizedBox(width: 6),
+                        const GapX(S.xs),
                         if (r.autoPost)
                           AppBadge('Auto', tone: BadgeTone.primary, dense: true, icon: Icons.bolt)
                         else
@@ -266,7 +282,7 @@ class _RuleCard extends StatelessWidget {
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
@@ -275,15 +291,15 @@ class _RuleCard extends StatelessWidget {
                     size: 15,
                     color: isIncome ? t.success : t.foreground,
                   ),
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted(r.account?.name ?? '', size: 10.5, maxLines: 1),
                 ],
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 8),
+            padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
             decoration: BoxDecoration(
               color: due <= 2 && r.active
                   ? t.warning.withValues(alpha: 0.1)
@@ -297,14 +313,14 @@ class _RuleCard extends StatelessWidget {
                   size: 14,
                   color: due <= 2 && r.active ? t.warning : t.mutedForeground,
                 ),
-                const SizedBox(width: 8),
+                const GapX(S.sm),
                 Expanded(
                   child: Text(
                     r.active
                         ? 'Next ${formatDate(r.nextRun)} · ${relativeTime(r.nextRun)}'
                         : 'Paused',
                     style: TextStyle(
-                      fontSize: 11.5,
+                      fontSize: AppType.caption,
                       color: due <= 2 && r.active ? t.warning : t.mutedForeground,
                     ),
                   ),
@@ -335,16 +351,16 @@ class _RuleCard extends StatelessWidget {
             ListTile(
               onTap: () => Navigator.pop(ctx, 'run'),
               leading: const Icon(Icons.play_arrow_rounded, size: 21),
-              title: const Text('Post it now', style: TextStyle(fontSize: 14.5)),
+              title: const Text('Post it now', style: TextStyle(fontSize: AppType.body)),
               subtitle: const Text(
                 'Writes the transaction and moves the next run forward.',
-                style: TextStyle(fontSize: 11.5),
+                style: TextStyle(fontSize: AppType.caption),
               ),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'edit'),
               leading: const Icon(Icons.edit_outlined, size: 20),
-              title: const Text('Edit', style: TextStyle(fontSize: 14.5)),
+              title: const Text('Edit', style: TextStyle(fontSize: AppType.body)),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'toggle'),
@@ -354,7 +370,7 @@ class _RuleCard extends StatelessWidget {
               ),
               title: Text(
                 rule.active ? 'Pause' : 'Resume',
-                style: const TextStyle(fontSize: 14.5),
+                style: const TextStyle(fontSize: AppType.body),
               ),
             ),
             ListTile(
@@ -362,7 +378,7 @@ class _RuleCard extends StatelessWidget {
               leading: Icon(Icons.delete_outline, size: 20, color: ctx.t.danger),
               title: Text(
                 'Delete',
-                style: TextStyle(fontSize: 14.5, color: ctx.t.danger),
+                style: TextStyle(fontSize: AppType.body, color: ctx.t.danger),
               ),
             ),
           ],
@@ -402,35 +418,69 @@ class _RuleCard extends StatelessWidget {
 }
 
 /// Add or edit a recurring rule.
-Future<bool?> showRecurringForm(BuildContext context, {RecurringRule? existing}) {
+/// Seed values for a brand-new rule — used by the outlook when turning a
+/// detected repeating payee into a real rule, so the user only confirms.
+class RecurringPrefill {
+  const RecurringPrefill({
+    required this.name,
+    required this.amount,
+    required this.kind,
+    this.frequency = Frequency.monthly,
+    this.payee,
+    this.categoryId,
+  });
+
+  final String name;
+  final double amount;
+  final TxKind kind;
+  final Frequency frequency;
+  final String? payee;
+  final String? categoryId;
+}
+
+Future<bool?> showRecurringForm(
+  BuildContext context, {
+  RecurringRule? existing,
+  RecurringPrefill? prefill,
+}) {
   return showAppSheet<bool>(
     context,
     title: existing == null ? 'New recurring rule' : 'Edit rule',
-    builder: (ctx) => _RecurringForm(existing: existing),
+    builder: (ctx) => _RecurringForm(existing: existing, prefill: prefill),
   );
 }
 
 class _RecurringForm extends StatefulWidget {
-  const _RecurringForm({this.existing});
+  const _RecurringForm({this.existing, this.prefill});
   final RecurringRule? existing;
+  final RecurringPrefill? prefill;
 
   @override
   State<_RecurringForm> createState() => _RecurringFormState();
 }
 
 class _RecurringFormState extends State<_RecurringForm> {
-  late final _name = TextEditingController(text: widget.existing?.name ?? '');
+  late final _name = TextEditingController(
+    text: widget.existing?.name ?? widget.prefill?.name ?? '',
+  );
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : toNum(widget.existing!.amount).toString(),
+    text: widget.existing != null
+        ? toNum(widget.existing!.amount).toString()
+        : widget.prefill != null
+            ? widget.prefill!.amount.toStringAsFixed(2)
+            : '',
   );
   late final _interval = TextEditingController(text: '${widget.existing?.interval ?? 1}');
-  late final _payee = TextEditingController(text: widget.existing?.payee ?? '');
+  late final _payee = TextEditingController(
+    text: widget.existing?.payee ?? widget.prefill?.payee ?? '',
+  );
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
 
-  late TxKind _kind = widget.existing?.kind ?? TxKind.expense;
-  late Frequency _frequency = widget.existing?.frequency ?? Frequency.monthly;
+  late TxKind _kind = widget.existing?.kind ?? widget.prefill?.kind ?? TxKind.expense;
+  late Frequency _frequency =
+      widget.existing?.frequency ?? widget.prefill?.frequency ?? Frequency.monthly;
   late String? _accountId = widget.existing?.accountId;
-  late String? _categoryId = widget.existing?.categoryId;
+  late String? _categoryId = widget.existing?.categoryId ?? widget.prefill?.categoryId;
   late DateTime _nextRun = widget.existing?.nextRun ?? DateTime.now();
   late DateTime? _endDate = widget.existing?.endDate;
   late bool _autoPost = widget.existing?.autoPost ?? true;
@@ -542,15 +592,13 @@ class _RecurringFormState extends State<_RecurringForm> {
             options: const [TxKind.expense, TxKind.income],
             labelOf: (k) => k.label,
             colorOf: (k) => k == TxKind.income ? t.success : t.danger,
-            iconOf: (k) => k == TxKind.income
-                ? Icons.south_west_rounded
-                : Icons.north_east_rounded,
+            iconOf: (k) => k == TxKind.income ? Icons.south_west_rounded : Icons.north_east_rounded,
             onChanged: (k) => setState(() {
               _kind = k;
               _categoryId = null;
             }),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           AppTextField(
             controller: _name,
             label: 'Name',
@@ -558,13 +606,13 @@ class _RecurringFormState extends State<_RecurringForm> {
             prefixIcon: Icons.badge_outlined,
             autofocus: !_isEdit,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AmountField(
             controller: _amount,
             currency: widget.existing?.currency ?? data.activeCurrency,
             tint: _kind == TxKind.income ? t.success : t.danger,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           Row(
             crossAxisAlignment: CrossAxisAlignment.end,
             children: [
@@ -577,7 +625,7 @@ class _RecurringFormState extends State<_RecurringForm> {
                   keyboardType: TextInputType.number,
                 ),
               ),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: PickerField<Frequency>(
                   label: 'Frequency',
@@ -589,14 +637,14 @@ class _RecurringFormState extends State<_RecurringForm> {
               ),
             ],
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Next run',
             hint: 'The first date it posts. Later runs step forward by the cadence.',
             value: _nextRun,
             onChanged: (d) => setState(() => _nextRun = d ?? _nextRun),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<Account>(
             label: 'Account',
             value: accounts.where((a) => a.id == _accountId).firstOrNull,
@@ -606,7 +654,7 @@ class _RecurringFormState extends State<_RecurringForm> {
             colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
             onChanged: (a) => setState(() => _accountId = a?.id),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<TxCategory>(
             label: 'Category',
             value: categories.where((c) => c.id == _categoryId).firstOrNull,
@@ -616,7 +664,7 @@ class _RecurringFormState extends State<_RecurringForm> {
             colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
             onChanged: (c) => setState(() => _categoryId = c?.id),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           DateField(
             label: 'Ends',
             placeholder: 'Runs forever',
@@ -625,7 +673,7 @@ class _RecurringFormState extends State<_RecurringForm> {
             firstDate: _nextRun,
             onChanged: (d) => setState(() => _endDate = d),
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           SwitchRow(
             title: 'Post automatically',
             subtitle: 'Writes the transaction the moment it comes due.',
@@ -641,14 +689,14 @@ class _RecurringFormState extends State<_RecurringForm> {
               value: _active,
               onChanged: (v) => setState(() => _active = v),
             ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           AppTextField(
             controller: _payee,
             label: 'Payee',
             placeholder: 'Optional',
             prefixIcon: Icons.storefront_outlined,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           AppTextField(
             controller: _note,
             label: 'Note',
@@ -657,10 +705,13 @@ class _RecurringFormState extends State<_RecurringForm> {
             prefixIcon: Icons.notes_outlined,
           ),
           if (_error != null) ...[
-            const SizedBox(height: 14),
-            Text(_error!, style: TextStyle(fontSize: 13, color: t.danger)),
+            const Gap(S.md),
+            Text(
+              _error!,
+              style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+            ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _isEdit ? 'Save changes' : 'Create rule',
             icon: Icons.check,

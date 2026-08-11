@@ -43,8 +43,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
     final all = data.accounts.data ?? const <Account>[];
     final active = all.where((a) => !a.archived && a.currency == currency).toList();
     final archived = all.where((a) => a.archived && a.currency == currency).toList();
-    final otherCurrencyCount =
-        all.where((a) => !a.archived && a.currency != currency).length;
+    final otherCurrencyCount = all.where((a) => !a.archived && a.currency != currency).length;
 
     final real = active.fold<double>(0, (s, a) => s + toNum(a.realBalance));
     final locked = active.fold<double>(0, (s, a) => s + toNum(a.lockedAmount));
@@ -62,11 +61,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
         children: [
           PageHeader(
             title: 'Wallets',
-            description: 'Available is what is left after budget plans have '
+            description:
+                'Available is what is left after budget plans have '
                 'reserved their share. Real is the money physically in the account.',
-            action: IconPill(
-              icon: Icons.add,
-              tooltip: 'New wallet',
+            action: HeaderAction(
+              icon: Icons.add_rounded,
+              label: 'New wallet',
               onTap: () => _create(context),
             ),
           ),
@@ -83,19 +83,22 @@ class _AccountsScreenState extends State<AccountsScreen> {
           ] else ...[
             FadeInUp(
               child: GradientHero(
-                padding: const EdgeInsets.all(22),
+                padding: const EdgeInsets.all(S.xxl),
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(
                       children: [
-                        Icon(Icons.account_balance_wallet_rounded,
-                            size: 16, color: Colors.white.withValues(alpha: 0.75)),
-                        const SizedBox(width: 6),
+                        Icon(
+                          Icons.account_balance_wallet_rounded,
+                          size: 16,
+                          color: Colors.white.withValues(alpha: 0.75),
+                        ),
+                        const GapX(S.xs),
                         Text(
                           'AVAILABLE  ·  $currency',
                           style: TextStyle(
-                            fontSize: 10.5,
+                            fontSize: AppType.caption,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.8,
                             color: Colors.white.withValues(alpha: 0.75),
@@ -103,7 +106,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 10),
+                    const Gap(S.sm),
                     AnimatedNumber(
                       value: available,
                       builder: (context, v) => FittedBox(
@@ -112,7 +115,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         child: Text(
                           money(v),
                           style: const TextStyle(
-                            fontSize: 36,
+                            fontSize: AppType.hero,
                             fontWeight: FontWeight.w800,
                             letterSpacing: -1.4,
                             height: 1.1,
@@ -122,7 +125,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ),
                     ),
-                    const SizedBox(height: 18),
+                    const Gap(S.lg),
                     Row(
                       children: [
                         Expanded(
@@ -132,7 +135,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             icon: Icons.account_balance_rounded,
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const GapX(S.sm),
                         Expanded(
                           child: _HeroFigure(
                             label: 'In plans',
@@ -142,7 +145,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                         ),
                       ],
                     ),
-                    const SizedBox(height: 18),
+                    const Gap(S.lg),
                     Row(
                       children: [
                         Expanded(
@@ -152,7 +155,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                             onTap: () => _transfer(context),
                           ),
                         ),
-                        const SizedBox(width: 10),
+                        const GapX(S.sm),
                         Expanded(
                           child: _HeroAction(
                             label: 'Add wallet',
@@ -166,20 +169,20 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 ),
               ),
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
 
             if (active.isEmpty && otherCurrencyCount > 0)
               AppCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(S.lg),
                 child: Row(
                   children: [
                     Icon(Icons.currency_exchange_rounded, size: 18, color: t.primary),
-                    const SizedBox(width: 10),
+                    const GapX(S.sm),
                     Expanded(
                       child: Text(
                         'You have $otherCurrencyCount wallet${otherCurrencyCount == 1 ? '' : 's'} '
                         'in another currency. Switch the currency badge in the top bar.',
-                        style: TextStyle(fontSize: 12.5, height: 1.4, color: t.foreground),
+                        style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
                       ),
                     ),
                   ],
@@ -188,20 +191,20 @@ class _AccountsScreenState extends State<AccountsScreen> {
 
             if (active.isNotEmpty) ...[
               Padding(
-                padding: const EdgeInsets.only(bottom: 12, left: 2),
+                padding: const EdgeInsets.only(bottom: S.md, left: S.hair),
                 child: Row(
                   children: [
                     Text(
                       'Your wallets',
                       style: TextStyle(
-                        fontSize: 14,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(width: 6),
+                    const GapX(S.xs),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                      padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.hair),
                       decoration: BoxDecoration(
                         color: t.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(R.pill),
@@ -209,7 +212,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                       child: Text(
                         '${active.length}',
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: AppType.caption,
                           fontWeight: FontWeight.w700,
                           color: t.primary,
                         ),
@@ -220,7 +223,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               ),
               for (var i = 0; i < active.length; i++)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: S.md),
                   child: FadeInUp.staggered(
                     index: i,
                     child: AccountCard(
@@ -233,8 +236,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
             ] else if (otherCurrencyCount == 0)
               EmptyState(
                 icon: Icons.account_balance_wallet_outlined,
+                art: EmptyArt.wallet,
                 title: 'No $currency wallets yet',
-                description: 'Add the accounts you actually keep money in — '
+                description:
+                    'Add the accounts you actually keep money in — '
                     'cash, a bank account, mobile money.',
                 action: AppButton(
                   label: 'Add a wallet',
@@ -245,11 +250,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
               ),
 
             if (archived.isNotEmpty) ...[
-              const SizedBox(height: 8),
+              const Gap(S.sm),
               SectionLabel('ARCHIVED'),
               for (final a in archived)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: S.md),
                   child: Opacity(
                     opacity: 0.55,
                     child: AccountCard(
@@ -290,18 +295,18 @@ class _HeroFigure extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassChip(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
               Icon(icon, size: 11, color: Colors.white.withValues(alpha: 0.6)),
-              const SizedBox(width: 5),
+              const GapX(S.xxs),
               Text(
                 label.toUpperCase(),
                 style: TextStyle(
-                  fontSize: 9,
+                  fontSize: AppType.micro,
                   fontWeight: FontWeight.w700,
                   letterSpacing: 0.6,
                   color: Colors.white.withValues(alpha: 0.65),
@@ -309,14 +314,14 @@ class _HeroFigure extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 5),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 16,
+                fontSize: AppType.lead,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
                 fontFeatures: [FontFeature.tabularFigures()],
@@ -351,11 +356,11 @@ class _HeroAction extends StatelessWidget {
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(icon, size: 16, color: Colors.white.withValues(alpha: 0.9)),
-            const SizedBox(width: 7),
+            const GapX(S.xs),
             Text(
               label,
               style: TextStyle(
-                fontSize: 13,
+                fontSize: AppType.bodySm,
                 fontWeight: FontWeight.w600,
                 color: Colors.white.withValues(alpha: 0.95),
               ),
@@ -370,12 +375,7 @@ class _HeroAction extends StatelessWidget {
 /// One wallet: type icon in the account's colour, both balances, and a bar
 /// showing how much of it is locked away in plans.
 class AccountCard extends StatelessWidget {
-  const AccountCard({
-    super.key,
-    required this.account,
-    required this.money,
-    this.onTap,
-  });
+  const AccountCard({super.key, required this.account, required this.money, this.onTap});
 
   final Account account;
   final String Function(Object?) money;
@@ -399,7 +399,7 @@ class AccountCard extends StatelessWidget {
       child: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.fromLTRB(14, 15, 16, 15),
+            padding: const EdgeInsets.fromLTRB(S.lg, S.lg, S.lg, S.lg),
             child: Row(
               children: [
                 Container(
@@ -412,7 +412,7 @@ class AccountCard extends StatelessWidget {
                   ),
                   child: Icon(icon, size: 22, color: tint),
                 ),
-                const SizedBox(width: 13),
+                const GapX(S.md),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,23 +424,23 @@ class AccountCard extends StatelessWidget {
                               account.name,
                               overflow: TextOverflow.ellipsis,
                               style: TextStyle(
-                                fontSize: 15,
+                                fontSize: AppType.body,
                                 fontWeight: FontWeight.w700,
                                 color: t.foreground,
                               ),
                             ),
                           ),
                           if (account.isDefault) ...[
-                            const SizedBox(width: 6),
+                            const GapX(S.xs),
                             AppBadge('Default', tone: BadgeTone.primary, dense: true),
                           ],
                           if (account.isShared) ...[
-                            const SizedBox(width: 6),
+                            const GapX(S.xs),
                             AppBadge('Shared', tone: BadgeTone.info, dense: true),
                           ],
                         ],
                       ),
-                      const SizedBox(height: 3),
+                      const Gap(S.xxs),
                       Row(
                         children: [
                           Container(
@@ -451,50 +451,57 @@ class AccountCard extends StatelessWidget {
                               shape: BoxShape.circle,
                             ),
                           ),
-                          const SizedBox(width: 5),
+                          const GapX(S.xxs),
                           Muted('${account.type.label} · ${account.currency}', size: 11.5),
                         ],
                       ),
                     ],
                   ),
                 ),
-                const SizedBox(width: 10),
+                const GapX(S.sm),
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
                     Amount(money(account.balance), size: 17),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Row(
                       mainAxisSize: MainAxisSize.min,
                       children: [
-                        Icon(Icons.check_circle_outline_rounded,
-                            size: 10, color: t.mutedForeground),
-                        const SizedBox(width: 3),
+                        Icon(
+                          Icons.check_circle_outline_rounded,
+                          size: 10,
+                          color: t.mutedForeground,
+                        ),
+                        const GapX(S.xxs),
                         Muted('available', size: 10),
                       ],
                     ),
                   ],
                 ),
-                const SizedBox(width: 4),
-                Icon(Icons.chevron_right_rounded, size: 18, color: t.mutedForeground.withValues(alpha: 0.5)),
+                const GapX(S.xxs),
+                Icon(
+                  Icons.chevron_right_rounded,
+                  size: 18,
+                  color: t.mutedForeground.withValues(alpha: 0.5),
+                ),
               ],
             ),
           ),
           if (locked > 0) ...[
             Divider(height: 1, color: t.border.withValues(alpha: 0.5), indent: 14, endIndent: 14),
             Padding(
-              padding: const EdgeInsets.fromLTRB(14, 10, 14, 13),
+              padding: const EdgeInsets.fromLTRB(S.lg, S.md, S.lg, S.md),
               child: Column(
                 children: [
                   ProgressBar(value: lockedPct, height: 4, tone: BadgeTone.info),
-                  const SizedBox(height: 8),
+                  const Gap(S.sm),
                   Row(
                     children: [
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.account_balance_rounded, size: 10, color: t.mutedForeground),
-                          const SizedBox(width: 4),
+                          const GapX(S.xxs),
                           Muted(money(real), size: 11),
                         ],
                       ),
@@ -503,7 +510,7 @@ class AccountCard extends StatelessWidget {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.lock_outline_rounded, size: 10, color: t.mutedForeground),
-                          const SizedBox(width: 4),
+                          const GapX(S.xxs),
                           Muted('${money(locked)} in plans', size: 11),
                         ],
                       ),

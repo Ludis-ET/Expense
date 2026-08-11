@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
+
+import '../core/haptics.dart';
 
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
@@ -49,11 +50,11 @@ class SyncStatusPill extends StatelessWidget {
     return PressableScale(
       scale: 0.96,
       onTap: () {
-        HapticFeedback.selectionClick();
+        Haptics.select();
         showSyncSheet(context);
       },
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(R.pill),
           color: accent.withValues(alpha: 0.14),
@@ -66,18 +67,15 @@ class SyncStatusPill extends StatelessWidget {
               SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(
-                  strokeWidth: 1.6,
-                  color: accent,
-                ),
+                child: CircularProgressIndicator(strokeWidth: 1.6, color: accent),
               )
             else
               Icon(icon, size: 13, color: accent),
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             Text(
               label,
               style: TextStyle(
-                fontSize: 11,
+                fontSize: AppType.caption,
                 fontWeight: FontWeight.w700,
                 letterSpacing: 0.2,
                 color: t.foreground,
@@ -99,10 +97,7 @@ Future<void> showSyncSheet(BuildContext context) {
     transitionDuration: const Duration(milliseconds: 240),
     pageBuilder: (ctx, _, _) => const Material(
       type: MaterialType.transparency,
-      child: Align(
-        alignment: Alignment.bottomCenter,
-        child: SyncSheet(),
-      ),
+      child: Align(alignment: Alignment.bottomCenter, child: SyncSheet()),
     ),
     transitionBuilder: (ctx, anim, _, child) {
       final curved = CurvedAnimation(parent: anim, curve: Motion.easeOut);
@@ -140,175 +135,171 @@ class SyncSheet extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: Container(
-            constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.72),
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(28),
-              color: t.surface,
-              border: Border.all(
-                color: (sync.online ? t.primary : const Color(0xFF38BDF8))
-                    .withValues(alpha: 0.35),
-              ),
-              boxShadow: t.elevatedShadow,
+          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.72),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(28),
+            color: t.surface,
+            border: Border.all(
+              color: (sync.online ? t.primary : const Color(0xFF38BDF8)).withValues(alpha: 0.35),
             ),
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const SizedBox(height: 12),
-                Container(
-                  width: 40,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    borderRadius: BorderRadius.circular(R.pill),
-                    gradient: LinearGradient(
-                      colors: [
-                        t.primary.withValues(alpha: 0.4),
-                        t.accent.withValues(alpha: 0.7),
-                      ],
-                    ),
+            boxShadow: t.elevatedShadow,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Gap(S.md),
+              Container(
+                width: 40,
+                height: 4,
+                decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(R.pill),
+                  gradient: LinearGradient(
+                    colors: [t.primary.withValues(alpha: 0.4), t.accent.withValues(alpha: 0.7)],
                   ),
                 ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 16, 12, 8),
-                  child: Row(
-                    children: [
-                      _OrbitBadge(online: sync.online, syncing: sync.syncing),
-                      const SizedBox(width: 14),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text(
-                              sync.online ? 'Neural sync' : 'Offline mode',
-                              style: TextStyle(
-                                fontSize: 20,
-                                fontWeight: FontWeight.w800,
-                                letterSpacing: -0.4,
-                                color: t.foreground,
-                              ),
+              ),
+              Padding(
+                padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.md, S.sm),
+                child: Row(
+                  children: [
+                    _OrbitBadge(online: sync.online, syncing: sync.syncing),
+                    const GapX(S.md),
+                    Expanded(
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(
+                            sync.online ? 'Neural sync' : 'Offline mode',
+                            style: TextStyle(
+                              fontSize: AppType.heading,
+                              fontWeight: FontWeight.w800,
+                              letterSpacing: -0.4,
+                              color: t.foreground,
                             ),
-                            const SizedBox(height: 3),
-                            Text(
-                              sync.online
-                                  ? (sync.pendingCount > 0
+                          ),
+                          const Gap(S.xxs),
+                          Text(
+                            sync.online
+                                ? (sync.pendingCount > 0
                                       ? 'Pushing ${sync.pendingCount} queued change${sync.pendingCount == 1 ? '' : 's'}…'
                                       : sync.lastSyncedAt != null
-                                          ? 'Last synced ${relativeTime(sync.lastSyncedAt!)}'
-                                          : 'Live · everything is up to date')
-                                  : 'Changes save on-device and sync when you reconnect',
-                              style: TextStyle(
-                                fontSize: 12.5,
-                                height: 1.35,
-                                color: t.mutedForeground,
-                              ),
+                                      ? 'Last synced ${relativeTime(sync.lastSyncedAt!)}'
+                                      : 'Live · everything is up to date')
+                                : 'Changes save on-device and sync when you reconnect',
+                            style: TextStyle(
+                              fontSize: AppType.label,
+                              height: 1.35,
+                              color: t.mutedForeground,
                             ),
-                          ],
-                        ),
-                      ),
-                      IconButton(
-                        onPressed: () => Navigator.pop(context),
-                        icon: Icon(Icons.close_rounded, color: t.mutedForeground),
-                      ),
-                    ],
-                  ),
-                ),
-
-                // Status strip
-                Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 16),
-                  child: Row(
-                    children: [
-                      Expanded(
-                        child: _StatOrb(
-                          label: 'Queued',
-                          value: '${sync.pendingCount}',
-                          color: t.warning,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _StatOrb(
-                          label: 'Failed',
-                          value: '${sync.errorCount}',
-                          color: t.danger,
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      Expanded(
-                        child: _StatOrb(
-                          label: 'Link',
-                          value: sync.online ? 'Live' : 'Off',
-                          color: sync.online ? t.success : const Color(0xFF38BDF8),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-
-                const SizedBox(height: 12),
-
-                if (sync.ops.isEmpty)
-                  Padding(
-                    padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-                    child: Column(
-                      children: [
-                        Icon(
-                          Icons.auto_awesome_rounded,
-                          size: 36,
-                          color: t.primary.withValues(alpha: 0.7),
-                        ),
-                        const SizedBox(height: 12),
-                        Text(
-                          'All clear',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.w700,
-                            color: t.foreground,
                           ),
-                        ),
-                        const SizedBox(height: 6),
-                        Muted(
-                          'Nothing waiting to sync. Add a transaction offline and it will land here.',
-                          size: 12.5,
-                        ),
-                      ],
-                    ),
-                  )
-                else
-                  Flexible(
-                    child: ListView.separated(
-                      shrinkWrap: true,
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 12),
-                      itemCount: sync.ops.length,
-                      separatorBuilder: (_, _) => const SizedBox(height: 8),
-                      itemBuilder: (context, i) => FadeInUp.staggered(
-                        index: i.clamp(0, 8),
-                        child: _OpCard(op: sync.ops[i]),
+                        ],
                       ),
                     ),
-                  ),
+                    IconButton(
+                      onPressed: () => Navigator.pop(context),
+                      icon: Icon(Icons.close_rounded, color: t.mutedForeground),
+                    ),
+                  ],
+                ),
+              ),
 
+              // Status strip
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: S.lg),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: _StatOrb(
+                        label: 'Queued',
+                        value: '${sync.pendingCount}',
+                        color: t.warning,
+                      ),
+                    ),
+                    const GapX(S.sm),
+                    Expanded(
+                      child: _StatOrb(
+                        label: 'Failed',
+                        value: '${sync.errorCount}',
+                        color: t.danger,
+                      ),
+                    ),
+                    const GapX(S.sm),
+                    Expanded(
+                      child: _StatOrb(
+                        label: 'Link',
+                        value: sync.online ? 'Live' : 'Off',
+                        color: sync.online ? t.success : const Color(0xFF38BDF8),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
+              const Gap(S.md),
+
+              if (sync.ops.isEmpty)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
-                  child: Row(
+                  padding: const EdgeInsets.fromLTRB(S.xl, S.xxl, S.xl, S.huge),
+                  child: Column(
                     children: [
-                      Expanded(
-                        child: AppButton(
-                          label: sync.syncing ? 'Syncing…' : 'Sync now',
-                          icon: Icons.bolt_rounded,
-                          expand: true,
-                          loading: sync.syncing,
-                          onPressed: !sync.online || sync.syncing
-                              ? null
-                              : () => context.read<SyncState>().flush(),
+                      Icon(
+                        Icons.auto_awesome_rounded,
+                        size: 36,
+                        color: t.primary.withValues(alpha: 0.7),
+                      ),
+                      const Gap(S.md),
+                      Text(
+                        'All clear',
+                        style: TextStyle(
+                          fontSize: AppType.lead,
+                          fontWeight: FontWeight.w700,
+                          color: t.foreground,
                         ),
+                      ),
+                      const Gap(S.xs),
+                      Muted(
+                        'Nothing waiting to sync. Add a transaction offline and it will land here.',
+                        size: 12.5,
                       ),
                     ],
                   ),
+                )
+              else
+                Flexible(
+                  child: ListView.separated(
+                    shrinkWrap: true,
+                    padding: const EdgeInsets.fromLTRB(S.lg, S.xxs, S.lg, S.md),
+                    itemCount: sync.ops.length,
+                    separatorBuilder: (_, _) => const Gap(S.sm),
+                    itemBuilder: (context, i) => FadeInUp.staggered(
+                      index: i.clamp(0, 8),
+                      child: _OpCard(op: sync.ops[i]),
+                    ),
+                  ),
                 ),
-              ],
-            ),
+
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                child: Row(
+                  children: [
+                    Expanded(
+                      child: AppButton(
+                        label: sync.syncing ? 'Syncing…' : 'Sync now',
+                        icon: Icons.bolt_rounded,
+                        expand: true,
+                        loading: sync.syncing,
+                        onPressed: !sync.online || sync.syncing
+                            ? null
+                            : () => context.read<SyncState>().flush(),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
           ),
         ),
+      ),
     );
   }
 }
@@ -356,7 +347,7 @@ class _StatOrb extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(R.lg),
         color: color.withValues(alpha: 0.1),
@@ -368,17 +359,17 @@ class _StatOrb extends StatelessWidget {
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              fontSize: 9.5,
+              fontSize: AppType.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.7,
               color: color,
             ),
           ),
-          const SizedBox(height: 4),
+          const Gap(S.xxs),
           Text(
             value,
             style: TextStyle(
-              fontSize: 18,
+              fontSize: AppType.lead,
               fontWeight: FontWeight.w800,
               letterSpacing: -0.4,
               color: t.foreground,
@@ -407,12 +398,13 @@ class _OpCard extends StatelessWidget {
       OutboxEntity.wishlist => (Icons.favorite_border_rounded, t.danger),
     };
 
-    final subtitle = op.detail ??
+    final subtitle =
+        op.detail ??
         op.error ??
         (op.status == OutboxStatus.syncing ? 'Uploading…' : 'Waiting for connection');
 
     return Container(
-      padding: const EdgeInsets.all(12),
+      padding: const EdgeInsets.all(S.md),
       decoration: BoxDecoration(
         borderRadius: BorderRadius.circular(R.lg),
         color: t.surfaceMuted.withValues(alpha: 0.55),
@@ -425,7 +417,7 @@ class _OpCard extends StatelessWidget {
       child: Row(
         children: [
           IconTile(icon: icon, color: color, size: 38),
-          const SizedBox(width: 11),
+          const GapX(S.md),
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -433,15 +425,15 @@ class _OpCard extends StatelessWidget {
                 Text(
                   op.label,
                   style: TextStyle(
-                    fontSize: 13.5,
+                    fontSize: AppType.bodySm,
                     fontWeight: FontWeight.w700,
                     color: t.foreground,
                   ),
                 ),
-                const SizedBox(height: 2),
+                const Gap(S.hair),
                 Muted(subtitle, size: 11.5, maxLines: 2),
                 if (op.optimistic != null) ...[
-                  const SizedBox(height: 4),
+                  const Gap(S.xxs),
                   Amount(
                     formatMoney(op.optimistic!.amount, currency: op.optimistic!.currency),
                     size: 12.5,
@@ -495,15 +487,12 @@ class OfflineBanner extends StatelessWidget {
 
     return FadeInUp(
       child: Container(
-        margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 11),
+        margin: const EdgeInsets.only(bottom: S.md),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(R.lg),
           gradient: LinearGradient(
-            colors: [
-              color.withValues(alpha: 0.16),
-              color.withValues(alpha: 0.05),
-            ],
+            colors: [color.withValues(alpha: 0.16), color.withValues(alpha: 0.05)],
           ),
           border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
@@ -514,16 +503,16 @@ class OfflineBanner extends StatelessWidget {
               size: 18,
               color: color,
             ),
-            const SizedBox(width: 10),
+            const GapX(S.sm),
             Expanded(
               child: Text(
                 sync.justSynced
                     ? 'Back online — everything just synced'
                     : asOf != null
-                        ? 'Offline · showing data from ${relativeTime(asOf!)}'
-                        : 'You are offline · edits will sync later',
+                    ? 'Offline · showing data from ${relativeTime(asOf!)}'
+                    : 'You are offline · edits will sync later',
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: AppType.label,
                   fontWeight: FontWeight.w600,
                   color: t.foreground,
                 ),

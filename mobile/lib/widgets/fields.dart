@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 
+import '../core/haptics.dart';
+
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 import '../core/utils/format.dart';
@@ -35,30 +37,33 @@ class FieldShell extends StatelessWidget {
               Text(
                 label!,
                 style: TextStyle(
-                  fontSize: 12.5,
+                  fontSize: AppType.label,
                   fontWeight: FontWeight.w600,
                   color: t.mutedForeground,
                 ),
               ),
               if (hint != null) ...[
-                const SizedBox(width: 5),
+                const GapX(S.xxs),
                 InfoHint(label: label!, body: hint!, size: 14),
               ],
               const Spacer(),
               ?trailing,
             ],
           ),
-          const SizedBox(height: 7),
+          const Gap(S.xs),
         ],
         child,
         if (error != null) ...[
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           Row(
             children: [
               Icon(Icons.error_outline, size: 13, color: t.danger),
-              const SizedBox(width: 5),
+              const GapX(S.xxs),
               Expanded(
-                child: Text(error!, style: TextStyle(fontSize: 12, color: t.danger)),
+                child: Text(
+                  error!,
+                  style: TextStyle(fontSize: AppType.label, color: t.danger),
+                ),
               ),
             ],
           ),
@@ -128,10 +133,13 @@ class AppTextField extends StatelessWidget {
         inputFormatters: inputFormatters,
         textInputAction: textInputAction,
         cursorColor: t.primary,
-        style: TextStyle(fontSize: 15, color: t.foreground),
+        style: TextStyle(fontSize: AppType.body, color: t.foreground),
         decoration: InputDecoration(
           hintText: placeholder,
-          hintStyle: TextStyle(fontSize: 15, color: t.mutedForeground.withValues(alpha: 0.7)),
+          hintStyle: TextStyle(
+            fontSize: AppType.body,
+            color: t.mutedForeground.withValues(alpha: 0.7),
+          ),
           prefixIcon: prefixIcon == null
               ? null
               : Icon(prefixIcon, size: 18, color: t.mutedForeground),
@@ -142,7 +150,7 @@ class AppTextField extends StatelessWidget {
           isDense: true,
           contentPadding: EdgeInsets.symmetric(
             horizontal: prefixIcon == null ? 14 : 4,
-            vertical: 14,
+            vertical: S.lg,
           ),
           border: OutlineInputBorder(
             borderRadius: BorderRadius.circular(R.md),
@@ -194,7 +202,7 @@ class AmountField extends StatelessWidget {
       label: label,
       error: error,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
         decoration: BoxDecoration(
           color: t.surfaceMuted.withValues(alpha: t.isDark ? 0.5 : 0.65),
           borderRadius: BorderRadius.circular(R.lg),
@@ -206,23 +214,21 @@ class AmountField extends StatelessWidget {
             Text(
               currencySymbol(currency),
               style: TextStyle(
-                fontSize: 20,
+                fontSize: AppType.heading,
                 fontWeight: FontWeight.w600,
                 color: color.withValues(alpha: 0.6),
               ),
             ),
-            const SizedBox(width: 10),
+            const GapX(S.sm),
             Expanded(
               child: TextField(
                 controller: controller,
                 autofocus: autofocus,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [
-                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
-                ],
+                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
                 cursorColor: t.primary,
                 style: TextStyle(
-                  fontSize: 30,
+                  fontSize: AppType.display,
                   fontWeight: FontWeight.w700,
                   letterSpacing: -1,
                   color: color,
@@ -231,7 +237,7 @@ class AmountField extends StatelessWidget {
                 decoration: InputDecoration(
                   hintText: '0',
                   hintStyle: TextStyle(
-                    fontSize: 30,
+                    fontSize: AppType.display,
                     fontWeight: FontWeight.w700,
                     color: t.mutedForeground.withValues(alpha: 0.35),
                   ),
@@ -244,7 +250,7 @@ class AmountField extends StatelessWidget {
             Text(
               currency,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppType.label,
                 fontWeight: FontWeight.w600,
                 color: t.mutedForeground,
               ),
@@ -295,7 +301,7 @@ class PickerField<T> extends StatelessWidget {
   final Widget? leading;
 
   Future<void> _open(BuildContext context) async {
-    HapticFeedback.selectionClick();
+    Haptics.select();
     await showAppSheet<void>(
       context,
       title: sheetTitle ?? label ?? 'Select',
@@ -332,7 +338,7 @@ class PickerField<T> extends StatelessWidget {
           opacity: enabled ? 1 : 0.55,
           child: Container(
             height: 50,
-            padding: const EdgeInsets.symmetric(horizontal: 12),
+            padding: const EdgeInsets.symmetric(horizontal: S.md),
             decoration: BoxDecoration(
               color: t.surfaceMuted.withValues(alpha: t.isDark ? 0.55 : 0.7),
               borderRadius: BorderRadius.circular(R.md),
@@ -340,17 +346,19 @@ class PickerField<T> extends StatelessWidget {
             ),
             child: Row(
               children: [
-                if (leading != null) ...[leading!, const SizedBox(width: 10)]
-                else if (has && iconOf != null) ...[
+                if (leading != null) ...[
+                  leading!,
+                  const GapX(S.sm),
+                ] else if (has && iconOf != null) ...[
                   IconTile(icon: iconOf!(value as T), color: tint, size: 30, radius: R.sm),
-                  const SizedBox(width: 10),
+                  const GapX(S.sm),
                 ],
                 Expanded(
                   child: Text(
                     has ? labelOf(value as T) : placeholder,
                     overflow: TextOverflow.ellipsis,
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       fontWeight: has ? FontWeight.w600 : FontWeight.w400,
                       color: has ? t.foreground : t.mutedForeground.withValues(alpha: 0.8),
                     ),
@@ -401,8 +409,8 @@ class _PickerListState<T> extends State<_PickerList<T>> {
     final items = _query.isEmpty
         ? widget.options
         : widget.options
-            .where((o) => widget.labelOf(o).toLowerCase().contains(_query.toLowerCase()))
-            .toList();
+              .where((o) => widget.labelOf(o).toLowerCase().contains(_query.toLowerCase()))
+              .toList();
 
     return Column(
       mainAxisSize: MainAxisSize.min,
@@ -430,7 +438,7 @@ class _PickerListState<T> extends State<_PickerList<T>> {
                   leading: Icon(Icons.block, size: 20, color: t.mutedForeground),
                   title: Text(
                     'None',
-                    style: TextStyle(fontSize: 14.5, color: t.mutedForeground),
+                    style: TextStyle(fontSize: AppType.body, color: t.mutedForeground),
                   ),
                 );
               }
@@ -445,14 +453,14 @@ class _PickerListState<T> extends State<_PickerList<T>> {
                   selected: selected,
                   selectedTileColor: t.primary.withValues(alpha: 0.08),
                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 10, vertical: 2),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.hair),
                   leading: widget.iconOf == null
                       ? null
                       : IconTile(icon: widget.iconOf!(o), color: tint, size: 36),
                   title: Text(
                     widget.labelOf(o),
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                       color: t.foreground,
                     ),
@@ -460,9 +468,7 @@ class _PickerListState<T> extends State<_PickerList<T>> {
                   subtitle: widget.subtitleOf == null
                       ? null
                       : Muted(widget.subtitleOf!(o), size: 12),
-                  trailing: selected
-                      ? Icon(Icons.check_circle, size: 20, color: t.primary)
-                      : null,
+                  trailing: selected ? Icon(Icons.check_circle, size: 20, color: t.primary) : null,
                 ),
               );
             },
@@ -502,7 +508,7 @@ class SegmentedTabs<T> extends StatelessWidget {
     final t = context.t;
     return Container(
       height: height,
-      padding: const EdgeInsets.all(3),
+      padding: const EdgeInsets.all(S.xxs),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: t.isDark ? 0.6 : 0.8),
         borderRadius: BorderRadius.circular(R.md),
@@ -518,7 +524,7 @@ class SegmentedTabs<T> extends StatelessWidget {
                   behavior: HitTestBehavior.opaque,
                   onTap: () {
                     if (!selected) {
-                      HapticFeedback.selectionClick();
+                      Haptics.select();
                       onChanged(o);
                     }
                   },
@@ -536,19 +542,15 @@ class SegmentedTabs<T> extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (iconOf != null) ...[
-                          Icon(
-                            iconOf!(o),
-                            size: 15,
-                            color: selected ? tint : t.mutedForeground,
-                          ),
-                          const SizedBox(width: 6),
+                          Icon(iconOf!(o), size: 15, color: selected ? tint : t.mutedForeground),
+                          const GapX(S.xs),
                         ],
                         Flexible(
                           child: Text(
                             labelOf(o),
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
-                              fontSize: 13,
+                              fontSize: AppType.bodySm,
                               fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
                               color: selected ? tint : t.mutedForeground,
                             ),
@@ -608,11 +610,11 @@ class DateField extends StatelessWidget {
             builder: (ctx, child) => Theme(
               data: Theme.of(ctx).copyWith(
                 colorScheme: Theme.of(ctx).colorScheme.copyWith(
-                      primary: t.primary,
-                      onPrimary: t.primaryForeground,
-                      surface: t.surfaceElevated,
-                      onSurface: t.foreground,
-                    ),
+                  primary: t.primary,
+                  onPrimary: t.primaryForeground,
+                  surface: t.surfaceElevated,
+                  onSurface: t.foreground,
+                ),
                 dialogTheme: DialogThemeData(backgroundColor: t.surfaceElevated),
               ),
               child: child!,
@@ -622,7 +624,7 @@ class DateField extends StatelessWidget {
         },
         child: Container(
           height: 50,
-          padding: const EdgeInsets.symmetric(horizontal: 14),
+          padding: const EdgeInsets.symmetric(horizontal: S.lg),
           decoration: BoxDecoration(
             color: t.surfaceMuted.withValues(alpha: t.isDark ? 0.55 : 0.7),
             borderRadius: BorderRadius.circular(R.md),
@@ -631,12 +633,12 @@ class DateField extends StatelessWidget {
           child: Row(
             children: [
               Icon(Icons.calendar_today_outlined, size: 16, color: t.mutedForeground),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Expanded(
                 child: Text(
                   value == null ? placeholder : formatDate(value),
                   style: TextStyle(
-                    fontSize: 14.5,
+                    fontSize: AppType.body,
                     fontWeight: value == null ? FontWeight.w400 : FontWeight.w600,
                     color: value == null ? t.mutedForeground : t.foreground,
                   ),
@@ -680,17 +682,14 @@ class SwitchRow extends StatelessWidget {
     return InkWell(
       borderRadius: BorderRadius.circular(R.md),
       onTap: () {
-        HapticFeedback.selectionClick();
+        Haptics.select();
         onChanged(!value);
       },
       child: Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 2),
+        padding: const EdgeInsets.symmetric(vertical: S.sm, horizontal: S.hair),
         child: Row(
           children: [
-            if (icon != null) ...[
-              Icon(icon, size: 18, color: t.mutedForeground),
-              const SizedBox(width: 12),
-            ],
+            if (icon != null) ...[Icon(icon, size: 18, color: t.mutedForeground), const GapX(S.md)],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -698,19 +697,16 @@ class SwitchRow extends StatelessWidget {
                   Text(
                     title,
                     style: TextStyle(
-                      fontSize: 14,
+                      fontSize: AppType.body,
                       fontWeight: FontWeight.w600,
                       color: t.foreground,
                     ),
                   ),
-                  if (subtitle != null) ...[
-                    const SizedBox(height: 2),
-                    Muted(subtitle!, size: 12),
-                  ],
+                  if (subtitle != null) ...[const Gap(S.hair), Muted(subtitle!, size: 12)],
                 ],
               ),
             ),
-            const SizedBox(width: 10),
+            const GapX(S.sm),
             Switch.adaptive(
               value: value,
               onChanged: onChanged,
@@ -754,7 +750,7 @@ class ColorPickerRow extends StatelessWidget {
                 final selected = value?.toLowerCase() == hex;
                 return GestureDetector(
                   onTap: () {
-                    HapticFeedback.selectionClick();
+                    Haptics.select();
                     onChanged(hex);
                   },
                   child: AnimatedContainer(
@@ -772,9 +768,7 @@ class ColorPickerRow extends StatelessWidget {
                           ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 10)]
                           : null,
                     ),
-                    child: selected
-                        ? const Icon(Icons.check, size: 16, color: Colors.white)
-                        : null,
+                    child: selected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
                   ),
                 );
               },
@@ -823,7 +817,7 @@ class IconPickerGrid extends StatelessWidget {
             final selected = name == value;
             return GestureDetector(
               onTap: () {
-                HapticFeedback.selectionClick();
+                Haptics.select();
                 onChanged(name);
               },
               child: AnimatedContainer(

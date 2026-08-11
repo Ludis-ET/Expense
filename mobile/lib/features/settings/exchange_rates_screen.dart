@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
+import '../../core/theme/theme.dart';
+
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
@@ -26,11 +28,11 @@ class _Rate {
   final double rate;
 
   factory _Rate.fromJson(Map<String, dynamic> j) => _Rate(
-        id: asStr(j['id'], ''),
-        from: asStr(j['fromCurrency'], ''),
-        to: asStr(j['toCurrency'], ''),
-        rate: asNum(j['rate']),
-      );
+    id: asStr(j['id'], ''),
+    from: asStr(j['fromCurrency'], ''),
+    to: asStr(j['toCurrency'], ''),
+    rate: asNum(j['rate']),
+  );
 }
 
 class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
@@ -71,11 +73,15 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
       appBar: AppBar(
         title: Text(
           'Exchange rates',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
         actions: [
           IconPill(icon: Icons.add, tooltip: 'Add a rate', onTap: () => _edit(context)),
-          const SizedBox(width: 10),
+          const GapX(S.sm),
         ],
       ),
       body: MeshBackground(
@@ -89,19 +95,19 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               AppCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(S.lg),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.info_outline, size: 16, color: t.primary),
-                    const SizedBox(width: 11),
+                    const GapX(S.md),
                     Expanded(
                       child: Text(
                         'Rates are only used to show one combined total across '
                         'currencies. Every per-currency figure in the app is '
                         'untouched by them.',
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: AppType.label,
                           height: 1.5,
                           color: t.mutedForeground,
                         ),
@@ -110,7 +116,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               if (_loading && _rates.isEmpty)
                 const PageLoader(rows: 3, hero: false)
               else if (_error != null && _rates.isEmpty)
@@ -124,7 +130,8 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                 EmptyState(
                   icon: Icons.currency_exchange,
                   title: 'No rates set',
-                  description: 'Add one for each pair you hold, and the '
+                  description:
+                      'Add one for each pair you hold, and the '
                       'dashboard can show a combined total.',
                   action: AppButton(
                     label: 'Add a rate',
@@ -136,25 +143,21 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
               else
                 for (var i = 0; i < _rates.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 9),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: FadeInUp.staggered(
                       index: i,
                       child: AppCard(
-                        padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+                        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
                         onTap: () => _edit(context, existing: _rates[i]),
                         child: Row(
                           children: [
-                            IconTile(
-                              icon: Icons.currency_exchange,
-                              color: t.accent,
-                              size: 36,
-                            ),
-                            const SizedBox(width: 12),
+                            IconTile(icon: Icons.currency_exchange, color: t.accent, size: 36),
+                            const GapX(S.md),
                             Expanded(
                               child: Text(
                                 '1 ${_rates[i].from} = ${_rates[i].rate} ${_rates[i].to}',
                                 style: TextStyle(
-                                  fontSize: 14,
+                                  fontSize: AppType.body,
                                   fontWeight: FontWeight.w600,
                                   color: t.foreground,
                                 ),
@@ -237,7 +240,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               AppTextField(
                 controller: rate,
                 label: 'Rate',
@@ -246,7 +249,7 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                 prefixIcon: Icons.calculate_outlined,
                 keyboardType: const TextInputType.numberWithOptions(decimal: true),
               ),
-              const SizedBox(height: 20),
+              const Gap(S.xl),
               AppButton(
                 label: 'Save rate',
                 icon: Icons.check,
@@ -263,11 +266,14 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                     return;
                   }
                   try {
-                    await ctx.read<ApiClient>().put('/exchange-rates', body: {
-                      'rates': [
-                        {'fromCurrency': from, 'toCurrency': to, 'rate': value},
-                      ],
-                    });
+                    await ctx.read<ApiClient>().put(
+                      '/exchange-rates',
+                      body: {
+                        'rates': [
+                          {'fromCurrency': from, 'toCurrency': to, 'rate': value},
+                        ],
+                      },
+                    );
                     if (ctx.mounted) Navigator.pop(ctx, true);
                   } on ApiError catch (e) {
                     if (ctx.mounted) toast(ctx, e.message, error: true);

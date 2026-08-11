@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Home-screen widget. -->
+    <string name="widget_description">Today\'s remaining spend, with one tap to log an expense.</string>
+    <string name="widget_default_caption">Left to spend today</string>
+    <string name="widget_default_amount">—</string>
+    <string name="widget_add_description">Log a transaction</string>
+</resources>

@@ -64,12 +64,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   static const _pageSize = 25;
 
   int get _activeFilterCount => [
-        _kind != null,
-        _accountId != null,
-        _categoryId != null,
-        _from != null || _to != null,
-        _sort != TxSort.dateDesc,
-      ].where((x) => x).length;
+    _kind != null,
+    _accountId != null,
+    _categoryId != null,
+    _from != null || _to != null,
+    _sort != TxSort.dateDesc,
+  ].where((x) => x).length;
 
   @override
   void initState() {
@@ -96,17 +96,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   Map<String, dynamic> _query4(int page) => {
-        'page': page,
-        'pageSize': _pageSize,
-        'sort': _sort.wire,
-        'currency': context.read<DataState>().activeCurrency,
-        if (_query.trim().isNotEmpty) 'q': _query.trim(),
-        if (_kind != null) 'kind': _kind!.wire,
-        if (_accountId != null) 'accountId': _accountId,
-        if (_categoryId != null) 'categoryId': _categoryId,
-        if (_from != null) 'from': isoDate(_from!),
-        if (_to != null) 'to': isoDate(_to!),
-      };
+    'page': page,
+    'pageSize': _pageSize,
+    'sort': _sort.wire,
+    'currency': context.read<DataState>().activeCurrency,
+    if (_query.trim().isNotEmpty) 'q': _query.trim(),
+    if (_kind != null) 'kind': _kind!.wire,
+    if (_accountId != null) 'accountId': _accountId,
+    if (_categoryId != null) 'categoryId': _categoryId,
+    if (_from != null) 'from': isoDate(_from!),
+    if (_to != null) 'to': isoDate(_to!),
+  };
 
   Future<void> _reload() async {
     setState(() {
@@ -116,9 +116,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     });
     final sync = context.read<SyncState>();
     try {
-      final json = await context
-          .read<ApiClient>()
-          .get<Map<String, dynamic>>('/transactions', query: _query4(1));
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/transactions',
+        query: _query4(1),
+      );
       await sync.cacheTransactionPage(json);
       final page = TransactionPage.fromJson(json);
       if (!mounted) return;
@@ -161,9 +162,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     if (_loading || _items.length >= _total) return;
     setState(() => _loading = true);
     try {
-      final json = await context
-          .read<ApiClient>()
-          .get<Map<String, dynamic>>('/transactions', query: _query4(_page + 1));
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/transactions',
+        query: _query4(_page + 1),
+      );
       final page = TransactionPage.fromJson(json);
       if (!mounted) return;
       setState(() {
@@ -223,8 +225,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     String money(Object? v, String c) => prefs.money(v, currency: c);
 
     final groups = _groupedOf(items);
-    final income = items.where((x) => x.kind == TxKind.income).fold<double>(0, (s, x) => s + x.value);
-    final expense = items.where((x) => x.kind == TxKind.expense).fold<double>(0, (s, x) => s + x.value);
+    final income = items
+        .where((x) => x.kind == TxKind.income)
+        .fold<double>(0, (s, x) => s + x.value);
+    final expense = items
+        .where((x) => x.kind == TxKind.expense)
+        .fold<double>(0, (s, x) => s + x.value);
 
     return RefreshIndicator(
       onRefresh: _reload,
@@ -240,12 +246,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               delegate: SliverChildListDelegate([
                 PageHeader(
                   title: 'Activity',
-                  description: 'Every income, expense and transfer in '
+                  description:
+                      'Every income, expense and transfer in '
                       '${data.activeCurrency}. Filters narrow the list without '
                       'changing your balances.',
-                  action: IconPill(
-                    icon: Icons.repeat,
-                    tooltip: 'Recurring plans',
+                  action: HeaderAction(
+                    icon: Icons.repeat_rounded,
+                    label: 'Recurring',
+                    primary: false,
                     onTap: () => shell.push(const RecurringScreen()),
                   ),
                 ),
@@ -266,7 +274,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           },
                         ),
                 ),
-                const SizedBox(height: 12),
+                const Gap(S.md),
                 Row(
                   children: [
                     Expanded(
@@ -280,43 +288,43 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               icon: Icons.filter_alt_outlined,
                               onTap: _pickKind,
                             ),
-                            const SizedBox(width: 8),
+                            const GapX(S.sm),
                             _FilterChip(
                               label: _accountId == null
                                   ? 'Account'
                                   : data.scopedAccounts
-                                          .where((a) => a.id == _accountId)
-                                          .firstOrNull
-                                          ?.name ??
-                                      'Account',
+                                            .where((a) => a.id == _accountId)
+                                            .firstOrNull
+                                            ?.name ??
+                                        'Account',
                               active: _accountId != null,
                               icon: Icons.account_balance_wallet_outlined,
                               onTap: _pickAccount,
                             ),
-                            const SizedBox(width: 8),
+                            const GapX(S.sm),
                             _FilterChip(
                               label: _categoryId == null
                                   ? 'Category'
                                   : (data.categories.data ?? const <TxCategory>[])
-                                          .where((c) => c.id == _categoryId)
-                                          .firstOrNull
-                                          ?.name ??
-                                      'Category',
+                                            .where((c) => c.id == _categoryId)
+                                            .firstOrNull
+                                            ?.name ??
+                                        'Category',
                               active: _categoryId != null,
                               icon: Icons.sell_outlined,
                               onTap: _pickCategory,
                             ),
-                            const SizedBox(width: 8),
+                            const GapX(S.sm),
                             _FilterChip(
                               label: _from == null && _to == null
                                   ? 'Dates'
                                   : '${_from == null ? '…' : formatDayMonth(_from)} → '
-                                      '${_to == null ? '…' : formatDayMonth(_to)}',
+                                        '${_to == null ? '…' : formatDayMonth(_to)}',
                               active: _from != null || _to != null,
                               icon: Icons.date_range_outlined,
                               onTap: _pickDates,
                             ),
-                            const SizedBox(width: 8),
+                            const GapX(S.sm),
                             _FilterChip(
                               label: _sort.label,
                               active: _sort != TxSort.dateDesc,
@@ -324,7 +332,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                               onTap: _pickSort,
                             ),
                             if (_activeFilterCount > 0) ...[
-                              const SizedBox(width: 8),
+                              const GapX(S.sm),
                               _FilterChip(
                                 label: 'Clear',
                                 active: false,
@@ -338,7 +346,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                   ],
                 ),
-                const SizedBox(height: 14),
+                const Gap(S.md),
                 if (items.isNotEmpty)
                   Row(
                     children: [
@@ -350,7 +358,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           icon: Icons.south_west_rounded,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Expanded(
                         child: _Totals(
                           label: 'Out',
@@ -359,7 +367,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                           icon: Icons.north_east_rounded,
                         ),
                       ),
-                      const SizedBox(width: 10),
+                      const GapX(S.sm),
                       Expanded(
                         child: _Totals(
                           label: 'Shown',
@@ -370,7 +378,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     ],
                   ),
-                const SizedBox(height: 14),
+                const Gap(S.md),
               ]),
             ),
           ),
@@ -378,14 +386,14 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           if (!_initialised)
             const SliverToBoxAdapter(
               child: Padding(
-                padding: EdgeInsets.symmetric(horizontal: 14),
+                padding: EdgeInsets.symmetric(horizontal: S.lg),
                 child: PageLoader(rows: 6, hero: false),
               ),
             )
           else if (_error != null)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: S.lg),
                 child: ErrorState(
                   message: _error is ApiError
                       ? (_error as ApiError).message
@@ -397,9 +405,10 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           else if (items.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: 14),
+                padding: const EdgeInsets.symmetric(horizontal: S.lg),
                 child: EmptyState(
                   icon: Icons.receipt_long_outlined,
+                  art: EmptyArt.ledger,
                   title: _activeFilterCount > 0 || _query.isNotEmpty
                       ? 'Nothing matches those filters'
                       : 'No transactions yet',
@@ -419,58 +428,55 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
             )
           else
             SliverPadding(
-              padding: const EdgeInsets.symmetric(horizontal: 14),
+              padding: const EdgeInsets.symmetric(horizontal: S.lg),
               sliver: SliverList(
-                delegate: SliverChildBuilderDelegate(
-                  (context, i) {
-                    final (label, rows) = groups[i];
-                    final dayTotal = rows.fold<double>(
-                      0,
-                      (s, x) => s + (x.kind == TxKind.expense ? x.value : 0),
-                    );
-                    return Padding(
-                      padding: const EdgeInsets.only(bottom: 14),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          Padding(
-                            padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
-                            child: Row(
-                              children: [
-                                Text(
-                                  label,
-                                  style: TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w700,
-                                    letterSpacing: 0.3,
-                                    color: t.mutedForeground,
-                                  ),
+                delegate: SliverChildBuilderDelegate((context, i) {
+                  final (label, rows) = groups[i];
+                  final dayTotal = rows.fold<double>(
+                    0,
+                    (s, x) => s + (x.kind == TxKind.expense ? x.value : 0),
+                  );
+                  return Padding(
+                    padding: const EdgeInsets.only(bottom: S.lg),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.fromLTRB(4, 0, 4, 8),
+                          child: Row(
+                            children: [
+                              Text(
+                                label,
+                                style: TextStyle(
+                                  fontSize: AppType.label,
+                                  fontWeight: FontWeight.w700,
+                                  letterSpacing: 0.3,
+                                  color: t.mutedForeground,
                                 ),
-                                const Spacer(),
-                                if (dayTotal > 0)
-                                  Muted('−${money(dayTotal, data.activeCurrency)}', size: 11.5),
-                              ],
-                            ),
+                              ),
+                              const Spacer(),
+                              if (dayTotal > 0)
+                                Muted('−${money(dayTotal, data.activeCurrency)}', size: 11.5),
+                            ],
                           ),
-                          AppCard(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            child: TransactionList(
-                              items: rows,
-                              money: money,
-                              animate: false,
-                              showDate: false,
-                              onTap: (tx) async {
-                                final changed = await showTransactionDetail(context, tx);
-                                if (changed == true) _reload();
-                              },
-                            ),
+                        ),
+                        AppCard(
+                          padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xxs),
+                          child: TransactionList(
+                            items: rows,
+                            money: money,
+                            animate: false,
+                            showDate: false,
+                            onTap: (tx) async {
+                              final changed = await showTransactionDetail(context, tx);
+                              if (changed == true) _reload();
+                            },
                           ),
-                        ],
-                      ),
-                    );
-                  },
-                  childCount: groups.length,
-                ),
+                        ),
+                      ],
+                    ),
+                  );
+                }, childCount: groups.length),
               ),
             ),
 
@@ -480,20 +486,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               child: items.isEmpty
                   ? const SizedBox.shrink()
                   : items.length >= _total
-                      ? Center(child: Muted('That is all $_total.', size: 11.5))
-                      : Center(
-                          child: _loading
-                              ? const Padding(
-                                  padding: EdgeInsets.all(8),
-                                  child: BouncingDots(),
-                                )
-                              : AppButton(
-                                  label: 'Load more',
-                                  variant: BtnVariant.outline,
-                                  size: BtnSize.sm,
-                                  onPressed: _loadMore,
-                                ),
-                        ),
+                  ? Center(child: Muted('That is all $_total.', size: 11.5))
+                  : Center(
+                      child: _loading
+                          ? const Padding(padding: EdgeInsets.all(S.sm), child: BouncingDots())
+                          : AppButton(
+                              label: 'Load more',
+                              variant: BtnVariant.outline,
+                              size: BtnSize.sm,
+                              onPressed: _loadMore,
+                            ),
+                    ),
             ),
           ),
         ],
@@ -507,10 +510,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       title: 'Kind',
       scrollable: false,
       builder: (ctx) => _OptionList(
-        options: [
-          ('', 'All kinds'),
-          for (final k in TxKind.values) (k.wire, k.label),
-        ],
+        options: [('', 'All kinds'), for (final k in TxKind.values) (k.wire, k.label)],
         selected: _kind?.wire ?? '',
       ),
     );
@@ -586,7 +586,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 children: [
                   for (final preset in _datePresets())
                     ActionChip(
-                      label: Text(preset.$1, style: const TextStyle(fontSize: 12)),
+                      label: Text(preset.$1, style: const TextStyle(fontSize: AppType.label)),
                       onPressed: () => setSheet(() {
                         from = preset.$2;
                         to = preset.$3;
@@ -594,21 +594,21 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     ),
                 ],
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               DateField(
                 label: 'From',
                 value: from,
                 allowClear: true,
                 onChanged: (d) => setSheet(() => from = d),
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
               DateField(
                 label: 'To',
                 value: to,
                 allowClear: true,
                 onChanged: (d) => setSheet(() => to = d),
               ),
-              const SizedBox(height: 20),
+              const Gap(S.xl),
               Row(
                 children: [
                   Expanded(
@@ -623,7 +623,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       },
                     ),
                   ),
-                  const SizedBox(width: 12),
+                  const GapX(S.md),
                   Expanded(
                     child: AppButton(
                       label: 'Apply',
@@ -672,7 +672,7 @@ class _OptionList extends StatelessWidget {
       padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(context).padding.bottom),
       child: ListView.builder(
         shrinkWrap: true,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
+        padding: const EdgeInsets.symmetric(horizontal: S.md),
         itemCount: options.length,
         itemBuilder: (context, i) {
           final isSelected = options[i].$1 == selected;
@@ -684,7 +684,7 @@ class _OptionList extends StatelessWidget {
             title: Text(
               options[i].$2,
               style: TextStyle(
-                fontSize: 14.5,
+                fontSize: AppType.body,
                 fontWeight: isSelected ? FontWeight.w700 : FontWeight.w500,
                 color: t.foreground,
               ),
@@ -716,23 +716,21 @@ class _FilterChip extends StatelessWidget {
     return PressableScale(
       onTap: onTap,
       child: Container(
-        padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 7),
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
         decoration: BoxDecoration(
           color: active ? t.primary.withValues(alpha: 0.12) : t.surfaceMuted.withValues(alpha: 0.7),
           borderRadius: BorderRadius.circular(R.pill),
-          border: Border.all(
-            color: active ? t.primary.withValues(alpha: 0.35) : t.border,
-          ),
+          border: Border.all(color: active ? t.primary.withValues(alpha: 0.35) : t.border),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
             Icon(icon, size: 13, color: active ? t.primary : t.mutedForeground),
-            const SizedBox(width: 6),
+            const GapX(S.xs),
             Text(
               label,
               style: TextStyle(
-                fontSize: 12,
+                fontSize: AppType.label,
                 fontWeight: active ? FontWeight.w700 : FontWeight.w500,
                 color: active ? t.primary : t.foreground,
               ),
@@ -761,7 +759,7 @@ class _Totals extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       decoration: BoxDecoration(
         color: t.surface,
         borderRadius: BorderRadius.circular(R.md),
@@ -773,11 +771,11 @@ class _Totals extends StatelessWidget {
           Row(
             children: [
               Icon(icon, size: 12, color: color),
-              const SizedBox(width: 5),
+              const GapX(S.xxs),
               Muted(label, size: 10.5),
             ],
           ),
-          const SizedBox(height: 4),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,

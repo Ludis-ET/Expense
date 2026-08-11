@@ -18,12 +18,50 @@ import io.flutter.plugin.common.MethodChannel
 class MainActivity : FlutterFragmentActivity() {
     private val methodChannelName = "santim/sms"
     private val eventChannelName = "santim/sms_events"
+    private val widgetChannelName = "santim/widget"
 
     private var eventSink: EventChannel.EventSink? = null
     private var smsReceiver: BroadcastReceiver? = null
 
+    /**
+     * Set when the activity was started by the widget's add button. Dart reads
+     * it once on startup, so a cold launch from the widget still lands on the
+     * add sheet.
+     */
+    private var pendingAction: String? = null
+
+    override fun onCreate(savedInstanceState: android.os.Bundle?) {
+        super.onCreate(savedInstanceState)
+        pendingAction = intent?.getStringExtra(SantimWidgetProvider.EXTRA_ACTION)
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        pendingAction = intent.getStringExtra(SantimWidgetProvider.EXTRA_ACTION)
+    }
+
     override fun configureFlutterEngine(flutterEngine: FlutterEngine) {
         super.configureFlutterEngine(flutterEngine)
+
+        MethodChannel(flutterEngine.dartExecutor.binaryMessenger, widgetChannelName)
+            .setMethodCallHandler { call, result ->
+                when (call.method) {
+                    // Dart has written fresh values into shared preferences and
+                    // wants the widget repainted.
+                    "refresh" -> {
+                        SantimWidgetProvider.redraw(applicationContext)
+                        result.success(true)
+                    }
+                    // Consumed once — a later launch should not reopen the sheet.
+                    "consumeLaunchAction" -> {
+                        val action = pendingAction
+                        pendingAction = null
+                        result.success(action)
+                    }
+                    else -> result.notImplemented()
+                }
+            }
 
         EventChannel(flutterEngine.dartExecutor.binaryMessenger, eventChannelName)
             .setStreamHandler(object : EventChannel.StreamHandler {

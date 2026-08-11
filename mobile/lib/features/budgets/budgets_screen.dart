@@ -66,12 +66,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
         children: [
           PageHeader(
             title: 'Plans',
-            description: 'A plan is an envelope. Filling it moves money out of '
+            description:
+                'A plan is an envelope. Filling it moves money out of '
                 'your available balance and reserves it, so what is left over '
                 'is genuinely free to spend.',
-            action: IconPill(
-              icon: Icons.add,
-              tooltip: 'New plan',
+            action: HeaderAction(
+              icon: Icons.add_rounded,
+              label: 'New plan',
               onTap: () => _create(context),
             ),
           ),
@@ -88,16 +89,18 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               const PageLoader(rows: 4),
           ] else ...[
             if (totals != null)
-              FadeInUp(child: _TotalsHero(totals: totals, money: money)),
-            const SizedBox(height: 16),
+              FadeInUp(
+                child: _TotalsHero(totals: totals, money: money),
+              ),
+            const Gap(S.lg),
 
             AppCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(S.lg),
               onTap: () => shell.push(const WishlistScreen()),
               child: Row(
                 children: [
                   IconTile(icon: Icons.favorite_border, color: t.accent, size: 40),
-                  const SizedBox(width: 13),
+                  const GapX(S.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -105,14 +108,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                         Text(
                           'Wishlist',
                           style: TextStyle(
-                            fontSize: 14.5,
+                            fontSize: AppType.body,
                             fontWeight: FontWeight.w700,
                             color: t.foreground,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        Muted('Things you want. Turn one into a plan when you are ready.',
-                            size: 12, maxLines: 2),
+                        const Gap(S.hair),
+                        Muted(
+                          'Things you want. Turn one into a plan when you are ready.',
+                          size: 12,
+                          maxLines: 2,
+                        ),
                       ],
                     ),
                   ),
@@ -120,13 +126,15 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ],
               ),
             ),
-            const SizedBox(height: 18),
+            const Gap(S.lg),
 
             if (active.isEmpty)
               EmptyState(
                 icon: Icons.savings_outlined,
+                art: EmptyArt.plan,
                 title: 'No plans yet',
-                description: 'Set money aside for what you intend to spend — '
+                description:
+                    'Set money aside for what you intend to spend — '
                     'rent, groceries, a trip.',
                 action: AppButton(
                   label: 'Create a plan',
@@ -139,7 +147,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               SectionLabel('ACTIVE PLANS'),
               for (var i = 0; i < active.length; i++)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.only(bottom: S.md),
                   child: FadeInUp.staggered(
                     index: i,
                     child: BudgetCard(
@@ -152,16 +160,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             ],
 
             if (unplanned != null) ...[
-              const SizedBox(height: 6),
+              const Gap(S.xs),
               SectionLabel('CATCH-ALL'),
-              BudgetCard(
-                budget: unplanned,
-                money: money,
-                onTap: () => _open(context, unplanned),
-              ),
+              BudgetCard(budget: unplanned, money: money, onTap: () => _open(context, unplanned)),
             ],
 
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             Center(
               child: AppButton(
                 label: _showClosed
@@ -179,17 +183,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               ),
             ),
             if (_showClosed && closed.isNotEmpty) ...[
-              const SizedBox(height: 10),
+              const Gap(S.sm),
               for (final b in closed)
                 Padding(
-                  padding: const EdgeInsets.only(bottom: 10),
+                  padding: const EdgeInsets.only(bottom: S.md),
                   child: Opacity(
                     opacity: 0.65,
-                    child: BudgetCard(
-                      budget: b,
-                      money: money,
-                      onTap: () => _open(context, b),
-                    ),
+                    child: BudgetCard(budget: b, money: money, onTap: () => _open(context, b)),
                   ),
                 ),
             ],
@@ -228,16 +228,19 @@ class _TotalsHero extends StatelessWidget {
     final fundedPct = planned <= 0 ? 0.0 : (funded / planned * 100).clamp(0.0, 100.0);
 
     return GradientHero(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.all(S.xl),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'Reserved across ${totals.activeCount} active plan'
             '${totals.activeCount == 1 ? '' : 's'}',
-            style: TextStyle(fontSize: 11.5, color: Colors.white.withValues(alpha: 0.72)),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              color: Colors.white.withValues(alpha: 0.72),
+            ),
           ),
-          const SizedBox(height: 6),
+          const Gap(S.xs),
           AnimatedNumber(
             value: toNum(totals.locked),
             builder: (context, v) => FittedBox(
@@ -246,7 +249,7 @@ class _TotalsHero extends StatelessWidget {
               child: Text(
                 money(v),
                 style: const TextStyle(
-                  fontSize: 33,
+                  fontSize: AppType.hero,
                   fontWeight: FontWeight.bold,
                   letterSpacing: -1.2,
                   color: Colors.white,
@@ -255,7 +258,7 @@ class _TotalsHero extends StatelessWidget {
               ),
             ),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           ClipRRect(
             borderRadius: BorderRadius.circular(R.pill),
             child: LinearProgressIndicator(
@@ -265,21 +268,20 @@ class _TotalsHero extends StatelessWidget {
               valueColor: const AlwaysStoppedAnimation(Colors.white),
             ),
           ),
-          const SizedBox(height: 8),
+          const Gap(S.sm),
           Text(
             '${money(funded)} filled of ${money(planned)} planned',
-            style: TextStyle(fontSize: 11.5, color: Colors.white.withValues(alpha: 0.8)),
+            style: TextStyle(fontSize: AppType.caption, color: Colors.white.withValues(alpha: 0.8)),
           ),
-          const SizedBox(height: 14),
+          const Gap(S.md),
           Row(
             children: [
-              Expanded(child: _Fig(label: 'Spent from plans', value: money(spent))),
-              const SizedBox(width: 10),
               Expanded(
-                child: _Fig(
-                  label: 'Unplanned spend',
-                  value: money(totals.unplannedSpent),
-                ),
+                child: _Fig(label: 'Spent from plans', value: money(spent)),
+              ),
+              const GapX(S.sm),
+              Expanded(
+                child: _Fig(label: 'Unplanned spend', value: money(totals.unplannedSpent)),
               ),
             ],
           ),
@@ -297,27 +299,27 @@ class _Fig extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return GlassChip(
-      padding: const EdgeInsets.symmetric(horizontal: 11, vertical: 9),
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             label.toUpperCase(),
             style: TextStyle(
-              fontSize: 9,
+              fontSize: AppType.micro,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.5,
               color: Colors.white.withValues(alpha: 0.7),
             ),
           ),
-          const SizedBox(height: 3),
+          const Gap(S.xxs),
           FittedBox(
             fit: BoxFit.scaleDown,
             alignment: Alignment.centerLeft,
             child: Text(
               value,
               style: const TextStyle(
-                fontSize: 15,
+                fontSize: AppType.body,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
                 fontFeatures: [FontFeature.tabularFigures()],
@@ -333,12 +335,7 @@ class _Fig extends StatelessWidget {
 /// `BudgetPlanCard` — the pot's shape at a glance: how much went in, how much
 /// is gone, and one line of plain English about where it stands.
 class BudgetCard extends StatelessWidget {
-  const BudgetCard({
-    super.key,
-    required this.budget,
-    required this.money,
-    this.onTap,
-  });
+  const BudgetCard({super.key, required this.budget, required this.money, this.onTap});
 
   final BudgetRow budget;
   final String Function(Object?) money;
@@ -354,7 +351,7 @@ class BudgetCard extends StatelessWidget {
     final fundedPct = (toNum(b.fundedAmount) / planned * 100).clamp(0.0, 100.0);
 
     return AppCard(
-      padding: const EdgeInsets.all(15),
+      padding: const EdgeInsets.all(S.lg),
       onTap: onTap,
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -362,13 +359,11 @@ class BudgetCard extends StatelessWidget {
           Row(
             children: [
               IconTile(
-                icon: b.isUnplanned
-                    ? Icons.more_horiz
-                    : financeIcon(b.icon ?? b.category?.icon),
+                icon: b.isUnplanned ? Icons.more_horiz : financeIcon(b.icon ?? b.category?.icon),
                 color: tint,
                 size: 42,
               ),
-              const SizedBox(width: 12),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -377,35 +372,35 @@ class BudgetCard extends StatelessWidget {
                       b.name,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: 15,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 3),
+                    const Gap(S.xxs),
                     Row(
                       children: [
                         AppBadge(b.health.label, tone: healthTone(b.health), dense: true),
-                        const SizedBox(width: 6),
+                        const GapX(S.xs),
                         Flexible(child: Muted(cadenceLabel(b), size: 11, maxLines: 1)),
                       ],
                     ),
                   ],
                 ),
               ),
-              const SizedBox(width: 10),
+              const GapX(S.sm),
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Amount(money(b.balance), size: 16, color: tint),
-                  const SizedBox(height: 2),
+                  const Gap(S.hair),
                   Muted('left', size: 10.5),
                 ],
               ),
             ],
           ),
           if (!b.isUnplanned) ...[
-            const SizedBox(height: 14),
+            const Gap(S.md),
             // Two bars on one track: how full the pot got, and how much of it
             // has been spent.
             Stack(
@@ -413,19 +408,12 @@ class BudgetCard extends StatelessWidget {
                 ProgressBar(
                   value: fundedPct,
                   height: 8,
-                  gradient: [
-                    tint.withValues(alpha: 0.35),
-                    tint.withValues(alpha: 0.25),
-                  ],
+                  gradient: [tint.withValues(alpha: 0.35), tint.withValues(alpha: 0.25)],
                 ),
-                ProgressBar(
-                  value: spentPct,
-                  height: 8,
-                  tone: healthTone(b.health),
-                ),
+                ProgressBar(value: spentPct, height: 8, tone: healthTone(b.health)),
               ],
             ),
-            const SizedBox(height: 8),
+            const Gap(S.sm),
             Row(
               children: [
                 Muted('${money(b.spentAmount)} spent', size: 11),
@@ -434,27 +422,27 @@ class BudgetCard extends StatelessWidget {
               ],
             ),
           ],
-          const SizedBox(height: 9),
+          const Gap(S.sm),
           Text(
             healthSentence(b, money),
-            style: TextStyle(fontSize: 11.5, height: 1.4, color: t.mutedForeground),
+            style: TextStyle(fontSize: AppType.caption, height: 1.4, color: t.mutedForeground),
           ),
           if (b.carriedIn != '0' && toNum(b.carriedIn) > 0) ...[
-            const SizedBox(height: 6),
+            const Gap(S.xs),
             Row(
               children: [
                 Icon(Icons.subdirectory_arrow_right, size: 13, color: t.accent),
-                const SizedBox(width: 5),
+                const GapX(S.xxs),
                 Muted('${money(b.carriedIn)} carried over from last cycle', size: 11),
               ],
             ),
           ],
           if (b.nextResetAt != null) ...[
-            const SizedBox(height: 6),
+            const Gap(S.xs),
             Row(
               children: [
                 Icon(Icons.autorenew, size: 13, color: t.mutedForeground),
-                const SizedBox(width: 5),
+                const GapX(S.xxs),
                 Muted('Resets ${relativeTime(b.nextResetAt!)}', size: 11),
               ],
             ),

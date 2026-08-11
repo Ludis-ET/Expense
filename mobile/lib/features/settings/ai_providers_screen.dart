@@ -76,12 +76,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
         _providers = [
           for (final id in _Provider.labels.keys)
             found.where((p) => p.id == id).firstOrNull ??
-                _Provider(
-                  id: id,
-                  label: _Provider.labels[id]!,
-                  enabled: false,
-                  hasKey: false,
-                ),
+                _Provider(id: id, label: _Provider.labels[id]!, enabled: false, hasKey: false),
         ];
         _loading = false;
         _error = null;
@@ -98,17 +93,20 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
   Future<void> _save({String? id, String? apiKey}) async {
     setState(() => _saving = true);
     try {
-      await context.read<ApiClient>().put('/ai/settings', body: {
-        'providers': [
-          for (final p in _providers)
-            {
-              'id': p.id,
-              'enabled': p.enabled,
-              if (p.model != null && p.model!.isNotEmpty) 'model': p.model,
-              if (p.id == id && apiKey != null && apiKey.isNotEmpty) 'apiKey': apiKey,
-            },
-        ],
-      });
+      await context.read<ApiClient>().put(
+        '/ai/settings',
+        body: {
+          'providers': [
+            for (final p in _providers)
+              {
+                'id': p.id,
+                'enabled': p.enabled,
+                if (p.model != null && p.model!.isNotEmpty) 'model': p.model,
+                if (p.id == id && apiKey != null && apiKey.isNotEmpty) 'apiKey': apiKey,
+              },
+          ],
+        },
+      );
       await _load();
       if (mounted) toast(context, 'Saved');
     } on ApiError catch (e) {
@@ -121,9 +119,10 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
   Future<void> _test(String id) async {
     setState(() => _testing = id);
     try {
-      final json = await context
-          .read<ApiClient>()
-          .post<Map<String, dynamic>>('/ai/settings/test', body: {'id': id});
+      final json = await context.read<ApiClient>().post<Map<String, dynamic>>(
+        '/ai/settings/test',
+        body: {'id': id},
+      );
       if (!mounted) return;
       final ok = asBool(json['ok'], true);
       toast(
@@ -146,7 +145,11 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
       appBar: AppBar(
         title: Text(
           'AI providers',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -160,19 +163,19 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               AppCard(
-                padding: const EdgeInsets.all(14),
+                padding: const EdgeInsets.all(S.lg),
                 child: Row(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Icon(Icons.key_outlined, size: 16, color: t.primary),
-                    const SizedBox(width: 11),
+                    const GapX(S.md),
                     Expanded(
                       child: Text(
                         'Ask Santim runs on your own API key. Providers are tried '
                         'top to bottom, so the first enabled one that answers wins. '
                         'Keys are stored encrypted and never leave your account.',
                         style: TextStyle(
-                          fontSize: 12.5,
+                          fontSize: AppType.label,
                           height: 1.5,
                           color: t.mutedForeground,
                         ),
@@ -181,7 +184,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
                   ],
                 ),
               ),
-              const SizedBox(height: 16),
+              const Gap(S.lg),
               if (_loading && _providers.isEmpty)
                 const PageLoader(rows: 3, hero: false)
               else if (_error != null && _providers.isEmpty)
@@ -194,7 +197,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
               else
                 for (var i = 0; i < _providers.length; i++)
                   Padding(
-                    padding: const EdgeInsets.only(bottom: 11),
+                    padding: const EdgeInsets.only(bottom: S.md),
                     child: FadeInUp.staggered(
                       index: i,
                       child: _ProviderCard(
@@ -241,7 +244,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
               textCapitalization: TextCapitalization.none,
               autofocus: true,
             ),
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             AppTextField(
               controller: model,
               label: 'Model',
@@ -254,7 +257,7 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
               prefixIcon: Icons.memory_outlined,
               textCapitalization: TextCapitalization.none,
             ),
-            const SizedBox(height: 20),
+            const Gap(S.xl),
             AppButton(
               label: 'Save',
               icon: Icons.check,
@@ -297,7 +300,7 @@ class _ProviderCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return AppCard(
-      padding: const EdgeInsets.all(14),
+      padding: const EdgeInsets.all(S.lg),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -314,13 +317,13 @@ class _ProviderCard extends StatelessWidget {
                 child: Text(
                   '$priority',
                   style: TextStyle(
-                    fontSize: 12,
+                    fontSize: AppType.label,
                     fontWeight: FontWeight.w700,
                     color: t.mutedForeground,
                   ),
                 ),
               ),
-              const SizedBox(width: 11),
+              const GapX(S.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
@@ -328,12 +331,12 @@ class _ProviderCard extends StatelessWidget {
                     Text(
                       provider.label,
                       style: TextStyle(
-                        fontSize: 14.5,
+                        fontSize: AppType.body,
                         fontWeight: FontWeight.w700,
                         color: t.foreground,
                       ),
                     ),
-                    const SizedBox(height: 2),
+                    const Gap(S.hair),
                     Muted(
                       provider.hasKey
                           ? 'Key saved${provider.model != null ? ' · ${provider.model}' : ''}'
@@ -351,7 +354,7 @@ class _ProviderCard extends StatelessWidget {
               ),
             ],
           ),
-          const SizedBox(height: 12),
+          const Gap(S.md),
           Row(
             children: [
               Expanded(
@@ -364,7 +367,7 @@ class _ProviderCard extends StatelessWidget {
                   onPressed: onSetKey,
                 ),
               ),
-              const SizedBox(width: 8),
+              const GapX(S.sm),
               Expanded(
                 child: AppButton(
                   label: 'Test',

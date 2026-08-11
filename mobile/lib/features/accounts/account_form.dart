@@ -123,7 +123,7 @@ class _AccountFormState extends State<_AccountForm> {
               radius: R.lg,
             ),
           ),
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppTextField(
             controller: _name,
             label: 'Name',
@@ -132,7 +132,7 @@ class _AccountFormState extends State<_AccountForm> {
             autofocus: !_isEdit,
             textCapitalization: TextCapitalization.words,
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<AccountType>(
             label: 'Type',
             value: _type,
@@ -141,10 +141,11 @@ class _AccountFormState extends State<_AccountForm> {
             iconOf: (a) => accountTypeIcon(a.wire),
             onChanged: (a) => setState(() => _type = a ?? _type),
           ),
-          const SizedBox(height: 16),
+          const Gap(S.lg),
           PickerField<String>(
             label: 'Currency',
-            hint: 'A wallet holds one currency. Totals are never mixed across '
+            hint:
+                'A wallet holds one currency. Totals are never mixed across '
                 'currencies — switch the scope from the topbar instead.',
             value: _currency,
             options: _currencies,
@@ -153,24 +154,25 @@ class _AccountFormState extends State<_AccountForm> {
             enabled: !_isEdit,
           ),
           if (!_isEdit) ...[
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             AppTextField(
               controller: _opening,
               label: 'Opening balance',
-              hint: 'What is in the wallet right now. Every later figure is '
+              hint:
+                  'What is in the wallet right now. Every later figure is '
                   'measured from here.',
               placeholder: '0',
               prefixIcon: Icons.savings_outlined,
               keyboardType: const TextInputType.numberWithOptions(decimal: true),
             ),
           ],
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           ColorPickerRow(
             value: _color,
             colors: financeColors,
             onChanged: (c) => setState(() => _color = c),
           ),
-          const SizedBox(height: 18),
+          const Gap(S.lg),
           IconPickerGrid(
             value: _icon,
             names: iconNames,
@@ -178,7 +180,7 @@ class _AccountFormState extends State<_AccountForm> {
             tint: tint,
             onChanged: (i) => setState(() => _icon = i),
           ),
-          const SizedBox(height: 10),
+          const Gap(S.sm),
           SwitchRow(
             title: 'Default wallet',
             subtitle: 'Preselected on the transaction form.',
@@ -195,9 +197,9 @@ class _AccountFormState extends State<_AccountForm> {
               onChanged: (v) => setState(() => _archived = v),
             ),
           if (_error != null) ...[
-            const SizedBox(height: 12),
+            const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -206,18 +208,18 @@ class _AccountFormState extends State<_AccountForm> {
               child: Row(
                 children: [
                   Icon(Icons.error_outline, size: 16, color: t.danger),
-                  const SizedBox(width: 9),
+                  const GapX(S.sm),
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: 13, color: t.foreground),
+                      style: TextStyle(fontSize: AppType.bodySm, color: t.foreground),
                     ),
                   ),
                 ],
               ),
             ),
           ],
-          const SizedBox(height: 20),
+          const Gap(S.xl),
           AppButton(
             label: _isEdit ? 'Save changes' : 'Create wallet',
             icon: Icons.check,

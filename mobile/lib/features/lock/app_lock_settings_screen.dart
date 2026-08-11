@@ -23,7 +23,11 @@ class AppLockSettingsScreen extends StatelessWidget {
       appBar: AppBar(
         title: Text(
           'App lock',
-          style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+          style: TextStyle(
+            fontSize: AppType.lead,
+            fontWeight: FontWeight.w700,
+            color: t.foreground,
+          ),
         ),
       ),
       body: MeshBackground(
@@ -31,7 +35,7 @@ class AppLockSettingsScreen extends StatelessWidget {
           padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
           children: [
             AppCard(
-              padding: const EdgeInsets.all(14),
+              padding: const EdgeInsets.all(S.lg),
               child: Column(
                 children: [
                   SwitchRow(
@@ -70,7 +74,7 @@ class AppLockSettingsScreen extends StatelessWidget {
                     },
                   ),
                   if (lock.enabled) ...[
-                    const SizedBox(height: 4),
+                    const Gap(S.xxs),
                     SwitchRow(
                       title: 'Biometrics',
                       subtitle: lock.biometricAvailable
@@ -85,10 +89,7 @@ class AppLockSettingsScreen extends StatelessWidget {
                         }
                         await context.read<AppLockState>().setBiometric(v);
                         if (!context.mounted) return;
-                        toast(
-                          context,
-                          v ? 'Biometrics enabled' : 'Biometrics disabled',
-                        );
+                        toast(context, v ? 'Biometrics enabled' : 'Biometrics disabled');
                       },
                     ),
                   ],
@@ -96,9 +97,9 @@ class AppLockSettingsScreen extends StatelessWidget {
               ),
             ),
             if (lock.enabled) ...[
-              const SizedBox(height: 14),
+              const Gap(S.md),
               AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: S.xxs, vertical: S.xxs),
                 onTap: () async {
                   final current = await _promptCurrentPin(
                     context,
@@ -115,10 +116,7 @@ class AppLockSettingsScreen extends StatelessWidget {
                   final next = await _promptNewPin(context, title: 'Choose a new PIN');
                   if (next == null || !context.mounted) return;
                   try {
-                    await context.read<AppLockState>().changePin(
-                          currentPin: current,
-                          newPin: next,
-                        );
+                    await context.read<AppLockState>().changePin(currentPin: current, newPin: next);
                     if (context.mounted) toast(context, 'PIN updated');
                   } catch (e) {
                     if (context.mounted) toast(context, e.toString(), error: true);
@@ -129,7 +127,7 @@ class AppLockSettingsScreen extends StatelessWidget {
                   title: Text(
                     'Change PIN',
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       fontWeight: FontWeight.w600,
                       color: t.foreground,
                     ),
@@ -138,9 +136,9 @@ class AppLockSettingsScreen extends StatelessWidget {
                   trailing: Icon(Icons.chevron_right_rounded, color: t.mutedForeground),
                 ),
               ),
-              const SizedBox(height: 14),
+              const Gap(S.md),
               AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+                padding: const EdgeInsets.symmetric(horizontal: S.xxs, vertical: S.xxs),
                 onTap: () async {
                   await context.read<AppLockState>().lockNow();
                   if (context.mounted) Navigator.of(context).pop();
@@ -150,7 +148,7 @@ class AppLockSettingsScreen extends StatelessWidget {
                   title: Text(
                     'Lock now',
                     style: TextStyle(
-                      fontSize: 14.5,
+                      fontSize: AppType.body,
                       fontWeight: FontWeight.w600,
                       color: t.foreground,
                     ),
@@ -160,11 +158,8 @@ class AppLockSettingsScreen extends StatelessWidget {
                 ),
               ),
             ],
-            const SizedBox(height: 18),
-            Muted(
-              'Your PIN stays on this phone only. Santim never uploads it.',
-              size: 12.5,
-            ),
+            const Gap(S.lg),
+            Muted('Your PIN stays on this phone only. Santim never uploads it.', size: 12.5),
           ],
         ),
       ),
@@ -199,12 +194,7 @@ Future<String?> _promptCurrentPin(
   required String title,
   required String subtitle,
 }) {
-  return showPinSheet(
-    context,
-    title: title,
-    subtitle: subtitle,
-    confirmLabel: 'Continue',
-  );
+  return showPinSheet(context, title: title, subtitle: subtitle, confirmLabel: 'Continue');
 }
 
 Future<String?> showPinSheet(
@@ -217,20 +207,12 @@ Future<String?> showPinSheet(
     context: context,
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
-    builder: (ctx) => _PinSheet(
-      title: title,
-      subtitle: subtitle,
-      confirmLabel: confirmLabel,
-    ),
+    builder: (ctx) => _PinSheet(title: title, subtitle: subtitle, confirmLabel: confirmLabel),
   );
 }
 
 class _PinSheet extends StatefulWidget {
-  const _PinSheet({
-    required this.title,
-    required this.subtitle,
-    required this.confirmLabel,
-  });
+  const _PinSheet({required this.title, required this.subtitle, required this.confirmLabel});
 
   final String title;
   final String subtitle;
@@ -268,7 +250,7 @@ class _PinSheetState extends State<_PinSheet> {
       padding: EdgeInsets.only(bottom: bottom),
       child: Container(
         margin: const EdgeInsets.fromLTRB(12, 0, 12, 12),
-        padding: const EdgeInsets.fromLTRB(18, 16, 18, 18),
+        padding: const EdgeInsets.fromLTRB(S.xl, S.lg, S.xl, S.xl),
         decoration: BoxDecoration(
           color: t.surface,
           borderRadius: BorderRadius.circular(24),
@@ -280,11 +262,15 @@ class _PinSheetState extends State<_PinSheet> {
           children: [
             Text(
               widget.title,
-              style: TextStyle(fontSize: 17, fontWeight: FontWeight.w700, color: t.foreground),
+              style: TextStyle(
+                fontSize: AppType.lead,
+                fontWeight: FontWeight.w700,
+                color: t.foreground,
+              ),
             ),
-            const SizedBox(height: 4),
+            const Gap(S.xxs),
             Muted(widget.subtitle, size: 13),
-            const SizedBox(height: 16),
+            const Gap(S.lg),
             TextField(
               controller: _controller,
               autofocus: true,
@@ -316,12 +302,8 @@ class _PinSheetState extends State<_PinSheet> {
                 if (_error != null) setState(() => _error = null);
               },
             ),
-            const SizedBox(height: 14),
-            AppButton(
-              label: widget.confirmLabel,
-              expand: true,
-              onPressed: _submit,
-            ),
+            const Gap(S.md),
+            AppButton(label: widget.confirmLabel, expand: true, onPressed: _submit),
           ],
         ),
       ),

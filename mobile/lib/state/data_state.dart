@@ -1,7 +1,10 @@
 import 'package:flutter/foundation.dart';
 
 import '../core/api/api_client.dart';
+import '../core/home_widget.dart';
+import '../core/utils/format.dart';
 import '../models/models.dart';
+import '../models/outlook_history.dart';
 import 'sync_state.dart';
 
 /// A single fetch's lifecycle. The UI branches on `hasData` first so a refresh
@@ -42,6 +45,7 @@ class DataState extends ChangeNotifier {
   Async<List<BudgetSpendSource>> spendSources = const Async.idle();
   Async<List<RecurringRule>> recurring = const Async.idle();
   Async<List<AppNotification>> notifications = const Async.idle();
+  Async<OutlookHistory> outlookHistory = const Async.idle();
 
   /// The currency the whole UI is scoped to. Multi-currency users switch it
   /// from the topbar badge; totals never mix currencies.
@@ -129,7 +133,10 @@ class DataState extends ChangeNotifier {
         () => dashboard,
         (v) {
           dashboard = v;
-          if (v.data != null) _syncCurrencyFromDashboard(v.data!);
+          if (v.data != null) {
+            _syncCurrencyFromDashboard(v.data!);
+            _publishHomeWidget(v.data!);
+          }
         },
         () async {
           final json = await api.get<Map<String, dynamic>>('/dashboard');
@@ -143,6 +150,32 @@ class DataState extends ChangeNotifier {
           return DashboardData.fromJson(json);
         },
       );
+
+  /// Feeds the home-screen widget from the dashboard payload.
+  ///
+  /// "Left to spend today" is the available balance — already net of what
+  /// budget plans hold — spread evenly over the days left in the month. It is
+  /// deliberately the simple figure rather than the outlook's projection: a
+  /// widget has one line to be understood in.
+  void _publishHomeWidget(DashboardData data) {
+    final currency = data.displayCurrency ?? activeCurrency;
+    final slice = data.currencyBreakdown
+        .where((b) => b.currency == currency)
+        .firstOrNull;
+
+    final available = toNum(slice?.totalBalance ?? data.totalBalance);
+    final month = slice?.month ?? data.month;
+
+    final now = DateTime.now();
+    final daysLeft = DateTime(now.year, now.month + 1, 0).day - now.day + 1;
+    final perDay = daysLeft <= 0 ? available : available / daysLeft;
+
+    HomeWidget.publish(
+      remaining: formatMoney(perDay, currency: currency),
+      caption: 'Left to spend today',
+      spent: '${formatMoney(month.expense, currency: currency)} spent this month',
+    );
+  }
 
   Future<void> loadAccounts({bool force = false}) => _load<List<Account>>(
         () => accounts,
@@ -208,6 +241,21 @@ class DataState extends ChangeNotifier {
           if (json == null) return null;
           return mapList(json['items'], BudgetSpendSource.fromJson);
         },
+      );
+
+  /// History behind the monthly outlook — completed months, the surprise
+  /// buffer, and repeating payees. Scoped to the active currency, so switching
+  /// currency refetches.
+  Future<void> loadOutlookHistory({bool force = false}) => _load<OutlookHistory>(
+        () => outlookHistory,
+        (v) => outlookHistory = v,
+        () async => OutlookHistory.fromJson(
+          await api.get<Map<String, dynamic>>(
+            '/analytics/outlook-history',
+            query: {'currency': activeCurrency, 'months': '6'},
+          ),
+        ),
+        force: force,
       );
 
   Future<void> loadRecurring({bool force = false}) => _load<List<RecurringRule>>(

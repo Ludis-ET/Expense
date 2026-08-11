@@ -9,7 +9,7 @@ abstract final class ShellLayout {
   static double bottomClearance(BuildContext context, {double extra = 16}) =>
       chromeHeight + MediaQuery.paddingOf(context).bottom + extra;
 
-  /// For full-screen routes above the shell (root navigator) — system inset only.
+  /// For full-screen routes above the shell (root navigator)   system inset only.
   static double pageClearance(BuildContext context, {double extra = 24}) =>
       MediaQuery.paddingOf(context).bottom + extra;
 }

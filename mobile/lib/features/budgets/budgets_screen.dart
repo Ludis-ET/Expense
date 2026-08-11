@@ -57,11 +57,17 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final totals = response?.totals;
 
     return RefreshIndicator(
-      onRefresh: () => data.loadBudgets(force: true, includeClosed: _showClosed),
+      onRefresh: () =>
+          data.loadBudgets(force: true, includeClosed: _showClosed),
       color: t.primary,
       backgroundColor: t.surface,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(14, 14, 14, ShellLayout.bottomClearance(context)),
+        padding: EdgeInsets.fromLTRB(
+          14,
+          14,
+          14,
+          ShellLayout.bottomClearance(context),
+        ),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           PageHeader(
@@ -99,7 +105,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               onTap: () => shell.push(const WishlistScreen()),
               child: Row(
                 children: [
-                  IconTile(icon: Icons.favorite_border, color: t.accent, size: 40),
+                  IconTile(
+                    icon: Icons.favorite_border,
+                    color: t.accent,
+                    size: 40,
+                  ),
                   const GapX(S.md),
                   Expanded(
                     child: Column(
@@ -134,7 +144,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 art: EmptyArt.plan,
                 title: 'No plans yet',
                 description:
-                    'Set money aside for what you intend to spend — '
+                    'Set money aside for what you intend to spend   '
                     'rent, groceries, a trip.',
                 action: AppButton(
                   label: 'Create a plan',
@@ -162,7 +172,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             if (unplanned != null) ...[
               const Gap(S.xs),
               SectionLabel('CATCH-ALL'),
-              BudgetCard(budget: unplanned, money: money, onTap: () => _open(context, unplanned)),
+              BudgetCard(
+                budget: unplanned,
+                money: money,
+                onTap: () => _open(context, unplanned),
+              ),
             ],
 
             const Gap(S.lg),
@@ -189,7 +203,11 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   padding: const EdgeInsets.only(bottom: S.md),
                   child: Opacity(
                     opacity: 0.65,
-                    child: BudgetCard(budget: b, money: money, onTap: () => _open(context, b)),
+                    child: BudgetCard(
+                      budget: b,
+                      money: money,
+                      onTap: () => _open(context, b),
+                    ),
                   ),
                 ),
             ],
@@ -202,7 +220,10 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
   Future<void> _open(BuildContext context, BudgetRow b) async {
     await AppShell.of(context).push(BudgetDetailScreen(budgetId: b.id));
     if (context.mounted) {
-      await context.read<DataState>().loadBudgets(force: true, includeClosed: _showClosed);
+      await context.read<DataState>().loadBudgets(
+        force: true,
+        includeClosed: _showClosed,
+      );
     }
   }
 
@@ -225,7 +246,9 @@ class _TotalsHero extends StatelessWidget {
     final planned = toNum(totals.planned);
     final funded = toNum(totals.funded);
     final spent = toNum(totals.spent);
-    final fundedPct = planned <= 0 ? 0.0 : (funded / planned * 100).clamp(0.0, 100.0);
+    final fundedPct = planned <= 0
+        ? 0.0
+        : (funded / planned * 100).clamp(0.0, 100.0);
 
     return GradientHero(
       padding: const EdgeInsets.all(S.xl),
@@ -271,7 +294,10 @@ class _TotalsHero extends StatelessWidget {
           const Gap(S.sm),
           Text(
             '${money(funded)} filled of ${money(planned)} planned',
-            style: TextStyle(fontSize: AppType.caption, color: Colors.white.withValues(alpha: 0.8)),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              color: Colors.white.withValues(alpha: 0.8),
+            ),
           ),
           const Gap(S.md),
           Row(
@@ -281,7 +307,10 @@ class _TotalsHero extends StatelessWidget {
               ),
               const GapX(S.sm),
               Expanded(
-                child: _Fig(label: 'Unplanned spend', value: money(totals.unplannedSpent)),
+                child: _Fig(
+                  label: 'Unplanned spend',
+                  value: money(totals.unplannedSpent),
+                ),
               ),
             ],
           ),
@@ -332,10 +361,15 @@ class _Fig extends StatelessWidget {
   }
 }
 
-/// `BudgetPlanCard` — the pot's shape at a glance: how much went in, how much
+/// `BudgetPlanCard`   the pot's shape at a glance: how much went in, how much
 /// is gone, and one line of plain English about where it stands.
 class BudgetCard extends StatelessWidget {
-  const BudgetCard({super.key, required this.budget, required this.money, this.onTap});
+  const BudgetCard({
+    super.key,
+    required this.budget,
+    required this.money,
+    this.onTap,
+  });
 
   final BudgetRow budget;
   final String Function(Object?) money;
@@ -359,7 +393,9 @@ class BudgetCard extends StatelessWidget {
           Row(
             children: [
               IconTile(
-                icon: b.isUnplanned ? Icons.more_horiz : financeIcon(b.icon ?? b.category?.icon),
+                icon: b.isUnplanned
+                    ? Icons.more_horiz
+                    : financeIcon(b.icon ?? b.category?.icon),
                 color: tint,
                 size: 42,
               ),
@@ -380,9 +416,15 @@ class BudgetCard extends StatelessWidget {
                     const Gap(S.xxs),
                     Row(
                       children: [
-                        AppBadge(b.health.label, tone: healthTone(b.health), dense: true),
+                        AppBadge(
+                          b.health.label,
+                          tone: healthTone(b.health),
+                          dense: true,
+                        ),
                         const GapX(S.xs),
-                        Flexible(child: Muted(cadenceLabel(b), size: 11, maxLines: 1)),
+                        Flexible(
+                          child: Muted(cadenceLabel(b), size: 11, maxLines: 1),
+                        ),
                       ],
                     ),
                   ],
@@ -408,9 +450,16 @@ class BudgetCard extends StatelessWidget {
                 ProgressBar(
                   value: fundedPct,
                   height: 8,
-                  gradient: [tint.withValues(alpha: 0.35), tint.withValues(alpha: 0.25)],
+                  gradient: [
+                    tint.withValues(alpha: 0.35),
+                    tint.withValues(alpha: 0.25),
+                  ],
                 ),
-                ProgressBar(value: spentPct, height: 8, tone: healthTone(b.health)),
+                ProgressBar(
+                  value: spentPct,
+                  height: 8,
+                  tone: healthTone(b.health),
+                ),
               ],
             ),
             const Gap(S.sm),
@@ -418,14 +467,21 @@ class BudgetCard extends StatelessWidget {
               children: [
                 Muted('${money(b.spentAmount)} spent', size: 11),
                 const Spacer(),
-                Muted('${money(b.fundedAmount)} of ${money(b.plannedAmount)} filled', size: 11),
+                Muted(
+                  '${money(b.fundedAmount)} of ${money(b.plannedAmount)} filled',
+                  size: 11,
+                ),
               ],
             ),
           ],
           const Gap(S.sm),
           Text(
             healthSentence(b, money),
-            style: TextStyle(fontSize: AppType.caption, height: 1.4, color: t.mutedForeground),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              height: 1.4,
+              color: t.mutedForeground,
+            ),
           ),
           if (b.carriedIn != '0' && toNum(b.carriedIn) > 0) ...[
             const Gap(S.xs),
@@ -433,7 +489,10 @@ class BudgetCard extends StatelessWidget {
               children: [
                 Icon(Icons.subdirectory_arrow_right, size: 13, color: t.accent),
                 const GapX(S.xxs),
-                Muted('${money(b.carriedIn)} carried over from last cycle', size: 11),
+                Muted(
+                  '${money(b.carriedIn)} carried over from last cycle',
+                  size: 11,
+                ),
               ],
             ),
           ],

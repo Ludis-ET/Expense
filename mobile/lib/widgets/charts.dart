@@ -19,7 +19,7 @@ class Slice {
 ///
 /// Every chart in this file is a [CustomPaint], which a screen reader reports
 /// as an empty rectangle. Wrapping the painted region in a single semantic
-/// node — with the painter itself excluded — turns silence into "Spending by
+/// node   with the painter itself excluded   turns silence into "Spending by
 /// category. Groceries 32 percent, transport 18 percent…".
 class ChartSemantics extends StatelessWidget {
   const ChartSemantics({
@@ -33,7 +33,7 @@ class ChartSemantics extends StatelessWidget {
   final Widget child;
 
   /// Leave false when the chart's own labels are real [Text] widgets worth
-  /// reading — ranked bars, for example, already announce themselves.
+  /// reading   ranked bars, for example, already announce themselves.
   final bool excludeChild;
 
   @override
@@ -44,12 +44,13 @@ class ChartSemantics extends StatelessWidget {
   );
 }
 
-/// "Groceries 32 percent, Transport 18 percent, …" — the top [take] shares.
+/// "Groceries 32 percent, Transport 18 percent, …"   the top [take] shares.
 String describeShares(String title, List<Slice> data, {int take = 5}) {
   final total = data.fold<double>(0, (sum, s) => sum + s.value.abs());
   if (data.isEmpty || total <= 0) return '$title. No data yet.';
 
-  final ranked = [...data]..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
+  final ranked = [...data]
+    ..sort((a, b) => b.value.abs().compareTo(a.value.abs()));
   final parts = ranked.take(take).map((s) {
     final pct = (s.value.abs() / total * 100).round();
     return '${s.label} $pct percent';
@@ -60,7 +61,7 @@ String describeShares(String title, List<Slice> data, {int take = 5}) {
       '${rest > 0 ? ', and $rest more' : ''}.';
 }
 
-/// Donut with tappable segments and a centre readout — the mobile port of
+/// Donut with tappable segments and a centre readout   the mobile port of
 /// `charts/donut.tsx`. Sweeps in over 900ms on first paint.
 class DonutChart extends StatefulWidget {
   const DonutChart({
@@ -84,7 +85,8 @@ class DonutChart extends StatefulWidget {
   State<DonutChart> createState() => _DonutChartState();
 }
 
-class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateMixin {
+class _DonutChartState extends State<DonutChart>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 900),
@@ -137,7 +139,10 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
     return Column(
       children: [
         ChartSemantics(
-          summary: describeShares('Breakdown, total ${fmt(total)}', widget.data),
+          summary: describeShares(
+            'Breakdown, total ${fmt(total)}',
+            widget.data,
+          ),
           child: GestureDetector(
             onTapDown: (d) => _tapAt(d.localPosition),
             child: SizedBox(
@@ -167,7 +172,10 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
                             textAlign: TextAlign.center,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
-                            style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
+                            style: TextStyle(
+                              fontSize: AppType.caption,
+                              color: t.mutedForeground,
+                            ),
                           ),
                         ),
                       ],
@@ -186,7 +194,8 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
           children: [
             for (var i = 0; i < widget.data.length; i++)
               GestureDetector(
-                onTap: () => setState(() => _selected = _selected == i ? null : i),
+                onTap: () =>
+                    setState(() => _selected = _selected == i ? null : i),
                 child: Opacity(
                   opacity: _selected == null || _selected == i ? 1 : 0.4,
                   child: Row(
@@ -203,7 +212,10 @@ class _DonutChartState extends State<DonutChart> with SingleTickerProviderStateM
                       const GapX(S.xs),
                       Text(
                         widget.data[i].label,
-                        style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
+                        style: TextStyle(
+                          fontSize: AppType.caption,
+                          color: t.mutedForeground,
+                        ),
                       ),
                     ],
                   ),
@@ -277,14 +289,18 @@ class _DonutPainter extends CustomPainter {
 }
 
 class SeriesPoint {
-  const SeriesPoint({required this.label, required this.income, required this.expense});
+  const SeriesPoint({
+    required this.label,
+    required this.income,
+    required this.expense,
+  });
   final String label;
   final double income;
   final double expense;
 }
 
 /// Dual-series income/expense line with a gradient area fill and a draggable
-/// readout — the port of `charts/line.tsx`.
+/// readout   the port of `charts/line.tsx`.
 class IncomeExpenseLine extends StatefulWidget {
   const IncomeExpenseLine({
     super.key,
@@ -301,7 +317,8 @@ class IncomeExpenseLine extends StatefulWidget {
   State<IncomeExpenseLine> createState() => _IncomeExpenseLineState();
 }
 
-class _IncomeExpenseLineState extends State<IncomeExpenseLine> with SingleTickerProviderStateMixin {
+class _IncomeExpenseLineState extends State<IncomeExpenseLine>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 950),
@@ -355,9 +372,17 @@ class _IncomeExpenseLineState extends State<IncomeExpenseLine> with SingleTicker
             padding: const EdgeInsets.only(top: S.xxs),
             child: Row(
               children: [
-                Amount('+${widget.format(active.income)}', size: AppType.label, color: t.success),
+                Amount(
+                  '+${widget.format(active.income)}',
+                  size: AppType.label,
+                  color: t.success,
+                ),
                 const GapX(S.md),
-                Amount('−${widget.format(active.expense)}', size: AppType.label, color: t.danger),
+                Amount(
+                  '−${widget.format(active.expense)}',
+                  size: AppType.label,
+                  color: t.danger,
+                ),
               ],
             ),
           ),
@@ -369,7 +394,8 @@ class _IncomeExpenseLineState extends State<IncomeExpenseLine> with SingleTicker
               final width = box.maxWidth;
               return GestureDetector(
                 onTapDown: (d) => _select(d.localPosition.dx, width),
-                onHorizontalDragUpdate: (d) => _select(d.localPosition.dx, width),
+                onHorizontalDragUpdate: (d) =>
+                    _select(d.localPosition.dx, width),
                 onHorizontalDragEnd: (_) => setState(() => _active = null),
                 child: SizedBox(
                   height: widget.height,
@@ -420,7 +446,9 @@ class _IncomeExpenseLineState extends State<IncomeExpenseLine> with SingleTicker
     final usable = width - padL - padR;
     final n = widget.points.length;
     if (n == 0 || usable <= 0) return;
-    final i = n == 1 ? 0 : (((dx - padL) / usable) * (n - 1)).round().clamp(0, n - 1);
+    final i = n == 1
+        ? 0
+        : (((dx - padL) / usable) * (n - 1)).round().clamp(0, n - 1);
     if (i != _active) {
       Haptics.select();
       setState(() => _active = i);
@@ -454,14 +482,19 @@ class _LinePainter extends CustomPainter {
     final maxY =
         math.max(
           1.0,
-          points.fold<double>(0, (m, p) => math.max(m, math.max(p.income, p.expense))),
+          points.fold<double>(
+            0,
+            (m, p) => math.max(m, math.max(p.income, p.expense)),
+          ),
         ) *
         1.1;
 
     double x(int i) =>
         _pad.left +
-        (points.length == 1 ? 0.5 : i / (points.length - 1)) * (size.width - _pad.horizontal);
-    double y(double v) => size.height - _pad.bottom - (v / maxY) * (size.height - _pad.vertical);
+        (points.length == 1 ? 0.5 : i / (points.length - 1)) *
+            (size.width - _pad.horizontal);
+    double y(double v) =>
+        size.height - _pad.bottom - (v / maxY) * (size.height - _pad.vertical);
 
     // Horizontal guides.
     final gridPaint = Paint()
@@ -472,7 +505,11 @@ class _LinePainter extends CustomPainter {
       canvas.drawLine(Offset(0, gy), Offset(size.width, gy), gridPaint);
     }
 
-    void series(double Function(SeriesPoint) pick, Color color, {bool dash = false}) {
+    void series(
+      double Function(SeriesPoint) pick,
+      Color color, {
+      bool dash = false,
+    }) {
       final path = Path();
       final area = Path();
       for (var i = 0; i < points.length; i++) {
@@ -523,7 +560,7 @@ class _LinePainter extends CustomPainter {
     }
 
     series((p) => p.income, income);
-    // Dashed so the two series stay distinguishable without colour vision —
+    // Dashed so the two series stay distinguishable without colour vision
     // Santim's income green and expense red sit at similar luminance.
     series((p) => p.expense, expense, dash: true);
 
@@ -578,7 +615,11 @@ Path _dashPath(Path source, {required double on, required double off}) {
 }
 
 class _LegendDot extends StatelessWidget {
-  const _LegendDot({required this.color, required this.label, this.dashed = false});
+  const _LegendDot({
+    required this.color,
+    required this.label,
+    this.dashed = false,
+  });
   final Color color;
   final String label;
 
@@ -622,17 +663,28 @@ class _LegendDot extends StatelessWidget {
 }
 
 class BarDatum {
-  const BarDatum({required this.label, required this.value, this.color, this.caption});
+  const BarDatum({
+    required this.label,
+    required this.value,
+    this.color,
+    this.caption,
+  });
   final String label;
   final double value;
   final Color? color;
   final String? caption;
 }
 
-/// Horizontal ranked bars — the port of `charts/bar.tsx`, used for top payees,
+/// Horizontal ranked bars   the port of `charts/bar.tsx`, used for top payees,
 /// category movers and day-of-week averages.
 class RankedBars extends StatelessWidget {
-  const RankedBars({super.key, required this.data, required this.format, this.max, this.onTap});
+  const RankedBars({
+    super.key,
+    required this.data,
+    required this.format,
+    this.max,
+    this.onTap,
+  });
 
   final List<BarDatum> data;
   final String Function(double) format;
@@ -642,8 +694,10 @@ class RankedBars extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    if (data.isEmpty) return const EmptyState(title: 'Nothing to show yet', compact: true);
-    final peak = max ?? data.fold<double>(1, (m, d) => math.max(m, d.value.abs()));
+    if (data.isEmpty)
+      return const EmptyState(title: 'Nothing to show yet', compact: true);
+    final peak =
+        max ?? data.fold<double>(1, (m, d) => math.max(m, d.value.abs()));
 
     // The bars carry real Text labels and values, so they are left readable
     // and only the ranking itself is announced up front.
@@ -685,11 +739,16 @@ class RankedBars extends StatelessWidget {
                       ),
                       const Gap(S.xs),
                       ProgressBar(
-                        value: peak <= 0 ? 0 : (data[i].value.abs() / peak) * 100,
+                        value: peak <= 0
+                            ? 0
+                            : (data[i].value.abs() / peak) * 100,
                         height: 7,
                         gradient: data[i].color == null
                             ? null
-                            : [data[i].color!, data[i].color!.withValues(alpha: 0.65)],
+                            : [
+                                data[i].color!,
+                                data[i].color!.withValues(alpha: 0.65),
+                              ],
                       ),
                       if (data[i].caption != null) ...[
                         const Gap(S.xxs),
@@ -706,7 +765,7 @@ class RankedBars extends StatelessWidget {
   }
 }
 
-/// Calendar heatmap of daily spend — the port of `charts/heatmap.tsx`. Weeks
+/// Calendar heatmap of daily spend   the port of `charts/heatmap.tsx`. Weeks
 /// run down each column, matching GitHub's contribution grid.
 class SpendHeatmap extends StatelessWidget {
   const SpendHeatmap({
@@ -725,7 +784,8 @@ class SpendHeatmap extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    if (days.isEmpty) return const EmptyState(title: 'No spending recorded yet', compact: true);
+    if (days.isEmpty)
+      return const EmptyState(title: 'No spending recorded yet', compact: true);
 
     final sorted = days.keys.toList()..sort();
     final first = sorted.first;
@@ -737,7 +797,9 @@ class SpendHeatmap extends StatelessWidget {
     final weeks = ((last.difference(start).inDays) / 7).ceil() + 1;
 
     final spentDays = days.values.where((v) => v > 0).length;
-    final busiest = sorted.reduce((a, b) => (days[a] ?? 0) >= (days[b] ?? 0) ? a : b);
+    final busiest = sorted.reduce(
+      (a, b) => (days[a] ?? 0) >= (days[b] ?? 0) ? a : b,
+    );
 
     return ChartSemantics(
       summary:
@@ -763,12 +825,26 @@ class SpendHeatmap extends StatelessWidget {
                           Builder(
                             builder: (context) {
                               final day = start.add(Duration(days: w * 7 + d));
-                              final key = DateTime(day.year, day.month, day.day);
+                              final key = DateTime(
+                                day.year,
+                                day.month,
+                                day.day,
+                              );
                               final amount = days[key];
                               final within =
-                                  !day.isBefore(DateTime(first.year, first.month, first.day)) &&
-                                  !day.isAfter(DateTime(last.year, last.month, last.day));
-                              final ratio = (amount == null || peak <= 0) ? 0.0 : amount / peak;
+                                  !day.isBefore(
+                                    DateTime(
+                                      first.year,
+                                      first.month,
+                                      first.day,
+                                    ),
+                                  ) &&
+                                  !day.isAfter(
+                                    DateTime(last.year, last.month, last.day),
+                                  );
+                              final ratio = (amount == null || peak <= 0)
+                                  ? 0.0
+                                  : amount / peak;
                               return Padding(
                                 padding: const EdgeInsets.only(bottom: S.xxs),
                                 child: GestureDetector(
@@ -815,7 +891,11 @@ class SpendHeatmap extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: step == 0
                           ? t.surfaceMuted
-                          : Color.lerp(t.primary.withValues(alpha: 0.22), t.primary, step),
+                          : Color.lerp(
+                              t.primary.withValues(alpha: 0.22),
+                              t.primary,
+                              step,
+                            ),
                       borderRadius: BorderRadius.circular(2.5),
                     ),
                   ),
@@ -861,7 +941,8 @@ class SpendStrip extends StatelessWidget {
               tween: Tween(begin: 0, end: 1),
               duration: Duration(milliseconds: 260 + i * 12),
               curve: Motion.spring,
-              builder: (context, v, child) => Transform.scale(scale: v, child: child),
+              builder: (context, v, child) =>
+                  Transform.scale(scale: v, child: child),
               child: Container(
                 width: dotSize,
                 height: dotSize,
@@ -903,7 +984,9 @@ class Sparkline extends StatelessWidget {
 
     final first = values.first;
     final last = values.last;
-    final direction = last > first ? 'rising' : (last < first ? 'falling' : 'flat');
+    final direction = last > first
+        ? 'rising'
+        : (last < first ? 'falling' : 'flat');
 
     return ChartSemantics(
       summary: 'Trend over ${values.length} points, $direction.',
@@ -953,7 +1036,8 @@ class _SparkPainter extends CustomPainter {
 
     for (var i = 0; i < count && i < values.length; i++) {
       final x = i / (values.length - 1) * size.width;
-      final y = size.height - ((values[i] - minV) / range) * (size.height - 3) - 1.5;
+      final y =
+          size.height - ((values[i] - minV) / range) * (size.height - 3) - 1.5;
       if (i == 0) {
         path.moveTo(x, y);
       } else {
@@ -990,12 +1074,18 @@ class _SparkPainter extends CustomPainter {
   }
 
   @override
-  bool shouldRepaint(_SparkPainter old) => old.progress != progress || old.values != values;
+  bool shouldRepaint(_SparkPainter old) =>
+      old.progress != progress || old.values != values;
 }
 
 /// Vertical bar column chart used for weekly / monthly comparisons.
 class ColumnChart extends StatelessWidget {
-  const ColumnChart({super.key, required this.data, required this.format, this.height = 150});
+  const ColumnChart({
+    super.key,
+    required this.data,
+    required this.format,
+    this.height = 150,
+  });
 
   final List<BarDatum> data;
   final String Function(double) format;
@@ -1004,7 +1094,8 @@ class ColumnChart extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    if (data.isEmpty) return const EmptyState(title: 'No data yet', compact: true);
+    if (data.isEmpty)
+      return const EmptyState(title: 'No data yet', compact: true);
     final peak = data.fold<double>(1, (m, d) => math.max(m, d.value));
     final tallest = data.reduce((a, b) => a.value >= b.value ? a : b);
 
@@ -1029,11 +1120,17 @@ class ColumnChart extends StatelessWidget {
                         format(data[i].value),
                         maxLines: 1,
                         overflow: TextOverflow.clip,
-                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
+                        style: TextStyle(
+                          fontSize: AppType.micro,
+                          color: t.mutedForeground,
+                        ),
                       ),
                       const Gap(S.xxs),
                       TweenAnimationBuilder<double>(
-                        tween: Tween(begin: 0, end: (data[i].value / peak).clamp(0.02, 1.0)),
+                        tween: Tween(
+                          begin: 0,
+                          end: (data[i].value / peak).clamp(0.02, 1.0),
+                        ),
                         duration: Duration(milliseconds: 600 + i * 60),
                         curve: Motion.easeOut,
                         builder: (context, v, _) => Container(
@@ -1045,7 +1142,9 @@ class ColumnChart extends StatelessWidget {
                               end: Alignment.bottomCenter,
                               colors: [
                                 data[i].color ?? t.primary,
-                                (data[i].color ?? t.primary).withValues(alpha: 0.45),
+                                (data[i].color ?? t.primary).withValues(
+                                  alpha: 0.45,
+                                ),
                               ],
                             ),
                           ),
@@ -1056,7 +1155,10 @@ class ColumnChart extends StatelessWidget {
                         data[i].label,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
+                        style: TextStyle(
+                          fontSize: AppType.micro,
+                          color: t.mutedForeground,
+                        ),
                       ),
                     ],
                   ),

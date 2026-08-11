@@ -1,4 +1,4 @@
-# Santim — Android app
+# Santim Android app
 
 A Flutter client that mirrors the responsive web app screen for screen. It talks
 to the same Express API (`backend/`) over REST, so an account created on the web
@@ -15,7 +15,7 @@ flutter run
 
 Use this to preview the app in Chrome and hit your local API.
 
-**Terminal 1 — backend** (from repo root):
+**Terminal 1 backend** (from repo root):
 
 ```bash
 cd backend
@@ -25,7 +25,7 @@ pnpm install   # or npm install
 pnpm dev       # API at http://localhost:4000
 ```
 
-**Terminal 2 — Flutter web**:
+**Terminal 2 Flutter web**:
 
 ```bash
 cd mobile
@@ -60,7 +60,7 @@ flutter build apk --release --split-per-abi     # per-ABI, ~16-20 MB each
 ```
 
 Artifacts land in `build/app/outputs/flutter-apk/`. The release build is signed
-with the debug key — swap in a real `signingConfig` in
+with the debug key swap in a real `signingConfig` in
 [android/app/build.gradle.kts](android/app/build.gradle.kts) before distributing.
 
 The app is not on Google Play (Play restricts the permissions an expense tracker
@@ -68,19 +68,19 @@ needs), so the site serves the APK directly.
 
 ## How it maps to the web app
 
-| Web route | Android |
-| --- | --- |
-| `/dashboard` | Home tab |
-| `/transactions` | Activity tab, plus the raised **+** button |
-| `/accounts` | Wallets tab |
-| `/budgets`, `/budgets/[id]` | Plan tab → plan detail |
-| `/analytics` | Drawer → Analytics (4 sections) |
-| `/tab` | Drawer → Money Tab |
-| `/guides` | Drawer → Guides |
-| `/assistant` | "Ask Santim" bar above the bottom nav |
-| `/settings` | Drawer → Settings, with four sub-screens |
-| wishlist panel | Plan tab → Wishlist |
-| recurring panel | Activity tab → repeat icon |
+| Web route                   | Android                                    |
+| --------------------------- | ------------------------------------------ |
+| `/dashboard`                | Home tab                                   |
+| `/transactions`             | Activity tab, plus the raised **+** button |
+| `/accounts`                 | Wallets tab                                |
+| `/budgets`, `/budgets/[id]` | Plan tab → plan detail                     |
+| `/analytics`                | Drawer → Analytics (4 sections)            |
+| `/tab`                      | Drawer → Money Tab                         |
+| `/guides`                   | Drawer → Guides                            |
+| `/assistant`                | "Ask Santim" bar above the bottom nav      |
+| `/settings`                 | Drawer → Settings, with four sub-screens   |
+| wishlist panel              | Plan tab → Wishlist                        |
+| recurring panel             | Activity tab → repeat icon                 |
 
 ## Bank SMS capture (Android APK)
 
@@ -103,7 +103,7 @@ capture toggle, import history, and paste preview.
 ```
 lib/
   core/
-    api/          ApiClient — REST + one transparent token refresh on a 401
+    api/          ApiClient   REST + one transparent token refresh on a 401
     theme/        tokens.dart is globals.css; theme.dart is radii + motion curves
     utils/        money/date formatting, Ethiopic calendar, the finance icon set
   models/         Dart mirrors of frontend/src/lib/types.ts
@@ -116,8 +116,8 @@ lib/
 
 `core/theme/tokens.dart` carries the same hex values as the web app's
 `globals.css`, in both light and dark, so the two clients cannot drift. The
-motion in `widgets/motion.dart` is a port of the CSS keyframes — `fade-in-up`,
-`shimmer`, `bounce-dot`, `sync-pop`, `lock-shake` — on the same durations and
+motion in `widgets/motion.dart` is a port of the CSS keyframes `fade-in-up`,
+`shimmer`, `bounce-dot`, `sync-pop`, `lock-shake` on the same durations and
 the same `cubic-bezier(0.22, 1, 0.36, 1)` curve.
 
 Glassmorphism lives in `widgets/glass.dart`: `GlassCard` is the web's
@@ -131,6 +131,6 @@ matching the web app's own inline SVG charts.
 ### A note on the analyzer
 
 `flutter analyze` is clean. The one deliberate deviation from the web codebase is
-that the `Category` model is called `TxCategory` here — Flutter's `foundation`
+that the `Category` model is called `TxCategory` here Flutter's `foundation`
 library already exports a `Category` annotation, and the collision would
 otherwise need a `hide` on every import.

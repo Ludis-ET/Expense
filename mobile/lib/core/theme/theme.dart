@@ -13,7 +13,7 @@ abstract final class R {
   static const pill = 999.0;
 }
 
-/// Motion curves from `globals.css` — `cubic-bezier(0.22, 1, 0.36, 1)` is the
+/// Motion curves from `globals.css`   `cubic-bezier(0.22, 1, 0.36, 1)` is the
 /// one every entrance animation in the web app rides on.
 abstract final class Motion {
   static const easeOut = Cubic(0.22, 1, 0.36, 1);
@@ -24,7 +24,7 @@ abstract final class Motion {
   static const stagger = Duration(milliseconds: 32);
 }
 
-/// The app's type scale. Every size in the UI comes from here — before this
+/// The app's type scale. Every size in the UI comes from here   before this
 /// existed there were 32 distinct hard-coded sizes (9.5, 10.5, 11.5, 12.5,
 /// 13.5, 14.5, 16.5 …), which is why the same list-row title was 13 in one
 /// card and 13.5 in the next.
@@ -33,7 +33,7 @@ abstract final class Motion {
 /// numeric size onto the nearest step so older call sites land on the grid
 /// even before they are rewritten to use the named roles.
 abstract final class AppType {
-  /// Badge and chip text — the smallest type the app is allowed to render.
+  /// Badge and chip text   the smallest type the app is allowed to render.
   static const micro = 10.0;
 
   /// Captions, timestamps, secondary metadata under a value.
@@ -54,17 +54,26 @@ abstract final class AppType {
   /// Screen headings and mid-size figures.
   static const heading = 20.0;
 
-  /// Primary figures — a balance inside a card.
+  /// Primary figures   a balance inside a card.
   static const figure = 24.0;
 
-  /// Large figures — the amount field, a month total.
+  /// Large figures   the amount field, a month total.
   static const display = 32.0;
 
   /// The dashboard hero balance, and nothing else.
   static const hero = 36.0;
 
   static const _steps = [
-    micro, caption, label, bodySm, body, lead, heading, figure, display, hero,
+    micro,
+    caption,
+    label,
+    bodySm,
+    body,
+    lead,
+    heading,
+    figure,
+    display,
+    hero,
   ];
 
   /// Rounds an arbitrary size onto the scale, biasing downward on ties so a
@@ -95,7 +104,7 @@ abstract final class W {
 /// The 4pt spacing grid. Before this, 798 `SizedBox` spacers used 19 distinct
 /// values (1, 2, 3, 5, 7, 9, 11, 13, 15, 18, 22, 26 …) with no rhythm.
 abstract final class S {
-  /// Hairline separation — a label sitting directly on its value.
+  /// Hairline separation   a label sitting directly on its value.
   static const hair = 2.0;
   static const xxs = 4.0;
   static const xs = 6.0;
@@ -109,7 +118,7 @@ abstract final class S {
   static const huge = 32.0;
 }
 
-/// Vertical spacer for Columns — `Gap(S.lg)` instead of `SizedBox(height: 16)`.
+/// Vertical spacer for Columns   `Gap(S.lg)` instead of `SizedBox(height: 16)`.
 /// Sets only the main-axis extent, so it never widens its parent.
 class Gap extends StatelessWidget {
   const Gap(this.size, {super.key});
@@ -132,18 +141,19 @@ class GapX extends StatelessWidget {
 
 ThemeData buildTheme(SantimTokens t) {
   final base = t.isDark ? ThemeData.dark() : ThemeData.light();
-  final scheme = ColorScheme.fromSeed(
-    seedColor: t.primary,
-    brightness: t.isDark ? Brightness.dark : Brightness.light,
-  ).copyWith(
-    primary: t.primary,
-    onPrimary: t.primaryForeground,
-    secondary: t.accent,
-    surface: t.surface,
-    onSurface: t.foreground,
-    error: t.danger,
-    outline: t.border,
-  );
+  final scheme =
+      ColorScheme.fromSeed(
+        seedColor: t.primary,
+        brightness: t.isDark ? Brightness.dark : Brightness.light,
+      ).copyWith(
+        primary: t.primary,
+        onPrimary: t.primaryForeground,
+        secondary: t.accent,
+        surface: t.surface,
+        onSurface: t.foreground,
+        error: t.danger,
+        outline: t.border,
+      );
 
   return base.copyWith(
     colorScheme: scheme,
@@ -166,14 +176,21 @@ ThemeData buildTheme(SantimTokens t) {
       foregroundColor: t.foreground,
       iconTheme: IconThemeData(color: t.foreground, size: 22),
       systemOverlayStyle: t.isDark
-          ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
-          : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+          ? SystemUiOverlayStyle.light.copyWith(
+              statusBarColor: Colors.transparent,
+            )
+          : SystemUiOverlayStyle.dark.copyWith(
+              statusBarColor: Colors.transparent,
+            ),
     ),
     iconTheme: IconThemeData(color: t.mutedForeground, size: 20),
     dividerTheme: DividerThemeData(color: t.border, thickness: 1, space: 1),
     snackBarTheme: SnackBarThemeData(
       backgroundColor: t.surfaceElevated,
-      contentTextStyle: TextStyle(color: t.foreground, fontSize: AppType.bodySm),
+      contentTextStyle: TextStyle(
+        color: t.foreground,
+        fontSize: AppType.bodySm,
+      ),
       behavior: SnackBarBehavior.floating,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
     ),
@@ -210,7 +227,10 @@ class _FadeThroughTransitionBuilder extends PageTransitionsBuilder {
     return FadeTransition(
       opacity: curved,
       child: SlideTransition(
-        position: Tween(begin: const Offset(0.03, 0), end: Offset.zero).animate(curved),
+        position: Tween(
+          begin: const Offset(0.03, 0),
+          end: Offset.zero,
+        ).animate(curved),
         child: child,
       ),
     );

@@ -22,7 +22,7 @@ import 'budget_cycles.dart';
 import 'budget_form.dart';
 import 'budget_transactions.dart';
 
-/// One plan in full — parity with the web budget detail page: hero, banners,
+/// One plan in full   parity with the web budget detail page: hero, banners,
 /// stats, holdings, cycle cards / transaction list, movements timeline.
 class BudgetDetailScreen extends StatefulWidget {
   const BudgetDetailScreen({super.key, required this.budgetId});
@@ -91,16 +91,26 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             PopupMenuButton<String>(
               icon: Icon(Icons.more_vert, color: t.foreground),
               color: t.surfaceElevated,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(R.md),
+              ),
               onSelected: (v) => _menuAction(v, detail),
               itemBuilder: (_) => [
                 const PopupMenuItem(value: 'edit', child: Text('Edit plan')),
-                const PopupMenuItem(value: 'adjust', child: Text('Add / Deduct')),
+                const PopupMenuItem(
+                  value: 'adjust',
+                  child: Text('Add / Deduct'),
+                ),
                 PopupMenuItem(
                   value: detail.row.isClosed ? 'reopen' : 'close',
-                  child: Text(detail.row.isClosed ? 'Reopen plan' : 'Close plan'),
+                  child: Text(
+                    detail.row.isClosed ? 'Reopen plan' : 'Close plan',
+                  ),
                 ),
-                const PopupMenuItem(value: 'delete', child: Text('Delete plan')),
+                const PopupMenuItem(
+                  value: 'delete',
+                  child: Text('Delete plan'),
+                ),
               ],
             ),
           const GapX(S.xxs),
@@ -109,7 +119,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
       body: MeshBackground(
         showGrid: false,
         child: _loading && detail == null
-            ? const Padding(padding: EdgeInsets.all(S.lg), child: PageLoader(rows: 4))
+            ? const Padding(
+                padding: EdgeInsets.all(S.lg),
+                child: PageLoader(rows: 4),
+              )
             : _error != null && detail == null
             ? Padding(
                 padding: const EdgeInsets.all(S.lg),
@@ -137,11 +150,21 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     String money(Object? v) => prefs.money(v, currency: b.currency);
 
     return ListView(
-      padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+      padding: EdgeInsets.fromLTRB(
+        14,
+        4,
+        14,
+        ShellLayout.bottomClearance(context),
+      ),
       physics: const AlwaysScrollableScrollPhysics(),
       children: [
         FadeInUp(
-          child: _Hero(detail: detail, tint: tint, money: money, onAction: _heroAction),
+          child: _Hero(
+            detail: detail,
+            tint: tint,
+            money: money,
+            onAction: _heroAction,
+          ),
         ),
 
         if (b.isClosed) ...[
@@ -152,7 +175,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
               icon: Icons.archive_outlined,
               color: t.mutedForeground,
               text:
-                  'This plan is closed — it no longer appears when you add a '
+                  'This plan is closed   it no longer appears when you add a '
                   'transaction. Its history is kept below, and you can reopen it any time.',
             ),
           ),
@@ -192,7 +215,11 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         FadeInUp(
           delay: const Duration(milliseconds: 120),
           child: b.kind == BudgetKind.recurring && !b.isUnplanned
-              ? BudgetCycleSections(plan: detail, money: money, onChanged: _afterWrite)
+              ? BudgetCycleSections(
+                  plan: detail,
+                  money: money,
+                  onChanged: _afterWrite,
+                )
               : BudgetTransactionsPanel(plan: detail, onChanged: _afterWrite),
         ),
 
@@ -226,10 +253,18 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
     final b = detail.row;
     switch (action) {
       case 'fund':
-        final done = await showFundSheet(context, detail: detail, release: false);
+        final done = await showFundSheet(
+          context,
+          detail: detail,
+          release: false,
+        );
         if (done == true) await _afterWrite();
       case 'release':
-        final done = await showFundSheet(context, detail: detail, release: true);
+        final done = await showFundSheet(
+          context,
+          detail: detail,
+          release: true,
+        );
         if (done == true) await _afterWrite();
       case 'spend':
         final done = await showTransactionForm(
@@ -253,7 +288,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             detail: b.name,
           );
           if (result.queued && mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           await _afterWrite();
         } on ApiError catch (e) {
@@ -293,7 +331,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             detail: b.name,
           );
           if (result.queued && mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           await _afterWrite();
         } on ApiError catch (e) {
@@ -308,7 +349,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
             detail: b.name,
           );
           if (result.queued && mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           await _afterWrite();
         } on ApiError catch (e) {
@@ -334,7 +378,10 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           if (mounted) await context.read<DataState>().refreshAfterWrite();
           if (mounted) {
             if (result.queued) {
-              toast(context, 'Delete queued — will sync when you are back online');
+              toast(
+                context,
+                'Delete queued   will sync when you are back online',
+              );
             }
             Navigator.pop(context);
           }
@@ -380,7 +427,11 @@ class _Hero extends StatelessWidget {
           children: [
             Row(
               children: [
-                IconTile(icon: Icons.more_horiz_rounded, color: t.mutedForeground, size: 48),
+                IconTile(
+                  icon: Icons.more_horiz_rounded,
+                  color: t.mutedForeground,
+                  size: 48,
+                ),
                 const GapX(S.md),
                 Expanded(
                   child: Column(
@@ -396,7 +447,11 @@ class _Hero extends StatelessWidget {
                         ),
                       ),
                       const Gap(S.xs),
-                      AppBadge('Catch-all', tone: BadgeTone.neutral, dense: true),
+                      AppBadge(
+                        'Catch-all',
+                        tone: BadgeTone.neutral,
+                        dense: true,
+                      ),
                     ],
                   ),
                 ),
@@ -408,7 +463,8 @@ class _Hero extends StatelessWidget {
                 children: [
                   AnimatedNumber(
                     value: toNum(b.spentAmount),
-                    builder: (context, v) => Amount(money(v), size: 34, color: t.foreground),
+                    builder: (context, v) =>
+                        Amount(money(v), size: 34, color: t.foreground),
                   ),
                   const Gap(S.xxs),
                   Muted('spent unplanned', size: 12),
@@ -419,7 +475,11 @@ class _Hero extends StatelessWidget {
             Text(
               healthSentence(b, money),
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppType.label, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.label,
+                height: 1.45,
+                color: t.mutedForeground,
+              ),
             ),
           ],
         ),
@@ -446,7 +506,10 @@ class _Hero extends StatelessWidget {
                   gradient: LinearGradient(
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
-                    colors: [tint.withValues(alpha: 0.4), tint.withValues(alpha: 0.12)],
+                    colors: [
+                      tint.withValues(alpha: 0.4),
+                      tint.withValues(alpha: 0.12),
+                    ],
                   ),
                   border: Border.all(color: tint.withValues(alpha: 0.4)),
                   boxShadow: [
@@ -457,7 +520,11 @@ class _Hero extends StatelessWidget {
                     ),
                   ],
                 ),
-                child: Icon(financeIcon(b.icon ?? b.category?.icon), color: tint, size: 26),
+                child: Icon(
+                  financeIcon(b.icon ?? b.category?.icon),
+                  color: tint,
+                  size: 26,
+                ),
               ),
               const GapX(S.md),
               Expanded(
@@ -478,7 +545,11 @@ class _Hero extends StatelessWidget {
                       spacing: 6,
                       runSpacing: 4,
                       children: [
-                        AppBadge(b.health.label, tone: healthTone(b.health), dense: true),
+                        AppBadge(
+                          b.health.label,
+                          tone: healthTone(b.health),
+                          dense: true,
+                        ),
                         if (b.kind == BudgetKind.recurring)
                           AppBadge(
                             'resets ${b.recurrenceLabel ?? 'periodically'}',
@@ -486,11 +557,23 @@ class _Hero extends StatelessWidget {
                             dense: true,
                           )
                         else
-                          AppBadge('One-time', tone: BadgeTone.neutral, dense: true),
+                          AppBadge(
+                            'One-time',
+                            tone: BadgeTone.neutral,
+                            dense: true,
+                          ),
                         if (b.category != null)
-                          AppBadge(b.category!.name, tone: BadgeTone.neutral, dense: true),
+                          AppBadge(
+                            b.category!.name,
+                            tone: BadgeTone.neutral,
+                            dense: true,
+                          ),
                         if (b.cycleLabel != null)
-                          AppBadge(b.cycleLabel!, tone: BadgeTone.info, dense: true),
+                          AppBadge(
+                            b.cycleLabel!,
+                            tone: BadgeTone.info,
+                            dense: true,
+                          ),
                       ],
                     ),
                   ],
@@ -502,7 +585,11 @@ class _Hero extends StatelessWidget {
             const Gap(S.md),
             Text(
               b.note!,
-              style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.45,
+                color: t.mutedForeground,
+              ),
             ),
           ],
           const Gap(S.xl),
@@ -513,7 +600,8 @@ class _Hero extends StatelessWidget {
                 const Gap(S.xxs),
                 AnimatedNumber(
                   value: toNum(b.balance),
-                  builder: (context, v) => Amount(money(v), size: 36, color: tint),
+                  builder: (context, v) =>
+                      Amount(money(v), size: 36, color: tint),
                 ),
               ],
             ),
@@ -524,16 +612,27 @@ class _Hero extends StatelessWidget {
               ProgressBar(
                 value: fundedPct,
                 height: 10,
-                gradient: [tint.withValues(alpha: 0.35), tint.withValues(alpha: 0.22)],
+                gradient: [
+                  tint.withValues(alpha: 0.35),
+                  tint.withValues(alpha: 0.22),
+                ],
               ),
-              ProgressBar(value: spentPct, height: 10, tone: healthTone(b.health)),
+              ProgressBar(
+                value: spentPct,
+                height: 10,
+                tone: healthTone(b.health),
+              ),
             ],
           ),
           const Gap(S.sm),
           Text(
             'Planned ${money(b.plannedAmount)} · filled ${money(b.fundedAmount)} · '
             'spent ${money(b.spentAmount)} · still fits ${money(b.fillable)}',
-            style: TextStyle(fontSize: AppType.caption, height: 1.45, color: t.mutedForeground),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              height: 1.45,
+              color: t.mutedForeground,
+            ),
           ),
           if (adjusted != 0) ...[
             const Gap(S.sm),
@@ -545,7 +644,11 @@ class _Hero extends StatelessWidget {
           const Gap(S.sm),
           Text(
             healthSentence(b, money),
-            style: TextStyle(fontSize: AppType.label, height: 1.45, color: t.mutedForeground),
+            style: TextStyle(
+              fontSize: AppType.label,
+              height: 1.45,
+              color: t.mutedForeground,
+            ),
           ),
           if (!b.isClosed) ...[
             const Gap(S.lg),
@@ -638,7 +741,11 @@ class _HeroAction extends StatelessWidget {
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              Icon(icon, size: 15, color: filled ? t.primaryForeground : t.foreground),
+              Icon(
+                icon,
+                size: 15,
+                color: filled ? t.primaryForeground : t.foreground,
+              ),
               const GapX(S.xs),
               Text(
                 label,
@@ -683,7 +790,11 @@ class _Banner extends StatelessWidget {
           Expanded(
             child: Text(
               text,
-              style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.45,
+                color: t.mutedForeground,
+              ),
             ),
           ),
         ],
@@ -693,7 +804,11 @@ class _Banner extends StatelessWidget {
 }
 
 class _FundedStats extends StatelessWidget {
-  const _FundedStats({required this.b, required this.detail, required this.money});
+  const _FundedStats({
+    required this.b,
+    required this.detail,
+    required this.money,
+  });
 
   final BudgetRow b;
   final BudgetDetail detail;
@@ -711,7 +826,9 @@ class _FundedStats extends StatelessWidget {
           child: _StatTile(
             label: 'Filled',
             value: money(b.fundedAmount),
-            sub: toNum(b.carriedIn) > 0 ? 'incl. ${money(b.carriedIn)} carried' : null,
+            sub: toNum(b.carriedIn) > 0
+                ? 'incl. ${money(b.carriedIn)} carried'
+                : null,
           ),
         ),
         const GapX(S.sm),
@@ -727,7 +844,8 @@ class _FundedStats extends StatelessWidget {
           child: _StatTile(
             label: 'Lifetime',
             value: money(detail.lifetimeSpent),
-            sub: '${detail.lifetimeCycleCount} cycle${detail.lifetimeCycleCount == 1 ? '' : 's'}',
+            sub:
+                '${detail.lifetimeCycleCount} cycle${detail.lifetimeCycleCount == 1 ? '' : 's'}',
           ),
         ),
       ],
@@ -747,7 +865,10 @@ class _UnplannedStats extends StatelessWidget {
     return Row(
       children: [
         Expanded(
-          child: _StatTile(label: 'Spent unplanned', value: money(b.spentAmount)),
+          child: _StatTile(
+            label: 'Spent unplanned',
+            value: money(b.spentAmount),
+          ),
         ),
         const GapX(S.sm),
         Expanded(
@@ -761,7 +882,9 @@ class _UnplannedStats extends StatelessWidget {
         Expanded(
           child: _StatTile(
             label: 'Since',
-            value: detail.firstTxAt != null ? formatDate(detail.firstTxAt) : '—',
+            value: detail.firstTxAt != null
+                ? formatDate(detail.firstTxAt)
+                : ' ',
             sub: 'first expense',
           ),
         ),
@@ -798,7 +921,10 @@ class _StatTile extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Amount(value, size: 13.5),
           ),
-          if (sub != null) ...[const Gap(S.xxs), Muted(sub!, size: 9.5, maxLines: 2)],
+          if (sub != null) ...[
+            const Gap(S.xxs),
+            Muted(sub!, size: 9.5, maxLines: 2),
+          ],
         ],
       ),
     );
@@ -825,15 +951,20 @@ class _HoldingsCard extends StatelessWidget {
             title: 'Money held per account',
             icon: Icons.account_balance_wallet_outlined,
             hint:
-                'This money is still physically in these accounts — it just '
+                'This money is still physically in these accounts   it just '
                 "doesn't count as available until you spend it here or give it back.",
           ),
           const Gap(S.md),
           for (var i = 0; i < detail.sources.length; i++)
             Padding(
-              padding: EdgeInsets.only(bottom: i == detail.sources.length - 1 ? 0 : 8),
+              padding: EdgeInsets.only(
+                bottom: i == detail.sources.length - 1 ? 0 : 8,
+              ),
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: S.md,
+                  vertical: S.md,
+                ),
                 decoration: BoxDecoration(
                   color: t.surfaceMuted.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(R.lg),
@@ -841,7 +972,9 @@ class _HoldingsCard extends StatelessWidget {
                 child: Row(
                   children: [
                     IconTile(
-                      icon: accountTypeIcon(detail.sources[i].account?.type ?? 'OTHER'),
+                      icon: accountTypeIcon(
+                        detail.sources[i].account?.type ?? 'OTHER',
+                      ),
                       color: parseHexColor(detail.sources[i].account?.color),
                       size: 34,
                     ),
@@ -871,7 +1004,11 @@ class _HoldingsCard extends StatelessWidget {
 // ─── Movements ───────────────────────────────────────────────────────────────
 
 class _MovementsCard extends StatelessWidget {
-  const _MovementsCard({required this.detail, required this.money, required this.onSpendTap});
+  const _MovementsCard({
+    required this.detail,
+    required this.money,
+    required this.onSpendTap,
+  });
 
   final BudgetDetail detail;
   final String Function(Object?) money;
@@ -895,7 +1032,8 @@ class _MovementsCard extends StatelessWidget {
           if (detail.timeline.isEmpty)
             const EmptyState(
               title: 'Nothing yet',
-              description: 'Put money in from an account to get this plan going.',
+              description:
+                  'Put money in from an account to get this plan going.',
               compact: true,
             )
           else
@@ -954,7 +1092,9 @@ class _TimelineNode extends StatelessWidget {
         entry.transaction?.category?.name ?? entry.transaction?.account?.name,
       ),
       _ => (
-        toNum(entry.adjustment?.amount) >= 0 ? Icons.trending_up : Icons.trending_down,
+        toNum(entry.adjustment?.amount) >= 0
+            ? Icons.trending_up
+            : Icons.trending_down,
         toNum(entry.adjustment?.amount) >= 0 ? t.success : t.warning,
         toNum(entry.adjustment?.amount) >= 0 ? 'Plan raised' : 'Plan cut',
         entry.adjustment?.reason,
@@ -1100,11 +1240,17 @@ class _LifetimeCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _StatTile(label: 'Filled', value: money(detail.lifetimeAllocated)),
+                child: _StatTile(
+                  label: 'Filled',
+                  value: money(detail.lifetimeAllocated),
+                ),
               ),
               const GapX(S.sm),
               Expanded(
-                child: _StatTile(label: 'Spent', value: money(detail.lifetimeSpent)),
+                child: _StatTile(
+                  label: 'Spent',
+                  value: money(detail.lifetimeSpent),
+                ),
               ),
             ],
           ),
@@ -1112,11 +1258,17 @@ class _LifetimeCard extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _StatTile(label: 'Transactions', value: '${detail.lifetimeTxCount}'),
+                child: _StatTile(
+                  label: 'Transactions',
+                  value: '${detail.lifetimeTxCount}',
+                ),
               ),
               const GapX(S.sm),
               Expanded(
-                child: _StatTile(label: 'Cycles', value: '${detail.lifetimeCycleCount}'),
+                child: _StatTile(
+                  label: 'Cycles',
+                  value: '${detail.lifetimeCycleCount}',
+                ),
               ),
             ],
           ),

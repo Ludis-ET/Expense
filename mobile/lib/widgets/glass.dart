@@ -31,7 +31,7 @@ class GlassCard extends StatelessWidget {
   final double blur;
   final double opacity;
 
-  /// Optional colour wash — used to signal state (danger, warning, primary).
+  /// Optional colour wash   used to signal state (danger, warning, primary).
   final Color? tint;
   final Color? borderColor;
   final VoidCallback? onTap;
@@ -126,20 +126,20 @@ class GlassCard extends StatelessWidget {
 
 /// How much visual weight a card claims. Before this existed every card in the
 /// app was identical, so a screen of seventeen of them gave the eye no entry
-/// point — importance was communicated only by scroll position.
+/// point   importance was communicated only by scroll position.
 enum Prominence {
   /// The one thing on the screen that matters most. Tinted border, lifted
   /// shadow, wider radius.
   hero,
 
-  /// The default — a normal content card.
+  /// The default   a normal content card.
   standard,
 
   /// Supporting detail. Sits back into the page: no shadow, muted fill.
   quiet,
 }
 
-/// Opaque sibling of [GlassCard] — the web app's `.card`. Cheaper to paint, so
+/// Opaque sibling of [GlassCard]   the web app's `.card`. Cheaper to paint, so
 /// it is the default for list rows and anything that repeats.
 class AppCard extends StatelessWidget {
   const AppCard({
@@ -182,11 +182,14 @@ class AppCard extends StatelessWidget {
         switch (prominence) {
           Prominence.hero => t.surfaceElevated,
           Prominence.standard => elevated ? t.surfaceElevated : t.surface,
-          Prominence.quiet => t.surfaceMuted.withValues(alpha: t.isDark ? 0.45 : 0.6),
+          Prominence.quiet => t.surfaceMuted.withValues(
+            alpha: t.isDark ? 0.45 : 0.6,
+          ),
         };
 
     final stroke =
-        borderColor ?? (hero ? t.primary.withValues(alpha: t.isDark ? 0.35 : 0.28) : t.border);
+        borderColor ??
+        (hero ? t.primary.withValues(alpha: t.isDark ? 0.35 : 0.28) : t.border);
 
     return Container(
       margin: margin,
@@ -194,7 +197,9 @@ class AppCard extends StatelessWidget {
         color: fill,
         borderRadius: br,
         border: Border.all(color: stroke, width: hero ? 1.5 : 1),
-        boxShadow: quiet ? null : (hero || elevated ? t.elevatedShadow : t.cardShadow),
+        boxShadow: quiet
+            ? null
+            : (hero || elevated ? t.elevatedShadow : t.cardShadow),
       ),
       clipBehavior: Clip.antiAlias,
       child: Material(
@@ -210,7 +215,7 @@ class AppCard extends StatelessWidget {
   }
 }
 
-/// Soft brand wash behind screens. Static by default — drifting orbs + blur
+/// Soft brand wash behind screens. Static by default   drifting orbs + blur
 /// masks tank FPS on mid-range Android GPUs.
 class MeshBackground extends StatefulWidget {
   const MeshBackground({
@@ -230,7 +235,8 @@ class MeshBackground extends StatefulWidget {
   State<MeshBackground> createState() => _MeshBackgroundState();
 }
 
-class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStateMixin {
+class _MeshBackgroundState extends State<MeshBackground>
+    with TickerProviderStateMixin {
   AnimationController? _a;
   AnimationController? _b;
 
@@ -238,10 +244,14 @@ class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStat
   void initState() {
     super.initState();
     if (widget.animate) {
-      _a = AnimationController(vsync: this, duration: const Duration(seconds: 7))
-        ..repeat(reverse: true);
-      _b = AnimationController(vsync: this, duration: const Duration(seconds: 8))
-        ..repeat(reverse: true);
+      _a = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 7),
+      )..repeat(reverse: true);
+      _b = AnimationController(
+        vsync: this,
+        duration: const Duration(seconds: 8),
+      )..repeat(reverse: true);
     }
   }
 
@@ -294,7 +304,9 @@ class _MeshBackgroundState extends State<MeshBackground> with TickerProviderStat
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _GridPainter(t.border.withValues(alpha: t.isDark ? 0.35 : 0.5)),
+                painter: _GridPainter(
+                  t.border.withValues(alpha: t.isDark ? 0.35 : 0.5),
+                ),
               ),
             ),
           ),
@@ -352,7 +364,7 @@ class _MeshPainter extends CustomPainter {
   void paint(Canvas canvas, Size size) {
     void orb(Offset center, double radius, Color color, double alpha) {
       final rect = Rect.fromCircle(center: center, radius: radius);
-      // Soft radial only — MaskFilter.blur was a full-screen GPU tax every frame.
+      // Soft radial only   MaskFilter.blur was a full-screen GPU tax every frame.
       canvas.drawCircle(
         center,
         radius,
@@ -366,7 +378,12 @@ class _MeshPainter extends CustomPainter {
       );
     }
 
-    orb(Offset(size.width * 0.1, 0) + shiftA, size.width * 0.75 * scaleA, primary, 0.18);
+    orb(
+      Offset(size.width * 0.1, 0) + shiftA,
+      size.width * 0.75 * scaleA,
+      primary,
+      0.18,
+    );
     orb(
       Offset(size.width * 0.9, size.height * 0.1) + shiftB,
       size.width * 0.55 * scaleB,
@@ -424,16 +441,24 @@ class GradientHero extends StatelessWidget {
               Positioned(
                 right: -64,
                 top: -64,
-                child: _Blob(size: 192, color: Colors.white.withValues(alpha: 0.10)),
+                child: _Blob(
+                  size: 192,
+                  color: Colors.white.withValues(alpha: 0.10),
+                ),
               ),
               Positioned(
                 left: -32,
                 bottom: -32,
-                child: _Blob(size: 128, color: Colors.white.withValues(alpha: 0.06)),
+                child: _Blob(
+                  size: 128,
+                  color: Colors.white.withValues(alpha: 0.06),
+                ),
               ),
               Positioned.fill(
                 child: IgnorePointer(
-                  child: CustomPaint(painter: _GridPainter(Colors.white.withValues(alpha: 0.10))),
+                  child: CustomPaint(
+                    painter: _GridPainter(Colors.white.withValues(alpha: 0.10)),
+                  ),
                 ),
               ),
               Padding(padding: padding, child: child),
@@ -459,14 +484,20 @@ class _Blob extends StatelessWidget {
         decoration: BoxDecoration(
           shape: BoxShape.circle,
           color: color,
-          boxShadow: [BoxShadow(color: color, blurRadius: size / 3, spreadRadius: size / 8)],
+          boxShadow: [
+            BoxShadow(
+              color: color,
+              blurRadius: size / 3,
+              spreadRadius: size / 8,
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-/// Soft translucent pill (no backdrop blur — keeps list/hero scrolls cheap).
+/// Soft translucent pill (no backdrop blur   keeps list/hero scrolls cheap).
 class GlassChip extends StatelessWidget {
   const GlassChip({
     super.key,
@@ -496,7 +527,9 @@ class GlassChip extends StatelessWidget {
             padding: padding,
             decoration: borderLeftColor != null
                 ? BoxDecoration(
-                    border: Border(left: BorderSide(color: borderLeftColor!, width: 3)),
+                    border: Border(
+                      left: BorderSide(color: borderLeftColor!, width: 3),
+                    ),
                   )
                 : null,
             child: child,
@@ -507,7 +540,7 @@ class GlassChip extends StatelessWidget {
   }
 }
 
-/// Circular progress ring drawn by hand — the splash uses it, and so do the
+/// Circular progress ring drawn by hand   the splash uses it, and so do the
 /// budget health dials.
 class RingPainter extends CustomPainter {
   RingPainter({
@@ -560,5 +593,7 @@ class RingPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(RingPainter old) =>
-      old.progress != progress || old.colors != colors || old.trackColor != trackColor;
+      old.progress != progress ||
+      old.colors != colors ||
+      old.trackColor != trackColor;
 }

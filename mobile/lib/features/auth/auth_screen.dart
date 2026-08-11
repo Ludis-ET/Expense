@@ -41,8 +41,10 @@ class _AuthScreenState extends State<AuthScreen> {
   String? _validate() {
     if (_register && _name.text.trim().length < 2) return 'Tell us your name.';
     final email = _email.text.trim();
-    if (!email.contains('@') || !email.contains('.')) return 'Enter a valid email address.';
-    if (_password.text.length < 8) return 'Password must be at least 8 characters.';
+    if (!email.contains('@') || !email.contains('.'))
+      return 'Enter a valid email address.';
+    if (_password.text.length < 8)
+      return 'Password must be at least 8 characters.';
     return null;
   }
 
@@ -89,8 +91,12 @@ class _AuthScreenState extends State<AuthScreen> {
       resizeToAvoidBottomInset: true,
       body: AnnotatedRegion<SystemUiOverlayStyle>(
         value: t.isDark
-            ? SystemUiOverlayStyle.light.copyWith(statusBarColor: Colors.transparent)
-            : SystemUiOverlayStyle.dark.copyWith(statusBarColor: Colors.transparent),
+            ? SystemUiOverlayStyle.light.copyWith(
+                statusBarColor: Colors.transparent,
+              )
+            : SystemUiOverlayStyle.dark.copyWith(
+                statusBarColor: Colors.transparent,
+              ),
         child: MeshBackground(
           intensity: 1.2,
           child: SafeArea(
@@ -108,7 +114,9 @@ class _AuthScreenState extends State<AuthScreen> {
                       // Always flip the *effective* look so System+dark OS still
                       // responds on the first tap.
                       prefs.setThemeMode(
-                        brightness == Brightness.dark ? ThemeMode.light : ThemeMode.dark,
+                        brightness == Brightness.dark
+                            ? ThemeMode.light
+                            : ThemeMode.dark,
                       );
                     },
                   ),
@@ -145,7 +153,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                 crossAxisAlignment: CrossAxisAlignment.stretch,
                                 children: [
                                   Text(
-                                    _register ? 'Create your account' : 'Welcome back',
+                                    _register
+                                        ? 'Create your account'
+                                        : 'Welcome back',
                                     style: TextStyle(
                                       fontSize: AppType.heading,
                                       fontWeight: FontWeight.bold,
@@ -165,7 +175,8 @@ class _AuthScreenState extends State<AuthScreen> {
                                     duration: Motion.fast,
                                     curve: Motion.easeOut,
                                     child: Column(
-                                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                                      crossAxisAlignment:
+                                          CrossAxisAlignment.stretch,
                                       children: [
                                         if (_register) ...[
                                           AppTextField(
@@ -173,8 +184,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                             label: 'Name',
                                             placeholder: 'Abebe Bekele',
                                             prefixIcon: Icons.person_outline,
-                                            textCapitalization: TextCapitalization.words,
-                                            textInputAction: TextInputAction.next,
+                                            textCapitalization:
+                                                TextCapitalization.words,
+                                            textInputAction:
+                                                TextInputAction.next,
                                           ),
                                           const Gap(S.md),
                                         ],
@@ -183,8 +196,10 @@ class _AuthScreenState extends State<AuthScreen> {
                                           label: 'Email',
                                           placeholder: 'you@example.com',
                                           prefixIcon: Icons.alternate_email,
-                                          keyboardType: TextInputType.emailAddress,
-                                          textCapitalization: TextCapitalization.none,
+                                          keyboardType:
+                                              TextInputType.emailAddress,
+                                          textCapitalization:
+                                              TextCapitalization.none,
                                           textInputAction: TextInputAction.next,
                                         ),
                                         const Gap(S.md),
@@ -194,18 +209,22 @@ class _AuthScreenState extends State<AuthScreen> {
                                           placeholder: '••••••••',
                                           prefixIcon: Icons.lock_outline,
                                           obscure: _obscure,
-                                          textCapitalization: TextCapitalization.none,
+                                          textCapitalization:
+                                              TextCapitalization.none,
                                           textInputAction: TextInputAction.done,
                                           onSubmitted: (_) => _submit(),
                                           suffix: IconButton(
                                             icon: Icon(
                                               _obscure
                                                   ? Icons.visibility_outlined
-                                                  : Icons.visibility_off_outlined,
+                                                  : Icons
+                                                        .visibility_off_outlined,
                                               size: 18,
                                               color: t.mutedForeground,
                                             ),
-                                            onPressed: () => setState(() => _obscure = !_obscure),
+                                            onPressed: () => setState(
+                                              () => _obscure = !_obscure,
+                                            ),
                                           ),
                                         ),
                                       ],
@@ -217,7 +236,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                   ],
                                   const Gap(S.xl),
                                   AppButton(
-                                    label: _register ? 'Create account' : 'Sign in',
+                                    label: _register
+                                        ? 'Create account'
+                                        : 'Sign in',
                                     icon: Icons.arrow_forward,
                                     size: BtnSize.lg,
                                     expand: true,
@@ -233,7 +254,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                       }),
                                       behavior: HitTestBehavior.opaque,
                                       child: Padding(
-                                        padding: const EdgeInsets.symmetric(vertical: S.xxs),
+                                        padding: const EdgeInsets.symmetric(
+                                          vertical: S.xxs,
+                                        ),
                                         child: RichText(
                                           text: TextSpan(
                                             style: TextStyle(
@@ -247,7 +270,9 @@ class _AuthScreenState extends State<AuthScreen> {
                                                     : "Don't have an account? ",
                                               ),
                                               TextSpan(
-                                                text: _register ? 'Sign in' : 'Create one',
+                                                text: _register
+                                                    ? 'Sign in'
+                                                    : 'Create one',
                                                 style: TextStyle(
                                                   fontWeight: FontWeight.w700,
                                                   color: t.primary,
@@ -303,7 +328,7 @@ class _Hero extends StatelessWidget {
           const Gap(S.sm),
           Text(
             'Track income and spending, set budgets, save towards goals, '
-            'and get insights — all private to you.',
+            'and get insights   all private to you.',
             style: TextStyle(
               fontSize: AppType.bodySm,
               height: 1.5,
@@ -315,7 +340,10 @@ class _Hero extends StatelessWidget {
             spacing: 8,
             runSpacing: 8,
             children: const [
-              _HeroChip(icon: Icons.savings_outlined, label: 'Budget envelopes'),
+              _HeroChip(
+                icon: Icons.savings_outlined,
+                label: 'Budget envelopes',
+              ),
               _HeroChip(icon: Icons.insights_outlined, label: 'Analytics'),
               _HeroChip(icon: Icons.lock_outline, label: 'Private'),
             ],
@@ -379,7 +407,11 @@ class _ErrorBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 message,
-                style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
+                style: TextStyle(
+                  fontSize: AppType.bodySm,
+                  height: 1.4,
+                  color: t.foreground,
+                ),
               ),
             ),
           ],

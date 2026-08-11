@@ -33,17 +33,23 @@ class _BudgetForm extends StatefulWidget {
 class _BudgetFormState extends State<_BudgetForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : toNum(widget.existing!.plannedAmount).toString(),
+    text: widget.existing == null
+        ? ''
+        : toNum(widget.existing!.plannedAmount).toString(),
   );
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
-  late final _interval = TextEditingController(text: '${widget.existing?.recurrenceInterval ?? 1}');
+  late final _interval = TextEditingController(
+    text: '${widget.existing?.recurrenceInterval ?? 1}',
+  );
 
   late BudgetKind _kind = widget.existing?.kind ?? BudgetKind.oneTime;
-  late RecurrenceUnit? _unit = widget.existing?.recurrenceUnit ?? RecurrenceUnit.month;
+  late RecurrenceUnit? _unit =
+      widget.existing?.recurrenceUnit ?? RecurrenceUnit.month;
   late String? _categoryId = widget.existing?.categoryId;
   late String? _icon = widget.existing?.icon;
   late String? _color = widget.existing?.color;
-  late double _alertThreshold = (widget.existing?.alertThreshold ?? 80).toDouble();
+  late double _alertThreshold = (widget.existing?.alertThreshold ?? 80)
+      .toDouble();
   late DateTime _startsAt = widget.existing?.startsAt ?? DateTime.now();
   late DateTime? _endDate = widget.existing?.endDate;
 
@@ -123,7 +129,7 @@ class _BudgetFormState extends State<_BudgetForm> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -143,12 +149,22 @@ class _BudgetFormState extends State<_BudgetForm> {
     final tint = parseHexColor(_color) ?? t.primary;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
-            child: IconTile(icon: financeIcon(_icon), color: tint, size: 56, radius: R.lg),
+            child: IconTile(
+              icon: financeIcon(_icon),
+              color: tint,
+              size: 56,
+              radius: R.lg,
+            ),
           ),
           const Gap(S.xl),
           AppTextField(
@@ -179,7 +195,8 @@ class _BudgetFormState extends State<_BudgetForm> {
             value: _kind,
             options: const [BudgetKind.oneTime, BudgetKind.recurring],
             labelOf: (k) => k.label,
-            iconOf: (k) => k == BudgetKind.oneTime ? Icons.flag_outlined : Icons.autorenew,
+            iconOf: (k) =>
+                k == BudgetKind.oneTime ? Icons.flag_outlined : Icons.autorenew,
             onChanged: (k) => setState(() => _kind = k),
           ),
           const Gap(S.lg),
@@ -216,7 +233,7 @@ class _BudgetFormState extends State<_BudgetForm> {
             label: 'Category',
             hint:
                 'Optional. It only pre-selects itself when you spend from '
-                'this plan — it does not restrict what the pot can pay for.',
+                'this plan   it does not restrict what the pot can pay for.',
             value: categories.where((c) => c.id == _categoryId).firstOrNull,
             options: categories,
             labelOf: (c) => c.name,
@@ -247,7 +264,8 @@ class _BudgetFormState extends State<_BudgetForm> {
 
           FieldShell(
             label: 'Alert at ${_alertThreshold.round()}% spent',
-            hint: 'You get a notification once this share of the filled pot is gone.',
+            hint:
+                'You get a notification once this share of the filled pot is gone.',
             child: SliderTheme(
               data: SliderTheme.of(context).copyWith(
                 activeTrackColor: t.primary,
@@ -292,7 +310,10 @@ class _BudgetFormState extends State<_BudgetForm> {
           if (_error != null) ...[
             const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -305,7 +326,11 @@ class _BudgetFormState extends State<_BudgetForm> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        height: 1.4,
+                        color: t.foreground,
+                      ),
                     ),
                   ),
                 ],
@@ -374,7 +399,9 @@ class _FundSheetState extends State<_FundSheet> {
         setState(() => _accountId = sources.firstOrNull?.account?.id);
       } else {
         final accounts = context.read<DataState>().scopedAccounts;
-        final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+        final fallback =
+            accounts.where((a) => a.isDefault).firstOrNull ??
+            accounts.firstOrNull;
         setState(() => _accountId = fallback?.id);
       }
     });
@@ -408,7 +435,8 @@ class _FundSheetState extends State<_FundSheet> {
     }
     if (widget.release && amount > toNum(b.balance)) {
       setState(
-        () => _error = 'The pot only holds ${formatMoney(b.balance, currency: b.currency)}.',
+        () => _error =
+            'The pot only holds ${formatMoney(b.balance, currency: b.currency)}.',
       );
       return;
     }
@@ -434,7 +462,7 @@ class _FundSheetState extends State<_FundSheet> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -463,7 +491,12 @@ class _FundSheetState extends State<_FundSheet> {
     final ceiling = widget.release ? b.balance : b.fillable;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -484,7 +517,9 @@ class _FundSheetState extends State<_FundSheet> {
                     onTap: () {
                       final cap = toNum(ceiling);
                       final v = pct == 100 ? cap : (cap * pct / 100);
-                      _amount.text = v == v.roundToDouble() ? '${v.round()}' : v.toStringAsFixed(2);
+                      _amount.text = v == v.roundToDouble()
+                          ? '${v.round()}'
+                          : v.toStringAsFixed(2);
                       setState(() {});
                     },
                   ),
@@ -526,7 +561,10 @@ class _FundSheetState extends State<_FundSheet> {
           if (_error != null) ...[
             const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -539,7 +577,11 @@ class _FundSheetState extends State<_FundSheet> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        height: 1.4,
+                        color: t.foreground,
+                      ),
                     ),
                   ),
                 ],
@@ -599,7 +641,10 @@ class _QuickFill extends StatelessWidget {
 
 /// Raise or cut the plan amount mid-cycle. The direction is explicit so a
 /// stray minus sign can never turn a top-up into a cut.
-Future<bool?> showAdjustSheet(BuildContext context, {required BudgetRow budget}) {
+Future<bool?> showAdjustSheet(
+  BuildContext context, {
+  required BudgetRow budget,
+}) {
   return showAppSheet<bool>(
     context,
     title: 'Change the plan amount',
@@ -654,7 +699,7 @@ class _AdjustSheetState extends State<_AdjustSheet> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -672,7 +717,12 @@ class _AdjustSheetState extends State<_AdjustSheet> {
     final b = widget.budget;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -705,7 +755,10 @@ class _AdjustSheetState extends State<_AdjustSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Muted('Opened at', size: 10.5),
-                      Amount(formatMoney(b.openingPlanned, currency: b.currency), size: 13),
+                      Amount(
+                        formatMoney(b.openingPlanned, currency: b.currency),
+                        size: 13,
+                      ),
                     ],
                   ),
                 ),
@@ -717,7 +770,9 @@ class _AdjustSheetState extends State<_AdjustSheet> {
                       Amount(
                         formatMoney(b.adjustedThisCycle, currency: b.currency),
                         size: 13,
-                        color: toNum(b.adjustedThisCycle) >= 0 ? t.success : t.warning,
+                        color: toNum(b.adjustedThisCycle) >= 0
+                            ? t.success
+                            : t.warning,
                       ),
                     ],
                   ),
@@ -727,7 +782,10 @@ class _AdjustSheetState extends State<_AdjustSheet> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Muted('Now', size: 10.5),
-                      Amount(formatMoney(b.plannedAmount, currency: b.currency), size: 13),
+                      Amount(
+                        formatMoney(b.plannedAmount, currency: b.currency),
+                        size: 13,
+                      ),
                     ],
                   ),
                 ),
@@ -744,7 +802,10 @@ class _AdjustSheetState extends State<_AdjustSheet> {
           if (_error != null) ...[
             const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -757,7 +818,11 @@ class _AdjustSheetState extends State<_AdjustSheet> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        height: 1.4,
+                        color: t.foreground,
+                      ),
                     ),
                   ),
                 ],

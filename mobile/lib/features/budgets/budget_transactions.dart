@@ -17,7 +17,7 @@ import '../transactions/transaction_list.dart';
 
 const _pageSize = 20;
 
-/// Searchable, filterable, paginated expenses for a plan — mirrors the web
+/// Searchable, filterable, paginated expenses for a plan   mirrors the web
 /// `BudgetTransactions` panel. Fetched separately so Unplanned never tries to
 /// load years of rows at once.
 class BudgetTransactionsPanel extends StatefulWidget {
@@ -39,7 +39,8 @@ class BudgetTransactionsPanel extends StatefulWidget {
   final VoidCallback? onChanged;
 
   @override
-  State<BudgetTransactionsPanel> createState() => _BudgetTransactionsPanelState();
+  State<BudgetTransactionsPanel> createState() =>
+      _BudgetTransactionsPanelState();
 }
 
 class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
@@ -74,7 +75,8 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
   @override
   void didUpdateWidget(covariant BudgetTransactionsPanel old) {
     super.didUpdateWidget(old);
-    if (old.plan.row.id != widget.plan.row.id || old.lockedCycle != widget.lockedCycle) {
+    if (old.plan.row.id != widget.plan.row.id ||
+        old.lockedCycle != widget.lockedCycle) {
       if (widget.lockedCycle != null) _cycle = '${widget.lockedCycle}';
       _page = 1;
       _fetch();
@@ -169,13 +171,17 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
     final b = widget.plan.row;
     final items = _data?.items ?? const <Transaction>[];
     final total = _data?.total ?? 0;
-    final pages = (_data == null) ? 1 : ((_data!.total / _pageSize).ceil().clamp(1, 9999));
+    final pages = (_data == null)
+        ? 1
+        : ((_data!.total / _pageSize).ceil().clamp(1, 9999));
     final pageTotal = items.fold<double>(0, (s, tx) => s + tx.value);
 
     String money(Object? v) => prefs.money(v, currency: b.currency);
 
     final categories =
-        data.categories.data?.where((c) => c.kind == 'EXPENSE' && !c.archived).toList() ??
+        data.categories.data
+            ?.where((c) => c.kind == 'EXPENSE' && !c.archived)
+            .toList() ??
         const <TxCategory>[];
 
     final body = Column(
@@ -193,7 +199,8 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
                 ),
               ),
             ),
-            if (total > 0) Muted('$total · ${money(pageTotal)} on page', size: 11),
+            if (total > 0)
+              Muted('$total · ${money(pageTotal)} on page', size: 11),
           ],
         ),
         const Gap(S.md),
@@ -308,7 +315,8 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
               ),
             ),
           for (var i = 0; i < items.length; i++) ...[
-            if (i > 0) Divider(height: 1, color: t.border.withValues(alpha: 0.5)),
+            if (i > 0)
+              Divider(height: 1, color: t.border.withValues(alpha: 0.5)),
             TransactionRow(
               tx: items[i],
               money: (amt, cur) => prefs.money(amt, currency: cur),
@@ -366,7 +374,11 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
 }
 
 class _FilterChipButton extends StatelessWidget {
-  const _FilterChipButton({required this.active, required this.count, required this.onTap});
+  const _FilterChipButton({
+    required this.active,
+    required this.count,
+    required this.onTap,
+  });
 
   final bool active;
   final int count;
@@ -386,15 +398,24 @@ class _FilterChipButton extends StatelessWidget {
           padding: const EdgeInsets.symmetric(horizontal: S.md),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(R.lg),
-            border: Border.all(color: active ? t.primary.withValues(alpha: 0.35) : t.border),
+            border: Border.all(
+              color: active ? t.primary.withValues(alpha: 0.35) : t.border,
+            ),
           ),
           child: Row(
             children: [
-              Icon(Icons.tune_rounded, size: 18, color: active ? t.primary : t.mutedForeground),
+              Icon(
+                Icons.tune_rounded,
+                size: 18,
+                color: active ? t.primary : t.mutedForeground,
+              ),
               if (count > 0) ...[
                 const GapX(S.xs),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: S.xs, vertical: S.hair),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: S.xs,
+                    vertical: S.hair,
+                  ),
                   decoration: BoxDecoration(
                     color: t.primary,
                     borderRadius: BorderRadius.circular(R.pill),
@@ -491,11 +512,21 @@ class _FiltersPanel extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: DateField(label: 'From', value: from, onChanged: onFrom, allowClear: true),
+                child: DateField(
+                  label: 'From',
+                  value: from,
+                  onChanged: onFrom,
+                  allowClear: true,
+                ),
               ),
               const GapX(S.sm),
               Expanded(
-                child: DateField(label: 'To', value: to, onChanged: onTo, allowClear: true),
+                child: DateField(
+                  label: 'To',
+                  value: to,
+                  onChanged: onTo,
+                  allowClear: true,
+                ),
               ),
             ],
           ),
@@ -514,7 +545,10 @@ class _FiltersPanel extends StatelessWidget {
             const Gap(S.sm),
             Align(
               alignment: Alignment.centerRight,
-              child: TextButton(onPressed: onClear, child: const Text('Clear filters')),
+              child: TextButton(
+                onPressed: onClear,
+                child: const Text('Clear filters'),
+              ),
             ),
           ],
         ],

@@ -7,14 +7,14 @@ Sideloaded Santim builds can update themselves without ADB. The backend advertis
 1. **Ship a build that includes the updater** (this feature). Users on older APKs still need one manual install.
 2. On the API host (Render / cPanel), set env vars:
 
-| Variable | Example | Notes |
-|----------|---------|--------|
-| `ANDROID_LATEST_VERSION_CODE` | `4009` | Must match `pubspec.yaml` build number (`1.0.10+4009` → `4009`) |
-| `ANDROID_LATEST_VERSION_NAME` | `1.0.10` | Shown in the popup |
-| `ANDROID_APK_URL` | `https://…/app-release.apk` | Direct HTTPS link to the APK |
-| `ANDROID_CHANGELOG` | `Outlook + chat history` | Optional “What’s new” text |
-| `ANDROID_FORCE_UPDATE` | `false` | `true` blocks “Not now” |
-| `ANDROID_MIN_VERSION_CODE` | `2000` | Optional floor — older builds are forced to update |
+| Variable                      | Example                     | Notes                                                           |
+| ----------------------------- | --------------------------- | --------------------------------------------------------------- |
+| `ANDROID_LATEST_VERSION_CODE` | `4009`                      | Must match `pubspec.yaml` build number (`1.0.10+4009` → `4009`) |
+| `ANDROID_LATEST_VERSION_NAME` | `1.0.10`                    | Shown in the popup                                              |
+| `ANDROID_APK_URL`             | `https://…/app-release.apk` | Direct HTTPS link to the APK                                    |
+| `ANDROID_CHANGELOG`           | `Outlook + chat history`    | Optional “What’s new” text                                      |
+| `ANDROID_FORCE_UPDATE`        | `false`                     | `true` blocks “Not now”                                         |
+| `ANDROID_MIN_VERSION_CODE`    | `2000`                      | Optional floor older builds are forced to update                |
 
 3. Host the APK somewhere public (GitHub Releases, Cloudflare R2, S3, your CDN). Do **not** put a huge APK on the free Render disk if you can avoid it.
 
@@ -23,7 +23,7 @@ Sideloaded Santim builds can update themselves without ADB. The backend advertis
 ## Publish a new version
 
 ```bash
-# 1. Bump mobile/pubspec.yaml — e.g. 1.0.10+4009 (must be > what's on the phone)
+# 1. Bump mobile/pubspec.yaml   e.g. 1.0.10+4009 (must be > what's on the phone)
 # 2. Build
 cd mobile
 flutter build apk --release --target-platform android-arm64 \

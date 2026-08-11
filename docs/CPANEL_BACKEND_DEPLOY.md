@@ -30,17 +30,17 @@ Secrets and `.env` are **never** uploaded. Configure them in cPanel.
    - **Passenger log file:** optional but recommended
 3. Under **Environment variables**, add at least:
 
-| Variable | Example |
-|----------|---------|
-| `NODE_ENV` | `production` |
-| `PORT` | leave default from cPanel / Passenger if provided |
-| `DATABASE_URL` | your Postgres URL (`?sslmode=require` if needed) |
-| `JWT_SECRET` | long random string (≥16 chars) |
-| `JWT_EXPIRES_IN` | `15m` |
-| `JWT_REFRESH_EXPIRES_IN` | `7d` |
-| `CORS_ORIGINS` | `https://your-frontend.com,https://www.your-frontend.com` |
-| `APP_URL` | `https://your-frontend.com` |
-| `LOG_LEVEL` | `info` |
+| Variable                 | Example                                                   |
+| ------------------------ | --------------------------------------------------------- |
+| `NODE_ENV`               | `production`                                              |
+| `PORT`                   | leave default from cPanel / Passenger if provided         |
+| `DATABASE_URL`           | your Postgres URL (`?sslmode=require` if needed)          |
+| `JWT_SECRET`             | long random string (≥16 chars)                            |
+| `JWT_EXPIRES_IN`         | `15m`                                                     |
+| `JWT_REFRESH_EXPIRES_IN` | `7d`                                                      |
+| `CORS_ORIGINS`           | `https://your-frontend.com,https://www.your-frontend.com` |
+| `APP_URL`                | `https://your-frontend.com`                               |
+| `LOG_LEVEL`              | `info`                                                    |
 
 Optional: `AI_ENCRYPTION_KEY` (falls back to `JWT_SECRET`).
 
@@ -65,23 +65,23 @@ Prefer **FTPS** (explicit TLS on port 21). Plain FTP works but is weaker.
 
 Repo → **Settings** → **Secrets and variables** → **Actions** → **Secrets**:
 
-| Secret | Example | Notes |
-|--------|---------|--------|
-| `FTP_SERVER` | `ftp.yourdomain.com` or `203.0.113.10` | Hostname or IP only. **No** `ftp://`, **no** path, **no** `https://` |
-| `FTP_USERNAME` | `deploy@yourdomain.com` | |
-| `FTP_PASSWORD` | `••••••••` | |
-| `FTP_SERVER_DIR` | `/home/USER/api.yourdomain.com/` | **Must end with `/`** |
+| Secret           | Example                                | Notes                                                                |
+| ---------------- | -------------------------------------- | -------------------------------------------------------------------- |
+| `FTP_SERVER`     | `ftp.yourdomain.com` or `203.0.113.10` | Hostname or IP only. **No** `ftp://`, **no** path, **no** `https://` |
+| `FTP_USERNAME`   | `deploy@yourdomain.com`                |                                                                      |
+| `FTP_PASSWORD`   | `••••••••`                             |                                                                      |
+| `FTP_SERVER_DIR` | `/home/USER/api.yourdomain.com/`       | **Must end with `/`**                                                |
 
-If Actions fails with `getaddrinfo ENOTFOUND`, `FTP_SERVER` does not resolve in DNS — fix the hostname/IP in the secret (check cPanel → FTP Accounts for the correct FTP host).
+If Actions fails with `getaddrinfo ENOTFOUND`, `FTP_SERVER` does not resolve in DNS fix the hostname/IP in the secret (check cPanel → FTP Accounts for the correct FTP host).
 
 This action uses **FTP/FTPS**, not SFTP. If your host only offers SFTP, you need a different deploy method.
 
 Optional **Variables** (not secrets):
 
-| Variable | Default | Notes |
-|----------|---------|--------|
-| `FTP_PROTOCOL` | `ftps` | `ftp`, `ftps`, or `ftps-legacy` |
-| `FTP_PORT` | `21` | Host-specific |
+| Variable       | Default | Notes                           |
+| -------------- | ------- | ------------------------------- |
+| `FTP_PROTOCOL` | `ftps`  | `ftp`, `ftps`, or `ftps-legacy` |
+| `FTP_PORT`     | `21`    | Host-specific                   |
 
 ---
 
@@ -89,10 +89,10 @@ Optional **Variables** (not secrets):
 
 File: [`.github/workflows/deploy-backend-cpanel.yml`](../.github/workflows/deploy-backend-cpanel.yml)
 
-| Trigger | When |
-|---------|------|
+| Trigger                     | When                                                |
+| --------------------------- | --------------------------------------------------- |
 | `push` to `main` / `master` | Only if `backend/**` (or the workflow file) changed |
-| `workflow_dispatch` | Manual; supports **dry-run** (build only, no FTP) |
+| `workflow_dispatch`         | Manual; supports **dry-run** (build only, no FTP)   |
 
 Pipeline steps (all logged):
 
@@ -140,7 +140,7 @@ cd backend
 npm ci
 npm run build
 npm run prepare:cpanel
-# Inspect backend/.deploy/ — this is what FTP uploads
+# Inspect backend/.deploy/   this is what FTP uploads
 ```
 
 Or run the workflow manually in GitHub Actions with **dry_run = true**.
@@ -149,14 +149,14 @@ Or run the workflow manually in GitHub Actions with **dry_run = true**.
 
 ## 7. Troubleshooting
 
-| Symptom | Likely fix |
-|---------|------------|
-| Actions fails on secrets | Add all four `FTP_*` secrets; ensure `FTP_SERVER_DIR` ends with `/` |
-| FTP timeout / TLS errors | Set variable `FTP_PROTOCOL=ftps-legacy` or `ftp`; confirm port |
-| App crash on start | Missing env vars; check cPanel error log; confirm startup file `dist/server.js` |
-| Prisma engine error | Schema already targets `debian-openssl-3.0.x` + `rhel-openssl-3.0.x`; re-run NPM Install / Restart |
-| CORS errors from frontend | Add the exact frontend origin(s) to `CORS_ORIGINS` |
-| Old code still running | Restart Node app after FTP; hard-refresh clients |
+| Symptom                   | Likely fix                                                                                         |
+| ------------------------- | -------------------------------------------------------------------------------------------------- |
+| Actions fails on secrets  | Add all four `FTP_*` secrets; ensure `FTP_SERVER_DIR` ends with `/`                                |
+| FTP timeout / TLS errors  | Set variable `FTP_PROTOCOL=ftps-legacy` or `ftp`; confirm port                                     |
+| App crash on start        | Missing env vars; check cPanel error log; confirm startup file `dist/server.js`                    |
+| Prisma engine error       | Schema already targets `debian-openssl-3.0.x` + `rhel-openssl-3.0.x`; re-run NPM Install / Restart |
+| CORS errors from frontend | Add the exact frontend origin(s) to `CORS_ORIGINS`                                                 |
+| Old code still running    | Restart Node app after FTP; hard-refresh clients                                                   |
 
 ---
 

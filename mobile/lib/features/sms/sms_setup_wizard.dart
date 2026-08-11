@@ -100,7 +100,7 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
     final picked = await showAppSheet<String>(
       context,
       title: 'Cash wallet',
-      subtitle: 'ATM withdrawals move here as transfers — not spending.',
+      subtitle: 'ATM withdrawals move here as transfers   not spending.',
       builder: (ctx) => Column(
         mainAxisSize: MainAxisSize.min,
         children: [
@@ -132,9 +132,11 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
     final sms = context.read<SmsState>();
     await sms.loadBanks();
     if (!mounted) return;
-    await Navigator.of(
-      context,
-    ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen(fromSetup: true)));
+    await Navigator.of(context).push(
+      MaterialPageRoute(
+        builder: (_) => const MessagingPointsScreen(fromSetup: true),
+      ),
+    );
     await sms.completeSetup();
     if (mounted) Navigator.pop(context, true);
   }
@@ -240,12 +242,20 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
                           height: 48,
                           decoration: BoxDecoration(
                             borderRadius: BorderRadius.circular(14),
-                            gradient: LinearGradient(colors: [t.primary, t.accent]),
+                            gradient: LinearGradient(
+                              colors: [t.primary, t.accent],
+                            ),
                             boxShadow: [
-                              BoxShadow(color: t.primary.withValues(alpha: 0.35), blurRadius: 18),
+                              BoxShadow(
+                                color: t.primary.withValues(alpha: 0.35),
+                                blurRadius: 18,
+                              ),
                             ],
                           ),
-                          child: const Icon(Icons.sms_rounded, color: Colors.white),
+                          child: const Icon(
+                            Icons.sms_rounded,
+                            color: Colors.white,
+                          ),
                         ),
                         const Gap(S.lg),
                         Text(
@@ -258,12 +268,20 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
                           ),
                         ),
                         const Gap(S.sm),
-                        Muted(current.body, size: 14, height: 1.45, maxLines: 6),
+                        Muted(
+                          current.body,
+                          size: 14,
+                          height: 1.45,
+                          maxLines: 6,
+                        ),
                         const Spacer(),
                         if (_error != null) ...[
                           Text(
                             _error!,
-                            style: TextStyle(color: t.danger, fontSize: AppType.bodySm),
+                            style: TextStyle(
+                              color: t.danger,
+                              fontSize: AppType.bodySm,
+                            ),
                           ),
                           const Gap(S.md),
                         ],
@@ -285,7 +303,9 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
                             expand: true,
                             onPressed: _busy
                                 ? null
-                                : () => setState(() => _step = (_step - 1).clamp(0, 4)),
+                                : () => setState(
+                                    () => _step = (_step - 1).clamp(0, 4),
+                                  ),
                           ),
                         ],
                       ],
@@ -335,7 +355,12 @@ class _Progress extends StatelessWidget {
                 borderRadius: BorderRadius.circular(99),
                 color: i <= step ? t.primary : t.border,
                 boxShadow: i <= step
-                    ? [BoxShadow(color: t.primary.withValues(alpha: 0.45), blurRadius: 8)]
+                    ? [
+                        BoxShadow(
+                          color: t.primary.withValues(alpha: 0.45),
+                          blurRadius: 8,
+                        ),
+                      ]
                     : null,
               ),
             ),

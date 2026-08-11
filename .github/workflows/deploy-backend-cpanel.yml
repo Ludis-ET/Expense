@@ -17,19 +17,19 @@ on:
       - main
       - master
     paths:
-      - 'backend/**'
-      - 'pnpm-lock.yaml'
-      - 'pnpm-workspace.yaml'
-      - 'package.json'
-      - '.github/workflows/deploy-backend-cpanel.yml'
+      - "backend/**"
+      - "pnpm-lock.yaml"
+      - "pnpm-workspace.yaml"
+      - "package.json"
+      - ".github/workflows/deploy-backend-cpanel.yml"
   workflow_dispatch:
     inputs:
       dry_run:
-        description: 'Build + stage only (skip FTP upload)'
+        description: "Build + stage only (skip FTP upload)"
         type: boolean
         default: false
       log_level:
-        description: 'FTP action log level'
+        description: "FTP action log level"
         type: choice
         options:
           - standard
@@ -55,7 +55,7 @@ jobs:
       - name: Job banner
         run: |
           echo "=============================================================="
-          echo " Santim API — cPanel FTP deploy"
+          echo " Santim API   cPanel FTP deploy"
           echo "=============================================================="
           echo "Timestamp (UTC) : $(date -u +'%Y-%m-%dT%H:%M:%SZ')"
           echo "Event           : ${{ github.event_name }}"
@@ -94,7 +94,7 @@ jobs:
           }
 
           if [[ "${DRY_RUN}" == "true" ]]; then
-            echo "[$(date -u +%H:%M:%S)] Dry-run enabled — FTP secret check skipped"
+            echo "[$(date -u +%H:%M:%S)] Dry-run enabled   FTP secret check skipped"
             exit 0
           fi
 
@@ -172,7 +172,7 @@ jobs:
       - name: Setup Node.js 24
         uses: actions/setup-node@v4
         with:
-          node-version: '24'
+          node-version: "24"
           cache: pnpm
 
       - name: Runtime versions
@@ -224,10 +224,10 @@ jobs:
 
           needs_regen=0
           if [[ ! -f package-lock.json ]]; then
-            echo "  package-lock.json missing — will generate"
+            echo "  package-lock.json missing   will generate"
             needs_regen=1
           elif grep -q '\.pnpm/' package-lock.json; then
-            echo "  package-lock.json contains pnpm link paths — regenerating in isolation"
+            echo "  package-lock.json contains pnpm link paths   regenerating in isolation"
             needs_regen=1
           else
             echo "  package-lock.json looks like a real npm lockfile"
@@ -247,12 +247,12 @@ jobs:
           fi
 
           if grep -q '\.pnpm/' package-lock.json; then
-            echo "  ✗ Lockfile still contains pnpm paths — refusing deploy"
+            echo "  ✗ Lockfile still contains pnpm paths   refusing deploy"
             exit 1
           fi
 
           if ! grep -q '"node_modules/prisma"' package-lock.json; then
-            echo "  ✗ prisma missing from lockfile — refusing deploy"
+            echo "  ✗ prisma missing from lockfile   refusing deploy"
             exit 1
           fi
 
@@ -271,7 +271,7 @@ jobs:
           cat .deploy/DEPLOY_META.json | sed 's/^/    /'
 
       # -----------------------------------------------------------------------
-      - name: 'Safety check — ensure secrets are not staged'
+      - name: "Safety check   ensure secrets are not staged"
         working-directory: backend
         run: |
           echo "[$(date -u +%H:%M:%S)] Scanning .deploy for accidental secrets…"
@@ -288,7 +288,7 @@ jobs:
             bad=1
           fi
           if [[ "${bad}" -ne 0 ]]; then
-            echo "Refusing to upload — remove secrets from the payload."
+            echo "Refusing to upload   remove secrets from the payload."
             exit 1
           fi
           echo "  ✓ No .env or credential files in deploy payload"
@@ -321,7 +321,7 @@ jobs:
         if: ${{ github.event.inputs.dry_run == 'true' }}
         run: |
           echo "=============================================================="
-          echo " DRY-RUN — FTP upload skipped"
+          echo " DRY-RUN   FTP upload skipped"
           echo " Artifact is ready locally in the runner at:"
           echo "   backend/.deploy/"
           echo "=============================================================="

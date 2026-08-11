@@ -32,7 +32,9 @@ class _AccountForm extends StatefulWidget {
 class _AccountFormState extends State<_AccountForm> {
   late final _name = TextEditingController(text: widget.existing?.name ?? '');
   late final _opening = TextEditingController(
-    text: widget.existing == null ? '' : toNum(widget.existing!.openingBalance).toString(),
+    text: widget.existing == null
+        ? ''
+        : toNum(widget.existing!.openingBalance).toString(),
   );
 
   late AccountType _type = widget.existing?.type ?? AccountType.cash;
@@ -80,7 +82,8 @@ class _AccountFormState extends State<_AccountForm> {
       if (_icon != null) 'icon': _icon,
       if (_color != null) 'color': _color,
       'isDefault': _isDefault,
-      if (!_isEdit) 'openingBalance': double.tryParse(_opening.text.trim()) ?? 0,
+      if (!_isEdit)
+        'openingBalance': double.tryParse(_opening.text.trim()) ?? 0,
       if (_isEdit) 'archived': _archived,
     };
 
@@ -93,7 +96,7 @@ class _AccountFormState extends State<_AccountForm> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -111,13 +114,20 @@ class _AccountFormState extends State<_AccountForm> {
     final tint = parseHexColor(_color) ?? t.primary;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
             child: IconTile(
-              icon: _icon != null ? financeIcon(_icon) : accountTypeIcon(_type.wire),
+              icon: _icon != null
+                  ? financeIcon(_icon)
+                  : accountTypeIcon(_type.wire),
               color: tint,
               size: 58,
               radius: R.lg,
@@ -146,7 +156,7 @@ class _AccountFormState extends State<_AccountForm> {
             label: 'Currency',
             hint:
                 'A wallet holds one currency. Totals are never mixed across '
-                'currencies — switch the scope from the topbar instead.',
+                'currencies   switch the scope from the topbar instead.',
             value: _currency,
             options: _currencies,
             labelOf: (c) => '$c · ${currencySymbol(c)}',
@@ -163,7 +173,9 @@ class _AccountFormState extends State<_AccountForm> {
                   'measured from here.',
               placeholder: '0',
               prefixIcon: Icons.savings_outlined,
-              keyboardType: const TextInputType.numberWithOptions(decimal: true),
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
             ),
           ],
           const Gap(S.lg),
@@ -199,7 +211,10 @@ class _AccountFormState extends State<_AccountForm> {
           if (_error != null) ...[
             const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -212,7 +227,10 @@ class _AccountFormState extends State<_AccountForm> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: AppType.bodySm, color: t.foreground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        color: t.foreground,
+                      ),
                     ),
                   ),
                 ],

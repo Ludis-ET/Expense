@@ -53,7 +53,7 @@ class MainActivity : FlutterFragmentActivity() {
                         SantimWidgetProvider.redraw(applicationContext)
                         result.success(true)
                     }
-                    // Consumed once — a later launch should not reopen the sheet.
+                    // Consumed once   a later launch should not reopen the sheet.
                     "consumeLaunchAction" -> {
                         val action = pendingAction
                         pendingAction = null

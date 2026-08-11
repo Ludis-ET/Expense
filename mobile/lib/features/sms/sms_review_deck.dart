@@ -24,13 +24,15 @@ class SmsReviewDeck extends StatefulWidget {
   State<SmsReviewDeck> createState() => _SmsReviewDeckState();
 }
 
-class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateMixin {
+class _SmsReviewDeckState extends State<SmsReviewDeck>
+    with TickerProviderStateMixin {
   double _dragX = 0;
   bool _busy = false;
 
   bool _canConfirm(InboxMessage m, DraftConfirm draft) {
     if (draft.accountId == null || draft.accountId!.isEmpty) return false;
-    final kind = draft.kind ?? m.suggestion?.kind ?? m.parsedKind ?? TxKind.expense;
+    final kind =
+        draft.kind ?? m.suggestion?.kind ?? m.parsedKind ?? TxKind.expense;
     if (kind == TxKind.transfer &&
         (draft.transferAccountId == null || draft.transferAccountId!.isEmpty)) {
       return false;
@@ -109,11 +111,17 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                 padding: const EdgeInsets.fromLTRB(8, 4, 12, 0),
                 child: Row(
                   children: [
-                    IconPill(icon: Icons.close_rounded, onTap: () => Navigator.pop(context)),
+                    IconPill(
+                      icon: Icons.close_rounded,
+                      onTap: () => Navigator.pop(context),
+                    ),
                     const Spacer(),
                     Text(
                       list.isEmpty ? 'Done' : '${list.length} left',
-                      style: TextStyle(fontWeight: FontWeight.w700, color: t.mutedForeground),
+                      style: TextStyle(
+                        fontWeight: FontWeight.w700,
+                        color: t.mutedForeground,
+                      ),
                     ),
                     const Spacer(),
                     const SizedBox(width: 44),
@@ -137,7 +145,11 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                               scale: 0.94,
                               child: Opacity(
                                 opacity: 0.55,
-                                child: _CardFace(message: next, money: prefs.money, dragX: 0),
+                                child: _CardFace(
+                                  message: next,
+                                  money: prefs.money,
+                                  dragX: 0,
+                                ),
                               ),
                             ),
                           GestureDetector(
@@ -155,7 +167,10 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                               }
                             },
                             onTap: () async {
-                              final body = await showSmsEditSheet(context, message: current);
+                              final body = await showSmsEditSheet(
+                                context,
+                                message: current,
+                              );
                               if (body != null) await _submit(current.id, body);
                             },
                             child: Transform.translate(
@@ -195,8 +210,12 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
                           onPressed: _busy
                               ? null
                               : () async {
-                                  final body = await showSmsEditSheet(context, message: current);
-                                  if (body != null) await _submit(current.id, body);
+                                  final body = await showSmsEditSheet(
+                                    context,
+                                    message: current,
+                                  );
+                                  if (body != null)
+                                    await _submit(current.id, body);
                                 },
                         ),
                       ),
@@ -223,10 +242,20 @@ class _SmsReviewDeckState extends State<SmsReviewDeck> with TickerProviderStateM
 }
 
 class _CardFace extends StatelessWidget {
-  const _CardFace({required this.message, required this.money, required this.dragX});
+  const _CardFace({
+    required this.message,
+    required this.money,
+    required this.dragX,
+  });
 
   final InboxMessage message;
-  final String Function(Object? v, {String currency, bool decimals, bool compact}) money;
+  final String Function(
+    Object? v, {
+    String currency,
+    bool decimals,
+    bool compact,
+  })
+  money;
   final double dragX;
 
   @override
@@ -265,7 +294,7 @@ class _CardFace extends StatelessWidget {
                   ),
                   const Gap(S.xxl),
                   Text(
-                    amount == null ? '—' : money(amount, currency: currency),
+                    amount == null ? ' ' : money(amount, currency: currency),
                     style: TextStyle(
                       fontSize: AppType.hero,
                       fontWeight: FontWeight.w900,
@@ -300,11 +329,17 @@ class _CardFace extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: t.primary.withValues(alpha: 0.08),
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: t.primary.withValues(alpha: 0.25)),
+                        border: Border.all(
+                          color: t.primary.withValues(alpha: 0.25),
+                        ),
                       ),
                       child: Text(
                         message.suggestion!.reason!,
-                        style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
+                        style: TextStyle(
+                          fontSize: AppType.label,
+                          height: 1.4,
+                          color: t.foreground,
+                        ),
                       ),
                     ),
                   ],
@@ -329,7 +364,10 @@ class _CardFace extends StatelessWidget {
                     childrenPadding: EdgeInsets.zero,
                     title: Text(
                       'Original SMS',
-                      style: TextStyle(fontSize: AppType.bodySm, color: t.mutedForeground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        color: t.mutedForeground,
+                      ),
                     ),
                     children: [
                       Container(
@@ -452,10 +490,17 @@ class _Pill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 14, color: c), const GapX(S.xxs)],
+          if (icon != null) ...[
+            Icon(icon, size: 14, color: c),
+            const GapX(S.xxs),
+          ],
           Text(
             label,
-            style: TextStyle(fontSize: AppType.label, fontWeight: FontWeight.w700, color: c),
+            style: TextStyle(
+              fontSize: AppType.label,
+              fontWeight: FontWeight.w700,
+              color: c,
+            ),
           ),
         ],
       ),

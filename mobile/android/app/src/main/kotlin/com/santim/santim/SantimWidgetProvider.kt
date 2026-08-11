@@ -12,7 +12,7 @@ import android.widget.RemoteViews
  * Home-screen widget: today's remaining spend plus a one-tap add button.
  *
  * For a daily-use finance app the home screen is the highest-value surface
- * outside the app itself — logging an expense should not require opening
+ * outside the app itself   logging an expense should not require opening
  * Santim, finding the tab and hitting the FAB.
  *
  * The widget renders whatever Flutter last wrote into shared preferences, so it
@@ -54,7 +54,7 @@ class SantimWidgetProvider : AppWidgetProvider() {
 
         // Before the first dashboard load there is nothing to show, so the
         // widget says so rather than showing a misleading zero.
-        val remaining = prefs.getString(KEY_REMAINING, null) ?: "—"
+        val remaining = prefs.getString(KEY_REMAINING, null) ?: " "
         val caption = prefs.getString(KEY_CAPTION, null) ?: "Open Santim to sync"
         val spent = prefs.getString(KEY_SPENT, null) ?: ""
 

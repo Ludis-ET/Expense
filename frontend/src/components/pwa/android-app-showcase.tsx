@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState } from "react";
 import {
   Banknote,
   Download,
@@ -9,8 +9,8 @@ import {
   Smartphone,
   WifiOff,
   type LucideIcon,
-} from 'lucide-react';
-import { ANDROID_APP, isAndroid } from '@/lib/android-app';
+} from "lucide-react";
+import { ANDROID_APP, isAndroid } from "@/lib/android-app";
 
 /**
  * Landing-page section for the Android build.
@@ -24,7 +24,10 @@ export function AndroidAppShowcase() {
   useEffect(() => setAndroid(isAndroid()), []);
 
   return (
-    <section id="android" className="relative overflow-hidden border-y border-border/70 bg-surface/40">
+    <section
+      id="android"
+      className="relative overflow-hidden border-y border-border/70 bg-surface/40"
+    >
       <div
         aria-hidden
         className="pointer-events-none absolute -left-24 top-1/2 h-72 w-72 -translate-y-1/2 rounded-full bg-primary/15 blur-[120px]"
@@ -38,27 +41,29 @@ export function AndroidAppShowcase() {
           </div>
 
           <h2 className="mt-5 text-3xl font-bold leading-tight tracking-tight md:text-4xl">
-            Your bank already texts you.{' '}
+            Your bank already texts you.{" "}
             <span className="bg-gradient-to-r from-emerald-500 to-teal-500 bg-clip-text text-transparent">
               Let it do the typing.
             </span>
           </h2>
 
           <p className="mt-4 max-w-lg text-base text-muted">
-            Every time CBE, telebirr, Awash or Dashen sends you an alert, Santim reads the amount out
-            of it and puts a draft transaction in your inbox. Swipe right to record it. That is the
-            whole workflow.
+            Every time CBE, telebirr, Awash or Dashen sends you an alert, Santim
+            reads the amount out of it and puts a draft transaction in your
+            inbox. Swipe right to record it. That is the whole workflow.
           </p>
 
           <ul className="mt-7 space-y-3.5">
             <Point icon={MessageSquareText}>
-              Reads only the senders you approve — everything else is discarded on your phone
+              Reads only the senders you approve everything else is discarded on
+              your phone
             </Point>
             <Point icon={Hand}>
               Swipe through a month of messages in about a minute
             </Point>
             <Point icon={Banknote}>
-              Knows an ATM withdrawal is not spending — it moves to your cash wallet
+              Knows an ATM withdrawal is not spending it moves to your cash
+              wallet
             </Point>
             <Point icon={WifiOff}>
               Queues offline and uploads itself when signal comes back
@@ -76,17 +81,17 @@ export function AndroidAppShowcase() {
             </a>
             <span className="text-xs text-muted">
               v{ANDROID_APP.version}
-              {ANDROID_APP.size ? ` · ${ANDROID_APP.size}` : ''}
-              {!android && ' · Android only'}
+              {ANDROID_APP.size ? ` · ${ANDROID_APP.size}` : ""}
+              {!android && " · Android only"}
             </span>
           </div>
 
           {/* Said plainly rather than buried: people are right to be wary of an
               APK from a website, and the reason it is not on Play is legitimate. */}
           <p className="mt-4 max-w-lg text-xs leading-relaxed text-muted">
-            Not on Google Play — Google restricts SMS access to a short list of approved app types,
-            and expense trackers are not on it. You will need to allow installs from your browser
-            once.
+            Not on Google Play Google restricts SMS access to a short list of
+            approved app types, and expense trackers are not on it. You will
+            need to allow installs from your browser once.
           </p>
         </div>
 
@@ -96,7 +101,13 @@ export function AndroidAppShowcase() {
   );
 }
 
-function Point({ icon: Icon, children }: { icon: LucideIcon; children: React.ReactNode }) {
+function Point({
+  icon: Icon,
+  children,
+}: {
+  icon: LucideIcon;
+  children: React.ReactNode;
+}) {
   return (
     <li className="flex items-start gap-3">
       <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-lg bg-primary/12 text-primary">
@@ -132,7 +143,9 @@ function PhoneMock() {
                 <MessageSquareText className="h-3.5 w-3.5" aria-hidden />
               </span>
               <div className="min-w-0">
-                <p className="truncate text-[11px] font-semibold">Commercial Bank of Ethiopia</p>
+                <p className="truncate text-[11px] font-semibold">
+                  Commercial Bank of Ethiopia
+                </p>
                 <p className="text-[10px] text-muted">2m ago</p>
               </div>
             </div>

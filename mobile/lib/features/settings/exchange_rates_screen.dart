@@ -11,7 +11,7 @@ import '../../state/data_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
-/// `ExchangeRatesPanel` — rates are only needed to show one combined total
+/// `ExchangeRatesPanel`   rates are only needed to show one combined total
 /// across currencies. Per-currency figures never use them.
 class ExchangeRatesScreen extends StatefulWidget {
   const ExchangeRatesScreen({super.key});
@@ -21,7 +21,12 @@ class ExchangeRatesScreen extends StatefulWidget {
 }
 
 class _Rate {
-  const _Rate({required this.id, required this.from, required this.to, required this.rate});
+  const _Rate({
+    required this.id,
+    required this.from,
+    required this.to,
+    required this.rate,
+  });
   final String id;
   final String from;
   final String to;
@@ -80,7 +85,11 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
           ),
         ),
         actions: [
-          IconPill(icon: Icons.add, tooltip: 'Add a rate', onTap: () => _edit(context)),
+          IconPill(
+            icon: Icons.add,
+            tooltip: 'Add a rate',
+            onTap: () => _edit(context),
+          ),
           const GapX(S.sm),
         ],
       ),
@@ -91,7 +100,12 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               AppCard(
@@ -147,11 +161,18 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                     child: FadeInUp.staggered(
                       index: i,
                       child: AppCard(
-                        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: S.lg,
+                          vertical: S.md,
+                        ),
                         onTap: () => _edit(context, existing: _rates[i]),
                         child: Row(
                           children: [
-                            IconTile(icon: Icons.currency_exchange, color: t.accent, size: 36),
+                            IconTile(
+                              icon: Icons.currency_exchange,
+                              color: t.accent,
+                              size: 36,
+                            ),
                             const GapX(S.md),
                             Expanded(
                               child: Text(
@@ -186,13 +207,15 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
     final ok = await confirm(
       context,
       title: 'Delete this rate?',
-      message: 'Combined totals will leave ${rate.from} out until you add it again.',
+      message:
+          'Combined totals will leave ${rate.from} out until you add it again.',
     );
     if (!ok || !context.mounted) return;
     try {
       await context.read<ApiClient>().delete('/exchange-rates/${rate.id}');
       await _load();
-      if (context.mounted) await context.read<DataState>().loadDashboard(force: true);
+      if (context.mounted)
+        await context.read<DataState>().loadDashboard(force: true);
     } on ApiError catch (e) {
       if (context.mounted) toast(context, e.message, error: true);
     }
@@ -209,7 +232,12 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
       title: existing == null ? 'Add a rate' : 'Edit rate',
       builder: (ctx) => StatefulBuilder(
         builder: (ctx, setSheet) => Padding(
-          padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+          padding: EdgeInsets.fromLTRB(
+            20,
+            4,
+            20,
+            24 + MediaQuery.of(ctx).padding.bottom,
+          ),
           child: Column(
             mainAxisSize: MainAxisSize.min,
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -247,7 +275,9 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                 hint: 'How many "to" units one "from" unit buys.',
                 placeholder: '1 $from = ? $to',
                 prefixIcon: Icons.calculate_outlined,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
               ),
               const Gap(S.xl),
               AppButton(
@@ -270,7 +300,11 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
                       '/exchange-rates',
                       body: {
                         'rates': [
-                          {'fromCurrency': from, 'toCurrency': to, 'rate': value},
+                          {
+                            'fromCurrency': from,
+                            'toCurrency': to,
+                            'rate': value,
+                          },
                         ],
                       },
                     );
@@ -288,7 +322,8 @@ class _ExchangeRatesScreenState extends State<ExchangeRatesScreen> {
 
     if (saved == true) {
       await _load();
-      if (context.mounted) await context.read<DataState>().loadDashboard(force: true);
+      if (context.mounted)
+        await context.read<DataState>().loadDashboard(force: true);
     }
   }
 }

@@ -21,8 +21,8 @@ import '../../widgets/ui.dart';
 
 /// A once-a-month recap of how the month went.
 ///
-/// Everything here is already computed for the dashboard — biggest category,
-/// no-spend streak, unnecessary spend, net — it just was never gathered into a
+/// Everything here is already computed for the dashboard   biggest category,
+/// no-spend streak, unnecessary spend, net   it just was never gathered into a
 /// moment worth looking at. No new endpoint is involved.
 class MonthInReviewScreen extends StatefulWidget {
   const MonthInReviewScreen({super.key});
@@ -51,10 +51,7 @@ class _MonthInReviewScreenState extends State<MonthInReviewScreen> {
       await file.writeAsBytes(bytes.buffer.asUint8List(), flush: true);
 
       await SharePlus.instance.share(
-        ShareParams(
-          files: [XFile(file.path)],
-          text: 'My month in Santim',
-        ),
+        ShareParams(files: [XFile(file.path)], text: 'My month in Santim'),
       );
       Haptics.commit();
     } catch (_) {
@@ -109,7 +106,7 @@ class _MonthInReviewScreenState extends State<MonthInReviewScreen> {
                   prefs.amountsHidden
                       ? 'Amounts are hidden, so the card shares without figures.'
                       : 'The card includes your figures. Turn on Hide amounts '
-                          'in the topbar first if you would rather not share them.',
+                            'in the topbar first if you would rather not share them.',
                   size: AppType.caption,
                 ),
               ],
@@ -168,7 +165,10 @@ class _ReviewCard extends StatelessWidget {
               const GapX(S.sm),
               const BrandWord(fontSize: AppType.lead),
               const Spacer(),
-              AppBadge(DateFormat('MMMM yyyy').format(DateTime.now()), tone: BadgeTone.primary),
+              AppBadge(
+                DateFormat('MMMM yyyy').format(DateTime.now()),
+                tone: BadgeTone.primary,
+              ),
             ],
           ),
           const Gap(S.xl),
@@ -214,7 +214,8 @@ class _ReviewCard extends StatelessWidget {
             const Gap(S.md),
             _Stat(
               label: 'Biggest category',
-              value: '${top.category?.name ?? 'Uncategorised'} · ${money(top.amount)}',
+              value:
+                  '${top.category?.name ?? 'Uncategorised'} · ${money(top.amount)}',
               tone: BadgeTone.warning,
               icon: financeIcon(top.category?.icon),
             ),
@@ -222,7 +223,8 @@ class _ReviewCard extends StatelessWidget {
           const Gap(S.md),
           _Stat(
             label: 'Best no-spend streak',
-            value: '${streak.bestStreak} day${streak.bestStreak == 1 ? '' : 's'}',
+            value:
+                '${streak.bestStreak} day${streak.bestStreak == 1 ? '' : 's'}',
             tone: BadgeTone.primary,
             icon: Icons.local_fire_department_outlined,
           ),
@@ -230,7 +232,9 @@ class _ReviewCard extends StatelessWidget {
           _Stat(
             label: 'Unnecessary spending',
             value: money(raw.unnecessary.total),
-            tone: toNum(raw.unnecessary.total) > 0 ? BadgeTone.danger : BadgeTone.success,
+            tone: toNum(raw.unnecessary.total) > 0
+                ? BadgeTone.danger
+                : BadgeTone.success,
             icon: Icons.bolt_outlined,
           ),
 
@@ -259,7 +263,10 @@ class _ReviewCard extends StatelessWidget {
                       const GapX(S.sm),
                       Padding(
                         padding: const EdgeInsets.only(bottom: S.xs),
-                        child: Muted('of everything you earned', size: AppType.caption),
+                        child: Muted(
+                          'of everything you earned',
+                          size: AppType.caption,
+                        ),
                       ),
                     ],
                   ),
@@ -270,8 +277,8 @@ class _ReviewCard extends StatelessWidget {
                     tone: savingsRate >= 20
                         ? BadgeTone.success
                         : savingsRate >= 0
-                            ? BadgeTone.warning
-                            : BadgeTone.danger,
+                        ? BadgeTone.warning
+                        : BadgeTone.danger,
                   ),
                 ],
               ),
@@ -306,7 +313,10 @@ class _Stat extends StatelessWidget {
         Container(
           width: 36,
           height: 36,
-          decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(R.md)),
+          decoration: BoxDecoration(
+            color: bg,
+            borderRadius: BorderRadius.circular(R.md),
+          ),
           child: Icon(icon, size: 17, color: fg),
         ),
         const GapX(S.md),

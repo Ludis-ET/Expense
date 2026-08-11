@@ -1,6 +1,6 @@
-'use client';
+"use client";
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from "react";
 
 /**
  * Where the Android build lives.
@@ -11,45 +11,45 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
  * `NEXT_PUBLIC_ANDROID_APP_URL` at wherever you host it.
  */
 export const ANDROID_APP = {
-  url: process.env.NEXT_PUBLIC_ANDROID_APP_URL ?? '/downloads/santim.apk',
-  version: process.env.NEXT_PUBLIC_ANDROID_APP_VERSION ?? '1.0.0',
-  size: process.env.NEXT_PUBLIC_ANDROID_APP_SIZE ?? '',
+  url: process.env.NEXT_PUBLIC_ANDROID_APP_URL ?? "/downloads/santim.apk",
+  version: process.env.NEXT_PUBLIC_ANDROID_APP_VERSION ?? "1.0.0",
+  size: process.env.NEXT_PUBLIC_ANDROID_APP_SIZE ?? "",
 } as const;
 
 /** Rotating pitches. All of them sell the one thing the web app cannot do. */
 export const AD_PITCHES = [
   {
-    id: 'typing',
-    headline: 'Stop typing your transactions',
-    body: 'Your bank already texts you every purchase. Santim reads those messages and files them for you.',
+    id: "typing",
+    headline: "Stop typing your transactions",
+    body: "Your bank already texts you every purchase. Santim reads those messages and files them for you.",
   },
   {
-    id: 'banks',
-    headline: 'CBE, telebirr, Awash — read automatically',
-    body: 'Pick which senders are your banks. Every alert they send becomes a transaction waiting for one tap.',
+    id: "banks",
+    headline: "CBE, telebirr, Awash   read automatically",
+    body: "Pick which senders are your banks. Every alert they send becomes a transaction waiting for one tap.",
   },
   {
-    id: 'swipe',
-    headline: 'A whole month in about a minute',
-    body: 'Swipe right to record, left to skip. Your ledger fills itself while you flick through.',
+    id: "swipe",
+    headline: "A whole month in about a minute",
+    body: "Swipe right to record, left to skip. Your ledger fills itself while you flick through.",
   },
   {
-    id: 'atm',
-    headline: 'Cash from the ATM is not spending',
-    body: 'Santim knows the difference and moves it into your cash wallet instead of counting it twice.',
+    id: "atm",
+    headline: "Cash from the ATM is not spending",
+    body: "Santim knows the difference and moves it into your cash wallet instead of counting it twice.",
   },
   {
-    id: 'offline',
-    headline: 'Works with no signal',
-    body: 'Messages queue on your phone and upload themselves once you are back online. Nothing gets lost.',
+    id: "offline",
+    headline: "Works with no signal",
+    body: "Messages queue on your phone and upload themselves once you are back online. Nothing gets lost.",
   },
 ] as const;
 
 export type AdPitch = (typeof AD_PITCHES)[number];
 
-const KEY_DISMISSED = 'santim-appad-dismissed';
-const KEY_COUNT = 'santim-appad-count';
-const KEY_LAST = 'santim-appad-last';
+const KEY_DISMISSED = "santim-appad-dismissed";
+const KEY_COUNT = "santim-appad-count";
+const KEY_LAST = "santim-appad-last";
 
 /**
  * Frequency caps. An ad the user cannot get rid of is worse than no ad, so:
@@ -78,7 +78,7 @@ function write(key: string, value: string) {
 }
 
 export function isAndroid(): boolean {
-  if (typeof navigator === 'undefined') return false;
+  if (typeof navigator === "undefined") return false;
   return /Android/i.test(navigator.userAgent);
 }
 
@@ -95,12 +95,12 @@ export function useAppAd() {
 
   useEffect(() => {
     if (!isAndroid()) return;
-    if (read(KEY_DISMISSED) === '1') return;
+    if (read(KEY_DISMISSED) === "1") return;
 
-    const shown = Number(read(KEY_COUNT) ?? '0');
+    const shown = Number(read(KEY_COUNT) ?? "0");
     if (shown >= MAX_LIFETIME_SHOWS) return;
 
-    const last = Number(read(KEY_LAST) ?? '0');
+    const last = Number(read(KEY_LAST) ?? "0");
     if (last && Date.now() - last < MIN_HOURS_BETWEEN * 3_600_000) return;
 
     // Random pitch and random delay, so a returning user does not get the
@@ -122,7 +122,7 @@ export function useAppAd() {
 
   /** "Don't show again" and "I downloaded it" both mean: stop asking. */
   const dismissForever = useCallback(() => {
-    write(KEY_DISMISSED, '1');
+    write(KEY_DISMISSED, "1");
     setVisible(false);
   }, []);
 

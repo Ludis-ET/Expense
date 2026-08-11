@@ -15,7 +15,7 @@ import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 import '../outlook/monthly_outlook_screen.dart';
 
-/// Recurring plans — rent, salary, subscriptions. Auto-posting rules write
+/// Recurring plans   rent, salary, subscriptions. Auto-posting rules write
 /// themselves into your ledger when they come due; the rest wait for a tap.
 class RecurringScreen extends StatelessWidget {
   const RecurringScreen({super.key});
@@ -37,13 +37,17 @@ class RecurringScreen extends StatelessWidget {
         .where((r) => r.kind == TxKind.expense)
         .fold<double>(
           0,
-          (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
+          (s, r) =>
+              s +
+              monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
         );
     final monthlyIn = active
         .where((r) => r.kind == TxKind.income)
         .fold<double>(
           0,
-          (s, r) => s + monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
+          (s, r) =>
+              s +
+              monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
         );
 
     String money(Object? v) => prefs.money(v, currency: data.activeCurrency);
@@ -84,7 +88,12 @@ class RecurringScreen extends StatelessWidget {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (!data.recurring.hasData) ...[
@@ -128,9 +137,11 @@ class RecurringScreen extends StatelessWidget {
                   expand: true,
                   variant: BtnVariant.outline,
                   size: BtnSize.sm,
-                  onPressed: () => Navigator.of(
-                    context,
-                  ).push(MaterialPageRoute(builder: (_) => const MonthlyOutlookScreen())),
+                  onPressed: () => Navigator.of(context).push(
+                    MaterialPageRoute(
+                      builder: (_) => const MonthlyOutlookScreen(),
+                    ),
+                  ),
                 ),
                 const Gap(S.lg),
 
@@ -149,7 +160,9 @@ class RecurringScreen extends StatelessWidget {
                       onPressed: () async {
                         final saved = await showRecurringForm(context);
                         if (saved == true && context.mounted) {
-                          await context.read<DataState>().loadRecurring(force: true);
+                          await context.read<DataState>().loadRecurring(
+                            force: true,
+                          );
                         }
                       },
                     ),
@@ -242,7 +255,9 @@ class _RuleCard extends StatelessWidget {
     final t = context.t;
     final r = rule;
     final isIncome = r.kind == TxKind.income;
-    final tint = parseHexColor(r.category?.color) ?? (isIncome ? t.success : t.mutedForeground);
+    final tint =
+        parseHexColor(r.category?.color) ??
+        (isIncome ? t.success : t.mutedForeground);
     final due = r.nextRun.difference(DateTime.now()).inDays;
 
     return AppCard(
@@ -253,7 +268,11 @@ class _RuleCard extends StatelessWidget {
         children: [
           Row(
             children: [
-              IconTile(icon: financeIcon(r.category?.icon), color: tint, size: 42),
+              IconTile(
+                icon: financeIcon(r.category?.icon),
+                color: tint,
+                size: 42,
+              ),
               const GapX(S.md),
               Expanded(
                 child: Column(
@@ -271,12 +290,25 @@ class _RuleCard extends StatelessWidget {
                     const Gap(S.xxs),
                     Row(
                       children: [
-                        AppBadge(r.cadence, tone: BadgeTone.neutral, dense: true),
+                        AppBadge(
+                          r.cadence,
+                          tone: BadgeTone.neutral,
+                          dense: true,
+                        ),
                         const GapX(S.xs),
                         if (r.autoPost)
-                          AppBadge('Auto', tone: BadgeTone.primary, dense: true, icon: Icons.bolt)
+                          AppBadge(
+                            'Auto',
+                            tone: BadgeTone.primary,
+                            dense: true,
+                            icon: Icons.bolt,
+                          )
                         else
-                          AppBadge('Manual', tone: BadgeTone.warning, dense: true),
+                          AppBadge(
+                            'Manual',
+                            tone: BadgeTone.warning,
+                            dense: true,
+                          ),
                       ],
                     ),
                   ],
@@ -299,7 +331,10 @@ class _RuleCard extends StatelessWidget {
           ),
           const Gap(S.md),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+            padding: const EdgeInsets.symmetric(
+              horizontal: S.md,
+              vertical: S.sm,
+            ),
             decoration: BoxDecoration(
               color: due <= 2 && r.active
                   ? t.warning.withValues(alpha: 0.1)
@@ -321,11 +356,14 @@ class _RuleCard extends StatelessWidget {
                         : 'Paused',
                     style: TextStyle(
                       fontSize: AppType.caption,
-                      color: due <= 2 && r.active ? t.warning : t.mutedForeground,
+                      color: due <= 2 && r.active
+                          ? t.warning
+                          : t.mutedForeground,
                     ),
                   ),
                 ),
-                if (r.postedCount > 0) Muted('${r.postedCount} posted', size: 11),
+                if (r.postedCount > 0)
+                  Muted('${r.postedCount} posted', size: 11),
               ],
             ),
           ),
@@ -344,14 +382,19 @@ class _RuleCard extends StatelessWidget {
       subtitle: rule.cadence,
       scrollable: false,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.only(
+          bottom: 16 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               onTap: () => Navigator.pop(ctx, 'run'),
               leading: const Icon(Icons.play_arrow_rounded, size: 21),
-              title: const Text('Post it now', style: TextStyle(fontSize: AppType.body)),
+              title: const Text(
+                'Post it now',
+                style: TextStyle(fontSize: AppType.body),
+              ),
               subtitle: const Text(
                 'Writes the transaction and moves the next run forward.',
                 style: TextStyle(fontSize: AppType.caption),
@@ -360,12 +403,17 @@ class _RuleCard extends StatelessWidget {
             ListTile(
               onTap: () => Navigator.pop(ctx, 'edit'),
               leading: const Icon(Icons.edit_outlined, size: 20),
-              title: const Text('Edit', style: TextStyle(fontSize: AppType.body)),
+              title: const Text(
+                'Edit',
+                style: TextStyle(fontSize: AppType.body),
+              ),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'toggle'),
               leading: Icon(
-                rule.active ? Icons.pause_circle_outline : Icons.play_circle_outline,
+                rule.active
+                    ? Icons.pause_circle_outline
+                    : Icons.play_circle_outline,
                 size: 20,
               ),
               title: Text(
@@ -375,7 +423,11 @@ class _RuleCard extends StatelessWidget {
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'delete'),
-              leading: Icon(Icons.delete_outline, size: 20, color: ctx.t.danger),
+              leading: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: ctx.t.danger,
+              ),
               title: Text(
                 'Delete',
                 style: TextStyle(fontSize: AppType.body, color: ctx.t.danger),
@@ -398,7 +450,10 @@ class _RuleCard extends StatelessWidget {
           final saved = await showRecurringForm(context, existing: rule);
           if (saved == true) await data.loadRecurring(force: true);
         case 'toggle':
-          await api.put('/recurring/${rule.id}', body: {'active': !rule.active});
+          await api.put(
+            '/recurring/${rule.id}',
+            body: {'active': !rule.active},
+          );
           await data.loadRecurring(force: true);
         case 'delete':
           if (!context.mounted) return;
@@ -418,7 +473,7 @@ class _RuleCard extends StatelessWidget {
 }
 
 /// Add or edit a recurring rule.
-/// Seed values for a brand-new rule — used by the outlook when turning a
+/// Seed values for a brand-new rule   used by the outlook when turning a
 /// detected repeating payee into a real rule, so the user only confirms.
 class RecurringPrefill {
   const RecurringPrefill({
@@ -467,20 +522,26 @@ class _RecurringFormState extends State<_RecurringForm> {
     text: widget.existing != null
         ? toNum(widget.existing!.amount).toString()
         : widget.prefill != null
-            ? widget.prefill!.amount.toStringAsFixed(2)
-            : '',
+        ? widget.prefill!.amount.toStringAsFixed(2)
+        : '',
   );
-  late final _interval = TextEditingController(text: '${widget.existing?.interval ?? 1}');
+  late final _interval = TextEditingController(
+    text: '${widget.existing?.interval ?? 1}',
+  );
   late final _payee = TextEditingController(
     text: widget.existing?.payee ?? widget.prefill?.payee ?? '',
   );
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
 
-  late TxKind _kind = widget.existing?.kind ?? widget.prefill?.kind ?? TxKind.expense;
+  late TxKind _kind =
+      widget.existing?.kind ?? widget.prefill?.kind ?? TxKind.expense;
   late Frequency _frequency =
-      widget.existing?.frequency ?? widget.prefill?.frequency ?? Frequency.monthly;
+      widget.existing?.frequency ??
+      widget.prefill?.frequency ??
+      Frequency.monthly;
   late String? _accountId = widget.existing?.accountId;
-  late String? _categoryId = widget.existing?.categoryId ?? widget.prefill?.categoryId;
+  late String? _categoryId =
+      widget.existing?.categoryId ?? widget.prefill?.categoryId;
   late DateTime _nextRun = widget.existing?.nextRun ?? DateTime.now();
   late DateTime? _endDate = widget.existing?.endDate;
   late bool _autoPost = widget.existing?.autoPost ?? true;
@@ -499,7 +560,9 @@ class _RecurringFormState extends State<_RecurringForm> {
       await Future.wait([data.loadAccounts(), data.loadCategories()]);
       if (!mounted || _accountId != null) return;
       final accounts = data.scopedAccounts;
-      final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+      final fallback =
+          accounts.where((a) => a.isDefault).firstOrNull ??
+          accounts.firstOrNull;
       setState(() => _accountId = fallback?.id);
     });
   }
@@ -583,7 +646,12 @@ class _RecurringFormState extends State<_RecurringForm> {
     final categories = data.categoriesOfKind(_kind);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -592,7 +660,9 @@ class _RecurringFormState extends State<_RecurringForm> {
             options: const [TxKind.expense, TxKind.income],
             labelOf: (k) => k.label,
             colorOf: (k) => k == TxKind.income ? t.success : t.danger,
-            iconOf: (k) => k == TxKind.income ? Icons.south_west_rounded : Icons.north_east_rounded,
+            iconOf: (k) => k == TxKind.income
+                ? Icons.south_west_rounded
+                : Icons.north_east_rounded,
             onChanged: (k) => setState(() {
               _kind = k;
               _categoryId = null;
@@ -632,7 +702,8 @@ class _RecurringFormState extends State<_RecurringForm> {
                   value: _frequency,
                   options: Frequency.values,
                   labelOf: (f) => f.label,
-                  onChanged: (f) => setState(() => _frequency = f ?? _frequency),
+                  onChanged: (f) =>
+                      setState(() => _frequency = f ?? _frequency),
                 ),
               ),
             ],
@@ -640,7 +711,8 @@ class _RecurringFormState extends State<_RecurringForm> {
           const Gap(S.lg),
           DateField(
             label: 'Next run',
-            hint: 'The first date it posts. Later runs step forward by the cadence.',
+            hint:
+                'The first date it posts. Later runs step forward by the cadence.',
             value: _nextRun,
             onChanged: (d) => setState(() => _nextRun = d ?? _nextRun),
           ),

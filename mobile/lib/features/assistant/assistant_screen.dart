@@ -16,7 +16,7 @@ import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 import '../settings/settings_screen.dart';
 
-/// "Ask Santim" — chat about your own figures. Messages persist locally.
+/// "Ask Santim"   chat about your own figures. Messages persist locally.
 class AssistantScreen extends StatefulWidget {
   const AssistantScreen({super.key});
 
@@ -26,23 +26,23 @@ class AssistantScreen extends StatefulWidget {
 
 class _Message {
   _Message.user(this.text)
-      : fromUser = true,
-        chart = null,
-        provider = null,
-        failed = false,
-        at = DateTime.now();
+    : fromUser = true,
+      chart = null,
+      provider = null,
+      failed = false,
+      at = DateTime.now();
 
   _Message.reply(this.text, {this.chart, this.provider})
-      : fromUser = false,
-        failed = false,
-        at = DateTime.now();
+    : fromUser = false,
+      failed = false,
+      at = DateTime.now();
 
   _Message.error(this.text)
-      : fromUser = false,
-        chart = null,
-        provider = null,
-        failed = true,
-        at = DateTime.now();
+    : fromUser = false,
+      chart = null,
+      provider = null,
+      failed = true,
+      at = DateTime.now();
 
   _Message._({
     required this.text,
@@ -61,22 +61,22 @@ class _Message {
   final DateTime at;
 
   Map<String, dynamic> toJson() => {
-        'text': text,
-        'fromUser': fromUser,
-        'failed': failed,
-        'provider': provider,
-        'at': at.toIso8601String(),
-        if (chart != null) 'chart': chart!.toJson(),
-      };
+    'text': text,
+    'fromUser': fromUser,
+    'failed': failed,
+    'provider': provider,
+    'at': at.toIso8601String(),
+    if (chart != null) 'chart': chart!.toJson(),
+  };
 
   factory _Message.fromJson(Map<String, dynamic> j) => _Message._(
-        text: asStr(j['text']),
-        fromUser: asBool(j['fromUser']),
-        failed: asBool(j['failed']),
-        provider: asStrOrNull(j['provider']),
-        at: DateTime.tryParse(asStr(j['at'])) ?? DateTime.now(),
-        chart: _Chart.maybe(j['chart']),
-      );
+    text: asStr(j['text']),
+    fromUser: asBool(j['fromUser']),
+    failed: asBool(j['failed']),
+    provider: asStrOrNull(j['provider']),
+    at: DateTime.tryParse(asStr(j['at'])) ?? DateTime.now(),
+    chart: _Chart.maybe(j['chart']),
+  );
 }
 
 class _Chart {
@@ -86,12 +86,12 @@ class _Chart {
   final List<(String, double)> points;
 
   Map<String, dynamic> toJson() => {
-        'type': type,
-        'title': title,
-        'data': [
-          for (final p in points) {'label': p.$1, 'value': p.$2},
-        ],
-      };
+    'type': type,
+    'title': title,
+    'data': [
+      for (final p in points) {'label': p.$1, 'value': p.$2},
+    ],
+  };
 
   static _Chart? maybe(dynamic v) {
     if (v is! Map) return null;
@@ -101,7 +101,9 @@ class _Chart {
     return _Chart(
       type: asStr(m['type'], 'bar'),
       title: asStr(m['title'], ''),
-      points: [for (final d in data) (asStr(d['label'], ''), asNum(d['value']))],
+      points: [
+        for (final d in data) (asStr(d['label'], ''), asNum(d['value'])),
+      ],
     );
   }
 }
@@ -151,7 +153,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
             ..clear()
             ..addAll([
               for (final item in list)
-                if (item is Map) _Message.fromJson(Map<String, dynamic>.from(item)),
+                if (item is Map)
+                  _Message.fromJson(Map<String, dynamic>.from(item)),
             ]);
         }
       }
@@ -168,7 +171,10 @@ class _AssistantScreenState extends State<AssistantScreen> {
       final slice = _messages.length > _maxStored
           ? _messages.sublist(_messages.length - _maxStored)
           : _messages;
-      await prefs.setString(_storageKey, jsonEncode([for (final m in slice) m.toJson()]));
+      await prefs.setString(
+        _storageKey,
+        jsonEncode([for (final m in slice) m.toJson()]),
+      );
     } catch (_) {}
   }
 
@@ -176,7 +182,8 @@ class _AssistantScreenState extends State<AssistantScreen> {
     final ok = await confirm(
       context,
       title: 'Clear chat?',
-      message: 'This removes your saved Ask Santim conversation on this device.',
+      message:
+          'This removes your saved Ask Santim conversation on this device.',
       confirmLabel: 'Clear',
       danger: true,
     );
@@ -188,7 +195,9 @@ class _AssistantScreenState extends State<AssistantScreen> {
 
   Future<void> _checkStatus() async {
     try {
-      final json = await context.read<ApiClient>().get<Map<String, dynamic>>('/ai/status');
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/ai/status',
+      );
       if (mounted) setState(() => _configured = asBool(json['configured']));
     } catch (_) {
       if (mounted) setState(() => _configured = false);
@@ -295,16 +304,16 @@ class _AssistantScreenState extends State<AssistantScreen> {
                 child: !_loaded
                     ? const Center(child: PageLoader(rows: 2, hero: false))
                     : _messages.isEmpty
-                        ? _Intro(starters: _starters, onAsk: _ask)
-                        : ListView.builder(
-                            controller: _scroll,
-                            padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                            itemCount: _messages.length + (_thinking ? 1 : 0),
-                            itemBuilder: (context, i) {
-                              if (i == _messages.length) return const _Thinking();
-                              return _Bubble(message: _messages[i]);
-                            },
-                          ),
+                    ? _Intro(starters: _starters, onAsk: _ask)
+                    : ListView.builder(
+                        controller: _scroll,
+                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+                        itemCount: _messages.length + (_thinking ? 1 : 0),
+                        itemBuilder: (context, i) {
+                          if (i == _messages.length) return const _Thinking();
+                          return _Bubble(message: _messages[i]);
+                        },
+                      ),
               ),
               _Composer(
                 controller: _controller,
@@ -320,7 +329,11 @@ class _AssistantScreenState extends State<AssistantScreen> {
 }
 
 class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({required this.hasMessages, this.onClear, required this.onClose});
+  const _ChatHeader({
+    required this.hasMessages,
+    this.onClear,
+    required this.onClose,
+  });
 
   final bool hasMessages;
   final VoidCallback? onClear;
@@ -332,7 +345,9 @@ class _ChatHeader extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
       decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.7))),
+        border: Border(
+          bottom: BorderSide(color: t.border.withValues(alpha: 0.7)),
+        ),
       ),
       child: Row(
         children: [
@@ -357,7 +372,11 @@ class _ChatHeader extends StatelessWidget {
                 ),
               ],
             ),
-            child: Icon(Icons.auto_awesome, size: 18, color: t.primaryForeground),
+            child: Icon(
+              Icons.auto_awesome,
+              size: 18,
+              color: t.primaryForeground,
+            ),
           ),
           const GapX(S.md),
           Expanded(
@@ -373,8 +392,13 @@ class _ChatHeader extends StatelessWidget {
                   ),
                 ),
                 Text(
-                  hasMessages ? 'Chat saved on this phone' : 'Answers from your own figures',
-                  style: TextStyle(fontSize: AppType.caption, color: t.mutedForeground),
+                  hasMessages
+                      ? 'Chat saved on this phone'
+                      : 'Answers from your own figures',
+                  style: TextStyle(
+                    fontSize: AppType.caption,
+                    color: t.mutedForeground,
+                  ),
                 ),
               ],
             ),
@@ -406,7 +430,12 @@ class _Composer extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     return Container(
-      padding: EdgeInsets.fromLTRB(14, 10, 14, 12 + MediaQuery.paddingOf(context).bottom),
+      padding: EdgeInsets.fromLTRB(
+        14,
+        10,
+        14,
+        12 + MediaQuery.paddingOf(context).bottom,
+      ),
       decoration: BoxDecoration(
         color: t.surface.withValues(alpha: 0.92),
         border: Border(top: BorderSide(color: t.border.withValues(alpha: 0.8))),
@@ -441,7 +470,11 @@ class _Composer extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(Icons.arrow_upward_rounded, size: 21, color: t.primaryForeground),
+              child: Icon(
+                Icons.arrow_upward_rounded,
+                size: 21,
+                color: t.primaryForeground,
+              ),
             ),
           ),
         ],
@@ -477,7 +510,11 @@ class _Intro extends StatelessWidget {
                   ),
                 ],
               ),
-              child: Icon(Icons.auto_awesome, size: 34, color: t.primaryForeground),
+              child: Icon(
+                Icons.auto_awesome,
+                size: 34,
+                color: t.primaryForeground,
+              ),
             ),
           ),
         ),
@@ -501,7 +538,11 @@ class _Intro extends StatelessWidget {
           child: Text(
             'Ask anything about your spending, plans, or tabs. Chats stay on this device.',
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppType.bodySm, height: 1.5, color: t.mutedForeground),
+            style: TextStyle(
+              fontSize: AppType.bodySm,
+              height: 1.5,
+              color: t.mutedForeground,
+            ),
           ),
         ),
         const Gap(S.xxl),
@@ -511,7 +552,10 @@ class _Intro extends StatelessWidget {
             child: FadeInUp.staggered(
               index: i + 2,
               child: AppCard(
-                padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: S.lg,
+                  vertical: S.md,
+                ),
                 onTap: () => onAsk(starters[i]),
                 child: Row(
                   children: [
@@ -522,13 +566,20 @@ class _Intro extends StatelessWidget {
                         color: t.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(R.sm),
                       ),
-                      child: Icon(Icons.north_east_rounded, size: 14, color: t.primary),
+                      child: Icon(
+                        Icons.north_east_rounded,
+                        size: 14,
+                        color: t.primary,
+                      ),
                     ),
                     const GapX(S.md),
                     Expanded(
                       child: Text(
                         starters[i],
-                        style: TextStyle(fontSize: AppType.bodySm, color: t.foreground),
+                        style: TextStyle(
+                          fontSize: AppType.bodySm,
+                          color: t.foreground,
+                        ),
                       ),
                     ),
                   ],
@@ -557,7 +608,9 @@ class _Bubble extends StatelessWidget {
       child: Padding(
         padding: const EdgeInsets.only(bottom: S.md),
         child: Row(
-          mainAxisAlignment: m.fromUser ? MainAxisAlignment.end : MainAxisAlignment.start,
+          mainAxisAlignment: m.fromUser
+              ? MainAxisAlignment.end
+              : MainAxisAlignment.start,
           crossAxisAlignment: CrossAxisAlignment.end,
           children: [
             if (!m.fromUser) ...[
@@ -568,20 +621,29 @@ class _Bubble extends StatelessWidget {
                   borderRadius: BorderRadius.circular(R.sm + 2),
                   gradient: LinearGradient(colors: [t.primary, t.accent]),
                 ),
-                child: Icon(Icons.auto_awesome, size: 15, color: t.primaryForeground),
+                child: Icon(
+                  Icons.auto_awesome,
+                  size: 15,
+                  color: t.primaryForeground,
+                ),
               ),
               const GapX(S.sm),
             ],
             Flexible(
               child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: S.lg,
+                  vertical: S.md,
+                ),
                 decoration: BoxDecoration(
-                  gradient: m.fromUser ? LinearGradient(colors: [t.primary, t.accent]) : null,
+                  gradient: m.fromUser
+                      ? LinearGradient(colors: [t.primary, t.accent])
+                      : null,
                   color: m.fromUser
                       ? null
                       : m.failed
-                          ? t.danger.withValues(alpha: 0.1)
-                          : t.surface,
+                      ? t.danger.withValues(alpha: 0.1)
+                      : t.surface,
                   borderRadius: BorderRadius.only(
                     topLeft: const Radius.circular(R.card),
                     topRight: const Radius.circular(R.card),
@@ -610,8 +672,8 @@ class _Bubble extends StatelessWidget {
                         color: m.fromUser
                             ? t.primaryForeground
                             : m.failed
-                                ? t.danger
-                                : t.foreground,
+                            ? t.danger
+                            : t.foreground,
                       ),
                     ),
                     if (m.chart != null) ...[
@@ -632,14 +694,22 @@ class _Bubble extends StatelessWidget {
                                 child: DonutChart(
                                   size: 150,
                                   data: [
-                                    for (var i = 0; i < m.chart!.points.length; i++)
+                                    for (
+                                      var i = 0;
+                                      i < m.chart!.points.length;
+                                      i++
+                                    )
                                       Slice(
                                         label: m.chart!.points[i].$1,
                                         value: m.chart!.points[i].$2,
                                         color: financeColorAt(i),
                                       ),
                                   ],
-                                  format: (v) => prefs.money(v, currency: currency, compact: true),
+                                  format: (v) => prefs.money(
+                                    v,
+                                    currency: currency,
+                                    compact: true,
+                                  ),
                                 ),
                               )
                             : RankedBars(
@@ -647,7 +717,8 @@ class _Bubble extends StatelessWidget {
                                   for (final p in m.chart!.points)
                                     BarDatum(label: p.$1, value: p.$2),
                                 ],
-                                format: (v) => prefs.money(v, currency: currency),
+                                format: (v) =>
+                                    prefs.money(v, currency: currency),
                               ),
                       ),
                     ],
@@ -683,11 +754,18 @@ class _Thinking extends StatelessWidget {
               borderRadius: BorderRadius.circular(R.sm + 2),
               gradient: LinearGradient(colors: [t.primary, t.accent]),
             ),
-            child: Icon(Icons.auto_awesome, size: 15, color: t.primaryForeground),
+            child: Icon(
+              Icons.auto_awesome,
+              size: 15,
+              color: t.primaryForeground,
+            ),
           ),
           const GapX(S.sm),
           Container(
-            padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.lg),
+            padding: const EdgeInsets.symmetric(
+              horizontal: S.lg,
+              vertical: S.lg,
+            ),
             decoration: BoxDecoration(
               color: t.surface,
               borderRadius: const BorderRadius.only(

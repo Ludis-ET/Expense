@@ -15,8 +15,8 @@ import '../../state/prefs_state.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/ui.dart';
 
-/// Analytics. The overview is one `/analytics/page` payload — seven cards that
-/// each answer a single question — with the chart sections fetched separately
+/// Analytics. The overview is one `/analytics/page` payload   seven cards that
+/// each answer a single question   with the chart sections fetched separately
 /// so switching tabs never re-costs the overview.
 class AnalyticsScreen extends StatefulWidget {
   const AnalyticsScreen({super.key});
@@ -78,7 +78,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         case _Section.trends:
           if (_trends != null) return;
           final results = await Future.wait([
-            api.get<Map<String, dynamic>>('/analytics/income-vs-expense', query: {'months': 12}),
+            api.get<Map<String, dynamic>>(
+              '/analytics/income-vs-expense',
+              query: {'months': 12},
+            ),
             api.get<Map<String, dynamic>>(
               '/analytics/heatmap',
               query: {'year': DateTime.now().year},
@@ -96,7 +99,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               '/analytics/categories',
               query: {'month': monthKey(_month), 'kind': 'EXPENSE'},
             ),
-            api.get<Map<String, dynamic>>('/analytics/movers', query: {'month': monthKey(_month)}),
+            api.get<Map<String, dynamic>>(
+              '/analytics/movers',
+              query: {'month': monthKey(_month)},
+            ),
             api.get<Map<String, dynamic>>(
               '/analytics/payees',
               query: {'month': monthKey(_month), 'limit': 8},
@@ -110,14 +116,16 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           });
         case _Section.seasons:
           if (_seasons != null) return;
-          final json = await api.get<Map<String, dynamic>>('/analytics/seasonal');
+          final json = await api.get<Map<String, dynamic>>(
+            '/analytics/seasonal',
+          );
           if (!mounted) return;
           setState(() => _seasons = SeasonalReport.fromJson(json));
         case _Section.overview:
           break;
       }
     } catch (_) {
-      // Section fetches fail quietly — the overview stays usable.
+      // Section fetches fail quietly   the overview stays usable.
     }
   }
 
@@ -140,7 +148,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
     final currency = _page?.currency ?? data.activeCurrency;
 
     String money(Object? v) => prefs.money(v, currency: currency);
-    String compact(Object? v) => prefs.money(v, currency: currency, compact: true);
+    String compact(Object? v) =>
+        prefs.money(v, currency: currency, compact: true);
 
     final canGoForward = DateTime(
       _month.year,
@@ -167,7 +176,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 10),
               child: Row(
                 children: [
-                  IconPill(icon: Icons.chevron_left, size: 34, onTap: () => _shiftMonth(-1)),
+                  IconPill(
+                    icon: Icons.chevron_left,
+                    size: 34,
+                    onTap: () => _shiftMonth(-1),
+                  ),
                   Expanded(
                     child: Center(
                       child: Column(
@@ -181,7 +194,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                             ),
                           ),
                           if (_page != null && _page!.inProgress)
-                            Muted('day ${_page!.daysElapsed} of ${_page!.daysInMonth}', size: 10.5),
+                            Muted(
+                              'day ${_page!.daysElapsed} of ${_page!.daysInMonth}',
+                              size: 10.5,
+                            ),
                         ],
                       ),
                     ),
@@ -213,7 +229,12 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 color: t.primary,
                 backgroundColor: t.surface,
                 child: ListView(
-                  padding: EdgeInsets.fromLTRB(14, 0, 14, ShellLayout.bottomClearance(context)),
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    0,
+                    14,
+                    ShellLayout.bottomClearance(context),
+                  ),
                   physics: const AlwaysScrollableScrollPhysics(),
                   children: [
                     if (_loading && _page == null)
@@ -227,10 +248,26 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                       )
                     else if (_page != null)
                       ...switch (_section) {
-                        _Section.overview => _overview(context, _page!, money, compact),
-                        _Section.trends => _trendsSection(context, money, compact),
-                        _Section.categories => _categoriesSection(context, money),
-                        _Section.seasons => _seasonsSection(context, money, compact),
+                        _Section.overview => _overview(
+                          context,
+                          _page!,
+                          money,
+                          compact,
+                        ),
+                        _Section.trends => _trendsSection(
+                          context,
+                          money,
+                          compact,
+                        ),
+                        _Section.categories => _categoriesSection(
+                          context,
+                          money,
+                        ),
+                        _Section.seasons => _seasonsSection(
+                          context,
+                          money,
+                          compact,
+                        ),
                       },
                   ],
                 ),
@@ -243,7 +280,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
   }
 
   // -------------------------------------------------------------------------
-  // Overview — the seven cards
+  // Overview   the seven cards
   // -------------------------------------------------------------------------
 
   List<Widget> _overview(
@@ -265,9 +302,13 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const GapX(S.sm),
               Expanded(
                 child: Text(
-                  '${p.missingRates.join(', ')} left out — no exchange rate into '
+                  '${p.missingRates.join(', ')} left out   no exchange rate into '
                   '${p.currency}. Add one in Settings.',
-                  style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
+                  style: TextStyle(
+                    fontSize: AppType.label,
+                    height: 1.4,
+                    color: t.foreground,
+                  ),
                 ),
               ),
             ],
@@ -311,7 +352,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   if (p.deltaNetPct != null)
                     AppBadge(
                       formatPct(p.deltaNetPct),
-                      tone: p.deltaNetPct! >= 0 ? BadgeTone.success : BadgeTone.danger,
+                      tone: p.deltaNetPct! >= 0
+                          ? BadgeTone.success
+                          : BadgeTone.danger,
                     ),
                 ],
               ),
@@ -319,11 +362,19 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _Fig(label: 'Income', value: money(p.income), color: t.success),
+                    child: _Fig(
+                      label: 'Income',
+                      value: money(p.income),
+                      color: t.success,
+                    ),
                   ),
                   const GapX(S.sm),
                   Expanded(
-                    child: _Fig(label: 'Spent', value: money(p.expense), color: t.danger),
+                    child: _Fig(
+                      label: 'Spent',
+                      value: money(p.expense),
+                      color: t.danger,
+                    ),
                   ),
                 ],
               ),
@@ -333,12 +384,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   Expanded(
                     child: _Fig(
                       label: 'Savings rate',
-                      value: p.savingsRate == null ? '-' : '${p.savingsRate!.round()}%',
+                      value: p.savingsRate == null
+                          ? '-'
+                          : '${p.savingsRate!.round()}%',
                     ),
                   ),
                   const GapX(S.sm),
                   Expanded(
-                    child: _Fig(label: 'Last month net', value: money(p.prevNet)),
+                    child: _Fig(
+                      label: 'Last month net',
+                      value: money(p.prevNet),
+                    ),
                   ),
                 ],
               ),
@@ -384,7 +440,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const GapX(S.sm),
                   Expanded(
-                    child: _Fig(label: 'Available', value: money(p.cashAvailable)),
+                    child: _Fig(
+                      label: 'Available',
+                      value: money(p.cashAvailable),
+                    ),
                   ),
                 ],
               ),
@@ -427,7 +486,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                     padding: const EdgeInsets.only(bottom: S.xxs),
                     child: AppBadge(
                       '${p.unplannedPct.round()}% of spend',
-                      tone: p.unplannedPct > 50 ? BadgeTone.warning : BadgeTone.neutral,
+                      tone: p.unplannedPct > 50
+                          ? BadgeTone.warning
+                          : BadgeTone.neutral,
                       dense: true,
                     ),
                   ),
@@ -437,10 +498,15 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               ProgressBar(
                 value: p.unplannedPct,
                 height: 8,
-                tone: p.unplannedPct > 50 ? BadgeTone.warning : BadgeTone.primary,
+                tone: p.unplannedPct > 50
+                    ? BadgeTone.warning
+                    : BadgeTone.primary,
               ),
               const Gap(S.sm),
-              Muted('of ${money(p.unplannedTotalExpense)} spent this month.', size: 11.5),
+              Muted(
+                'of ${money(p.unplannedTotalExpense)} spent this month.',
+                size: 11.5,
+              ),
             ],
           ),
         ),
@@ -462,7 +528,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _Fig(label: 'Opened at', value: money(p.planOpening)),
+                    child: _Fig(
+                      label: 'Opened at',
+                      value: money(p.planOpening),
+                    ),
                   ),
                   const GapX(S.sm),
                   Expanded(
@@ -491,7 +560,10 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                         icon: Icons.warning_amber_rounded,
                       ),
                     if (p.adjustedCount > 0)
-                      AppBadge('${p.adjustedCount} adjusted mid-cycle', tone: BadgeTone.warning),
+                      AppBadge(
+                        '${p.adjustedCount} adjusted mid-cycle',
+                        tone: BadgeTone.warning,
+                      ),
                   ],
                 ),
               ],
@@ -532,7 +604,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   ),
                   const GapX(S.sm),
                   Expanded(
-                    child: _Fig(label: 'In per month', value: money(p.monthlyIn), color: t.success),
+                    child: _Fig(
+                      label: 'In per month',
+                      value: money(p.monthlyIn),
+                      color: t.success,
+                    ),
                   ),
                 ],
               ),
@@ -541,7 +617,9 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 ProgressBar(
                   value: p.shareOfIncome!,
                   height: 8,
-                  tone: p.shareOfIncome! > 60 ? BadgeTone.danger : BadgeTone.primary,
+                  tone: p.shareOfIncome! > 60
+                      ? BadgeTone.danger
+                      : BadgeTone.primary,
                 ),
                 const Gap(S.sm),
                 Muted(
@@ -628,20 +706,27 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _Fig(label: 'Planned value', value: money(p.wishPlannedValue)),
+                    child: _Fig(
+                      label: 'Planned value',
+                      value: money(p.wishPlannedValue),
+                    ),
                   ),
                   const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Want → plan',
-                      value: p.avgDaysToPlan == null ? '-' : '${p.avgDaysToPlan!.round()} days',
+                      value: p.avgDaysToPlan == null
+                          ? '-'
+                          : '${p.avgDaysToPlan!.round()} days',
                     ),
                   ),
                   const GapX(S.sm),
                   Expanded(
                     child: _Fig(
                       label: 'Plan → bought',
-                      value: p.avgDaysToBuy == null ? '-' : '${p.avgDaysToBuy!.round()} days',
+                      value: p.avgDaysToBuy == null
+                          ? '-'
+                          : '${p.avgDaysToBuy!.round()} days',
                     ),
                   ),
                 ],
@@ -687,11 +772,17 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               Row(
                 children: [
                   Expanded(
-                    child: _Fig(label: 'Expected in', value: money(p.ledgerExpectedIn)),
+                    child: _Fig(
+                      label: 'Expected in',
+                      value: money(p.ledgerExpectedIn),
+                    ),
                   ),
                   const GapX(S.sm),
                   Expanded(
-                    child: _Fig(label: 'Expected out', value: money(p.ledgerExpectedOut)),
+                    child: _Fig(
+                      label: 'Expected out',
+                      value: money(p.ledgerExpectedOut),
+                    ),
                   ),
                 ],
               ),
@@ -809,14 +900,18 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                 DateTime(d.date.year, d.date.month, d.date.day): toNum(d.total),
             },
             format: compact,
-            onTapDay: (day, amount) => toast(context, '${formatDate(day)} · ${money(amount)}'),
+            onTapDay: (day, amount) =>
+                toast(context, '${formatDate(day)} · ${money(amount)}'),
           ),
         ),
       ],
     ];
   }
 
-  List<Widget> _categoriesSection(BuildContext context, String Function(Object?) money) {
+  List<Widget> _categoriesSection(
+    BuildContext context,
+    String Function(Object?) money,
+  ) {
     final t = context.t;
     if (_categories == null) return [const PageLoader(rows: 3, hero: false)];
 
@@ -837,7 +932,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         child: slices.isEmpty
             ? const EmptyState(title: 'No spending this month', compact: true)
             : Center(
-                child: DonutChart(data: slices, format: money, centerLabel: 'spent'),
+                child: DonutChart(
+                  data: slices,
+                  format: money,
+                  centerLabel: 'spent',
+                ),
               ),
       ),
       if (_movers != null && _movers!.hasPrevious) ...[
@@ -847,7 +946,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
           icon: Icons.trending_up,
           hint:
               'Categories that changed most against last month. New ones show '
-              'no percentage — a percentage off zero says nothing.',
+              'no percentage   a percentage off zero says nothing.',
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
@@ -949,7 +1048,8 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
                   BarDatum(
                     label: m.name,
                     value: toNum(m.avgExpense),
-                    caption: '${m.samples} year${m.samples == 1 ? '' : 's'} of data',
+                    caption:
+                        '${m.samples} year${m.samples == 1 ? '' : 's'} of data',
                   ),
               ],
               format: money,
@@ -958,7 +1058,11 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
               const Gap(S.md),
               Row(
                 children: [
-                  Icon(Icons.local_fire_department_outlined, size: 15, color: t.warning),
+                  Icon(
+                    Icons.local_fire_department_outlined,
+                    size: 15,
+                    color: t.warning,
+                  ),
                   const GapX(S.xs),
                   Expanded(
                     child: Muted(
@@ -981,7 +1085,7 @@ class _AnalyticsScreenState extends State<AnalyticsScreen> {
         title: 'Day of the week',
         icon: Icons.view_week_outlined,
         hint:
-            'Average spend per weekday — useful for spotting the day your '
+            'Average spend per weekday   useful for spotting the day your '
             'money quietly disappears.',
         child: ColumnChart(
           data: [
@@ -1090,19 +1194,28 @@ class _SectionTabs extends StatelessWidget {
                 onTap: () => onChanged(s),
                 child: AnimatedContainer(
                   duration: Motion.fast,
-                  padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.sm),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: S.lg,
+                    vertical: S.sm,
+                  ),
                   decoration: BoxDecoration(
-                    color: s == value ? t.primary.withValues(alpha: 0.12) : t.surface,
+                    color: s == value
+                        ? t.primary.withValues(alpha: 0.12)
+                        : t.surface,
                     borderRadius: BorderRadius.circular(R.pill),
                     border: Border.all(
-                      color: s == value ? t.primary.withValues(alpha: 0.35) : t.border,
+                      color: s == value
+                          ? t.primary.withValues(alpha: 0.35)
+                          : t.border,
                     ),
                   ),
                   child: Text(
                     _labels[s]!,
                     style: TextStyle(
                       fontSize: AppType.label,
-                      fontWeight: s == value ? FontWeight.w700 : FontWeight.w500,
+                      fontWeight: s == value
+                          ? FontWeight.w700
+                          : FontWeight.w500,
                       color: s == value ? t.primary : t.foreground,
                     ),
                   ),
@@ -1116,7 +1229,12 @@ class _SectionTabs extends StatelessWidget {
 }
 
 class _Card extends StatelessWidget {
-  const _Card({required this.title, required this.icon, required this.child, this.hint});
+  const _Card({
+    required this.title,
+    required this.icon,
+    required this.child,
+    this.hint,
+  });
 
   final String title;
   final IconData icon;
@@ -1205,7 +1323,11 @@ class _PlanRow extends StatelessWidget {
                 ),
               ),
             ),
-            Amount(money(plan.spent), size: 12.5, color: over ? t.danger : t.foreground),
+            Amount(
+              money(plan.spent),
+              size: 12.5,
+              color: over ? t.danger : t.foreground,
+            ),
           ],
         ),
         const Gap(S.xs),
@@ -1224,7 +1346,10 @@ class _PlanRow extends StatelessWidget {
             ),
             const Spacer(),
             if (adjusted != 0)
-              Muted('${adjusted >= 0 ? 'raised' : 'cut'} ${money(adjusted.abs())}', size: 10.5),
+              Muted(
+                '${adjusted >= 0 ? 'raised' : 'cut'} ${money(adjusted.abs())}',
+                size: 10.5,
+              ),
           ],
         ),
       ],

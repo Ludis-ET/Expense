@@ -89,7 +89,12 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
       ),
       body: MeshBackground(
         child: ListView(
-          padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
+          padding: EdgeInsets.fromLTRB(
+            14,
+            8,
+            14,
+            ShellLayout.pageClearance(context),
+          ),
           children: [
             GlassCard(
               padding: const EdgeInsets.all(S.lg),
@@ -97,23 +102,33 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                 contentPadding: EdgeInsets.zero,
                 title: Text(
                   'Capture bank SMS',
-                  style: TextStyle(fontWeight: FontWeight.w700, color: t.foreground),
+                  style: TextStyle(
+                    fontWeight: FontWeight.w700,
+                    color: t.foreground,
+                  ),
                 ),
                 subtitle: Text(
                   sms.isPaired
                       ? 'Live messages from approved senders upload as drafts'
                       : 'Pair this phone to start capturing',
-                  style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                  style: TextStyle(
+                    fontSize: AppType.label,
+                    color: t.mutedForeground,
+                  ),
                 ),
                 value: sms.captureEnabled && sms.isPaired,
-                onChanged: sms.isPaired ? (v) => sms.setCaptureEnabled(v) : null,
+                onChanged: sms.isPaired
+                    ? (v) => sms.setCaptureEnabled(v)
+                    : null,
               ),
             ),
             const Gap(S.md),
             SectionLabel('THIS PHONE'),
             _Tile(
               icon: Icons.phonelink_setup_rounded,
-              title: sms.isPaired ? (sms.devices.deviceName ?? 'This phone') : 'Not paired',
+              title: sms.isPaired
+                  ? (sms.devices.deviceName ?? 'This phone')
+                  : 'Not paired',
               subtitle: sms.isPaired
                   ? 'Capturing here · ${sms.localPendingUploads} queued'
                   : 'Run setup to pair and grant SMS access',
@@ -123,12 +138,14 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               _Tile(
                 icon: Icons.link_off_rounded,
                 title: 'Unlink this phone',
-                subtitle: 'Stops uploads from this handset until you pair again',
+                subtitle:
+                    'Stops uploads from this handset until you pair again',
                 onTap: () async {
                   final ok = await confirm(
                     context,
                     title: 'Unlink this phone?',
-                    message: 'This phone will stop uploading SMS until paired again.',
+                    message:
+                        'This phone will stop uploading SMS until paired again.',
                     confirmLabel: 'Unlink',
                   );
                   if (!ok || !context.mounted) return;
@@ -176,7 +193,8 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                       await sms.revokeDevice(d.id);
                       if (context.mounted) toast(context, 'Device revoked');
                     } on ApiError catch (e) {
-                      if (context.mounted) toast(context, e.message, error: true);
+                      if (context.mounted)
+                        toast(context, e.message, error: true);
                     }
                   },
                 ),
@@ -196,23 +214,32 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               subtitle: sms.senderRules.isEmpty
                   ? 'Link SMS senders to wallets (accounts) and categories'
                   : '${sms.senderRules.length} mapped · tap to edit wallet & digits',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const MessagingPointsScreen(),
+                ),
+              ),
             ),
             if (sms.senderRules.isNotEmpty) ...[
               for (final r in sms.senderRules.take(4))
                 Padding(
                   padding: const EdgeInsets.only(bottom: S.sm),
                   child: AppCard(
-                    padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
-                    onTap: () => Navigator.of(
-                      context,
-                    ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: S.lg,
+                      vertical: S.md,
+                    ),
+                    onTap: () => Navigator.of(context).push(
+                      MaterialPageRoute(
+                        builder: (_) => const MessagingPointsScreen(),
+                      ),
+                    ),
                     child: Row(
                       children: [
                         Icon(
-                          r.enabled ? Icons.sms_rounded : Icons.sms_failed_outlined,
+                          r.enabled
+                              ? Icons.sms_rounded
+                              : Icons.sms_failed_outlined,
                           size: 18,
                           color: r.enabled ? t.primary : t.mutedForeground,
                         ),
@@ -240,7 +267,11 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
                             ],
                           ),
                         ),
-                        Icon(Icons.chevron_right_rounded, color: t.mutedForeground, size: 18),
+                        Icon(
+                          Icons.chevron_right_rounded,
+                          color: t.mutedForeground,
+                          size: 18,
+                        ),
                       ],
                     ),
                   ),
@@ -250,17 +281,20 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               icon: Icons.balance_rounded,
               title: 'Balance SMS reconciliation',
               subtitle: 'Alert when bank-reported balance drifts from a wallet',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SmsBalanceScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SmsBalanceScreen()),
+              ),
             ),
             _Tile(
               icon: Icons.monitor_heart_outlined,
               title: 'Sender health',
-              subtitle: 'Watch parser confidence and reparse after template changes',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SmsSenderHealthScreen())),
+              subtitle:
+                  'Watch parser confidence and reparse after template changes',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const SmsSenderHealthScreen(),
+                ),
+              ),
             ),
             _Tile(
               icon: Icons.history_rounded,
@@ -289,7 +323,11 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
             SectionLabel('PASTE PREVIEW'),
             AppTextField(controller: _previewSender, label: 'Sender'),
             const Gap(S.sm),
-            AppTextField(controller: _previewBody, label: 'Message body', maxLines: 4),
+            AppTextField(
+              controller: _previewBody,
+              label: 'Message body',
+              maxLines: 4,
+            ),
             const Gap(S.sm),
             AppButton(
               label: _previewBusy ? 'Parsing…' : 'Preview parse',
@@ -319,14 +357,17 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               const Gap(S.sm),
               Text(
                 _previewResult!,
-                style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                style: TextStyle(
+                  fontSize: AppType.label,
+                  color: t.mutedForeground,
+                ),
               ),
             ],
             const Gap(S.lg),
             Muted(
               'Santim is distributed by direct APK install. Google Play does not '
               'allow expense apps to request SMS permission. Pair each phone you '
-              'want to capture from — they all share the same inbox and wallet mappings.',
+              'want to capture from   they all share the same inbox and wallet mappings.',
               size: 11.5,
               height: 1.4,
               maxLines: 5,
@@ -339,7 +380,11 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
 }
 
 class _DeviceCard extends StatelessWidget {
-  const _DeviceCard({required this.device, required this.isThisPhone, required this.onRevoke});
+  const _DeviceCard({
+    required this.device,
+    required this.isThisPhone,
+    required this.onRevoke,
+  });
 
   final PairedDevice device;
   final bool isThisPhone;
@@ -355,7 +400,9 @@ class _DeviceCard extends StatelessWidget {
         child: Row(
           children: [
             Icon(
-              isThisPhone ? Icons.smartphone_rounded : Icons.phone_android_rounded,
+              isThisPhone
+                  ? Icons.smartphone_rounded
+                  : Icons.phone_android_rounded,
               size: 20,
               color: isThisPhone ? t.primary : t.mutedForeground,
             ),
@@ -376,7 +423,8 @@ class _DeviceCard extends StatelessWidget {
                     [
                       if (isThisPhone) 'This phone',
                       device.platform,
-                      if (device.lastSeenAt != null) 'Seen ${formatDate(device.lastSeenAt)}',
+                      if (device.lastSeenAt != null)
+                        'Seen ${formatDate(device.lastSeenAt)}',
                       '${device.messageCount} msgs',
                     ].join(' · '),
                     size: 11.5,

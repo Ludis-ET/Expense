@@ -8,8 +8,8 @@ import '../../core/layout.dart';
 import '../../models/models.dart';
 import '../../widgets/ui.dart';
 
-/// The learning hub. Suggestions at the top are data-driven — they read your
-/// own figures — and the guides underneath are static explainers.
+/// The learning hub. Suggestions at the top are data-driven   they read your
+/// own figures   and the guides underneath are static explainers.
 class GuidesScreen extends StatefulWidget {
   const GuidesScreen({super.key});
 
@@ -98,7 +98,12 @@ class _GuidesScreenState extends State<GuidesScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (_loading && data == null)
@@ -186,7 +191,9 @@ class _Chip extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? t.primary.withValues(alpha: 0.12) : t.surface,
           borderRadius: BorderRadius.circular(R.pill),
-          border: Border.all(color: active ? t.primary.withValues(alpha: 0.35) : t.border),
+          border: Border.all(
+            color: active ? t.primary.withValues(alpha: 0.35) : t.border,
+          ),
         ),
         child: Text(
           label,
@@ -227,9 +234,9 @@ class _SuggestionCard extends StatelessWidget {
       borderColor: tone.withValues(alpha: 0.25),
       onTap: linked == null
           ? null
-          : () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => GuideReader(guide: linked))),
+          : () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => GuideReader(guide: linked)),
+            ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -250,7 +257,11 @@ class _SuggestionCard extends StatelessWidget {
                 const Gap(S.xxs),
                 Text(
                   suggestion.body,
-                  style: TextStyle(fontSize: AppType.label, height: 1.5, color: t.mutedForeground),
+                  style: TextStyle(
+                    fontSize: AppType.label,
+                    height: 1.5,
+                    color: t.mutedForeground,
+                  ),
                 ),
                 if (linked != null) ...[
                   const Gap(S.sm),
@@ -286,8 +297,9 @@ class _GuideCard extends StatelessWidget {
     final t = context.t;
     return AppCard(
       padding: const EdgeInsets.all(S.lg),
-      onTap: () =>
-          Navigator.of(context).push(MaterialPageRoute(builder: (_) => GuideReader(guide: guide))),
+      onTap: () => Navigator.of(
+        context,
+      ).push(MaterialPageRoute(builder: (_) => GuideReader(guide: guide))),
       child: Row(
         children: [
           Container(
@@ -298,7 +310,10 @@ class _GuideCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(R.md),
             ),
             alignment: Alignment.center,
-            child: Text(guide.emoji, style: const TextStyle(fontSize: AppType.heading)),
+            child: Text(
+              guide.emoji,
+              style: const TextStyle(fontSize: AppType.heading),
+            ),
           ),
           const GapX(S.md),
           Expanded(
@@ -345,7 +360,10 @@ class GuideReader extends StatelessWidget {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(guide.emoji, style: const TextStyle(fontSize: AppType.heading)),
+        title: Text(
+          guide.emoji,
+          style: const TextStyle(fontSize: AppType.heading),
+        ),
       ),
       body: MeshBackground(
         showGrid: false,
@@ -369,13 +387,20 @@ class GuideReader extends StatelessWidget {
               delay: const Duration(milliseconds: 50),
               child: Text(
                 guide.tagline,
-                style: TextStyle(fontSize: AppType.body, height: 1.5, color: t.mutedForeground),
+                style: TextStyle(
+                  fontSize: AppType.body,
+                  height: 1.5,
+                  color: t.mutedForeground,
+                ),
               ),
             ),
             const Gap(S.md),
             Row(
               children: [
-                AppBadge(guide.category.replaceAll('-', ' '), tone: BadgeTone.primary),
+                AppBadge(
+                  guide.category.replaceAll('-', ' '),
+                  tone: BadgeTone.primary,
+                ),
                 const GapX(S.sm),
                 Muted('${guide.readMins} min read', size: 11.5),
               ],
@@ -426,7 +451,9 @@ class _Markdown extends StatelessWidget {
         for (final line in blocks)
           Padding(
             padding: const EdgeInsets.only(bottom: S.md),
-            child: line.trimLeft().startsWith('- ') || line.trimLeft().startsWith('* ')
+            child:
+                line.trimLeft().startsWith('- ') ||
+                    line.trimLeft().startsWith('* ')
                 ? Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -435,10 +462,15 @@ class _Markdown extends StatelessWidget {
                         child: Container(
                           width: 5,
                           height: 5,
-                          decoration: BoxDecoration(color: t.primary, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: t.primary,
+                            shape: BoxShape.circle,
+                          ),
                         ),
                       ),
-                      Expanded(child: _rich(context, line.trimLeft().substring(2))),
+                      Expanded(
+                        child: _rich(context, line.trimLeft().substring(2)),
+                      ),
                     ],
                   )
                 : _rich(context, line),
@@ -469,7 +501,11 @@ class _Markdown extends StatelessWidget {
 
     return RichText(
       text: TextSpan(
-        style: TextStyle(fontSize: AppType.body, height: 1.65, color: t.mutedForeground),
+        style: TextStyle(
+          fontSize: AppType.body,
+          height: 1.65,
+          color: t.mutedForeground,
+        ),
         children: spans.isEmpty ? [TextSpan(text: line)] : spans,
       ),
     );

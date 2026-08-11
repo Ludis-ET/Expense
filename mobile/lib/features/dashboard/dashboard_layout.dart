@@ -1,5 +1,3 @@
-import 'dart:math' as math;
-
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -27,7 +25,7 @@ class DashboardCardSpec {
   final IconData icon;
 }
 
-/// Insight cards — these ride in the tier-2 carousel.
+/// Insight cards   these ride in the tier-2 carousel.
 const kInsightCards = <DashboardCardSpec>[
   DashboardCardSpec(
     id: 'insight',
@@ -131,14 +129,17 @@ const kBodyCards = <DashboardCardSpec>[
   ),
 ];
 
-List<DashboardCardSpec> get kAllDashboardCards => [...kInsightCards, ...kBodyCards];
+List<DashboardCardSpec> get kAllDashboardCards => [
+  ...kInsightCards,
+  ...kBodyCards,
+];
 
-/// A horizontally paged strip of insight cards. Collapses what used to be six
-/// stacked full-width cards — roughly five screen-heights of scrolling — into
-/// one screen height the user swipes through.
-///
-/// Height tracks the **current** page (animated), so short insights are not
-/// forced to match a tall sibling like Financial Health.
+/// Shared height for every Worth-knowing peek   keeps the carousel even and
+/// avoids clipped or half-empty tiles.
+const kInsightPeekHeight = 232.0;
+
+/// Horizontally paged insight peeks. Every page fills [kInsightPeekHeight];
+/// tap a card for the full story in a sheet.
 class InsightCarousel extends StatefulWidget {
   const InsightCarousel({super.key, required this.pages});
 
@@ -149,10 +150,10 @@ class InsightCarousel extends StatefulWidget {
 }
 
 class _InsightCarouselState extends State<InsightCarousel> {
-  late final PageController _controller = PageController(viewportFraction: 0.93);
+  late final PageController _controller = PageController(
+    viewportFraction: 0.92,
+  );
   int _page = 0;
-  final Map<int, double> _heights = {};
-  static const _fallbackHeight = 160.0;
 
   @override
   void dispose() {
@@ -161,57 +162,36 @@ class _InsightCarouselState extends State<InsightCarousel> {
   }
 
   @override
-  void didUpdateWidget(covariant InsightCarousel oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.pages.length != widget.pages.length) {
-      _heights.clear();
-      _page = _page.clamp(0, math.max(0, widget.pages.length - 1));
-    }
-  }
-
-  void _reportHeight(int index, double height) {
-    if (height <= 0) return;
-    final prev = _heights[index];
-    if (prev != null && (prev - height).abs() < 1) return;
-    setState(() => _heights[index] = height);
-  }
-
-  double get _currentHeight => _heights[_page] ?? _fallbackHeight;
-
-  @override
   Widget build(BuildContext context) {
     if (widget.pages.isEmpty) return const SizedBox.shrink();
-    if (widget.pages.length == 1) return widget.pages.single;
+    if (widget.pages.length == 1) {
+      return SizedBox(
+        height: kInsightPeekHeight,
+        width: double.infinity,
+        child: widget.pages.single,
+      );
+    }
 
     final t = context.t;
 
     return Column(
       children: [
-        AnimatedSize(
-          duration: Motion.enter,
-          curve: Motion.easeOut,
-          alignment: Alignment.topCenter,
-          child: SizedBox(
-            height: _currentHeight,
-            width: double.infinity,
-            child: PageView.builder(
-              controller: _controller,
-              itemCount: widget.pages.length,
-              padEnds: false,
-              onPageChanged: (i) {
-                Haptics.select();
-                setState(() => _page = i);
-              },
-              itemBuilder: (_, i) => Padding(
-                padding: EdgeInsets.only(right: i == widget.pages.length - 1 ? 0 : S.sm),
-                child: Align(
-                  alignment: Alignment.topCenter,
-                  child: _MeasureSize(
-                    onChange: (size) => _reportHeight(i, size.height),
-                    child: widget.pages[i],
-                  ),
-                ),
+        SizedBox(
+          height: kInsightPeekHeight,
+          width: double.infinity,
+          child: PageView.builder(
+            controller: _controller,
+            itemCount: widget.pages.length,
+            padEnds: false,
+            onPageChanged: (i) {
+              Haptics.select();
+              setState(() => _page = i);
+            },
+            itemBuilder: (_, i) => Padding(
+              padding: EdgeInsets.only(
+                right: i == widget.pages.length - 1 ? 0 : S.sm,
               ),
+              child: SizedBox.expand(child: widget.pages[i]),
             ),
           ),
         ),
@@ -238,33 +218,6 @@ class _InsightCarouselState extends State<InsightCarousel> {
         ),
       ],
     );
-  }
-}
-
-/// Reports child layout size upward without affecting paint.
-class _MeasureSize extends StatefulWidget {
-  const _MeasureSize({required this.onChange, required this.child});
-
-  final ValueChanged<Size> onChange;
-  final Widget child;
-
-  @override
-  State<_MeasureSize> createState() => _MeasureSizeState();
-}
-
-class _MeasureSizeState extends State<_MeasureSize> {
-  Size? _last;
-
-  @override
-  Widget build(BuildContext context) {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      final size = context.size;
-      if (size == null || size == _last) return;
-      _last = size;
-      widget.onChange(size);
-    });
-    return widget.child;
   }
 }
 
@@ -336,7 +289,10 @@ class CollapsibleSection extends StatelessWidget {
                         child: Text(
                           summary!,
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            color: t.mutedForeground,
+                          ),
                         ),
                       ),
                       const GapX(S.sm),
@@ -371,13 +327,19 @@ class CollapsibleSection extends StatelessWidget {
                       child: TextButton(
                         onPressed: onTrailingTap,
                         style: TextButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: S.md,
+                            vertical: S.sm,
+                          ),
                           minimumSize: const Size(0, 44),
                           foregroundColor: t.primary,
                         ),
                         child: Text(
                           trailingLabel!,
-                          style: const TextStyle(fontSize: AppType.bodySm, fontWeight: W.semibold),
+                          style: const TextStyle(
+                            fontSize: AppType.bodySm,
+                            fontWeight: W.semibold,
+                          ),
                         ),
                       ),
                     ),
@@ -385,7 +347,9 @@ class CollapsibleSection extends StatelessWidget {
                 ],
               ),
             ),
-            crossFadeState: open ? CrossFadeState.showSecond : CrossFadeState.showFirst,
+            crossFadeState: open
+                ? CrossFadeState.showSecond
+                : CrossFadeState.showFirst,
             duration: Motion.enter,
             sizeCurve: Motion.easeOut,
             firstCurve: Motion.easeOut,

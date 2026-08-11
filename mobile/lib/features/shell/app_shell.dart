@@ -41,7 +41,7 @@ class AppShell extends StatefulWidget {
   @override
   State<AppShell> createState() => AppShellState();
 
-  /// Lets any descendant jump tabs — used by "View all →" style links.
+  /// Lets any descendant jump tabs   used by "View all →" style links.
   static AppShellState of(BuildContext context) =>
       context.findAncestorStateOfType<AppShellState>()!;
 }
@@ -49,7 +49,9 @@ class AppShell extends StatefulWidget {
 class AppShellState extends State<AppShell>
     with WidgetsBindingObserver, SingleTickerProviderStateMixin {
   final _scaffoldKey = GlobalKey<ScaffoldState>();
-  final _navKeys = {for (final t in ShellTab.values) t: GlobalKey<NavigatorState>()};
+  final _navKeys = {
+    for (final t in ShellTab.values) t: GlobalKey<NavigatorState>(),
+  };
   late final _routeObservers = {
     for (final t in ShellTab.values)
       t: _RouteDepthObserver(onChanged: () => _syncBrandBar(forTab: t)),
@@ -58,7 +60,7 @@ class AppShellState extends State<AppShell>
   bool _brandBarVisible = true;
 
   /// Drives the shared-axis transition between tabs. Switching destinations
-  /// used to be a bare `setState` swap — an instant cut on the move users make
+  /// used to be a bare `setState` swap   an instant cut on the move users make
   /// more than any other.
   late final AnimationController _swap = AnimationController(
     vsync: this,
@@ -126,21 +128,25 @@ class AppShellState extends State<AppShell>
     }
     Haptics.select();
     setState(() {
-      _swapDirection = ShellTab.values.indexOf(tab) > ShellTab.values.indexOf(_tab) ? 1 : -1;
+      _swapDirection =
+          ShellTab.values.indexOf(tab) > ShellTab.values.indexOf(_tab) ? 1 : -1;
       _tab = tab;
     });
     _swap
       ..value = 0
       ..forward();
-    WidgetsBinding.instance.addPostFrameCallback((_) => _syncBrandBar(forTab: tab));
+    WidgetsBinding.instance.addPostFrameCallback(
+      (_) => _syncBrandBar(forTab: tab),
+    );
   }
 
   /// Pushes a route inside the active tab so the bottom bar stays put.
-  Future<T?> push<T>(Widget page) =>
-      _navKeys[_tab]!.currentState!.push<T>(MaterialPageRoute(builder: (_) => page));
+  Future<T?> push<T>(Widget page) => _navKeys[_tab]!.currentState!.push<T>(
+    MaterialPageRoute(builder: (_) => page),
+  );
 
   Future<void> openAddTransaction({String? presetKind}) async {
-    // Opening a sheet is not a commit — the buzz belongs on the save.
+    // Opening a sheet is not a commit   the buzz belongs on the save.
     Haptics.toggle();
     final created = await showTransactionForm(context, presetKind: presetKind);
     if (created == true && mounted) {
@@ -163,9 +169,24 @@ class AppShellState extends State<AppShell>
             mainAxisSize: MainAxisSize.min,
             children: [
               for (final (kind, label, icon, tone) in const [
-                ('EXPENSE', 'Expense', Icons.north_east_rounded, BadgeTone.danger),
-                ('INCOME', 'Income', Icons.south_west_rounded, BadgeTone.success),
-                ('TRANSFER', 'Transfer', Icons.swap_horiz_rounded, BadgeTone.info),
+                (
+                  'EXPENSE',
+                  'Expense',
+                  Icons.north_east_rounded,
+                  BadgeTone.danger,
+                ),
+                (
+                  'INCOME',
+                  'Income',
+                  Icons.south_west_rounded,
+                  BadgeTone.success,
+                ),
+                (
+                  'TRANSFER',
+                  'Transfer',
+                  Icons.swap_horiz_rounded,
+                  BadgeTone.info,
+                ),
               ])
                 Padding(
                   padding: const EdgeInsets.only(bottom: S.sm),
@@ -229,7 +250,9 @@ class AppShellState extends State<AppShell>
                   alignment: Alignment.topCenter,
                   clipBehavior: Clip.hardEdge,
                   child: _brandBarVisible
-                      ? _Topbar(onMenu: () => _scaffoldKey.currentState?.openDrawer())
+                      ? _Topbar(
+                          onMenu: () => _scaffoldKey.currentState?.openDrawer(),
+                        )
                       : const SizedBox.shrink(),
                 ),
                 Expanded(
@@ -238,7 +261,8 @@ class AppShellState extends State<AppShell>
                   child: AnimatedBuilder(
                     animation: _swap,
                     builder: (context, child) {
-                      if (MediaQuery.disableAnimationsOf(context)) return child!;
+                      if (MediaQuery.disableAnimationsOf(context))
+                        return child!;
                       final v = Motion.shared.transform(_swap.value);
                       return Opacity(
                         opacity: v,
@@ -295,7 +319,11 @@ class AppShellState extends State<AppShell>
 /// Each tab keeps its own navigation stack, so pushing a detail screen inside
 /// "Plan" does not reset "Home".
 class _TabNavigator extends StatelessWidget {
-  const _TabNavigator({required this.navigatorKey, required this.observers, required this.child});
+  const _TabNavigator({
+    required this.navigatorKey,
+    required this.observers,
+    required this.child,
+  });
 
   final GlobalKey<NavigatorState> navigatorKey;
   final List<NavigatorObserver> observers;
@@ -306,7 +334,8 @@ class _TabNavigator extends StatelessWidget {
     return Navigator(
       key: navigatorKey,
       observers: observers,
-      onGenerateRoute: (settings) => MaterialPageRoute(settings: settings, builder: (_) => child),
+      onGenerateRoute: (settings) =>
+          MaterialPageRoute(settings: settings, builder: (_) => child),
     );
   }
 }
@@ -316,19 +345,23 @@ class _RouteDepthObserver extends NavigatorObserver {
   _RouteDepthObserver({required this.onChanged});
   final VoidCallback onChanged;
 
-  void _notify() => WidgetsBinding.instance.addPostFrameCallback((_) => onChanged());
+  void _notify() =>
+      WidgetsBinding.instance.addPostFrameCallback((_) => onChanged());
 
   @override
-  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) => _notify();
+  void didPush(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _notify();
 
   @override
   void didPop(Route<dynamic> route, Route<dynamic>? previousRoute) => _notify();
 
   @override
-  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) => _notify();
+  void didRemove(Route<dynamic> route, Route<dynamic>? previousRoute) =>
+      _notify();
 
   @override
-  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) => _notify();
+  void didReplace({Route<dynamic>? newRoute, Route<dynamic>? oldRoute}) =>
+      _notify();
 }
 
 // ---------------------------------------------------------------------------
@@ -351,11 +384,17 @@ class _Topbar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: S.md),
       decoration: BoxDecoration(
         color: t.surface,
-        border: Border(bottom: BorderSide(color: t.border.withValues(alpha: 0.7))),
+        border: Border(
+          bottom: BorderSide(color: t.border.withValues(alpha: 0.7)),
+        ),
       ),
       child: Row(
         children: [
-          IconPill(icon: Icons.menu_rounded, background: Colors.transparent, onTap: onMenu),
+          IconPill(
+            icon: Icons.menu_rounded,
+            background: Colors.transparent,
+            onTap: onMenu,
+          ),
           const GapX(S.hair),
           const BrandMark(size: 26),
           const GapX(S.sm),
@@ -369,14 +408,19 @@ class _Topbar extends StatelessWidget {
             tooltip: 'Search',
             onTap: () {
               Haptics.select();
-              Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const GlobalSearchScreen()));
+              Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+              );
             },
           ),
-          if (data.currencies.length > 1) ...[_CurrencySwitcher(data: data), const GapX(S.xs)],
+          if (data.currencies.length > 1) ...[
+            _CurrencySwitcher(data: data),
+            const GapX(S.xs),
+          ],
           IconPill(
-            icon: prefs.amountsHidden ? Icons.visibility_off_outlined : Icons.visibility_outlined,
+            icon: prefs.amountsHidden
+                ? Icons.visibility_off_outlined
+                : Icons.visibility_outlined,
             background: Colors.transparent,
             tooltip: prefs.amountsHidden ? 'Show amounts' : 'Hide amounts',
             onTap: () {
@@ -391,7 +435,9 @@ class _Topbar extends StatelessWidget {
             tooltip: 'Message inbox',
             onTap: () {
               Haptics.select();
-              Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SmsInboxHub()));
+              Navigator.of(
+                context,
+              ).push(MaterialPageRoute(builder: (_) => const SmsInboxHub()));
             },
           ),
           IconPill(
@@ -403,7 +449,11 @@ class _Topbar extends StatelessWidget {
           const GapX(S.xxs),
           GestureDetector(
             onTap: onMenu,
-            child: Avatar(name: user?.name ?? '?', avatarId: user?.avatarId, size: 30),
+            child: Avatar(
+              name: user?.name ?? '?',
+              avatarId: user?.avatarId,
+              size: 30,
+            ),
           ),
           const GapX(S.xxs),
         ],
@@ -412,7 +462,7 @@ class _Topbar extends StatelessWidget {
   }
 }
 
-/// `CurrencyBadge` — only rendered when the user actually holds more than one
+/// `CurrencyBadge`   only rendered when the user actually holds more than one
 /// currency, since totals are never mixed.
 class _CurrencySwitcher extends StatelessWidget {
   const _CurrencySwitcher({required this.data});
@@ -429,7 +479,9 @@ class _CurrencySwitcher extends StatelessWidget {
           subtitle: 'Totals are never mixed across currencies.',
           scrollable: false,
           builder: (ctx) => Padding(
-            padding: EdgeInsets.only(bottom: 20 + MediaQuery.of(ctx).padding.bottom),
+            padding: EdgeInsets.only(
+              bottom: 20 + MediaQuery.of(ctx).padding.bottom,
+            ),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
@@ -518,7 +570,12 @@ class _BottomNav extends StatelessWidget {
     const askBarPadding = 8.0;
 
     return SizedBox(
-      height: fabOverlap + navRowHeight + askBarHeight + askBarPadding + bottomInset,
+      height:
+          fabOverlap +
+          navRowHeight +
+          askBarHeight +
+          askBarPadding +
+          bottomInset,
       child: Stack(
         clipBehavior: Clip.none,
         alignment: Alignment.topCenter,
@@ -531,10 +588,14 @@ class _BottomNav extends StatelessWidget {
             child: DecoratedBox(
               decoration: BoxDecoration(
                 color: t.surface,
-                border: Border(top: BorderSide(color: t.border.withValues(alpha: 0.8))),
+                border: Border(
+                  top: BorderSide(color: t.border.withValues(alpha: 0.8)),
+                ),
                 boxShadow: [
                   BoxShadow(
-                    color: Colors.black.withValues(alpha: t.isDark ? 0.28 : 0.05),
+                    color: Colors.black.withValues(
+                      alpha: t.isDark ? 0.28 : 0.05,
+                    ),
                     blurRadius: 16,
                     offset: const Offset(0, -4),
                   ),
@@ -551,18 +612,31 @@ class _BottomNav extends StatelessWidget {
                         children: [
                           for (var i = 0; i < 2; i++)
                             Expanded(
-                              child: _NavItem(item: _items[i], active: active, onSelect: onSelect),
+                              child: _NavItem(
+                                item: _items[i],
+                                active: active,
+                                onSelect: onSelect,
+                              ),
                             ),
                           const SizedBox(width: fabSize + 12),
                           for (var i = 2; i < 4; i++)
                             Expanded(
-                              child: _NavItem(item: _items[i], active: active, onSelect: onSelect),
+                              child: _NavItem(
+                                item: _items[i],
+                                active: active,
+                                onSelect: onSelect,
+                              ),
                             ),
                         ],
                       ),
                     ),
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(12, 0, 12, askBarPadding),
+                      padding: const EdgeInsets.fromLTRB(
+                        12,
+                        0,
+                        12,
+                        askBarPadding,
+                      ),
                       child: PressableScale(
                         scale: 0.99,
                         onTap: onAsk,
@@ -576,7 +650,11 @@ class _BottomNav extends StatelessWidget {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              Icon(Icons.auto_awesome, size: 14, color: t.primary),
+                              Icon(
+                                Icons.auto_awesome,
+                                size: 14,
+                                color: t.primary,
+                              ),
                               const GapX(S.xs),
                               Text(
                                 'Ask Santim',
@@ -597,10 +675,14 @@ class _BottomNav extends StatelessWidget {
             ),
           ),
 
-          // FAB — top half floats above the bar, fully inside this widget's bounds
+          // FAB   top half floats above the bar, fully inside this widget's bounds
           Positioned(
             top: 0,
-            child: _AddButton(onTap: onAdd, onLongPress: onAddLongPress, size: fabSize),
+            child: _AddButton(
+              onTap: onAdd,
+              onLongPress: onAddLongPress,
+              size: fabSize,
+            ),
           ),
         ],
       ),
@@ -609,7 +691,11 @@ class _BottomNav extends StatelessWidget {
 }
 
 class _NavItem extends StatelessWidget {
-  const _NavItem({required this.item, required this.active, required this.onSelect});
+  const _NavItem({
+    required this.item,
+    required this.active,
+    required this.onSelect,
+  });
 
   final (ShellTab, IconData, String) item;
   final ShellTab active;
@@ -631,10 +717,16 @@ class _NavItem extends StatelessWidget {
             width: 34,
             height: 28,
             decoration: BoxDecoration(
-              color: isActive ? t.primary.withValues(alpha: 0.12) : Colors.transparent,
+              color: isActive
+                  ? t.primary.withValues(alpha: 0.12)
+                  : Colors.transparent,
               borderRadius: BorderRadius.circular(R.sm + 2),
             ),
-            child: Icon(item.$2, size: 19, color: isActive ? t.primary : t.mutedForeground),
+            child: Icon(
+              item.$2,
+              size: 19,
+              color: isActive ? t.primary : t.mutedForeground,
+            ),
           ),
           const Gap(S.hair),
           Text(
@@ -681,7 +773,10 @@ class _QuickKindRow extends StatelessWidget {
         label: 'Log $label',
         child: ExcludeSemantics(
           child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: S.lg,
+              vertical: S.md,
+            ),
             decoration: BoxDecoration(
               color: t.surfaceMuted.withValues(alpha: 0.5),
               borderRadius: BorderRadius.circular(R.md),
@@ -706,7 +801,11 @@ class _QuickKindRow extends StatelessWidget {
                     ),
                   ),
                 ),
-                Icon(Icons.arrow_forward_rounded, size: 18, color: t.mutedForeground),
+                Icon(
+                  Icons.arrow_forward_rounded,
+                  size: 18,
+                  color: t.mutedForeground,
+                ),
               ],
             ),
           ),
@@ -720,7 +819,7 @@ class _AddButton extends StatelessWidget {
   const _AddButton({required this.onTap, this.onLongPress, this.size = 56});
   final VoidCallback onTap;
 
-  /// Long press skips the kind picker — expense, income or transfer straight
+  /// Long press skips the kind picker   expense, income or transfer straight
   /// away, for the entries logged over and over.
   final VoidCallback? onLongPress;
   final double size;
@@ -764,7 +863,11 @@ class _AddButton extends StatelessWidget {
                 ),
                 border: Border.all(color: t.background, width: 4),
               ),
-              child: Icon(Icons.add_rounded, size: size * 0.48, color: t.primaryForeground),
+              child: Icon(
+                Icons.add_rounded,
+                size: size * 0.48,
+                color: t.primaryForeground,
+              ),
             ),
           ),
         ),
@@ -875,11 +978,20 @@ class _AppDrawer extends StatelessWidget {
                 children: [
                   for (var g = 0; g < _groups.length; g++) ...[
                     Padding(
-                      padding: const EdgeInsets.fromLTRB(S.md, S.md, S.md, S.xs),
+                      padding: const EdgeInsets.fromLTRB(
+                        S.md,
+                        S.md,
+                        S.md,
+                        S.xs,
+                      ),
                       child: Eyebrow(_groups[g].$1),
                     ),
                     for (final item in _groups[g].$2)
-                      _DrawerItem(icon: item.$2, label: item.$3, onTap: () => go(item.$1)),
+                      _DrawerItem(
+                        icon: item.$2,
+                        label: item.$3,
+                        onTap: () => go(item.$1),
+                      ),
                   ],
                 ],
               ),
@@ -900,7 +1012,11 @@ class _AppDrawer extends StatelessWidget {
                 ),
                 child: Row(
                   children: [
-                    Avatar(name: user?.name ?? '?', avatarId: user?.avatarId, size: 36),
+                    Avatar(
+                      name: user?.name ?? '?',
+                      avatarId: user?.avatarId,
+                      size: 36,
+                    ),
                     const GapX(S.sm),
                     Expanded(
                       child: Column(
@@ -928,7 +1044,8 @@ class _AppDrawer extends StatelessWidget {
                         final ok = await confirm(
                           context,
                           title: 'Sign out?',
-                          message: 'You will need your email and password to get back in.',
+                          message:
+                              'You will need your email and password to get back in.',
                           confirmLabel: 'Sign out',
                         );
                         if (ok && context.mounted) {
@@ -948,7 +1065,11 @@ class _AppDrawer extends StatelessWidget {
 }
 
 class _DrawerItem extends StatelessWidget {
-  const _DrawerItem({required this.icon, required this.label, required this.onTap});
+  const _DrawerItem({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
 
   final IconData icon;
   final String label;
@@ -965,7 +1086,10 @@ class _DrawerItem extends StatelessWidget {
           borderRadius: BorderRadius.circular(R.md),
           onTap: onTap,
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+            padding: const EdgeInsets.symmetric(
+              horizontal: S.md,
+              vertical: S.md,
+            ),
             child: Row(
               children: [
                 Icon(icon, size: 18, color: t.mutedForeground),

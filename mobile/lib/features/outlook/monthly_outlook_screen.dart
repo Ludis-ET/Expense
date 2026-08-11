@@ -13,12 +13,13 @@ import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
 import '../../widgets/ui.dart';
 import '../budgets/budget_detail_screen.dart';
+import '../dashboard/dashboard_widgets.dart';
 import '../recurring/recurring_screen.dart';
 import '../shell/app_shell.dart';
 
 /// Full-screen monthly cashflow outlook.
 ///
-/// The question this page answers — "how much do I need to earn?" — has three
+/// The question this page answers   "how much do I need to earn?"   has three
 /// honest answers, not one. Collapsing them into a single figure hid which
 /// lever to pull, and quietly folded in a surprise reserve sized from the
 /// current month's own overspending. Here each layer is selectable and every
@@ -86,7 +87,10 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
         actions: [
           TextButton(
             onPressed: () => AppShell.of(context).push(const RecurringScreen()),
-            child: Text('Manage', style: TextStyle(color: t.primary, fontWeight: W.bold)),
+            child: Text(
+              'Manage',
+              style: TextStyle(color: t.primary, fontWeight: W.bold),
+            ),
           ),
         ],
       ),
@@ -100,7 +104,12 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
           ]),
           color: t.primary,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(S.lg, S.xxs, S.lg, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              S.lg,
+              S.xxs,
+              S.lg,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               FadeInUp(
@@ -122,7 +131,11 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
               const Gap(S.md),
               FadeInUp(
                 delay: const Duration(milliseconds: 40),
-                child: _LayerBreakdown(outlook: outlook, money: money, target: _target),
+                child: _LayerBreakdown(
+                  outlook: outlook,
+                  money: money,
+                  target: _target,
+                ),
               ),
 
               if (outlook.breakEvenDay != null || outlook.floorSpend > 0) ...[
@@ -154,14 +167,21 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
                 const Gap(S.md),
                 FadeInUp(
                   delay: const Duration(milliseconds: 100),
-                  child: _CoverageHistoryCard(history: outlook.history!, money: money),
+                  child: _CoverageHistoryCard(
+                    history: outlook.history!,
+                    money: money,
+                  ),
                 ),
               ],
 
               const Gap(S.md),
               FadeInUp(
                 delay: const Duration(milliseconds: 120),
-                child: _ActualVsExpected(outlook: outlook, money: money, target: _target),
+                child: _ActualVsExpected(
+                  outlook: outlook,
+                  money: money,
+                  target: _target,
+                ),
               ),
 
               if (outlook.repeatCandidates.isNotEmpty) ...[
@@ -185,16 +205,19 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
               const Gap(S.xl),
               SectionLabel(
                 'RECURRING BILLS',
-                hint: 'Rules that fire whether or not you act. These alone are the Floor target.',
+                hint:
+                    'Rules that fire whether or not you act. These alone are the Floor target.',
               ),
               if (outlook.expenseLines.isEmpty)
                 _EmptyHint(
                   icon: Icons.north_east_rounded,
                   title: 'No recurring bills',
-                  body: 'Rent, utilities and subscriptions belong here — they are the '
+                  body:
+                      'Rent, utilities and subscriptions belong here   they are the '
                       'floor under everything else.',
                   actionLabel: 'Add a bill',
-                  onAction: () => AppShell.of(context).push(const RecurringScreen()),
+                  onAction: () =>
+                      AppShell.of(context).push(const RecurringScreen()),
                 )
               else
                 for (var i = 0; i < outlook.expenseLines.length; i++)
@@ -211,8 +234,9 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
               const Gap(S.md),
               SectionLabel(
                 'BUDGET PLANS',
-                hint: 'Each plan\'s planned amount. Where a recurring bill already pays for '
-                    'the same category, the plan is counted once — not twice.',
+                hint:
+                    'Each plan\'s planned amount. Where a recurring bill already pays for '
+                    'the same category, the plan is counted once   not twice.',
               ),
               if (outlook.planLines.isEmpty)
                 _EmptyHint(
@@ -231,23 +255,27 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
                       money: money,
                       total: outlook.requiredFor(_target),
                       accent: t.primary,
-                      onTap: () => AppShell.of(context)
-                          .push(BudgetDetailScreen(budgetId: outlook.planLines[i].id)),
+                      onTap: () => AppShell.of(context).push(
+                        BudgetDetailScreen(budgetId: outlook.planLines[i].id),
+                      ),
                     ),
                   ),
 
               const Gap(S.md),
               SectionLabel(
                 'YOUR RECURRING INCOME',
-                hint: 'What your salary and side-income rules forecast, against the target above.',
+                hint:
+                    'What your salary and side-income rules forecast, against the target above.',
               ),
               if (outlook.incomeLines.isEmpty)
                 _EmptyHint(
                   icon: Icons.south_west_rounded,
                   title: 'No recurring income yet',
-                  body: 'Add salary or side income so Santim can check coverage.',
+                  body:
+                      'Add salary or side income so Santim can check coverage.',
                   actionLabel: 'Add income rule',
-                  onAction: () => AppShell.of(context).push(const RecurringScreen()),
+                  onAction: () =>
+                      AppShell.of(context).push(const RecurringScreen()),
                 )
               else
                 for (var i = 0; i < outlook.incomeLines.length; i++)
@@ -267,7 +295,8 @@ class _MonthlyOutlookScreenState extends State<MonthlyOutlookScreen> {
                 icon: Icons.repeat_rounded,
                 expand: true,
                 variant: BtnVariant.outline,
-                onPressed: () => AppShell.of(context).push(const RecurringScreen()),
+                onPressed: () =>
+                    AppShell.of(context).push(const RecurringScreen()),
               ),
             ],
           ),
@@ -359,8 +388,8 @@ class _TargetHero extends StatelessWidget {
               tone: (coverage ?? 0) >= 100
                   ? BadgeTone.success
                   : (coverage ?? 0) >= 80
-                      ? BadgeTone.warning
-                      : BadgeTone.danger,
+                  ? BadgeTone.warning
+                  : BadgeTone.danger,
             ),
             const Gap(S.sm),
             Row(
@@ -441,7 +470,8 @@ class _LayerBreakdown extends StatelessWidget {
         children: [
           CardTitleRow(
             title: 'What builds the target',
-            hint: 'Bills are recurring rules. Plans are envelope amounts, minus anything a '
+            hint:
+                'Bills are recurring rules. Plans are envelope amounts, minus anything a '
                 'bill already covers for the same category. The buffer is for surprises.',
           ),
           const Gap(S.md),
@@ -484,11 +514,11 @@ class _LayerBreakdown extends StatelessWidget {
   }
 
   String _bufferNote(MonthlyOutlook o) => switch (o.bufferBasis) {
-        BufferBasis.planned => 'the cushion you set on Unplanned',
-        BufferBasis.median =>
-          'median of ${o.bufferSampleMonths} completed ${o.bufferSampleMonths == 1 ? 'month' : 'months'}',
-        BufferBasis.none => 'not set — add a cushion on Unplanned',
-      };
+    BufferBasis.planned => 'the cushion you set on Unplanned',
+    BufferBasis.median =>
+      'median of ${o.bufferSampleMonths} completed ${o.bufferSampleMonths == 1 ? 'month' : 'months'}',
+    BufferBasis.none => 'not set   add a cushion on Unplanned',
+  };
 }
 
 class _LayerRow extends StatelessWidget {
@@ -520,7 +550,10 @@ class _LayerRow extends StatelessWidget {
             width: 10,
             height: 10,
             margin: const EdgeInsets.only(top: 4),
-            decoration: BoxDecoration(color: color, borderRadius: BorderRadius.circular(3)),
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(3),
+            ),
           ),
           const GapX(S.sm),
           Expanded(
@@ -535,9 +568,9 @@ class _LayerRow extends StatelessWidget {
                     color: t.foreground,
                   ),
                 ),
-                if (note != null) Muted(note!, size: AppType.caption, maxLines: 2),
-                if (!active)
-                  Muted('not in this target', size: AppType.caption),
+                if (note != null)
+                  Muted(note!, size: AppType.caption, maxLines: 2),
+                if (!active) Muted('not in this target', size: AppType.caption),
               ],
             ),
           ),
@@ -569,7 +602,8 @@ class _BreakEvenCard extends StatelessWidget {
           CardTitleRow(
             title: 'Break-even day',
             icon: Icons.event_available_outlined,
-            hint: 'The day of the month by which your recurring income has covered your '
+            hint:
+                'The day of the month by which your recurring income has covered your '
                 'recurring bills. Before it, you are running on last month\'s balance.',
           ),
           const Gap(S.md),
@@ -578,7 +612,7 @@ class _BreakEvenCard extends StatelessWidget {
               outlook.forecastedIncome <= 0
                   ? 'Add a recurring income rule to find your break-even day.'
                   : 'Your recurring income never catches up with the bills inside the month. '
-                      'Moving a bill\'s due date later, or a salary date earlier, would fix it.',
+                        'Moving a bill\'s due date later, or a salary date earlier, would fix it.',
               size: AppType.bodySm,
               maxLines: 3,
             )
@@ -602,7 +636,10 @@ class _BreakEvenCard extends StatelessWidget {
                 height: 10,
                 child: Row(
                   children: [
-                    Expanded(flex: day, child: Container(color: t.danger.withValues(alpha: 0.5))),
+                    Expanded(
+                      flex: day,
+                      child: Container(color: t.danger.withValues(alpha: 0.5)),
+                    ),
                     Expanded(
                       flex: (daysInMonth - day).clamp(1, daysInMonth),
                       child: Container(color: t.success),
@@ -614,7 +651,7 @@ class _BreakEvenCard extends StatelessWidget {
             const Gap(S.sm),
             Muted(
               now.day >= day
-                  ? 'You are past it — the rest of the month is yours.'
+                  ? 'You are past it   the rest of the month is yours.'
                   : '${day - now.day} more ${day - now.day == 1 ? 'day' : 'days'} until the bills are covered.',
               size: AppType.caption,
               maxLines: 2,
@@ -649,7 +686,9 @@ class _WhatIfCard extends StatelessWidget {
 
     // Headroom above the biggest target so the slider can always reach "covered".
     final max = (comfortable * 1.5).clamp(1000, double.infinity).toDouble();
-    final current = (value ?? outlook.forecastedIncome).clamp(0, max).toDouble();
+    final current = (value ?? outlook.forecastedIncome)
+        .clamp(0, max)
+        .toDouble();
 
     return AppCard(
       child: Column(
@@ -658,7 +697,8 @@ class _WhatIfCard extends StatelessWidget {
           CardTitleRow(
             title: 'What if I earned…',
             icon: Icons.tune_rounded,
-            hint: 'Drag to try an income. Nothing is saved — this only shows which targets '
+            hint:
+                'Drag to try an income. Nothing is saved   this only shows which targets '
                 'that figure would clear.',
             trailingLabel: value == null ? null : 'Reset',
             onTrailingTap: value == null ? null : onReset,
@@ -710,11 +750,12 @@ class _WhatIfRow extends StatelessWidget {
     final colour = need <= 0
         ? t.mutedForeground
         : clears
-            ? t.success
-            : t.warning;
+        ? t.success
+        : t.warning;
 
     return Semantics(
-      label: '${target.label}, needs ${money(need)}, '
+      label:
+          '${target.label}, needs ${money(need)}, '
           '${clears ? 'covered' : 'short ${money(need - income)}'}',
       child: ExcludeSemantics(
         child: Row(
@@ -723,8 +764,8 @@ class _WhatIfRow extends StatelessWidget {
               need <= 0
                   ? Icons.remove_circle_outline
                   : clears
-                      ? Icons.check_circle_rounded
-                      : Icons.cancel_outlined,
+                  ? Icons.check_circle_rounded
+                  : Icons.cancel_outlined,
               size: 18,
               color: colour,
             ),
@@ -743,8 +784,8 @@ class _WhatIfRow extends StatelessWidget {
               need <= 0
                   ? 'nothing to cover'
                   : clears
-                      ? 'covered'
-                      : 'short ${money(need - income)}',
+                  ? 'covered'
+                  : 'short ${money(need - income)}',
               size: AppType.caption,
             ),
           ],
@@ -777,12 +818,14 @@ class _CoverageHistoryCard extends StatelessWidget {
           CardTitleRow(
             title: 'Track record',
             icon: Icons.history_rounded,
-            hint: 'Completed months only. A month counts as covered when income was at '
+            hint:
+                'Completed months only. A month counts as covered when income was at '
                 'least as much as spending.',
           ),
           const Gap(S.md),
           Semantics(
-            label: 'Covered ${history.coveredMonths} of ${months.length} completed months',
+            label:
+                'Covered ${history.coveredMonths} of ${months.length} completed months',
             child: ExcludeSemantics(
               child: SizedBox(
                 height: 92,
@@ -817,7 +860,11 @@ class _CoverageHistoryCard extends StatelessWidget {
                                 ),
                               ),
                               const Gap(S.xs),
-                              Muted(_shortMonth(m.month), size: AppType.micro, maxLines: 1),
+                              Muted(
+                                _shortMonth(m.month),
+                                size: AppType.micro,
+                                maxLines: 1,
+                              ),
                             ],
                           ),
                         ),
@@ -851,8 +898,18 @@ class _CoverageHistoryCard extends StatelessWidget {
     final parts = yyyyMm.split('-');
     if (parts.length != 2) return yyyyMm;
     const names = [
-      'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
-      'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+      'Jan',
+      'Feb',
+      'Mar',
+      'Apr',
+      'May',
+      'Jun',
+      'Jul',
+      'Aug',
+      'Sep',
+      'Oct',
+      'Nov',
+      'Dec',
     ];
     final m = int.tryParse(parts[1]);
     return m == null || m < 1 || m > 12 ? yyyyMm : names[m - 1];
@@ -866,15 +923,15 @@ class _Bar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => FractionallySizedBox(
-        heightFactor: fraction.isFinite ? fraction.clamp(0.02, 1.0) : 0.02,
-        alignment: Alignment.bottomCenter,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color,
-            borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
-          ),
-        ),
-      );
+    heightFactor: fraction.isFinite ? fraction.clamp(0.02, 1.0) : 0.02,
+    alignment: Alignment.bottomCenter,
+    child: Container(
+      decoration: BoxDecoration(
+        color: color,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(3)),
+      ),
+    ),
+  );
 }
 
 class _Dot extends StatelessWidget {
@@ -884,20 +941,20 @@ class _Dot extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) => Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Container(
-            width: 8,
-            height: 8,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
-          ),
-          const GapX(S.xxs),
-          Muted(label, size: AppType.caption),
-        ],
-      );
+    mainAxisSize: MainAxisSize.min,
+    children: [
+      Container(
+        width: 8,
+        height: 8,
+        decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+      ),
+      const GapX(S.xxs),
+      Muted(label, size: AppType.caption),
+    ],
+  );
 }
 
-/// Repeating payees with no rule — the fix for the data, not a guess bolted
+/// Repeating payees with no rule   the fix for the data, not a guess bolted
 /// onto the target.
 class _RepeatCandidatesCard extends StatelessWidget {
   const _RepeatCandidatesCard({
@@ -922,9 +979,10 @@ class _RepeatCandidatesCard extends StatelessWidget {
           CardTitleRow(
             title: 'Looks like a commitment',
             icon: Icons.lightbulb_outline,
-            hint: 'Payees seen repeatedly over the last '
+            hint:
+                'Payees seen repeatedly over the last '
                 '${outlook.history?.patternWindowDays ?? 90} days with no recurring rule. '
-                'They are not counted in the target — turning one into a rule is what '
+                'They are not counted in the target   turning one into a rule is what '
                 'makes the target sharper.',
           ),
           const Gap(S.md),
@@ -969,7 +1027,7 @@ class _RepeatCandidatesCard extends StatelessWidget {
               borderRadius: BorderRadius.circular(R.md),
             ),
             child: Muted(
-              'These are suggestions, not commitments — none of them move your income '
+              'These are suggestions, not commitments   none of them move your income '
               'target until you make one a rule.',
               size: AppType.caption,
               maxLines: 3,
@@ -1090,7 +1148,9 @@ class _Segmented<T> extends StatelessWidget {
                         style: TextStyle(
                           fontSize: dense ? AppType.caption : AppType.bodySm,
                           fontWeight: option == value ? W.bold : W.medium,
-                          color: option == value ? t.foreground : t.mutedForeground,
+                          color: option == value
+                              ? t.foreground
+                              : t.mutedForeground,
                         ),
                       ),
                     ),
@@ -1128,7 +1188,8 @@ class _ActualVsExpected extends StatelessWidget {
         children: [
           CardTitleRow(
             title: 'So far this month',
-            hint: 'What has actually happened, against the ${target.label} target.',
+            hint:
+                'What has actually happened, against the ${target.label} target.',
           ),
           const Gap(S.xxs),
           Muted(
@@ -1178,9 +1239,13 @@ class _CompareRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final ratio = expected <= 0 ? (actual > 0 ? 1.0 : 0.0) : (actual / expected).clamp(0.0, 1.5);
+    final ratio = expected <= 0
+        ? (actual > 0 ? 1.0 : 0.0)
+        : (actual / expected).clamp(0.0, 1.5);
     final bar = ratio.clamp(0.0, 1.0);
-    final healthy = invertHealth ? ratio <= 1.0 : ratio >= 0.85 || expected == 0;
+    final healthy = invertHealth
+        ? ratio <= 1.0
+        : ratio >= 0.85 || expected == 0;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -1255,13 +1320,20 @@ class _InsightsCard extends StatelessWidget {
                   width: 6,
                   height: 6,
                   margin: const EdgeInsets.only(top: S.xs),
-                  decoration: BoxDecoration(color: t.accent, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: t.accent,
+                    shape: BoxShape.circle,
+                  ),
                 ),
                 const GapX(S.sm),
                 Expanded(
                   child: Text(
                     insights[i],
-                    style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.foreground),
+                    style: TextStyle(
+                      fontSize: AppType.bodySm,
+                      height: 1.45,
+                      color: t.foreground,
+                    ),
                   ),
                 ),
               ],
@@ -1291,7 +1363,9 @@ class _LineCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final share = total <= 0 ? 0.0 : (line.monthlyAmount / total).clamp(0.0, 1.0);
+    final share = total <= 0
+        ? 0.0
+        : (line.monthlyAmount / total).clamp(0.0, 1.0);
 
     return Padding(
       padding: const EdgeInsets.only(bottom: S.sm),
@@ -1314,8 +1388,8 @@ class _LineCard extends StatelessWidget {
                     line.kind == TxKind.income
                         ? Icons.south_west_rounded
                         : line.source == OutlookSource.budgetPlan
-                            ? Icons.savings_outlined
-                            : Icons.north_east_rounded,
+                        ? Icons.savings_outlined
+                        : Icons.north_east_rounded,
                     size: 17,
                     color: accent,
                   ),
@@ -1336,7 +1410,11 @@ class _LineCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                       ),
                       if (line.subtitle != null && line.subtitle!.isNotEmpty)
-                        Muted(line.subtitle!, size: AppType.caption, maxLines: 2),
+                        Muted(
+                          line.subtitle!,
+                          size: AppType.caption,
+                          maxLines: 2,
+                        ),
                     ],
                   ),
                 ),
@@ -1344,7 +1422,11 @@ class _LineCard extends StatelessWidget {
                 Column(
                   crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Amount(money(line.displayAmount), size: AppType.body, color: accent),
+                    Amount(
+                      money(line.displayAmount),
+                      size: AppType.body,
+                      color: accent,
+                    ),
                     Muted('/mo', size: AppType.micro),
                   ],
                 ),
@@ -1352,7 +1434,7 @@ class _LineCard extends StatelessWidget {
             ),
 
             // A plan whose category a bill already pays for contributes less
-            // than its own amount — say so rather than letting the maths look
+            // than its own amount   say so rather than letting the maths look
             // wrong.
             if (line.coveredByRule) ...[
               const Gap(S.sm),
@@ -1363,7 +1445,7 @@ class _LineCard extends StatelessWidget {
                   Expanded(
                     child: Muted(
                       line.monthlyAmount <= 0
-                          ? 'Fully covered by a recurring bill — adds nothing to the target'
+                          ? 'Fully covered by a recurring bill   adds nothing to the target'
                           : 'Adds ${money(line.monthlyAmount)} on top of the recurring bill',
                       size: AppType.caption,
                       maxLines: 2,
@@ -1392,14 +1474,18 @@ class _LineCard extends StatelessWidget {
             const Gap(S.sm),
             Row(
               children: [
-                if (line.cadence != null) _Tag(label: line.cadence!, color: t.mutedForeground),
+                if (line.cadence != null)
+                  _Tag(label: line.cadence!, color: t.mutedForeground),
                 if (line.autoPost) ...[
                   const GapX(S.xs),
                   _Tag(label: 'Auto-post', color: t.primary),
                 ],
                 if (line.nextDate != null) ...[
                   const GapX(S.xs),
-                  _Tag(label: 'Next ${formatDate(line.nextDate)}', color: t.accent),
+                  _Tag(
+                    label: 'Next ${formatDate(line.nextDate)}',
+                    color: t.accent,
+                  ),
                 ],
                 const Spacer(),
                 Text(
@@ -1441,7 +1527,11 @@ class _Tag extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: TextStyle(fontSize: AppType.caption, fontWeight: W.bold, color: color),
+        style: TextStyle(
+          fontSize: AppType.caption,
+          fontWeight: W.bold,
+          color: color,
+        ),
       ),
     );
   }
@@ -1482,7 +1572,11 @@ class _EmptyHint extends StatelessWidget {
             const Gap(S.xxs),
             Muted(body, size: AppType.label, maxLines: 3),
             const Gap(S.md),
-            AppButton(label: actionLabel, size: BtnSize.sm, onPressed: onAction),
+            AppButton(
+              label: actionLabel,
+              size: BtnSize.sm,
+              onPressed: onAction,
+            ),
           ],
         ),
       ),
@@ -1490,7 +1584,7 @@ class _EmptyHint extends StatelessWidget {
   }
 }
 
-/// Compact dashboard card — tap through to the full outlook.
+/// Compact dashboard card   tap through to the full outlook.
 class MonthlyOutlookCard extends StatefulWidget {
   const MonthlyOutlookCard({super.key});
 
@@ -1531,59 +1625,39 @@ class _MonthlyOutlookCardState extends State<MonthlyOutlookCard> {
     String money(Object? v) => prefs.money(v, currency: currency);
     final shell = AppShell.of(context);
 
-    // The card leads with Floor — the number that is true regardless of what
+    // The card leads with Floor   the number that is true regardless of what
     // the user intends to do this month.
     final floor = outlook.requiredFor(OutlookTarget.floor);
     final steady = outlook.requiredFor(OutlookTarget.steady);
     final covered = outlook.coveredTarget;
 
-    return AppCard(
-      onTap: () => shell.push(const MonthlyOutlookScreen()),
+    return InsightPeekFrame(
+      icon: Icons.insights_rounded,
+      eyebrow: 'MONTHLY OUTLOOK',
+      accent: t.primary,
+      cta: 'Open full outlook',
+      onOpen: () => shell.push(const MonthlyOutlookScreen()),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
             children: [
-              Container(
-                width: 38,
-                height: 38,
-                decoration: BoxDecoration(
-                  gradient: LinearGradient(colors: [t.primary, t.accent]),
-                  borderRadius: BorderRadius.circular(R.md),
-                ),
-                child: Icon(Icons.insights_rounded, color: t.primaryForeground, size: 20),
-              ),
-              const GapX(S.md),
               Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Monthly outlook',
-                      style: TextStyle(
-                        fontSize: AppType.body,
-                        fontWeight: W.heavy,
-                        color: t.foreground,
-                      ),
-                    ),
-                    const Muted('What the month needs you to earn'),
-                  ],
+                child: _MiniFig(
+                  label: 'Bills',
+                  value: money(floor),
+                  color: t.danger,
                 ),
               ),
-              Icon(Icons.chevron_right_rounded, color: t.mutedForeground),
-            ],
-          ),
-          const Gap(S.md),
-          Row(
-            children: [
+              Container(width: 1, height: 34, color: t.border),
               Expanded(
-                child: _MiniFig(label: 'Bills', value: money(floor), color: t.danger),
+                child: _MiniFig(
+                  label: '+ plans',
+                  value: money(steady),
+                  color: t.primary,
+                ),
               ),
-              Container(width: 1, height: 36, color: t.border),
-              Expanded(
-                child: _MiniFig(label: '+ plans', value: money(steady), color: t.primary),
-              ),
-              Container(width: 1, height: 36, color: t.border),
+              Container(width: 1, height: 34, color: t.border),
               Expanded(
                 child: _MiniFig(
                   label: 'You bring',
@@ -1593,40 +1667,48 @@ class _MonthlyOutlookCardState extends State<MonthlyOutlookCard> {
               ),
             ],
           ),
-          if (!outlook.hasAnySignal)
-            Padding(
-              padding: const EdgeInsets.only(top: S.sm),
-              child: const Muted(
-                'Add bills and plans — Santim will work out the income you need.',
-                maxLines: 2,
-              ),
-            )
-          else ...[
-            const Gap(S.md),
-            ProgressBar(
-              value: (outlook.coverageFor(OutlookTarget.steady) ?? 0).clamp(0, 100),
-              height: 6,
-              label: 'Steady target coverage',
-              tone: covered == null
-                  ? BadgeTone.danger
-                  : covered == OutlookTarget.floor
-                      ? BadgeTone.warning
-                      : BadgeTone.success,
+          const Gap(S.sm),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                if (!outlook.hasAnySignal)
+                  const Muted(
+                    'Add bills and plans   Santim will work out the income you need.',
+                    maxLines: 2,
+                  )
+                else ...[
+                  ProgressBar(
+                    value: (outlook.coverageFor(OutlookTarget.steady) ?? 0)
+                        .clamp(0, 100),
+                    height: 6,
+                    tone: covered == null
+                        ? BadgeTone.danger
+                        : covered == OutlookTarget.floor
+                        ? BadgeTone.warning
+                        : BadgeTone.success,
+                  ),
+                  const Gap(S.xs),
+                  Muted(
+                    switch (covered) {
+                      null =>
+                        outlook.forecastedIncome <= 0
+                            ? 'Add a salary rule to check coverage'
+                            : 'Recurring income does not cover the bills yet',
+                      OutlookTarget.floor =>
+                        'Bills covered   plans are not yet',
+                      OutlookTarget.steady => 'Bills and plans covered',
+                      OutlookTarget.comfortable =>
+                        'Covered, with room for surprises',
+                    },
+                    size: AppType.caption,
+                    maxLines: 2,
+                  ),
+                ],
+              ],
             ),
-            const Gap(S.xs),
-            Muted(
-              switch (covered) {
-                null => outlook.forecastedIncome <= 0
-                    ? 'Add a salary rule to check coverage'
-                    : 'Recurring income does not cover the bills yet',
-                OutlookTarget.floor => 'Bills covered — plans are not yet',
-                OutlookTarget.steady => 'Bills and plans covered',
-                OutlookTarget.comfortable => 'Covered, with room for surprises',
-              },
-              size: AppType.caption,
-              maxLines: 2,
-            ),
-          ],
+          ),
         ],
       ),
     );
@@ -1634,7 +1716,11 @@ class _MonthlyOutlookCardState extends State<MonthlyOutlookCard> {
 }
 
 class _MiniFig extends StatelessWidget {
-  const _MiniFig({required this.label, required this.value, required this.color});
+  const _MiniFig({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
   final String label;
   final String value;
   final Color color;

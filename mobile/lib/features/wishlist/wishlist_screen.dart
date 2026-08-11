@@ -16,7 +16,7 @@ import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../budgets/budget_detail_screen.dart';
 
-/// Wishlist. A want is just the idea of a thing — no cost, no savings — until
+/// Wishlist. A want is just the idea of a thing   no cost, no savings   until
 /// you turn it into a funded plan.
 class WishlistScreen extends StatefulWidget {
   const WishlistScreen({super.key});
@@ -40,7 +40,9 @@ class _WishlistScreenState extends State<WishlistScreen> {
   Future<void> _load() async {
     setState(() => _loading = true);
     try {
-      final json = await context.read<ApiClient>().get<Map<String, dynamic>>('/wishlist');
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/wishlist',
+      );
       if (!mounted) return;
       setState(() {
         _data = WishlistResponse.fromJson(json);
@@ -100,7 +102,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const OfflineBanner(),
@@ -128,28 +135,32 @@ class _WishlistScreenState extends State<WishlistScreen> {
                         label: 'Wanting',
                         count: data.wanting,
                         active: _filter == WishlistStatus.wanting,
-                        onTap: () => setState(() => _filter = WishlistStatus.wanting),
+                        onTap: () =>
+                            setState(() => _filter = WishlistStatus.wanting),
                       ),
                       const GapX(S.sm),
                       _Tab(
                         label: 'Planned',
                         count: data.planned,
                         active: _filter == WishlistStatus.planned,
-                        onTap: () => setState(() => _filter = WishlistStatus.planned),
+                        onTap: () =>
+                            setState(() => _filter = WishlistStatus.planned),
                       ),
                       const GapX(S.sm),
                       _Tab(
                         label: 'Bought',
                         count: data.bought,
                         active: _filter == WishlistStatus.bought,
-                        onTap: () => setState(() => _filter = WishlistStatus.bought),
+                        onTap: () =>
+                            setState(() => _filter = WishlistStatus.bought),
                       ),
                       const GapX(S.sm),
                       _Tab(
                         label: 'Dropped',
                         count: data.dropped,
                         active: _filter == WishlistStatus.dropped,
-                        onTap: () => setState(() => _filter = WishlistStatus.dropped),
+                        onTap: () =>
+                            setState(() => _filter = WishlistStatus.dropped),
                       ),
                       const GapX(S.sm),
                       _Tab(
@@ -176,9 +187,11 @@ class _WishlistScreenState extends State<WishlistScreen> {
                 EmptyState(
                   icon: Icons.favorite_border,
                   art: EmptyArt.wish,
-                  title: _filter == null ? 'Nothing on the list yet' : 'Nothing here',
+                  title: _filter == null
+                      ? 'Nothing on the list yet'
+                      : 'Nothing here',
                   description:
-                      'Add the things you want. No price needed — '
+                      'Add the things you want. No price needed   '
                       'you decide the cost when you turn one into a plan.',
                   action: AppButton(
                     label: 'Add a want',
@@ -208,7 +221,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
 }
 
 class _Tab extends StatelessWidget {
-  const _Tab({required this.label, required this.count, required this.active, required this.onTap});
+  const _Tab({
+    required this.label,
+    required this.count,
+    required this.active,
+    required this.onTap,
+  });
 
   final String label;
   final int count;
@@ -225,7 +243,9 @@ class _Tab extends StatelessWidget {
         decoration: BoxDecoration(
           color: active ? t.primary.withValues(alpha: 0.12) : t.surface,
           borderRadius: BorderRadius.circular(R.pill),
-          border: Border.all(color: active ? t.primary.withValues(alpha: 0.35) : t.border),
+          border: Border.all(
+            color: active ? t.primary.withValues(alpha: 0.35) : t.border,
+          ),
         ),
         child: Row(
           mainAxisSize: MainAxisSize.min,
@@ -282,7 +302,10 @@ class _WishCard extends StatelessWidget {
                   borderRadius: BorderRadius.circular(R.md),
                 ),
                 alignment: Alignment.center,
-                child: Text(item.emoji ?? '✨', style: const TextStyle(fontSize: AppType.heading)),
+                child: Text(
+                  item.emoji ?? '✨',
+                  style: const TextStyle(fontSize: AppType.heading),
+                ),
               ),
               const GapX(S.md),
               Expanded(
@@ -330,7 +353,11 @@ class _WishCard extends StatelessWidget {
               item.note!,
               maxLines: 2,
               overflow: TextOverflow.ellipsis,
-              style: TextStyle(fontSize: AppType.label, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.label,
+                height: 1.45,
+                color: t.mutedForeground,
+              ),
             ),
           ],
           if (plan != null) ...[
@@ -387,12 +414,18 @@ class _WishCard extends StatelessWidget {
       subtitle: item.status.label,
       scrollable: false,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.only(
+          bottom: 16 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             if (item.plan != null)
-              _Action(icon: Icons.savings_outlined, label: 'Open the plan', value: 'plan'),
+              _Action(
+                icon: Icons.savings_outlined,
+                label: 'Open the plan',
+                value: 'plan',
+              ),
             if (item.plan == null && item.status != WishlistStatus.bought)
               _Action(
                 icon: Icons.add_circle_outline,
@@ -400,13 +433,26 @@ class _WishCard extends StatelessWidget {
                 value: 'make-plan',
               ),
             if (item.status != WishlistStatus.bought)
-              _Action(icon: Icons.check_circle_outline, label: 'Mark as bought', value: 'bought'),
+              _Action(
+                icon: Icons.check_circle_outline,
+                label: 'Mark as bought',
+                value: 'bought',
+              ),
             if (item.link != null)
-              _Action(icon: Icons.open_in_new, label: 'Open link', value: 'link'),
+              _Action(
+                icon: Icons.open_in_new,
+                label: 'Open link',
+                value: 'link',
+              ),
             _Action(icon: Icons.edit_outlined, label: 'Edit', value: 'edit'),
             if (item.status != WishlistStatus.dropped)
               _Action(icon: Icons.block, label: 'Drop it', value: 'drop'),
-            _Action(icon: Icons.delete_outline, label: 'Delete', value: 'delete', danger: true),
+            _Action(
+              icon: Icons.delete_outline,
+              label: 'Delete',
+              value: 'delete',
+              danger: true,
+            ),
           ],
         ),
       ),
@@ -415,21 +461,30 @@ class _WishCard extends StatelessWidget {
 
     switch (action) {
       case 'plan':
-        await Navigator.of(
-          context,
-        ).push(MaterialPageRoute(builder: (_) => BudgetDetailScreen(budgetId: item.plan!.id)));
+        await Navigator.of(context).push(
+          MaterialPageRoute(
+            builder: (_) => BudgetDetailScreen(budgetId: item.plan!.id),
+          ),
+        );
         onChanged();
       case 'make-plan':
         final made = await showWishPlanSheet(context, item: item);
         if (made == true) {
           onChanged();
-          if (context.mounted) await context.read<DataState>().refreshAfterWrite();
+          if (context.mounted)
+            await context.read<DataState>().refreshAfterWrite();
         }
       case 'bought':
         try {
-          final result = await context.read<SyncState>().wishlistBought(item.id, name: item.name);
+          final result = await context.read<SyncState>().wishlistBought(
+            item.id,
+            name: item.name,
+          );
           if (result.queued && context.mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           onChanged();
         } on ApiError catch (e) {
@@ -437,7 +492,8 @@ class _WishCard extends StatelessWidget {
         }
       case 'link':
         final uri = Uri.tryParse(item.link!);
-        if (uri != null) await launchUrl(uri, mode: LaunchMode.externalApplication);
+        if (uri != null)
+          await launchUrl(uri, mode: LaunchMode.externalApplication);
       case 'edit':
         final saved = await showWishForm(context, existing: item);
         if (saved == true) onChanged();
@@ -449,7 +505,10 @@ class _WishCard extends StatelessWidget {
             body: {'status': 'DROPPED'},
           );
           if (result.queued && context.mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           onChanged();
         } on ApiError catch (e) {
@@ -463,9 +522,15 @@ class _WishCard extends StatelessWidget {
         );
         if (!ok || !context.mounted) return;
         try {
-          final result = await context.read<SyncState>().deleteWishlist(item.id, name: item.name);
+          final result = await context.read<SyncState>().deleteWishlist(
+            item.id,
+            name: item.name,
+          );
           if (result.queued && context.mounted) {
-            toast(context, 'Delete queued — will sync when you are back online');
+            toast(
+              context,
+              'Delete queued   will sync when you are back online',
+            );
           }
           onChanged();
         } on ApiError catch (e) {
@@ -493,7 +558,11 @@ class _Action extends StatelessWidget {
     final t = context.t;
     return ListTile(
       onTap: () => Navigator.pop(context, value),
-      leading: Icon(icon, size: 20, color: danger ? t.danger : t.mutedForeground),
+      leading: Icon(
+        icon,
+        size: 20,
+        color: danger ? t.danger : t.mutedForeground,
+      ),
       title: Text(
         label,
         style: TextStyle(
@@ -616,7 +685,7 @@ class _WishFormState extends State<_WishForm> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -632,7 +701,12 @@ class _WishFormState extends State<_WishForm> {
   Widget build(BuildContext context) {
     final t = context.t;
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -668,7 +742,10 @@ class _WishFormState extends State<_WishForm> {
                         ),
                       ),
                       alignment: Alignment.center,
-                      child: Text(e, style: const TextStyle(fontSize: AppType.lead)),
+                      child: Text(
+                        e,
+                        style: const TextStyle(fontSize: AppType.lead),
+                      ),
                     ),
                   ),
               ],
@@ -734,7 +811,10 @@ class _WishFormState extends State<_WishForm> {
 }
 
 /// Turn a want into a funded plan. This is the point where a price appears.
-Future<bool?> showWishPlanSheet(BuildContext context, {required WishlistItem item}) {
+Future<bool?> showWishPlanSheet(
+  BuildContext context, {
+  required WishlistItem item,
+}) {
   return showAppSheet<bool>(
     context,
     title: 'Turn "${item.name}" into a plan',
@@ -794,7 +874,7 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -812,7 +892,12 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
     final data = context.watch<DataState>();
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -824,13 +909,18 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
             autofocus: true,
           ),
           const Gap(S.lg),
-          AppTextField(controller: _name, label: 'Plan name', prefixIcon: Icons.badge_outlined),
+          AppTextField(
+            controller: _name,
+            label: 'Plan name',
+            prefixIcon: Icons.badge_outlined,
+          ),
           const Gap(S.lg),
           SegmentedTabs<BudgetKind>(
             value: _kind,
             options: const [BudgetKind.oneTime, BudgetKind.recurring],
             labelOf: (k) => k.label,
-            iconOf: (k) => k == BudgetKind.oneTime ? Icons.flag_outlined : Icons.autorenew,
+            iconOf: (k) =>
+                k == BudgetKind.oneTime ? Icons.flag_outlined : Icons.autorenew,
             onChanged: (k) => setState(() => _kind = k),
           ),
           if (_kind == BudgetKind.recurring) ...[

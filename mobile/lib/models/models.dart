@@ -28,17 +28,17 @@ class User {
   final String? cashAccountId;
 
   factory User.fromJson(Map<String, dynamic> j) => User(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        email: asStr(j['email'], ''),
-        currency: asStr(j['currency'], 'ETB'),
-        firstDayOfWeek: asInt(j['firstDayOfWeek'], 1),
-        locale: asStrOrNull(j['locale']),
-        calendar: asStrOrNull(j['calendar']),
-        avatarId: asStrOrNull(j['avatarId']),
-        bannerId: asStrOrNull(j['bannerId']),
-        cashAccountId: asStrOrNull(j['cashAccountId']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    email: asStr(j['email'], ''),
+    currency: asStr(j['currency'], 'ETB'),
+    firstDayOfWeek: asInt(j['firstDayOfWeek'], 1),
+    locale: asStrOrNull(j['locale']),
+    calendar: asStrOrNull(j['calendar']),
+    avatarId: asStrOrNull(j['avatarId']),
+    bannerId: asStrOrNull(j['bannerId']),
+    cashAccountId: asStrOrNull(j['cashAccountId']),
+  );
 
   String get firstName => name.split(' ').first;
 }
@@ -87,22 +87,22 @@ class Account {
   final String? accountNumber;
 
   factory Account.fromJson(Map<String, dynamic> j) => Account(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        type: AccountType.parse(j['type']),
-        currency: asStr(j['currency'], 'ETB'),
-        openingBalance: asStr(j['openingBalance']),
-        balance: asStr(j['balance']),
-        realBalance: asStr(j['realBalance'], asStr(j['balance'])),
-        lockedAmount: asStr(j['lockedAmount']),
-        isDefault: asBool(j['isDefault']),
-        archived: asBool(j['archived']),
-        icon: asStrOrNull(j['icon']),
-        color: asStrOrNull(j['color']),
-        isShared: asBool(j['isShared']),
-        householdId: asStrOrNull(j['householdId']),
-        accountNumber: asStrOrNull(j['accountNumber']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    type: AccountType.parse(j['type']),
+    currency: asStr(j['currency'], 'ETB'),
+    openingBalance: asStr(j['openingBalance']),
+    balance: asStr(j['balance']),
+    realBalance: asStr(j['realBalance'], asStr(j['balance'])),
+    lockedAmount: asStr(j['lockedAmount']),
+    isDefault: asBool(j['isDefault']),
+    archived: asBool(j['archived']),
+    icon: asStrOrNull(j['icon']),
+    color: asStrOrNull(j['color']),
+    isShared: asBool(j['isShared']),
+    householdId: asStrOrNull(j['householdId']),
+    accountNumber: asStrOrNull(j['accountNumber']),
+  );
 }
 
 class TxCategory {
@@ -131,20 +131,29 @@ class TxCategory {
   bool get isIncome => kind == 'INCOME';
 
   factory TxCategory.fromJson(Map<String, dynamic> j) => TxCategory(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        kind: asStr(j['kind'], 'EXPENSE'),
-        icon: asStr(j['icon'], 'tag'),
-        color: asStr(j['color'], '#64748b'),
-        isDefault: asBool(j['isDefault']),
-        archived: asBool(j['archived']),
-        transactionCount: j['transactionCount'] == null ? null : asInt(j['transactionCount']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    kind: asStr(j['kind'], 'EXPENSE'),
+    icon: asStr(j['icon'], 'tag'),
+    color: asStr(j['color'], '#64748b'),
+    isDefault: asBool(j['isDefault']),
+    archived: asBool(j['archived']),
+    transactionCount: j['transactionCount'] == null
+        ? null
+        : asInt(j['transactionCount']),
+  );
 }
 
 /// A trimmed reference the API embeds inside other rows.
 class Ref {
-  Ref({required this.id, required this.name, this.icon, this.color, this.currency, this.type});
+  Ref({
+    required this.id,
+    required this.name,
+    this.icon,
+    this.color,
+    this.currency,
+    this.type,
+  });
 
   final String id;
   final String name;
@@ -233,27 +242,27 @@ class Transaction {
   }
 
   factory Transaction.fromJson(Map<String, dynamic> j) => Transaction(
-        id: asStr(j['id'], ''),
-        kind: TxKind.parse(j['kind']),
-        amount: asStr(j['amount']),
-        currency: asStr(j['currency'], 'ETB'),
-        date: asDate(j['date']) ?? DateTime.now(),
-        accountId: asStr(j['accountId'], ''),
-        account: Ref.maybe(j['account']),
-        transferAccountId: asStrOrNull(j['transferAccountId']),
-        transferAccount: Ref.maybe(j['transferAccount']),
-        categoryId: asStrOrNull(j['categoryId']),
-        category: Ref.maybe(j['category']),
-        budgetId: asStrOrNull(j['budgetId']),
-        budget: Ref.maybe(j['budget']),
-        budgetCycle: j['budgetCycle'] == null ? null : asInt(j['budgetCycle']),
-        budgetSourceAccountId: asStrOrNull(j['budgetSourceAccountId']),
-        budgetSourceAccount: Ref.maybe(j['budgetSourceAccount']),
-        note: asStrOrNull(j['note']),
-        payee: asStrOrNull(j['payee']),
-        tags: asStrList(j['tags']),
-        recurringRuleId: asStrOrNull(j['recurringRuleId']),
-      );
+    id: asStr(j['id'], ''),
+    kind: TxKind.parse(j['kind']),
+    amount: asStr(j['amount']),
+    currency: asStr(j['currency'], 'ETB'),
+    date: asDate(j['date']) ?? DateTime.now(),
+    accountId: asStr(j['accountId'], ''),
+    account: Ref.maybe(j['account']),
+    transferAccountId: asStrOrNull(j['transferAccountId']),
+    transferAccount: Ref.maybe(j['transferAccount']),
+    categoryId: asStrOrNull(j['categoryId']),
+    category: Ref.maybe(j['category']),
+    budgetId: asStrOrNull(j['budgetId']),
+    budget: Ref.maybe(j['budget']),
+    budgetCycle: j['budgetCycle'] == null ? null : asInt(j['budgetCycle']),
+    budgetSourceAccountId: asStrOrNull(j['budgetSourceAccountId']),
+    budgetSourceAccount: Ref.maybe(j['budgetSourceAccount']),
+    note: asStrOrNull(j['note']),
+    payee: asStrOrNull(j['payee']),
+    tags: asStrList(j['tags']),
+    recurringRuleId: asStrOrNull(j['recurringRuleId']),
+  );
 }
 
 class TransactionPage {
@@ -272,11 +281,11 @@ class TransactionPage {
   bool get hasMore => page * pageSize < total;
 
   factory TransactionPage.fromJson(Map<String, dynamic> j) => TransactionPage(
-        items: mapList(j['items'], Transaction.fromJson),
-        total: asInt(j['total']),
-        page: asInt(j['page'], 1),
-        pageSize: asInt(j['pageSize'], 20),
-      );
+    items: mapList(j['items'], Transaction.fromJson),
+    total: asInt(j['total']),
+    page: asInt(j['page'], 1),
+    pageSize: asInt(j['pageSize'], 20),
+  );
 }
 
 class RecurringRule {
@@ -326,29 +335,29 @@ class RecurringRule {
       interval == 1 ? frequency.label : 'Every $interval ${frequency.name}s';
 
   factory RecurringRule.fromJson(Map<String, dynamic> j) => RecurringRule(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        kind: TxKind.parse(j['kind']),
-        amount: asStr(j['amount']),
-        currency: asStr(j['currency'], 'ETB'),
-        accountId: asStr(j['accountId'], ''),
-        account: Ref.maybe(j['account']),
-        categoryId: asStrOrNull(j['categoryId']),
-        category: Ref.maybe(j['category']),
-        payee: asStrOrNull(j['payee']),
-        note: asStrOrNull(j['note']),
-        frequency: Frequency.parse(j['frequency']),
-        interval: asInt(j['interval'], 1),
-        dayOfMonth: j['dayOfMonth'] == null ? null : asInt(j['dayOfMonth']),
-        nextRun: asDate(j['nextRun']) ?? DateTime.now(),
-        endDate: asDate(j['endDate']),
-        autoPost: asBool(j['autoPost']),
-        active: asBool(j['active'], true),
-        postedCount: asInt(j['postedCount']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    kind: TxKind.parse(j['kind']),
+    amount: asStr(j['amount']),
+    currency: asStr(j['currency'], 'ETB'),
+    accountId: asStr(j['accountId'], ''),
+    account: Ref.maybe(j['account']),
+    categoryId: asStrOrNull(j['categoryId']),
+    category: Ref.maybe(j['category']),
+    payee: asStrOrNull(j['payee']),
+    note: asStrOrNull(j['note']),
+    frequency: Frequency.parse(j['frequency']),
+    interval: asInt(j['interval'], 1),
+    dayOfMonth: j['dayOfMonth'] == null ? null : asInt(j['dayOfMonth']),
+    nextRun: asDate(j['nextRun']) ?? DateTime.now(),
+    endDate: asDate(j['endDate']),
+    autoPost: asBool(j['autoPost']),
+    active: asBool(j['active'], true),
+    postedCount: asInt(j['postedCount']),
+  );
 }
 
-/// `BudgetHealth` — drives the colour of every plan chip and bar.
+/// `BudgetHealth`   drives the colour of every plan chip and bar.
 enum BudgetHealth {
   unplanned,
   scheduled,
@@ -361,29 +370,29 @@ enum BudgetHealth {
   closed;
 
   static BudgetHealth parse(dynamic v) => switch ('$v') {
-        'unplanned' => BudgetHealth.unplanned,
-        'scheduled' => BudgetHealth.scheduled,
-        'empty' => BudgetHealth.empty,
-        'partly-funded' => BudgetHealth.partlyFunded,
-        'ready' => BudgetHealth.ready,
-        'spending' => BudgetHealth.spending,
-        'low' => BudgetHealth.low,
-        'drained' => BudgetHealth.drained,
-        'closed' => BudgetHealth.closed,
-        _ => BudgetHealth.empty,
-      };
+    'unplanned' => BudgetHealth.unplanned,
+    'scheduled' => BudgetHealth.scheduled,
+    'empty' => BudgetHealth.empty,
+    'partly-funded' => BudgetHealth.partlyFunded,
+    'ready' => BudgetHealth.ready,
+    'spending' => BudgetHealth.spending,
+    'low' => BudgetHealth.low,
+    'drained' => BudgetHealth.drained,
+    'closed' => BudgetHealth.closed,
+    _ => BudgetHealth.empty,
+  };
 
   String get label => switch (this) {
-        BudgetHealth.unplanned => 'Unplanned',
-        BudgetHealth.scheduled => 'Scheduled',
-        BudgetHealth.empty => 'Empty',
-        BudgetHealth.partlyFunded => 'Partly filled',
-        BudgetHealth.ready => 'Ready',
-        BudgetHealth.spending => 'Spending',
-        BudgetHealth.low => 'Running low',
-        BudgetHealth.drained => 'Drained',
-        BudgetHealth.closed => 'Closed',
-      };
+    BudgetHealth.unplanned => 'Unplanned',
+    BudgetHealth.scheduled => 'Scheduled',
+    BudgetHealth.empty => 'Empty',
+    BudgetHealth.partlyFunded => 'Partly filled',
+    BudgetHealth.ready => 'Ready',
+    BudgetHealth.spending => 'Spending',
+    BudgetHealth.low => 'Running low',
+    BudgetHealth.drained => 'Drained',
+    BudgetHealth.closed => 'Closed',
+  };
 }
 
 class BudgetRow {
@@ -437,7 +446,7 @@ class BudgetRow {
   final RecurrenceUnit? recurrenceUnit;
   final int recurrenceInterval;
 
-  /// "monthly", "every 6 hours" — ready to print.
+  /// "monthly", "every 6 hours"   ready to print.
   final String? recurrenceLabel;
 
   /// The noun one cycle is measured in: "month", "6 hours".
@@ -452,7 +461,7 @@ class BudgetRow {
   final String state;
   final DateTime? closedAt;
 
-  /// How much you plan to spend per cycle — also the fill-up ceiling.
+  /// How much you plan to spend per cycle   also the fill-up ceiling.
   final String plannedAmount;
   final String openingPlanned;
   final String adjustedThisCycle;
@@ -478,43 +487,43 @@ class BudgetRow {
   bool get isClosed => state == 'CLOSED';
 
   factory BudgetRow.fromJson(Map<String, dynamic> j) => BudgetRow(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        categoryId: asStrOrNull(j['categoryId']),
-        category: Ref.maybe(j['category']),
-        kind: BudgetKind.parse(j['kind']),
-        isUnplanned: asBool(j['isUnplanned']),
-        recurrenceUnit: RecurrenceUnit.parse(j['recurrenceUnit']),
-        recurrenceInterval: asInt(j['recurrenceInterval'], 1),
-        recurrenceLabel: asStrOrNull(j['recurrenceLabel']),
-        periodNoun: asStrOrNull(j['periodNoun']),
-        currency: asStr(j['currency'], 'ETB'),
-        icon: asStrOrNull(j['icon']),
-        color: asStrOrNull(j['color']),
-        note: asStrOrNull(j['note']),
-        alertThreshold: asInt(j['alertThreshold'], 80),
-        state: asStr(j['state'], 'ACTIVE'),
-        closedAt: asDate(j['closedAt']),
-        plannedAmount: asStr(j['plannedAmount']),
-        openingPlanned: asStr(j['openingPlanned']),
-        adjustedThisCycle: asStr(j['adjustedThisCycle']),
-        fundedAmount: asStr(j['fundedAmount']),
-        carriedIn: asStr(j['carriedIn']),
-        fillable: asStr(j['fillable']),
-        spentAmount: asStr(j['spentAmount']),
-        balance: asStr(j['balance']),
-        pctFunded: asNum(j['pctFunded']),
-        pctOfPlan: asNum(j['pctOfPlan']),
-        pctSpentOfFunded: asNum(j['pctSpentOfFunded']),
-        health: BudgetHealth.parse(j['health']),
-        cycleIndex: asInt(j['cycleIndex']),
-        startsAt: asDate(j['startsAt']) ?? DateTime.now(),
-        started: asBool(j['started'], true),
-        cycleStartedAt: asDate(j['cycleStartedAt']) ?? DateTime.now(),
-        nextResetAt: asDate(j['nextResetAt']),
-        endDate: asDate(j['endDate']),
-        cycleLabel: asStrOrNull(j['cycleLabel']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    categoryId: asStrOrNull(j['categoryId']),
+    category: Ref.maybe(j['category']),
+    kind: BudgetKind.parse(j['kind']),
+    isUnplanned: asBool(j['isUnplanned']),
+    recurrenceUnit: RecurrenceUnit.parse(j['recurrenceUnit']),
+    recurrenceInterval: asInt(j['recurrenceInterval'], 1),
+    recurrenceLabel: asStrOrNull(j['recurrenceLabel']),
+    periodNoun: asStrOrNull(j['periodNoun']),
+    currency: asStr(j['currency'], 'ETB'),
+    icon: asStrOrNull(j['icon']),
+    color: asStrOrNull(j['color']),
+    note: asStrOrNull(j['note']),
+    alertThreshold: asInt(j['alertThreshold'], 80),
+    state: asStr(j['state'], 'ACTIVE'),
+    closedAt: asDate(j['closedAt']),
+    plannedAmount: asStr(j['plannedAmount']),
+    openingPlanned: asStr(j['openingPlanned']),
+    adjustedThisCycle: asStr(j['adjustedThisCycle']),
+    fundedAmount: asStr(j['fundedAmount']),
+    carriedIn: asStr(j['carriedIn']),
+    fillable: asStr(j['fillable']),
+    spentAmount: asStr(j['spentAmount']),
+    balance: asStr(j['balance']),
+    pctFunded: asNum(j['pctFunded']),
+    pctOfPlan: asNum(j['pctOfPlan']),
+    pctSpentOfFunded: asNum(j['pctSpentOfFunded']),
+    health: BudgetHealth.parse(j['health']),
+    cycleIndex: asInt(j['cycleIndex']),
+    startsAt: asDate(j['startsAt']) ?? DateTime.now(),
+    started: asBool(j['started'], true),
+    cycleStartedAt: asDate(j['cycleStartedAt']) ?? DateTime.now(),
+    nextResetAt: asDate(j['nextResetAt']),
+    endDate: asDate(j['endDate']),
+    cycleLabel: asStrOrNull(j['cycleLabel']),
+  );
 }
 
 class BudgetTotals {
@@ -539,14 +548,14 @@ class BudgetTotals {
   final int closedCount;
 
   factory BudgetTotals.fromJson(Map<String, dynamic> j) => BudgetTotals(
-        planned: asStr(j['planned']),
-        funded: asStr(j['funded']),
-        spent: asStr(j['spent']),
-        locked: asStr(j['locked']),
-        unplannedSpent: asStr(j['unplannedSpent']),
-        activeCount: asInt(j['activeCount']),
-        closedCount: asInt(j['closedCount']),
-      );
+    planned: asStr(j['planned']),
+    funded: asStr(j['funded']),
+    spent: asStr(j['spent']),
+    locked: asStr(j['locked']),
+    unplannedSpent: asStr(j['unplannedSpent']),
+    activeCount: asInt(j['activeCount']),
+    closedCount: asInt(j['closedCount']),
+  );
 }
 
 class BudgetsResponse {
@@ -556,9 +565,9 @@ class BudgetsResponse {
   final BudgetTotals totals;
 
   factory BudgetsResponse.fromJson(Map<String, dynamic> j) => BudgetsResponse(
-        items: mapList(j['items'], BudgetRow.fromJson),
-        totals: BudgetTotals.fromJson(asMap(j['totals'])),
-      );
+    items: mapList(j['items'], BudgetRow.fromJson),
+    totals: BudgetTotals.fromJson(asMap(j['totals'])),
+  );
 }
 
 class BudgetSource {
@@ -567,9 +576,9 @@ class BudgetSource {
   final String available;
 
   factory BudgetSource.fromJson(Map<String, dynamic> j) => BudgetSource(
-        account: Ref.maybe(j['account']),
-        available: asStr(j['available']),
-      );
+    account: Ref.maybe(j['account']),
+    available: asStr(j['available']),
+  );
 }
 
 class BudgetAllocation {
@@ -596,14 +605,14 @@ class BudgetAllocation {
   final int cycleIndex;
 
   factory BudgetAllocation.fromJson(Map<String, dynamic> j) => BudgetAllocation(
-        id: asStr(j['id'], ''),
-        kind: asStr(j['kind'], 'FUND'),
-        amount: asStr(j['amount']),
-        date: asDate(j['date']) ?? DateTime.now(),
-        note: asStrOrNull(j['note']),
-        account: Ref.maybe(j['account']),
-        cycleIndex: asInt(j['cycleIndex']),
-      );
+    id: asStr(j['id'], ''),
+    kind: asStr(j['kind'], 'FUND'),
+    amount: asStr(j['amount']),
+    date: asDate(j['date']) ?? DateTime.now(),
+    note: asStrOrNull(j['note']),
+    account: Ref.maybe(j['account']),
+    cycleIndex: asInt(j['cycleIndex']),
+  );
 }
 
 class BudgetAdjustment {
@@ -624,12 +633,12 @@ class BudgetAdjustment {
   final int cycleIndex;
 
   factory BudgetAdjustment.fromJson(Map<String, dynamic> j) => BudgetAdjustment(
-        id: asStr(j['id'], ''),
-        amount: asStr(j['amount']),
-        date: asDate(j['date']) ?? DateTime.now(),
-        reason: asStrOrNull(j['reason']),
-        cycleIndex: asInt(j['cycleIndex']),
-      );
+    id: asStr(j['id'], ''),
+    amount: asStr(j['amount']),
+    date: asDate(j['date']) ?? DateTime.now(),
+    reason: asStrOrNull(j['reason']),
+    cycleIndex: asInt(j['cycleIndex']),
+  );
 }
 
 class BudgetTransaction {
@@ -657,7 +666,8 @@ class BudgetTransaction {
   final Ref? account;
   final int? budgetCycle;
 
-  factory BudgetTransaction.fromJson(Map<String, dynamic> j) => BudgetTransaction(
+  factory BudgetTransaction.fromJson(Map<String, dynamic> j) =>
+      BudgetTransaction(
         id: asStr(j['id'], ''),
         amount: asStr(j['amount']),
         currency: asStr(j['currency'], 'ETB'),
@@ -671,7 +681,7 @@ class BudgetTransaction {
       );
 }
 
-/// One row of the plan's movement history — a fund, a release, a spend or an
+/// One row of the plan's movement history   a fund, a release, a spend or an
 /// adjustment, already sorted by the API.
 class BudgetTimelineEntry {
   BudgetTimelineEntry({
@@ -698,17 +708,19 @@ class BudgetTimelineEntry {
       type: type,
       at: asDate(j['at']) ?? DateTime.now(),
       cycleIndex: asInt(j['cycleIndex']),
-      allocation: (type == 'fund' || type == 'release') ? BudgetAllocation.fromJson(entry) : null,
+      allocation: (type == 'fund' || type == 'release')
+          ? BudgetAllocation.fromJson(entry)
+          : null,
       transaction: type == 'spend' ? BudgetTransaction.fromJson(entry) : null,
       adjustment: type == 'adjust' ? BudgetAdjustment.fromJson(entry) : null,
     );
   }
 
   String get amount => switch (type) {
-        'fund' || 'release' => allocation?.amount ?? '0',
-        'spend' => transaction?.amount ?? '0',
-        _ => adjustment?.amount ?? '0',
-      };
+    'fund' || 'release' => allocation?.amount ?? '0',
+    'spend' => transaction?.amount ?? '0',
+    _ => adjustment?.amount ?? '0',
+  };
 }
 
 /// A finished cycle, frozen at the moment it rolled over.
@@ -743,7 +755,8 @@ class BudgetCycleSnapshot {
   final int txCount;
   final List<BudgetAdjustment> adjustments;
 
-  factory BudgetCycleSnapshot.fromJson(Map<String, dynamic> j) => BudgetCycleSnapshot(
+  factory BudgetCycleSnapshot.fromJson(Map<String, dynamic> j) =>
+      BudgetCycleSnapshot(
         index: asInt(j['index']),
         label: asStr(j['label'], ''),
         startedAt: asDate(j['startedAt']) ?? DateTime.now(),
@@ -839,7 +852,8 @@ class BudgetSpendSource {
   final bool isUnplanned;
   final List<BudgetSource> sources;
 
-  factory BudgetSpendSource.fromJson(Map<String, dynamic> j) => BudgetSpendSource(
+  factory BudgetSpendSource.fromJson(Map<String, dynamic> j) =>
+      BudgetSpendSource(
         id: asStr(j['id'], ''),
         name: asStr(j['name'], ''),
         currency: asStr(j['currency'], 'ETB'),
@@ -871,13 +885,13 @@ class AppNotification {
   final DateTime createdAt;
 
   factory AppNotification.fromJson(Map<String, dynamic> j) => AppNotification(
-        id: asStr(j['id'], ''),
-        type: asStr(j['type'], ''),
-        message: asStr(j['message'], ''),
-        link: asStrOrNull(j['link']),
-        readFlag: asBool(j['readFlag']),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-      );
+    id: asStr(j['id'], ''),
+    type: asStr(j['type'], ''),
+    message: asStr(j['message'], ''),
+    link: asStrOrNull(j['link']),
+    readFlag: asBool(j['readFlag']),
+    createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+  );
 }
 
 class MonthSummary {
@@ -904,32 +918,39 @@ class MonthSummary {
   final Transaction? biggestExpense;
 
   factory MonthSummary.fromJson(Map<String, dynamic> j) => MonthSummary(
-        month: asStr(j['month'], ''),
-        currency: asStrOrNull(j['currency']),
-        income: asStr(j['income']),
-        expense: asStr(j['expense']),
-        net: asStr(j['net']),
-        incomeDeltaPct: j['incomeDeltaPct'] == null ? null : asNum(j['incomeDeltaPct']),
-        expenseDeltaPct: j['expenseDeltaPct'] == null ? null : asNum(j['expenseDeltaPct']),
-        avgDailySpend: asStr(j['avgDailySpend']),
-        biggestExpense: j['biggestExpense'] == null
-            ? null
-            : Transaction.fromJson({...asMap(j['biggestExpense']), 'kind': 'EXPENSE'}),
-      );
+    month: asStr(j['month'], ''),
+    currency: asStrOrNull(j['currency']),
+    income: asStr(j['income']),
+    expense: asStr(j['expense']),
+    net: asStr(j['net']),
+    incomeDeltaPct: j['incomeDeltaPct'] == null
+        ? null
+        : asNum(j['incomeDeltaPct']),
+    expenseDeltaPct: j['expenseDeltaPct'] == null
+        ? null
+        : asNum(j['expenseDeltaPct']),
+    avgDailySpend: asStr(j['avgDailySpend']),
+    biggestExpense: j['biggestExpense'] == null
+        ? null
+        : Transaction.fromJson({
+            ...asMap(j['biggestExpense']),
+            'kind': 'EXPENSE',
+          }),
+  );
 
   MonthSummary mergeWith(Map<String, dynamic> override) =>
       MonthSummary.fromJson({...toJson(), ...override});
 
   Map<String, dynamic> toJson() => {
-        'month': month,
-        'currency': currency,
-        'income': income,
-        'expense': expense,
-        'net': net,
-        'incomeDeltaPct': incomeDeltaPct,
-        'expenseDeltaPct': expenseDeltaPct,
-        'avgDailySpend': avgDailySpend,
-      };
+    'month': month,
+    'currency': currency,
+    'income': income,
+    'expense': expense,
+    'net': net,
+    'incomeDeltaPct': incomeDeltaPct,
+    'expenseDeltaPct': expenseDeltaPct,
+    'avgDailySpend': avgDailySpend,
+  };
 }
 
 class CategoryBreakdownItem {
@@ -945,7 +966,8 @@ class CategoryBreakdownItem {
   final int count;
   final double pct;
 
-  factory CategoryBreakdownItem.fromJson(Map<String, dynamic> j) => CategoryBreakdownItem(
+  factory CategoryBreakdownItem.fromJson(Map<String, dynamic> j) =>
+      CategoryBreakdownItem(
         category: Ref.maybe(j['category']),
         amount: asStr(j['amount']),
         count: asInt(j['count']),
@@ -969,12 +991,12 @@ class UnnecessaryStats {
   final int count;
 
   factory UnnecessaryStats.fromJson(Map<String, dynamic> j) => UnnecessaryStats(
-        category: Ref.maybe(j['category']),
-        total: asStr(j['total']),
-        prevTotal: asStr(j['prevTotal']),
-        deltaPct: j['deltaPct'] == null ? null : asNum(j['deltaPct']),
-        count: asInt(j['count']),
-      );
+    category: Ref.maybe(j['category']),
+    total: asStr(j['total']),
+    prevTotal: asStr(j['prevTotal']),
+    deltaPct: j['deltaPct'] == null ? null : asNum(j['deltaPct']),
+    count: asInt(j['count']),
+  );
 }
 
 class WeekTotals {
@@ -1005,17 +1027,17 @@ class WeekTotals {
   final bool sealed;
 
   factory WeekTotals.fromJson(Map<String, dynamic> j) => WeekTotals(
-        weekStart: asDate(j['weekStart']) ?? DateTime.now(),
-        weekEnd: asDate(j['weekEnd']) ?? DateTime.now(),
-        income: asStr(j['income']),
-        expense: asStr(j['expense']),
-        net: asStr(j['net']),
-        avgDailySpend: asStr(j['avgDailySpend']),
-        txCount: asInt(j['txCount']),
-        topCategory: asStrOrNull(j['topCategory']),
-        topCategoryAmount: asStrOrNull(j['topCategoryAmount']),
-        sealed: asBool(j['sealed']),
-      );
+    weekStart: asDate(j['weekStart']) ?? DateTime.now(),
+    weekEnd: asDate(j['weekEnd']) ?? DateTime.now(),
+    income: asStr(j['income']),
+    expense: asStr(j['expense']),
+    net: asStr(j['net']),
+    avgDailySpend: asStr(j['avgDailySpend']),
+    txCount: asInt(j['txCount']),
+    topCategory: asStrOrNull(j['topCategory']),
+    topCategoryAmount: asStrOrNull(j['topCategoryAmount']),
+    sealed: asBool(j['sealed']),
+  );
 }
 
 class WeeklySnapshot {
@@ -1068,11 +1090,11 @@ class SpendDay {
   final bool under;
 
   factory SpendDay.fromJson(Map<String, dynamic> j) => SpendDay(
-        date: asDate(j['date']) ?? DateTime.now(),
-        amount: asStr(j['amount']),
-        spent: asBool(j['spent']),
-        under: asBool(j['under']),
-      );
+    date: asDate(j['date']) ?? DateTime.now(),
+    amount: asStr(j['amount']),
+    spent: asBool(j['spent']),
+    under: asBool(j['under']),
+  );
 }
 
 class SpendingStreak {
@@ -1091,7 +1113,7 @@ class SpendingStreak {
   final String currency;
   final String label;
 
-  /// Average daily spend across the window — the pace to stay under.
+  /// Average daily spend across the window   the pace to stay under.
   final String avgDailySpend;
   final int currentDays;
   final int bestStreak;
@@ -1101,16 +1123,16 @@ class SpendingStreak {
   final List<SpendDay> days;
 
   factory SpendingStreak.fromJson(Map<String, dynamic> j) => SpendingStreak(
-        currency: asStr(j['currency'], 'ETB'),
-        label: asStr(j['label'], ''),
-        avgDailySpend: asStr(j['avgDailySpend']),
-        currentDays: asInt(j['currentDays']),
-        bestStreak: asInt(j['bestStreak']),
-        daysUnder: asInt(j['daysUnder']),
-        dayCount: asInt(j['dayCount']),
-        total: asStr(j['total']),
-        days: mapList(j['days'], SpendDay.fromJson),
-      );
+    currency: asStr(j['currency'], 'ETB'),
+    label: asStr(j['label'], ''),
+    avgDailySpend: asStr(j['avgDailySpend']),
+    currentDays: asInt(j['currentDays']),
+    bestStreak: asInt(j['bestStreak']),
+    daysUnder: asInt(j['daysUnder']),
+    dayCount: asInt(j['dayCount']),
+    total: asStr(j['total']),
+    days: mapList(j['days'], SpendDay.fromJson),
+  );
 }
 
 class CategoryHeatAlert {
@@ -1130,7 +1152,8 @@ class CategoryHeatAlert {
   /// 'low' | 'medium' | 'high'
   final String severity;
 
-  factory CategoryHeatAlert.fromJson(Map<String, dynamic> j) => CategoryHeatAlert(
+  factory CategoryHeatAlert.fromJson(Map<String, dynamic> j) =>
+      CategoryHeatAlert(
         category: Ref.maybe(j['category']),
         amount: asStr(j['amount']),
         prevAmount: asStr(j['prevAmount']),
@@ -1156,13 +1179,17 @@ class FamilySupportStats {
   final int count;
   final List<Transaction> recent;
 
-  factory FamilySupportStats.fromJson(Map<String, dynamic> j) => FamilySupportStats(
+  factory FamilySupportStats.fromJson(Map<String, dynamic> j) =>
+      FamilySupportStats(
         category: Ref.maybe(j['category']),
         total: asStr(j['total']),
         prevTotal: asStr(j['prevTotal']),
         deltaPct: j['deltaPct'] == null ? null : asNum(j['deltaPct']),
         count: asInt(j['count']),
-        recent: mapList(j['recent'], (m) => Transaction.fromJson({...m, 'kind': 'EXPENSE'})),
+        recent: mapList(
+          j['recent'],
+          (m) => Transaction.fromJson({...m, 'kind': 'EXPENSE'}),
+        ),
       );
 }
 
@@ -1186,13 +1213,13 @@ class HouseholdMember {
   final bool isYou;
 
   factory HouseholdMember.fromJson(Map<String, dynamic> j) => HouseholdMember(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        email: asStr(j['email'], ''),
-        avatarId: asStrOrNull(j['avatarId']),
-        role: asStr(j['role'], 'PARTNER'),
-        isYou: asBool(j['isYou']),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    email: asStr(j['email'], ''),
+    avatarId: asStrOrNull(j['avatarId']),
+    role: asStr(j['role'], 'PARTNER'),
+    isYou: asBool(j['isYou']),
+  );
 }
 
 class HouseholdOverview {
@@ -1214,7 +1241,8 @@ class HouseholdOverview {
   final String sharedBalance;
   final int pendingInvites;
 
-  factory HouseholdOverview.fromJson(Map<String, dynamic> j) => HouseholdOverview(
+  factory HouseholdOverview.fromJson(Map<String, dynamic> j) =>
+      HouseholdOverview(
         id: asStr(j['id'], ''),
         name: asStr(j['name'], ''),
         role: asStr(j['role'], 'PARTNER'),
@@ -1226,7 +1254,13 @@ class HouseholdOverview {
 }
 
 class LedgerPayment {
-  LedgerPayment({required this.id, required this.amount, required this.date, this.note, this.transactionId});
+  LedgerPayment({
+    required this.id,
+    required this.amount,
+    required this.date,
+    this.note,
+    this.transactionId,
+  });
 
   final String id;
   final String amount;
@@ -1235,12 +1269,12 @@ class LedgerPayment {
   final String? transactionId;
 
   factory LedgerPayment.fromJson(Map<String, dynamic> j) => LedgerPayment(
-        id: asStr(j['id'], ''),
-        amount: asStr(j['amount']),
-        date: asDate(j['date']) ?? DateTime.now(),
-        note: asStrOrNull(j['note']),
-        transactionId: asStrOrNull(j['transactionId']),
-      );
+    id: asStr(j['id'], ''),
+    amount: asStr(j['amount']),
+    date: asDate(j['date']) ?? DateTime.now(),
+    note: asStrOrNull(j['note']),
+    transactionId: asStrOrNull(j['transactionId']),
+  );
 }
 
 class LedgerEntry {
@@ -1287,24 +1321,24 @@ class LedgerEntry {
   bool get isOpen => status == 'OPEN';
 
   factory LedgerEntry.fromJson(Map<String, dynamic> j) => LedgerEntry(
-        id: asStr(j['id'], ''),
-        kind: LedgerKind.parse(j['kind']),
-        counterparty: asStr(j['counterparty'], ''),
-        title: asStrOrNull(j['title']),
-        totalAmount: asStr(j['totalAmount']),
-        paid: asStr(j['paid']),
-        remaining: asStr(j['remaining']),
-        pct: asNum(j['pct']),
-        currency: asStr(j['currency'], 'ETB'),
-        dueDate: asDate(j['dueDate']),
-        note: asStrOrNull(j['note']),
-        status: asStr(j['status'], 'OPEN'),
-        settledAt: asDate(j['settledAt']),
-        isOverdue: asBool(j['isOverdue']),
-        category: Ref.maybe(j['category']),
-        payments: mapList(j['payments'], LedgerPayment.fromJson),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-      );
+    id: asStr(j['id'], ''),
+    kind: LedgerKind.parse(j['kind']),
+    counterparty: asStr(j['counterparty'], ''),
+    title: asStrOrNull(j['title']),
+    totalAmount: asStr(j['totalAmount']),
+    paid: asStr(j['paid']),
+    remaining: asStr(j['remaining']),
+    pct: asNum(j['pct']),
+    currency: asStr(j['currency'], 'ETB'),
+    dueDate: asDate(j['dueDate']),
+    note: asStrOrNull(j['note']),
+    status: asStr(j['status'], 'OPEN'),
+    settledAt: asDate(j['settledAt']),
+    isOverdue: asBool(j['isOverdue']),
+    category: Ref.maybe(j['category']),
+    payments: mapList(j['payments'], LedgerPayment.fromJson),
+    createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+  );
 }
 
 class LedgerSummary {
@@ -1392,7 +1426,8 @@ class LedgerPersonGroup {
   final String netDirection;
   final List<LedgerEntry> entries;
 
-  factory LedgerPersonGroup.fromJson(Map<String, dynamic> j) => LedgerPersonGroup(
+  factory LedgerPersonGroup.fromJson(Map<String, dynamic> j) =>
+      LedgerPersonGroup(
         counterparty: asStr(j['counterparty'], ''),
         openCount: asInt(j['openCount']),
         receivable: asStr(j['receivable']),
@@ -1475,19 +1510,19 @@ class WishlistItem {
   final DateTime createdAt;
 
   factory WishlistItem.fromJson(Map<String, dynamic> j) => WishlistItem(
-        id: asStr(j['id'], ''),
-        name: asStr(j['name'], ''),
-        priority: asInt(j['priority'], 3),
-        status: WishlistStatus.parse(j['status']),
-        note: asStrOrNull(j['note']),
-        link: asStrOrNull(j['link']),
-        emoji: asStrOrNull(j['emoji']),
-        budgetId: asStrOrNull(j['budgetId']),
-        plan: WishPlanRef.maybe(j['plan']),
-        plannedAt: asDate(j['plannedAt']),
-        boughtAt: asDate(j['boughtAt']),
-        createdAt: asDate(j['createdAt']) ?? DateTime.now(),
-      );
+    id: asStr(j['id'], ''),
+    name: asStr(j['name'], ''),
+    priority: asInt(j['priority'], 3),
+    status: WishlistStatus.parse(j['status']),
+    note: asStrOrNull(j['note']),
+    link: asStrOrNull(j['link']),
+    emoji: asStrOrNull(j['emoji']),
+    budgetId: asStrOrNull(j['budgetId']),
+    plan: WishPlanRef.maybe(j['plan']),
+    plannedAt: asDate(j['plannedAt']),
+    boughtAt: asDate(j['boughtAt']),
+    createdAt: asDate(j['createdAt']) ?? DateTime.now(),
+  );
 }
 
 class WishlistResponse {
@@ -1521,17 +1556,21 @@ class WishlistResponse {
 }
 
 class WishlistDigest {
-  WishlistDigest({required this.activeCount, required this.plannedCount, required this.top});
+  WishlistDigest({
+    required this.activeCount,
+    required this.plannedCount,
+    required this.top,
+  });
 
   final int activeCount;
   final int plannedCount;
   final List<WishlistItem> top;
 
   factory WishlistDigest.fromJson(Map<String, dynamic> j) => WishlistDigest(
-        activeCount: asInt(j['activeCount']),
-        plannedCount: asInt(j['plannedCount']),
-        top: mapList(j['top'], WishlistItem.fromJson),
-      );
+    activeCount: asInt(j['activeCount']),
+    plannedCount: asInt(j['plannedCount']),
+    top: mapList(j['top'], WishlistItem.fromJson),
+  );
 }
 
 class GuideSection {
@@ -1540,9 +1579,9 @@ class GuideSection {
   final String body;
 
   factory GuideSection.fromJson(Map<String, dynamic> j) => GuideSection(
-        heading: asStr(j['heading'], ''),
-        body: asStr(j['body'], ''),
-      );
+    heading: asStr(j['heading'], ''),
+    body: asStr(j['body'], ''),
+  );
 }
 
 class Guide {
@@ -1569,15 +1608,15 @@ class Guide {
   final List<GuideSection> sections;
 
   factory Guide.fromJson(Map<String, dynamic> j) => Guide(
-        id: asStr(j['id'], ''),
-        title: asStr(j['title'], ''),
-        emoji: asStr(j['emoji'], '📘'),
-        category: asStr(j['category'], 'getting-started'),
-        readMins: asInt(j['readMins'], 3),
-        tagline: asStr(j['tagline'], ''),
-        href: asStrOrNull(j['href']),
-        sections: mapList(j['sections'], GuideSection.fromJson),
-      );
+    id: asStr(j['id'], ''),
+    title: asStr(j['title'], ''),
+    emoji: asStr(j['emoji'], '📘'),
+    category: asStr(j['category'], 'getting-started'),
+    readMins: asInt(j['readMins'], 3),
+    tagline: asStr(j['tagline'], ''),
+    href: asStrOrNull(j['href']),
+    sections: mapList(j['sections'], GuideSection.fromJson),
+  );
 }
 
 class GuideSuggestion {
@@ -1602,14 +1641,14 @@ class GuideSuggestion {
   final String? cta;
 
   factory GuideSuggestion.fromJson(Map<String, dynamic> j) => GuideSuggestion(
-        id: asStr(j['id'], ''),
-        title: asStr(j['title'], ''),
-        body: asStr(j['body'], ''),
-        tone: asStr(j['tone'], 'tip'),
-        guideId: asStrOrNull(j['guideId']),
-        href: asStrOrNull(j['href']),
-        cta: asStrOrNull(j['cta']),
-      );
+    id: asStr(j['id'], ''),
+    title: asStr(j['title'], ''),
+    body: asStr(j['body'], ''),
+    tone: asStr(j['tone'], 'tip'),
+    guideId: asStrOrNull(j['guideId']),
+    href: asStrOrNull(j['href']),
+    cta: asStrOrNull(j['cta']),
+  );
 }
 
 class GuidesOverview {
@@ -1618,9 +1657,9 @@ class GuidesOverview {
   final List<GuideSuggestion> suggestions;
 
   factory GuidesOverview.fromJson(Map<String, dynamic> j) => GuidesOverview(
-        guides: mapList(j['guides'], Guide.fromJson),
-        suggestions: mapList(j['suggestions'], GuideSuggestion.fromJson),
-      );
+    guides: mapList(j['guides'], Guide.fromJson),
+    suggestions: mapList(j['suggestions'], GuideSuggestion.fromJson),
+  );
 }
 
 /// Per-currency slice of the dashboard, so switching currency never refetches.
@@ -1641,7 +1680,8 @@ class CurrencyBreakdown {
   final int accountCount;
   final MonthSummary month;
 
-  factory CurrencyBreakdown.fromJson(Map<String, dynamic> j) => CurrencyBreakdown(
+  factory CurrencyBreakdown.fromJson(Map<String, dynamic> j) =>
+      CurrencyBreakdown(
         currency: asStr(j['currency'], 'ETB'),
         totalBalance: asStr(j['totalBalance']),
         realBalance: asStr(j['realBalance']),
@@ -1728,28 +1768,36 @@ class DashboardData {
   final WishlistDigest wishlist;
 
   factory DashboardData.fromJson(Map<String, dynamic> j) => DashboardData(
-        totalBalance: asStr(j['totalBalance']),
-        displayCurrency: asStrOrNull(j['displayCurrency']),
-        currencies: asStrList(j['currencies']),
-        realBalance: asStrOrNull(j['realBalance']),
-        budgetLocked: asStrOrNull(j['budgetLocked']),
-        currencyBreakdown: mapList(j['currencyBreakdown'], CurrencyBreakdown.fromJson),
-        convertedTotal: ConvertedTotal.maybe(j['convertedTotal']),
-        accounts: mapList(j['accounts'], Account.fromJson),
-        month: MonthSummary.fromJson(asMap(j['month'])),
-        budgetTotals: BudgetTotals.fromJson(asMap(j['budgetTotals'])),
-        budgetsAtRisk: mapList(j['budgetsAtRisk'], BudgetRow.fromJson),
-        budgets: mapList(j['budgets'], BudgetRow.fromJson),
-        recentTransactions: mapList(j['recentTransactions'], Transaction.fromJson),
-        topCategories: mapList(j['topCategories'], CategoryBreakdownItem.fromJson),
-        upcomingRecurring: mapList(j['upcomingRecurring'], RecurringRule.fromJson),
-        unnecessary: UnnecessaryStats.fromJson(asMap(j['unnecessary'])),
-        weeklySnapshot: WeeklySnapshot.fromJson(asMap(j['weeklySnapshot'])),
-        spendingStreak: SpendingStreak.fromJson(asMap(j['spendingStreak'])),
-        categoryHeatAlerts: mapList(j['categoryHeatAlerts'], CategoryHeatAlert.fromJson),
-        familySupport: FamilySupportStats.fromJson(asMap(j['familySupport'])),
-        household: j['household'] == null ? null : HouseholdOverview.fromJson(asMap(j['household'])),
-        tab: LedgerSummary.fromJson(asMap(j['tab'])),
-        wishlist: WishlistDigest.fromJson(asMap(j['wishlist'])),
-      );
+    totalBalance: asStr(j['totalBalance']),
+    displayCurrency: asStrOrNull(j['displayCurrency']),
+    currencies: asStrList(j['currencies']),
+    realBalance: asStrOrNull(j['realBalance']),
+    budgetLocked: asStrOrNull(j['budgetLocked']),
+    currencyBreakdown: mapList(
+      j['currencyBreakdown'],
+      CurrencyBreakdown.fromJson,
+    ),
+    convertedTotal: ConvertedTotal.maybe(j['convertedTotal']),
+    accounts: mapList(j['accounts'], Account.fromJson),
+    month: MonthSummary.fromJson(asMap(j['month'])),
+    budgetTotals: BudgetTotals.fromJson(asMap(j['budgetTotals'])),
+    budgetsAtRisk: mapList(j['budgetsAtRisk'], BudgetRow.fromJson),
+    budgets: mapList(j['budgets'], BudgetRow.fromJson),
+    recentTransactions: mapList(j['recentTransactions'], Transaction.fromJson),
+    topCategories: mapList(j['topCategories'], CategoryBreakdownItem.fromJson),
+    upcomingRecurring: mapList(j['upcomingRecurring'], RecurringRule.fromJson),
+    unnecessary: UnnecessaryStats.fromJson(asMap(j['unnecessary'])),
+    weeklySnapshot: WeeklySnapshot.fromJson(asMap(j['weeklySnapshot'])),
+    spendingStreak: SpendingStreak.fromJson(asMap(j['spendingStreak'])),
+    categoryHeatAlerts: mapList(
+      j['categoryHeatAlerts'],
+      CategoryHeatAlert.fromJson,
+    ),
+    familySupport: FamilySupportStats.fromJson(asMap(j['familySupport'])),
+    household: j['household'] == null
+        ? null
+        : HouseholdOverview.fromJson(asMap(j['household'])),
+    tab: LedgerSummary.fromJson(asMap(j['tab'])),
+    wishlist: WishlistDigest.fromJson(asMap(j['wishlist'])),
+  );
 }

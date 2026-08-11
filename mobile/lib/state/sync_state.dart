@@ -13,11 +13,11 @@ class QueueResult {
   final bool queued;
 }
 
-/// Online/offline sync brain — ports the web `OfflineProvider`.
+/// Online/offline sync brain   ports the web `OfflineProvider`.
 class SyncState extends ChangeNotifier {
   SyncState({required this.api, LocalDb? db})
-      : _db = db ?? LocalDb.instance,
-        _outbox = OutboxStore(db ?? LocalDb.instance);
+    : _db = db ?? LocalDb.instance,
+      _outbox = OutboxStore(db ?? LocalDb.instance);
 
   final ApiClient api;
   final LocalDb _db;
@@ -44,16 +44,19 @@ class SyncState extends ChangeNotifier {
     final out = <Transaction>[];
     for (final o in ops) {
       if (o.entity == OutboxEntity.transaction &&
-          (o.action == OutboxAction.create || o.action == OutboxAction.transfer) &&
+          (o.action == OutboxAction.create ||
+              o.action == OutboxAction.transfer) &&
           o.optimistic != null) {
-        out.add(_withPending(
-          o.optimistic!,
-          o.status == OutboxStatus.syncing
-              ? PendingState.syncing
-              : o.status == OutboxStatus.error
-                  ? PendingState.error
-                  : PendingState.pending,
-        ));
+        out.add(
+          _withPending(
+            o.optimistic!,
+            o.status == OutboxStatus.syncing
+                ? PendingState.syncing
+                : o.status == OutboxStatus.error
+                ? PendingState.error
+                : PendingState.pending,
+          ),
+        );
       }
     }
     return out;
@@ -68,7 +71,9 @@ class SyncState extends ChangeNotifier {
           o.optimistic != null) {
         map[o.targetId!] = _withPending(
           o.optimistic!,
-          o.status == OutboxStatus.error ? PendingState.error : PendingState.pending,
+          o.status == OutboxStatus.error
+              ? PendingState.error
+              : PendingState.pending,
         );
       }
     }
@@ -76,10 +81,12 @@ class SyncState extends ChangeNotifier {
   }
 
   Set<String> get deletedIds => ops
-      .where((o) =>
-          o.entity == OutboxEntity.transaction &&
-          o.action == OutboxAction.delete &&
-          o.targetId != null)
+      .where(
+        (o) =>
+            o.entity == OutboxEntity.transaction &&
+            o.action == OutboxAction.delete &&
+            o.targetId != null,
+      )
       .map((o) => o.targetId!)
       .toSet();
 
@@ -190,7 +197,9 @@ class SyncState extends ChangeNotifier {
 
   Future<void> flush() async {
     if (_flushing || !online) return;
-    final queue = (await _outbox.all()).where((o) => o.status != OutboxStatus.error).toList();
+    final queue = (await _outbox.all())
+        .where((o) => o.status != OutboxStatus.error)
+        .toList();
     if (queue.isEmpty) return;
 
     _flushing = true;
@@ -209,7 +218,9 @@ class SyncState extends ChangeNotifier {
           anySynced = true;
         } catch (err) {
           if (err is ApiError && err.isNetwork) {
-            await _outbox.put(op.copyWith(status: OutboxStatus.pending, error: null));
+            await _outbox.put(
+              op.copyWith(status: OutboxStatus.pending, error: null),
+            );
             break;
           }
           final message = err is ApiError ? err.message : 'Failed to sync';
@@ -274,22 +285,21 @@ class SyncState extends ChangeNotifier {
     String? targetId,
     Map<String, dynamic>? payload,
     Transaction? optimistic,
-  }) =>
-      OutboxOp(
-        id: id ?? newLocalId(),
-        entity: entity,
-        action: action,
-        method: method,
-        path: path,
-        label: label,
-        detail: detail,
-        payload: payload,
-        targetId: targetId,
-        optimistic: optimistic,
-        status: OutboxStatus.pending,
-        attempts: 0,
-        createdAt: DateTime.now().millisecondsSinceEpoch,
-      );
+  }) => OutboxOp(
+    id: id ?? newLocalId(),
+    entity: entity,
+    action: action,
+    method: method,
+    path: path,
+    label: label,
+    detail: detail,
+    payload: payload,
+    targetId: targetId,
+    optimistic: optimistic,
+    status: OutboxStatus.pending,
+    attempts: 0,
+    createdAt: DateTime.now().millisecondsSinceEpoch,
+  );
 
   // ── Transactions ─────────────────────────────────────────────────────────
 
@@ -723,7 +733,10 @@ class SyncState extends ChangeNotifier {
 
   Future<void> cacheAccounts(List<Account> accounts) async {
     try {
-      await _db.putBlobList(CacheKeys.accounts, accounts.map(_accountJson).toList());
+      await _db.putBlobList(
+        CacheKeys.accounts,
+        accounts.map(_accountJson).toList(),
+      );
     } catch (e) {
       debugPrint('cacheAccounts failed: $e');
     }
@@ -745,7 +758,10 @@ class SyncState extends ChangeNotifier {
 
   Future<void> cacheCategories(List<TxCategory> cats) async {
     try {
-      await _db.putBlobList(CacheKeys.categories, cats.map(_categoryJson).toList());
+      await _db.putBlobList(
+        CacheKeys.categories,
+        cats.map(_categoryJson).toList(),
+      );
     } catch (e) {
       debugPrint('cacheCategories failed: $e');
     }
@@ -845,54 +861,54 @@ class SyncState extends ChangeNotifier {
 }
 
 Transaction _withPending(Transaction tx, PendingState pending) => Transaction(
-      id: tx.id,
-      kind: tx.kind,
-      amount: tx.amount,
-      currency: tx.currency,
-      date: tx.date,
-      accountId: tx.accountId,
-      tags: tx.tags,
-      account: tx.account,
-      transferAccountId: tx.transferAccountId,
-      transferAccount: tx.transferAccount,
-      categoryId: tx.categoryId,
-      category: tx.category,
-      budgetId: tx.budgetId,
-      budget: tx.budget,
-      budgetCycle: tx.budgetCycle,
-      budgetSourceAccountId: tx.budgetSourceAccountId,
-      budgetSourceAccount: tx.budgetSourceAccount,
-      note: tx.note,
-      payee: tx.payee,
-      recurringRuleId: tx.recurringRuleId,
-      pending: pending,
-    );
+  id: tx.id,
+  kind: tx.kind,
+  amount: tx.amount,
+  currency: tx.currency,
+  date: tx.date,
+  accountId: tx.accountId,
+  tags: tx.tags,
+  account: tx.account,
+  transferAccountId: tx.transferAccountId,
+  transferAccount: tx.transferAccount,
+  categoryId: tx.categoryId,
+  category: tx.category,
+  budgetId: tx.budgetId,
+  budget: tx.budget,
+  budgetCycle: tx.budgetCycle,
+  budgetSourceAccountId: tx.budgetSourceAccountId,
+  budgetSourceAccount: tx.budgetSourceAccount,
+  note: tx.note,
+  payee: tx.payee,
+  recurringRuleId: tx.recurringRuleId,
+  pending: pending,
+);
 
 Map<String, dynamic> _accountJson(Account a) => {
-      'id': a.id,
-      'name': a.name,
-      'type': a.type.wire,
-      'currency': a.currency,
-      'openingBalance': a.openingBalance,
-      'balance': a.balance,
-      'realBalance': a.realBalance,
-      'lockedAmount': a.lockedAmount,
-      'isDefault': a.isDefault,
-      'archived': a.archived,
-      if (a.icon != null) 'icon': a.icon,
-      if (a.color != null) 'color': a.color,
-      'isShared': a.isShared,
-      if (a.householdId != null) 'householdId': a.householdId,
-      if (a.accountNumber != null) 'accountNumber': a.accountNumber,
-    };
+  'id': a.id,
+  'name': a.name,
+  'type': a.type.wire,
+  'currency': a.currency,
+  'openingBalance': a.openingBalance,
+  'balance': a.balance,
+  'realBalance': a.realBalance,
+  'lockedAmount': a.lockedAmount,
+  'isDefault': a.isDefault,
+  'archived': a.archived,
+  if (a.icon != null) 'icon': a.icon,
+  if (a.color != null) 'color': a.color,
+  'isShared': a.isShared,
+  if (a.householdId != null) 'householdId': a.householdId,
+  if (a.accountNumber != null) 'accountNumber': a.accountNumber,
+};
 
 Map<String, dynamic> _categoryJson(TxCategory c) => {
-      'id': c.id,
-      'name': c.name,
-      'kind': c.kind,
-      'icon': c.icon,
-      'color': c.color,
-      'isDefault': c.isDefault,
-      'archived': c.archived,
-      if (c.transactionCount != null) 'transactionCount': c.transactionCount,
-    };
+  'id': c.id,
+  'name': c.name,
+  'kind': c.kind,
+  'icon': c.icon,
+  'color': c.color,
+  'isDefault': c.isDefault,
+  'archived': c.archived,
+  if (c.transactionCount != null) 'transactionCount': c.transactionCount,
+};

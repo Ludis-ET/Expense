@@ -7,7 +7,7 @@ import 'ui.dart';
 
 /// Line illustrations for zero-data screens.
 ///
-/// Empty states used to be a muted glyph in a dashed box — the same grey
+/// Empty states used to be a muted glyph in a dashed box   the same grey
 /// square whether you had no wallets, no plans or no results. These are drawn
 /// with [CustomPaint] rather than shipped as assets, so they recolour with the
 /// theme, stay sharp at any density, and add nothing to the APK.
@@ -75,7 +75,10 @@ class _EmptyArtPainter extends CustomPainter {
       44,
       Paint()
         ..shader = RadialGradient(
-          colors: [primary.withValues(alpha: 0.12), primary.withValues(alpha: 0)],
+          colors: [
+            primary.withValues(alpha: 0.12),
+            primary.withValues(alpha: 0),
+          ],
         ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: 44)),
     );
 
@@ -87,12 +90,15 @@ class _EmptyArtPainter extends CustomPainter {
         return;
 
       case EmptyArt.ledger:
-        // Three list rows, the last one dimmed — "nothing logged yet".
+        // Three list rows, the last one dimmed   "nothing logged yet".
         for (var i = 0; i < 3; i++) {
           final y = cy - 34 + i * 24.0;
           final rect = box(cx - 52, y, 104, 18, 6);
           canvas.drawRRect(rect, fill);
-          canvas.drawRRect(rect, stroke..color = line.withValues(alpha: 1 - i * 0.3));
+          canvas.drawRRect(
+            rect,
+            stroke..color = line.withValues(alpha: 1 - i * 0.3),
+          );
           canvas.drawCircle(Offset(cx - 40, y + 9), 5, i == 0 ? brand : soft);
           canvas.drawRRect(
             box(cx - 28, y + 6, i == 0 ? 44 : 32, 6, 3),
@@ -147,7 +153,10 @@ class _EmptyArtPainter extends CustomPainter {
         final star = Path();
         for (var i = 0; i < 5; i++) {
           final a = -math.pi / 2 + i * 2 * math.pi / 5;
-          final p = Offset(cx + 30 + 9 * math.cos(a), cy - 40 + 9 * math.sin(a));
+          final p = Offset(
+            cx + 30 + 9 * math.cos(a),
+            cy - 40 + 9 * math.sin(a),
+          );
           i == 0 ? star.moveTo(p.dx, p.dy) : star.lineTo(p.dx, p.dy);
           final b = a + math.pi / 5;
           star.lineTo(cx + 30 + 4 * math.cos(b), cy - 40 + 4 * math.sin(b));
@@ -157,8 +166,16 @@ class _EmptyArtPainter extends CustomPainter {
 
       case EmptyArt.search:
         canvas.drawCircle(Offset(cx - 6, cy - 8), 24, fill);
-        canvas.drawCircle(Offset(cx - 6, cy - 8), 24, stroke..strokeWidth = 2.4);
-        canvas.drawLine(Offset(cx + 12, cy + 10), Offset(cx + 28, cy + 26), stroke);
+        canvas.drawCircle(
+          Offset(cx - 6, cy - 8),
+          24,
+          stroke..strokeWidth = 2.4,
+        );
+        canvas.drawLine(
+          Offset(cx + 12, cy + 10),
+          Offset(cx + 28, cy + 26),
+          stroke,
+        );
         stroke.strokeWidth = 1.8;
         canvas.drawRRect(box(cx - 20, cy - 12, 28, 5, 3), soft);
         canvas.drawRRect(box(cx - 20, cy - 2, 18, 5, 3), soft);
@@ -168,8 +185,16 @@ class _EmptyArtPainter extends CustomPainter {
         canvas.drawRRect(cal, fill);
         canvas.drawRRect(cal, stroke);
         canvas.drawRRect(box(cx - 40, cy - 30, 80, 16, 9), brand);
-        canvas.drawLine(Offset(cx - 24, cy - 38), Offset(cx - 24, cy - 26), stroke);
-        canvas.drawLine(Offset(cx + 24, cy - 38), Offset(cx + 24, cy - 26), stroke);
+        canvas.drawLine(
+          Offset(cx - 24, cy - 38),
+          Offset(cx - 24, cy - 26),
+          stroke,
+        );
+        canvas.drawLine(
+          Offset(cx + 24, cy - 38),
+          Offset(cx + 24, cy - 26),
+          stroke,
+        );
         for (var r = 0; r < 2; r++) {
           for (var c = 0; c < 4; c++) {
             canvas.drawRRect(

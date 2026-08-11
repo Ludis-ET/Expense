@@ -67,22 +67,22 @@ enum TxKind {
   transfer;
 
   static TxKind parse(dynamic v) => switch ('$v') {
-        'INCOME' => TxKind.income,
-        'TRANSFER' => TxKind.transfer,
-        _ => TxKind.expense,
-      };
+    'INCOME' => TxKind.income,
+    'TRANSFER' => TxKind.transfer,
+    _ => TxKind.expense,
+  };
 
   String get wire => switch (this) {
-        TxKind.income => 'INCOME',
-        TxKind.expense => 'EXPENSE',
-        TxKind.transfer => 'TRANSFER',
-      };
+    TxKind.income => 'INCOME',
+    TxKind.expense => 'EXPENSE',
+    TxKind.transfer => 'TRANSFER',
+  };
 
   String get label => switch (this) {
-        TxKind.income => 'Income',
-        TxKind.expense => 'Expense',
-        TxKind.transfer => 'Transfer',
-      };
+    TxKind.income => 'Income',
+    TxKind.expense => 'Expense',
+    TxKind.transfer => 'Transfer',
+  };
 }
 
 /// `AccountType`
@@ -94,28 +94,28 @@ enum AccountType {
   other;
 
   static AccountType parse(dynamic v) => switch ('$v') {
-        'CASH' => AccountType.cash,
-        'BANK' => AccountType.bank,
-        'MOBILE_MONEY' => AccountType.mobileMoney,
-        'CARD' => AccountType.card,
-        _ => AccountType.other,
-      };
+    'CASH' => AccountType.cash,
+    'BANK' => AccountType.bank,
+    'MOBILE_MONEY' => AccountType.mobileMoney,
+    'CARD' => AccountType.card,
+    _ => AccountType.other,
+  };
 
   String get wire => switch (this) {
-        AccountType.cash => 'CASH',
-        AccountType.bank => 'BANK',
-        AccountType.mobileMoney => 'MOBILE_MONEY',
-        AccountType.card => 'CARD',
-        AccountType.other => 'OTHER',
-      };
+    AccountType.cash => 'CASH',
+    AccountType.bank => 'BANK',
+    AccountType.mobileMoney => 'MOBILE_MONEY',
+    AccountType.card => 'CARD',
+    AccountType.other => 'OTHER',
+  };
 
   String get label => switch (this) {
-        AccountType.cash => 'Cash',
-        AccountType.bank => 'Bank',
-        AccountType.mobileMoney => 'Mobile money',
-        AccountType.card => 'Card',
-        AccountType.other => 'Other',
-      };
+    AccountType.cash => 'Cash',
+    AccountType.bank => 'Bank',
+    AccountType.mobileMoney => 'Mobile money',
+    AccountType.card => 'Card',
+    AccountType.other => 'Other',
+  };
 }
 
 /// `Frequency`
@@ -126,23 +126,23 @@ enum Frequency {
   yearly;
 
   static Frequency parse(dynamic v) => switch ('$v') {
-        'DAILY' => Frequency.daily,
-        'WEEKLY' => Frequency.weekly,
-        'YEARLY' => Frequency.yearly,
-        _ => Frequency.monthly,
-      };
+    'DAILY' => Frequency.daily,
+    'WEEKLY' => Frequency.weekly,
+    'YEARLY' => Frequency.yearly,
+    _ => Frequency.monthly,
+  };
 
   String get wire => name.toUpperCase();
 
   String get label => switch (this) {
-        Frequency.daily => 'Daily',
-        Frequency.weekly => 'Weekly',
-        Frequency.monthly => 'Monthly',
-        Frequency.yearly => 'Yearly',
-      };
+    Frequency.daily => 'Daily',
+    Frequency.weekly => 'Weekly',
+    Frequency.monthly => 'Monthly',
+    Frequency.yearly => 'Yearly',
+  };
 }
 
-/// `RecurrenceUnit` — the step a budget cycle advances by.
+/// `RecurrenceUnit`   the step a budget cycle advances by.
 enum RecurrenceUnit {
   hour,
   day,
@@ -152,24 +152,24 @@ enum RecurrenceUnit {
   year;
 
   static RecurrenceUnit? parse(dynamic v) => switch ('$v') {
-        'HOUR' => RecurrenceUnit.hour,
-        'DAY' => RecurrenceUnit.day,
-        'WEEK' => RecurrenceUnit.week,
-        'MONTH' => RecurrenceUnit.month,
-        'QUARTER' => RecurrenceUnit.quarter,
-        'YEAR' => RecurrenceUnit.year,
-        _ => null,
-      };
+    'HOUR' => RecurrenceUnit.hour,
+    'DAY' => RecurrenceUnit.day,
+    'WEEK' => RecurrenceUnit.week,
+    'MONTH' => RecurrenceUnit.month,
+    'QUARTER' => RecurrenceUnit.quarter,
+    'YEAR' => RecurrenceUnit.year,
+    _ => null,
+  };
 
   String get wire => name.toUpperCase();
   String get label => switch (this) {
-        RecurrenceUnit.hour => 'Hour',
-        RecurrenceUnit.day => 'Day',
-        RecurrenceUnit.week => 'Week',
-        RecurrenceUnit.month => 'Month',
-        RecurrenceUnit.quarter => 'Quarter',
-        RecurrenceUnit.year => 'Year',
-      };
+    RecurrenceUnit.hour => 'Hour',
+    RecurrenceUnit.day => 'Day',
+    RecurrenceUnit.week => 'Week',
+    RecurrenceUnit.month => 'Month',
+    RecurrenceUnit.quarter => 'Quarter',
+    RecurrenceUnit.year => 'Year',
+  };
 }
 
 /// `LedgerKind`
@@ -180,25 +180,25 @@ enum LedgerKind {
   expectedOut;
 
   static LedgerKind parse(dynamic v) => switch ('$v') {
-        'LENT' => LedgerKind.lent,
-        'BORROWED' => LedgerKind.borrowed,
-        'EXPECTED_IN' => LedgerKind.expectedIn,
-        _ => LedgerKind.expectedOut,
-      };
+    'LENT' => LedgerKind.lent,
+    'BORROWED' => LedgerKind.borrowed,
+    'EXPECTED_IN' => LedgerKind.expectedIn,
+    _ => LedgerKind.expectedOut,
+  };
 
   String get wire => switch (this) {
-        LedgerKind.lent => 'LENT',
-        LedgerKind.borrowed => 'BORROWED',
-        LedgerKind.expectedIn => 'EXPECTED_IN',
-        LedgerKind.expectedOut => 'EXPECTED_OUT',
-      };
+    LedgerKind.lent => 'LENT',
+    LedgerKind.borrowed => 'BORROWED',
+    LedgerKind.expectedIn => 'EXPECTED_IN',
+    LedgerKind.expectedOut => 'EXPECTED_OUT',
+  };
 
   String get label => switch (this) {
-        LedgerKind.lent => 'I lent',
-        LedgerKind.borrowed => 'I borrowed',
-        LedgerKind.expectedIn => 'Money coming in',
-        LedgerKind.expectedOut => 'Money going out',
-      };
+    LedgerKind.lent => 'I lent',
+    LedgerKind.borrowed => 'I borrowed',
+    LedgerKind.expectedIn => 'Money coming in',
+    LedgerKind.expectedOut => 'Money going out',
+  };
 
   /// True when settling the entry brings money toward the user.
   bool get inbound => this == LedgerKind.lent || this == LedgerKind.expectedIn;
@@ -212,19 +212,19 @@ enum WishlistStatus {
   dropped;
 
   static WishlistStatus parse(dynamic v) => switch ('$v') {
-        'PLANNED' => WishlistStatus.planned,
-        'BOUGHT' => WishlistStatus.bought,
-        'DROPPED' => WishlistStatus.dropped,
-        _ => WishlistStatus.wanting,
-      };
+    'PLANNED' => WishlistStatus.planned,
+    'BOUGHT' => WishlistStatus.bought,
+    'DROPPED' => WishlistStatus.dropped,
+    _ => WishlistStatus.wanting,
+  };
 
   String get wire => name.toUpperCase();
   String get label => switch (this) {
-        WishlistStatus.wanting => 'Wanting',
-        WishlistStatus.planned => 'Planned',
-        WishlistStatus.bought => 'Bought',
-        WishlistStatus.dropped => 'Dropped',
-      };
+    WishlistStatus.wanting => 'Wanting',
+    WishlistStatus.planned => 'Planned',
+    WishlistStatus.bought => 'Bought',
+    WishlistStatus.dropped => 'Dropped',
+  };
 }
 
 /// `BudgetKind`
@@ -234,20 +234,20 @@ enum BudgetKind {
   unplanned;
 
   static BudgetKind parse(dynamic v) => switch ('$v') {
-        'RECURRING' => BudgetKind.recurring,
-        'UNPLANNED' => BudgetKind.unplanned,
-        _ => BudgetKind.oneTime,
-      };
+    'RECURRING' => BudgetKind.recurring,
+    'UNPLANNED' => BudgetKind.unplanned,
+    _ => BudgetKind.oneTime,
+  };
 
   String get wire => switch (this) {
-        BudgetKind.oneTime => 'ONE_TIME',
-        BudgetKind.recurring => 'RECURRING',
-        BudgetKind.unplanned => 'UNPLANNED',
-      };
+    BudgetKind.oneTime => 'ONE_TIME',
+    BudgetKind.recurring => 'RECURRING',
+    BudgetKind.unplanned => 'UNPLANNED',
+  };
 
   String get label => switch (this) {
-        BudgetKind.oneTime => 'One-time',
-        BudgetKind.recurring => 'Recurring',
-        BudgetKind.unplanned => 'Unplanned',
-      };
+    BudgetKind.oneTime => 'One-time',
+    BudgetKind.recurring => 'Recurring',
+    BudgetKind.unplanned => 'Unplanned',
+  };
 }

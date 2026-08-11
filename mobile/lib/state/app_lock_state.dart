@@ -60,7 +60,8 @@ class AppLockState extends ChangeNotifier with WidgetsBindingObserver {
       }
     }
     try {
-      _biometricAvailable = await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
+      _biometricAvailable =
+          await _auth.canCheckBiometrics || await _auth.isDeviceSupported();
     } catch (_) {
       _biometricAvailable = false;
     }
@@ -77,7 +78,7 @@ class AppLockState extends ChangeNotifier with WidgetsBindingObserver {
   @override
   void didChangeAppLifecycleState(AppLifecycleState state) {
     if (!_enabled || !_ready || _ignoreLifecycle) return;
-    // `paused` only — `inactive` also fires during biometric prompts / system dialogs.
+    // `paused` only   `inactive` also fires during biometric prompts / system dialogs.
     if (state == AppLifecycleState.paused) {
       if (!_locked) {
         _locked = true;
@@ -93,11 +94,16 @@ class AppLockState extends ChangeNotifier with WidgetsBindingObserver {
 
   String _newSalt() {
     final now = DateTime.now().microsecondsSinceEpoch.toString();
-    return sha256.convert(utf8.encode('santim-$now')).toString().substring(0, 24);
+    return sha256
+        .convert(utf8.encode('santim-$now'))
+        .toString()
+        .substring(0, 24);
   }
 
   bool isValidPinFormat(String pin) =>
-      RegExp(r'^\d+$').hasMatch(pin) && pin.length >= pinMin && pin.length <= pinMax;
+      RegExp(r'^\d+$').hasMatch(pin) &&
+      pin.length >= pinMin &&
+      pin.length <= pinMax;
 
   Future<bool> verifyPin(String pin) async {
     if (!_enabled || _pinHash == null || _pinSalt == null) return false;
@@ -163,7 +169,10 @@ class AppLockState extends ChangeNotifier with WidgetsBindingObserver {
     notifyListeners();
   }
 
-  Future<void> changePin({required String currentPin, required String newPin}) async {
+  Future<void> changePin({
+    required String currentPin,
+    required String newPin,
+  }) async {
     if (!await verifyPin(currentPin)) {
       throw StateError('Current PIN is incorrect');
     }

@@ -33,7 +33,8 @@ class TransactionRow extends StatelessWidget {
 
     final tint = isTransfer
         ? t.accent
-        : parseHexColor(tx.category?.color) ?? (isIncome ? t.success : t.mutedForeground);
+        : parseHexColor(tx.category?.color) ??
+              (isIncome ? t.success : t.mutedForeground);
 
     final icon = isTransfer
         ? Icons.swap_horiz_rounded
@@ -48,7 +49,8 @@ class TransactionRow extends StatelessWidget {
     final meta = <String>[
       if (showDate) formatDayMonth(tx.date),
       if (tx.account != null) tx.account!.name,
-      if (isTransfer && tx.transferAccount != null) '→ ${tx.transferAccount!.name}',
+      if (isTransfer && tx.transferAccount != null)
+        '→ ${tx.transferAccount!.name}',
       if (!isTransfer && tx.category != null) tx.category!.name,
     ];
 
@@ -56,7 +58,10 @@ class TransactionRow extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(R.md),
       child: Padding(
-        padding: EdgeInsets.symmetric(horizontal: S.xxs, vertical: compact ? 8 : 10),
+        padding: EdgeInsets.symmetric(
+          horizontal: S.xxs,
+          vertical: compact ? 8 : 10,
+        ),
         child: Row(
           children: [
             Stack(
@@ -70,7 +75,9 @@ class TransactionRow extends StatelessWidget {
                       width: 12,
                       height: 12,
                       decoration: BoxDecoration(
-                        color: tx.pending == PendingState.error ? t.danger : t.warning,
+                        color: tx.pending == PendingState.error
+                            ? t.danger
+                            : t.warning,
                         shape: BoxShape.circle,
                         border: Border.all(color: t.surface, width: 1.5),
                       ),
@@ -96,9 +103,14 @@ class TransactionRow extends StatelessWidget {
                           ),
                         ),
                       ),
-                      if (tx.budget != null && !tx.budget!.name.contains('Unplanned')) ...[
+                      if (tx.budget != null &&
+                          !tx.budget!.name.contains('Unplanned')) ...[
                         const GapX(S.xs),
-                        Icon(Icons.savings_outlined, size: 12, color: t.primary),
+                        Icon(
+                          Icons.savings_outlined,
+                          size: 12,
+                          color: t.primary,
+                        ),
                       ],
                       if (tx.recurringRuleId != null) ...[
                         const GapX(S.xxs),
@@ -122,7 +134,10 @@ class TransactionRow extends StatelessWidget {
                   size: compact ? 13.5 : 14.5,
                   color: amountColor,
                 ),
-                if (tx.tags.isNotEmpty) ...[const Gap(S.xxs), Muted('#${tx.tags.first}', size: 10)],
+                if (tx.tags.isNotEmpty) ...[
+                  const Gap(S.xxs),
+                  Muted('#${tx.tags.first}', size: 10),
+                ],
               ],
             ),
           ],
@@ -132,7 +147,7 @@ class TransactionRow extends StatelessWidget {
   }
 }
 
-/// A list of rows with hairline separators, no outer padding — drop it inside
+/// A list of rows with hairline separators, no outer padding   drop it inside
 /// a card or a sliver.
 class TransactionList extends StatelessWidget {
   const TransactionList({

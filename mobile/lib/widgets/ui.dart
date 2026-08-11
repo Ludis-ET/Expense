@@ -60,7 +60,7 @@ class BrandMark extends StatelessWidget {
   }
 }
 
-/// "San**tim**" wordmark — the `tim` half carries the primary colour.
+/// "San**tim**" wordmark   the `tim` half carries the primary colour.
 class BrandWord extends StatelessWidget {
   const BrandWord({super.key, this.fontSize = 20});
   final double fontSize;
@@ -129,7 +129,11 @@ class Avatar extends StatelessWidget {
       alignment: Alignment.center,
       child: Text(
         initials(name),
-        style: TextStyle(fontSize: size * 0.36, fontWeight: FontWeight.w700, color: Colors.white),
+        style: TextStyle(
+          fontSize: size * 0.36,
+          fontWeight: FontWeight.w700,
+          color: Colors.white,
+        ),
       ),
     );
   }
@@ -202,7 +206,11 @@ class AppButton extends StatelessWidget {
           child: Text(
             label,
             overflow: TextOverflow.ellipsis,
-            style: TextStyle(fontSize: fontSize, fontWeight: FontWeight.w600, color: fg),
+            style: TextStyle(
+              fontSize: fontSize,
+              fontWeight: FontWeight.w600,
+              color: fg,
+            ),
           ),
         ),
       ],
@@ -280,7 +288,7 @@ class IconPill extends StatelessWidget {
     final t = context.t;
 
     // The pill is drawn at `size` (38dp by default) but the gesture lives on a
-    // box of at least 48dp — Android's minimum — so the transparent ring
+    // box of at least 48dp   Android's minimum   so the transparent ring
     // around the circle is tappable too. `InkResponse.radius` keeps the splash
     // the size of the visible circle rather than the larger hit area.
     final tap = size < 48 ? 48.0 : size;
@@ -303,7 +311,11 @@ class IconPill extends StatelessWidget {
                 color: background ?? t.surfaceMuted.withValues(alpha: 0.7),
                 shape: BoxShape.circle,
               ),
-              child: Icon(icon, size: size * 0.48, color: color ?? t.foreground),
+              child: Icon(
+                icon,
+                size: size * 0.48,
+                color: color ?? t.foreground,
+              ),
             ),
           ),
         ),
@@ -321,7 +333,10 @@ class IconPill extends StatelessWidget {
             right: inset,
             top: inset,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.xs, vertical: 1.5),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.xs,
+                vertical: 1.5,
+              ),
               constraints: const BoxConstraints(minWidth: 17),
               decoration: BoxDecoration(
                 color: t.danger,
@@ -359,7 +374,7 @@ class IconPill extends StatelessWidget {
   }
 }
 
-/// Labeled header CTA — icon + text, with a soft pulse so add/recurring actions
+/// Labeled header CTA   icon + text, with a soft pulse so add/recurring actions
 /// feel alive instead of being cryptic icon-only pills.
 class HeaderAction extends StatefulWidget {
   const HeaderAction({
@@ -379,7 +394,8 @@ class HeaderAction extends StatefulWidget {
   State<HeaderAction> createState() => _HeaderActionState();
 }
 
-class _HeaderActionState extends State<HeaderAction> with SingleTickerProviderStateMixin {
+class _HeaderActionState extends State<HeaderAction>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _pulse = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1800),
@@ -388,7 +404,12 @@ class _HeaderActionState extends State<HeaderAction> with SingleTickerProviderSt
   @override
   void initState() {
     super.initState();
-    if (widget.primary && !WidgetsBinding.instance.platformDispatcher.accessibilityFeatures.disableAnimations) {
+    if (widget.primary &&
+        !WidgetsBinding
+            .instance
+            .platformDispatcher
+            .accessibilityFeatures
+            .disableAnimations) {
       _pulse.repeat(reverse: true);
     }
   }
@@ -415,7 +436,9 @@ class _HeaderActionState extends State<HeaderAction> with SingleTickerProviderSt
       child: AnimatedBuilder(
         animation: _pulse,
         builder: (context, child) {
-          final glow = widget.primary && !reduceMotion ? 0.18 + (_pulse.value * 0.14) : 0.22;
+          final glow = widget.primary && !reduceMotion
+              ? 0.18 + (_pulse.value * 0.14)
+              : 0.22;
           return Container(
             height: 40,
             padding: const EdgeInsets.fromLTRB(10, 0, 14, 0),
@@ -506,7 +529,13 @@ class Eyebrow extends StatelessWidget {
 /// Secondary copy. `size` is snapped onto [AppType], so a call site can pass a
 /// legacy value like 11.5 and still land on the scale.
 class Muted extends StatelessWidget {
-  const Muted(this.text, {super.key, this.size = AppType.label, this.maxLines, this.height});
+  const Muted(
+    this.text, {
+    super.key,
+    this.size = AppType.label,
+    this.maxLines,
+    this.height,
+  });
   final String text;
   final double size;
   final int? maxLines;
@@ -526,7 +555,7 @@ class Muted extends StatelessWidget {
 }
 
 /// Money figure with tabular digits so columns line up. Reads its value aloud
-/// as words — see [spokenAmount] — because "ETB 1,234.50" is punctuation soup
+/// as words   see [spokenAmount]   because "ETB 1,234.50" is punctuation soup
 /// to a screen reader.
 class Amount extends StatelessWidget {
   const Amount(
@@ -620,12 +649,21 @@ class AppBadge extends StatelessWidget {
   Widget build(BuildContext context) {
     final (bg, fg) = colorsFor(context, tone);
     return Container(
-      padding: EdgeInsets.symmetric(horizontal: dense ? 6 : 8, vertical: dense ? 2 : 3.5),
-      decoration: BoxDecoration(color: bg, borderRadius: BorderRadius.circular(R.sm)),
+      padding: EdgeInsets.symmetric(
+        horizontal: dense ? 6 : 8,
+        vertical: dense ? 2 : 3.5,
+      ),
+      decoration: BoxDecoration(
+        color: bg,
+        borderRadius: BorderRadius.circular(R.sm),
+      ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          if (icon != null) ...[Icon(icon, size: 11, color: fg), const GapX(S.xxs)],
+          if (icon != null) ...[
+            Icon(icon, size: 11, color: fg),
+            const GapX(S.xxs),
+          ],
           Text(
             label,
             style: TextStyle(
@@ -641,7 +679,7 @@ class AppBadge extends StatelessWidget {
   }
 }
 
-/// Round icon tile in a category's own colour — the leading element of most
+/// Round icon tile in a category's own colour   the leading element of most
 /// list rows in the app.
 class IconTile extends StatelessWidget {
   const IconTile({
@@ -682,10 +720,16 @@ class IconTile extends StatelessWidget {
 // Structure
 // ---------------------------------------------------------------------------
 
-/// `PageHeader` — title, an optional `(i)` hint, a badge and one action. The
+/// `PageHeader`   title, an optional `(i)` hint, a badge and one action. The
 /// description lives behind the icon rather than as subtitle copy.
 class PageHeader extends StatelessWidget {
-  const PageHeader({super.key, required this.title, this.description, this.action, this.badge});
+  const PageHeader({
+    super.key,
+    required this.title,
+    this.description,
+    this.action,
+    this.badge,
+  });
 
   final String title;
   final String? description;
@@ -723,9 +767,14 @@ class PageHeader extends StatelessWidget {
   }
 }
 
-/// `InfoHint` — helper copy lives behind an (i) icon, never inline.
+/// `InfoHint`   helper copy lives behind an (i) icon, never inline.
 class InfoHint extends StatelessWidget {
-  const InfoHint({super.key, required this.label, required this.body, this.size = 16});
+  const InfoHint({
+    super.key,
+    required this.label,
+    required this.body,
+    this.size = 16,
+  });
 
   final String label;
   final String body;
@@ -746,7 +795,11 @@ class InfoHint extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(S.xl, S.xxs, S.xl, S.huge),
               child: Text(
                 body,
-                style: TextStyle(fontSize: AppType.body, height: 1.55, color: t.mutedForeground),
+                style: TextStyle(
+                  fontSize: AppType.body,
+                  height: 1.55,
+                  color: t.mutedForeground,
+                ),
               ),
             ),
           ),
@@ -755,9 +808,16 @@ class InfoHint extends StatelessWidget {
       child: Container(
         width: size + 4,
         height: size + 4,
-        decoration: BoxDecoration(color: t.surfaceMuted, shape: BoxShape.circle),
+        decoration: BoxDecoration(
+          color: t.surfaceMuted,
+          shape: BoxShape.circle,
+        ),
         alignment: Alignment.center,
-        child: Icon(Icons.info_outline, size: size - 4, color: t.mutedForeground),
+        child: Icon(
+          Icons.info_outline,
+          size: size - 4,
+          color: t.mutedForeground,
+        ),
       ),
     );
   }
@@ -787,7 +847,10 @@ class CardTitleRow extends StatelessWidget {
     final t = context.t;
     return Row(
       children: [
-        if (icon != null) ...[Icon(icon, size: 16, color: t.mutedForeground), const GapX(S.xs)],
+        if (icon != null) ...[
+          Icon(icon, size: 16, color: t.mutedForeground),
+          const GapX(S.xs),
+        ],
         Flexible(
           child: Text(
             title,
@@ -799,7 +862,10 @@ class CardTitleRow extends StatelessWidget {
             ),
           ),
         ),
-        if (hint != null) ...[const GapX(S.xxs), InfoHint(label: title, body: hint!, size: 14)],
+        if (hint != null) ...[
+          const GapX(S.xxs),
+          InfoHint(label: title, body: hint!, size: 14),
+        ],
         const Spacer(),
         if (trailing != null)
           trailing!
@@ -826,7 +892,7 @@ class CardTitleRow extends StatelessWidget {
   }
 }
 
-/// `ProgressBar` — gradient fill, 700ms ease-out on value change.
+/// `ProgressBar`   gradient fill, 700ms ease-out on value change.
 class ProgressBar extends StatelessWidget {
   const ProgressBar({
     super.key,
@@ -855,9 +921,18 @@ class ProgressBar extends StatelessWidget {
         gradient ??
         switch (tone) {
           BadgeTone.primary => [t.primary, t.accent],
-          BadgeTone.success => [const Color(0xFF10B981), const Color(0xFF14B8A6)],
-          BadgeTone.warning => [const Color(0xFFF59E0B), const Color(0xFFF97316)],
-          BadgeTone.danger => [const Color(0xFFEF4444), const Color(0xFFF43F5E)],
+          BadgeTone.success => [
+            const Color(0xFF10B981),
+            const Color(0xFF14B8A6),
+          ],
+          BadgeTone.warning => [
+            const Color(0xFFF59E0B),
+            const Color(0xFFF97316),
+          ],
+          BadgeTone.danger => [
+            const Color(0xFFEF4444),
+            const Color(0xFFF43F5E),
+          ],
           BadgeTone.info => [t.accent, t.primary],
           BadgeTone.neutral => [t.mutedForeground, t.mutedForeground],
         };
@@ -893,7 +968,7 @@ class ProgressBar extends StatelessWidget {
   }
 }
 
-/// `EmptyState` — dashed border, muted icon tile, optional action.
+/// `EmptyState`   dashed border, muted icon tile, optional action.
 /// What an empty state draws above its copy. [EmptyArt.none] falls back to the
 /// plain icon tile.
 enum EmptyArt { none, ledger, wallet, plan, wish, search, calendar }
@@ -926,7 +1001,10 @@ class EmptyState extends StatelessWidget {
 
     return Container(
       width: double.infinity,
-      padding: EdgeInsets.symmetric(horizontal: S.xl, vertical: compact ? S.xxl : 40),
+      padding: EdgeInsets.symmetric(
+        horizontal: S.xl,
+        vertical: compact ? S.xxl : 40,
+      ),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.35),
         borderRadius: BorderRadius.circular(R.md),
@@ -964,7 +1042,11 @@ class EmptyState extends StatelessWidget {
             Text(
               description!,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.45,
+                color: t.mutedForeground,
+              ),
             ),
           ],
           if (action != null) ...[const Gap(S.lg), action!],
@@ -974,7 +1056,7 @@ class EmptyState extends StatelessWidget {
   }
 }
 
-/// Inline failure with a retry — used wherever a fetch can fail.
+/// Inline failure with a retry   used wherever a fetch can fail.
 class ErrorState extends StatelessWidget {
   const ErrorState({super.key, required this.message, this.onRetry});
 
@@ -999,7 +1081,11 @@ class ErrorState extends StatelessWidget {
           Text(
             message,
             textAlign: TextAlign.center,
-            style: TextStyle(fontSize: AppType.bodySm, height: 1.45, color: t.foreground),
+            style: TextStyle(
+              fontSize: AppType.bodySm,
+              height: 1.45,
+              color: t.foreground,
+            ),
           ),
           if (onRetry != null) ...[
             const Gap(S.md),
@@ -1031,7 +1117,10 @@ class PageLoader extends StatelessWidget {
       children: [
         const Skeleton(height: 28, width: 170),
         const Gap(S.lg),
-        if (hero) ...[const Skeleton(height: 168, radius: R.xl), const Gap(S.lg)],
+        if (hero) ...[
+          const Skeleton(height: 168, radius: R.xl),
+          const Gap(S.lg),
+        ],
         Row(
           children: [
             for (var i = 0; i < 3; i++) ...[
@@ -1044,7 +1133,11 @@ class PageLoader extends StatelessWidget {
         for (var i = 0; i < rows; i++)
           Padding(
             padding: const EdgeInsets.only(bottom: S.md),
-            child: Skeleton(height: 62, radius: R.card, margin: EdgeInsets.zero),
+            child: Skeleton(
+              height: 62,
+              radius: R.card,
+              margin: EdgeInsets.zero,
+            ),
           ),
       ],
     );
@@ -1074,7 +1167,10 @@ class SectionLabel extends StatelessWidget {
             color: context.t.mutedForeground,
           ),
         ),
-        if (hint != null) ...[const GapX(S.xs), InfoHint(label: text, body: hint!, size: 14)],
+        if (hint != null) ...[
+          const GapX(S.xs),
+          InfoHint(label: text, body: hint!, size: 14),
+        ],
         const Spacer(),
         ?trailing,
       ],
@@ -1086,7 +1182,7 @@ class SectionLabel extends StatelessWidget {
 // Sheets & dialogs
 // ---------------------------------------------------------------------------
 
-/// Glass bottom sheet with a grab handle and a title bar — the mobile stand-in
+/// Glass bottom sheet with a grab handle and a title bar   the mobile stand-in
 /// for the web app's `Modal`.
 class SheetShell extends StatelessWidget {
   const SheetShell({
@@ -1118,7 +1214,10 @@ class SheetShell extends StatelessWidget {
           child: Container(
             width: 38,
             height: 4,
-            decoration: BoxDecoration(color: t.border, borderRadius: BorderRadius.circular(R.pill)),
+            decoration: BoxDecoration(
+              color: t.border,
+              borderRadius: BorderRadius.circular(R.pill),
+            ),
           ),
         ),
         if (title != null)
@@ -1139,7 +1238,10 @@ class SheetShell extends StatelessWidget {
                           color: t.foreground,
                         ),
                       ),
-                      if (subtitle != null) ...[const Gap(S.xxs), Muted(subtitle!)],
+                      if (subtitle != null) ...[
+                        const Gap(S.xxs),
+                        Muted(subtitle!),
+                      ],
                     ],
                   ),
                 ),
@@ -1192,12 +1294,16 @@ Future<T?> showAppSheet<T>(
     isScrollControlled: true,
     backgroundColor: Colors.transparent,
     barrierColor: Colors.black.withValues(alpha: 0.55),
-    builder: (ctx) =>
-        SheetShell(title: title, subtitle: subtitle, scrollable: scrollable, child: builder(ctx)),
+    builder: (ctx) => SheetShell(
+      title: title,
+      subtitle: subtitle,
+      scrollable: scrollable,
+      child: builder(ctx),
+    ),
   );
 }
 
-/// Destructive confirmation — mirrors `ConfirmDialog`.
+/// Destructive confirmation   mirrors `ConfirmDialog`.
 Future<bool> confirm(
   BuildContext context, {
   required String title,
@@ -1213,11 +1319,19 @@ Future<bool> confirm(
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.xl)),
       title: Text(
         title,
-        style: TextStyle(fontSize: AppType.lead, fontWeight: FontWeight.w700, color: t.foreground),
+        style: TextStyle(
+          fontSize: AppType.lead,
+          fontWeight: FontWeight.w700,
+          color: t.foreground,
+        ),
       ),
       content: Text(
         message,
-        style: TextStyle(fontSize: AppType.body, height: 1.5, color: t.mutedForeground),
+        style: TextStyle(
+          fontSize: AppType.body,
+          height: 1.5,
+          color: t.mutedForeground,
+        ),
       ),
       actionsPadding: const EdgeInsets.fromLTRB(16, 0, 16, 14),
       actions: [
@@ -1239,7 +1353,7 @@ Future<bool> confirm(
   return result ?? false;
 }
 
-/// Toast helper — success and failure share one call site.
+/// Toast helper   success and failure share one call site.
 void toast(BuildContext context, String message, {bool error = false}) {
   final t = context.t;
   ScaffoldMessenger.of(context)

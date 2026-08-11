@@ -1,10 +1,10 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Download, MessageSquareText, Sparkles, X, Zap } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { ANDROID_APP, useAppAd } from '@/lib/android-app';
+import { useEffect, useState } from "react";
+import { Download, MessageSquareText, Sparkles, X, Zap } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { ANDROID_APP, useAppAd } from "@/lib/android-app";
 
 /**
  * The app ad.
@@ -36,9 +36,9 @@ export function AndroidAppPopup() {
       aria-label="Get the Santim Android app"
       aria-modal="false"
       className={cn(
-        'fixed inset-x-3 bottom-3 z-60 mx-auto max-w-md',
-        'transition-all duration-500 ease-out motion-reduce:transition-none',
-        entered ? 'translate-y-0 opacity-100' : 'translate-y-8 opacity-0',
+        "fixed inset-x-3 bottom-3 z-60 mx-auto max-w-md",
+        "transition-all duration-500 ease-out motion-reduce:transition-none",
+        entered ? "translate-y-0 opacity-100" : "translate-y-8 opacity-0",
       )}
     >
       <div className="relative overflow-hidden rounded-3xl border border-primary/25 bg-surface shadow-2xl shadow-primary/10">
@@ -68,12 +68,19 @@ export function AndroidAppPopup() {
             Android app
           </span>
 
-          <h2 className="mt-3 text-lg font-bold leading-snug">{pitch.headline}</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted">{pitch.body}</p>
+          <h2 className="mt-3 text-lg font-bold leading-snug">
+            {pitch.headline}
+          </h2>
+          <p className="mt-1.5 text-sm leading-relaxed text-muted">
+            {pitch.body}
+          </p>
 
           <div className="mt-4 flex items-center gap-4 text-[11px] text-muted">
             <span className="inline-flex items-center gap-1.5">
-              <MessageSquareText className="h-3.5 w-3.5 text-primary" aria-hidden />
+              <MessageSquareText
+                className="h-3.5 w-3.5 text-primary"
+                aria-hidden
+              />
               Reads bank SMS
             </span>
             <span className="inline-flex items-center gap-1.5">
@@ -90,26 +97,30 @@ export function AndroidAppPopup() {
               download
               onClick={dismissForever}
               className={cn(
-                'inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium',
-                'bg-primary text-primary-foreground shadow-sm shadow-primary/25 transition-all',
-                'hover:brightness-110 active:scale-[0.98]',
+                "inline-flex h-10 flex-1 items-center justify-center gap-2 rounded-xl px-4 text-sm font-medium",
+                "bg-primary text-primary-foreground shadow-sm shadow-primary/25 transition-all",
+                "hover:brightness-110 active:scale-[0.98]",
               )}
             >
               <Download className="h-4 w-4" aria-hidden />
               Get the app
             </a>
-            <Button variant="ghost" size="md" onClick={dismissForever} className="shrink-0">
+            <Button
+              variant="ghost"
+              size="md"
+              onClick={dismissForever}
+              className="shrink-0"
+            >
               Not interested
             </Button>
           </div>
 
           <p className="mt-3 text-[11px] leading-relaxed text-muted">
-            Installed straight from here, not the Play Store — Google restricts SMS access, so an
-            expense tracker cannot be listed there.
+            Installed straight from here, not the Play Store Google restricts
+            SMS access, so an expense tracker cannot be listed there.
           </p>
         </div>
       </div>
     </div>
   );
 }
-

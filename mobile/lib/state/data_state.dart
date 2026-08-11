@@ -8,7 +8,7 @@ import '../models/outlook_history.dart';
 import 'sync_state.dart';
 
 /// A single fetch's lifecycle. The UI branches on `hasData` first so a refresh
-/// never blanks a screen that already has content — the same behaviour SWR
+/// never blanks a screen that already has content   the same behaviour SWR
 /// gives the web app.
 class Async<T> {
   const Async._({this.data, this.error, this.loading = false});
@@ -16,7 +16,8 @@ class Async<T> {
   const Async.idle() : this._();
   const Async.loading({T? previous}) : this._(data: previous, loading: true);
   const Async.data(T value) : this._(data: value);
-  const Async.failed(Object err, {T? previous}) : this._(data: previous, error: err);
+  const Async.failed(Object err, {T? previous})
+    : this._(data: previous, error: err);
 
   final T? data;
   final Object? error;
@@ -31,7 +32,7 @@ class Async<T> {
 
 /// Shared cache for the reference data almost every screen needs (accounts,
 /// categories, budget spend sources) plus the dashboard payload. Screens with
-/// their own paging — transactions, wishlist, ledger — fetch directly instead.
+/// their own paging   transactions, wishlist, ledger   fetch directly instead.
 class DataState extends ChangeNotifier {
   DataState(this.api, {this.sync});
 
@@ -58,7 +59,8 @@ class DataState extends ChangeNotifier {
   }
 
   CurrencyBreakdown? get activeBreakdown {
-    final all = dashboard.data?.currencyBreakdown ?? const <CurrencyBreakdown>[];
+    final all =
+        dashboard.data?.currencyBreakdown ?? const <CurrencyBreakdown>[];
     if (all.length < 2) return null;
     for (final b in all) {
       if (b.currency == _activeCurrency) return b;
@@ -130,31 +132,31 @@ class DataState extends ChangeNotifier {
   }
 
   Future<void> loadDashboard({bool force = false}) => _load<DashboardData>(
-        () => dashboard,
-        (v) {
-          dashboard = v;
-          if (v.data != null) {
-            _syncCurrencyFromDashboard(v.data!);
-            _publishHomeWidget(v.data!);
-          }
-        },
-        () async {
-          final json = await api.get<Map<String, dynamic>>('/dashboard');
-          await sync?.cacheDashboard(json);
-          return DashboardData.fromJson(json);
-        },
-        force: force,
-        fromCache: () async {
-          final json = await sync?.readCachedDashboard();
-          if (json == null) return null;
-          return DashboardData.fromJson(json);
-        },
-      );
+    () => dashboard,
+    (v) {
+      dashboard = v;
+      if (v.data != null) {
+        _syncCurrencyFromDashboard(v.data!);
+        _publishHomeWidget(v.data!);
+      }
+    },
+    () async {
+      final json = await api.get<Map<String, dynamic>>('/dashboard');
+      await sync?.cacheDashboard(json);
+      return DashboardData.fromJson(json);
+    },
+    force: force,
+    fromCache: () async {
+      final json = await sync?.readCachedDashboard();
+      if (json == null) return null;
+      return DashboardData.fromJson(json);
+    },
+  );
 
   /// Feeds the home-screen widget from the dashboard payload.
   ///
-  /// "Left to spend today" is the available balance — already net of what
-  /// budget plans hold — spread evenly over the days left in the month. It is
+  /// "Left to spend today" is the available balance   already net of what
+  /// budget plans hold   spread evenly over the days left in the month. It is
   /// deliberately the simple figure rather than the outlook's projection: a
   /// widget has one line to be understood in.
   void _publishHomeWidget(DashboardData data) {
@@ -173,39 +175,43 @@ class DataState extends ChangeNotifier {
     HomeWidget.publish(
       remaining: formatMoney(perDay, currency: currency),
       caption: 'Left to spend today',
-      spent: '${formatMoney(month.expense, currency: currency)} spent this month',
+      spent:
+          '${formatMoney(month.expense, currency: currency)} spent this month',
     );
   }
 
   Future<void> loadAccounts({bool force = false}) => _load<List<Account>>(
-        () => accounts,
-        (v) => accounts = v,
-        () async {
-          final items = mapItemsList(await api.get('/accounts'), Account.fromJson);
-          await sync?.cacheAccounts(items);
-          return items;
-        },
-        force: force,
-        fromCache: () async {
-          if (sync == null) return null;
-          return sync!.readCachedAccounts();
-        },
-      );
+    () => accounts,
+    (v) => accounts = v,
+    () async {
+      final items = mapItemsList(await api.get('/accounts'), Account.fromJson);
+      await sync?.cacheAccounts(items);
+      return items;
+    },
+    force: force,
+    fromCache: () async {
+      if (sync == null) return null;
+      return sync!.readCachedAccounts();
+    },
+  );
 
   Future<void> loadCategories({bool force = false}) => _load<List<TxCategory>>(
-        () => categories,
-        (v) => categories = v,
-        () async {
-          final items = mapItemsList(await api.get('/categories'), TxCategory.fromJson);
-          await sync?.cacheCategories(items);
-          return items;
-        },
-        force: force,
-        fromCache: () async {
-          if (sync == null) return null;
-          return sync!.readCachedCategories();
-        },
+    () => categories,
+    (v) => categories = v,
+    () async {
+      final items = mapItemsList(
+        await api.get('/categories'),
+        TxCategory.fromJson,
       );
+      await sync?.cacheCategories(items);
+      return items;
+    },
+    force: force,
+    fromCache: () async {
+      if (sync == null) return null;
+      return sync!.readCachedCategories();
+    },
+  );
 
   Future<void> loadBudgets({bool force = false, bool includeClosed = false}) =>
       _load<BudgetsResponse>(
@@ -227,7 +233,8 @@ class DataState extends ChangeNotifier {
         },
       );
 
-  Future<void> loadSpendSources({bool force = false}) => _load<List<BudgetSpendSource>>(
+  Future<void> loadSpendSources({bool force = false}) =>
+      _load<List<BudgetSpendSource>>(
         () => spendSources,
         (v) => spendSources = v,
         () async {
@@ -243,10 +250,11 @@ class DataState extends ChangeNotifier {
         },
       );
 
-  /// History behind the monthly outlook — completed months, the surprise
+  /// History behind the monthly outlook   completed months, the surprise
   /// buffer, and repeating payees. Scoped to the active currency, so switching
   /// currency refetches.
-  Future<void> loadOutlookHistory({bool force = false}) => _load<OutlookHistory>(
+  Future<void> loadOutlookHistory({bool force = false}) =>
+      _load<OutlookHistory>(
         () => outlookHistory,
         (v) => outlookHistory = v,
         () async => OutlookHistory.fromJson(
@@ -258,38 +266,44 @@ class DataState extends ChangeNotifier {
         force: force,
       );
 
-  Future<void> loadRecurring({bool force = false}) => _load<List<RecurringRule>>(
+  Future<void> loadRecurring({bool force = false}) =>
+      _load<List<RecurringRule>>(
         () => recurring,
         (v) => recurring = v,
-        () async => mapItemsList(await api.get('/recurring'), RecurringRule.fromJson),
+        () async =>
+            mapItemsList(await api.get('/recurring'), RecurringRule.fromJson),
         force: force,
       );
 
-  Future<void> loadNotifications({bool force = false}) => _load<List<AppNotification>>(
+  Future<void> loadNotifications({bool force = false}) =>
+      _load<List<AppNotification>>(
         () => notifications,
         (v) => notifications = v,
-        () async => mapItemsList(await api.get('/notifications'), AppNotification.fromJson),
+        () async => mapItemsList(
+          await api.get('/notifications'),
+          AppNotification.fromJson,
+        ),
         force: force,
       );
 
   /// Everything the app shell needs before the first frame of the dashboard.
   Future<void> primeAll() => Future.wait([
-        loadDashboard(),
-        loadAccounts(),
-        loadCategories(),
-        loadNotifications(),
-        loadRecurring(),
-        loadBudgets(),
-      ]);
+    loadDashboard(),
+    loadAccounts(),
+    loadCategories(),
+    loadNotifications(),
+    loadRecurring(),
+    loadBudgets(),
+  ]);
 
   /// Called after any write, so balances and plan pots never go stale.
   Future<void> refreshAfterWrite() => Future.wait([
-        loadDashboard(force: true),
-        loadAccounts(force: true),
-        loadBudgets(force: true),
-        loadSpendSources(force: true),
-        loadRecurring(force: true),
-      ]);
+    loadDashboard(force: true),
+    loadAccounts(force: true),
+    loadBudgets(force: true),
+    loadSpendSources(force: true),
+    loadRecurring(force: true),
+  ]);
 
   Future<void> markNotificationRead(String id) async {
     await api.post('/notifications/$id/read');
@@ -301,14 +315,17 @@ class DataState extends ChangeNotifier {
     await loadNotifications(force: true);
   }
 
-  /// Accounts filtered to the active currency — what every picker should show.
-  List<Account> get scopedAccounts =>
-      (accounts.data ?? const <Account>[])
-          .where((a) => !a.archived && a.currency == _activeCurrency)
-          .toList();
+  /// Accounts filtered to the active currency   what every picker should show.
+  List<Account> get scopedAccounts => (accounts.data ?? const <Account>[])
+      .where((a) => !a.archived && a.currency == _activeCurrency)
+      .toList();
 
   List<TxCategory> categoriesOfKind(TxKind kind) =>
       (categories.data ?? const <TxCategory>[])
-          .where((c) => !c.archived && c.kind == (kind == TxKind.income ? 'INCOME' : 'EXPENSE'))
+          .where(
+            (c) =>
+                !c.archived &&
+                c.kind == (kind == TxKind.income ? 'INCOME' : 'EXPENSE'),
+          )
           .toList();
 }

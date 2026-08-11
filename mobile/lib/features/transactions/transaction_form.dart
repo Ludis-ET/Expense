@@ -58,11 +58,16 @@ Future<bool?> showTransactionForm(
             opacity: curved,
             child: GestureDetector(
               onTap: () => Navigator.of(ctx).pop(),
-              child: Container(color: Colors.black.withValues(alpha: 0.48 * animation.value)),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.48 * animation.value),
+              ),
             ),
           ),
           SlideTransition(
-            position: Tween<Offset>(begin: const Offset(0, 0.08), end: Offset.zero).animate(curved),
+            position: Tween<Offset>(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
             child: FadeTransition(opacity: curved, child: child),
           ),
         ],
@@ -84,7 +89,7 @@ class TransactionForm extends StatefulWidget {
     this.presetAccountId,
   });
 
-  /// Editing this transaction — the save writes back over it.
+  /// Editing this transaction   the save writes back over it.
   final Transaction? existing;
 
   /// Copying this transaction. Every field is prefilled but the save creates a
@@ -110,7 +115,9 @@ class _TransactionFormState extends State<TransactionForm> {
   );
   late final _payee = TextEditingController(text: widget.seed?.payee ?? '');
   late final _note = TextEditingController(text: widget.seed?.note ?? '');
-  late final _tags = TextEditingController(text: widget.seed?.tags.join(', ') ?? '');
+  late final _tags = TextEditingController(
+    text: widget.seed?.tags.join(', ') ?? '',
+  );
 
   late TxKind _kind;
   String? _accountId;
@@ -157,7 +164,9 @@ class _TransactionFormState extends State<TransactionForm> {
       setState(() {
         if (_accountId == null) {
           final accounts = data.scopedAccounts;
-          final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+          final fallback =
+              accounts.where((a) => a.isDefault).firstOrNull ??
+              accounts.firstOrNull;
           if (fallback != null) _accountId = fallback.id;
         }
         // Preset plan (e.g. Spend from plan detail) should also adopt its category.
@@ -194,7 +203,8 @@ class _TransactionFormState extends State<TransactionForm> {
   /// paired with the category they usually carry. Ranked by frequency and
   /// capped at five so the row never wraps.
   List<({String payee, String? categoryId})> _recentPayees(DataState data) {
-    final recent = data.dashboard.data?.recentTransactions ?? const <Transaction>[];
+    final recent =
+        data.dashboard.data?.recentTransactions ?? const <Transaction>[];
 
     final counts = <String, int>{};
     final categoryOf = <String, String?>{};
@@ -206,9 +216,13 @@ class _TransactionFormState extends State<TransactionForm> {
       categoryOf.putIfAbsent(payee, () => tx.categoryId);
     }
 
-    final ranked = counts.keys.toList()..sort((a, b) => counts[b]!.compareTo(counts[a]!));
+    final ranked = counts.keys.toList()
+      ..sort((a, b) => counts[b]!.compareTo(counts[a]!));
 
-    return [for (final payee in ranked.take(5)) (payee: payee, categoryId: categoryOf[payee])];
+    return [
+      for (final payee in ranked.take(5))
+        (payee: payee, categoryId: categoryOf[payee]),
+    ];
   }
 
   BudgetSpendSource? _plan(DataState data) {
@@ -221,7 +235,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
   String? _validate(DataState data) {
     final amount = double.tryParse(_amount.text.trim());
-    if (amount == null || amount <= 0) return 'Enter an amount greater than zero.';
+    if (amount == null || amount <= 0)
+      return 'Enter an amount greater than zero.';
 
     final plan = _plan(data);
     final payingFromPot = plan != null && !plan.isUnplanned;
@@ -280,7 +295,8 @@ class _TransactionFormState extends State<TransactionForm> {
 
     if (_isEdit) {
       if (_accountId != null) body['accountId'] = _accountId;
-      if (_transferAccountId != null) body['transferAccountId'] = _transferAccountId;
+      if (_transferAccountId != null)
+        body['transferAccountId'] = _transferAccountId;
       if (_categoryId != null) body['categoryId'] = _categoryId;
       if (_budgetSourceAccountId != null) {
         body['budgetSourceAccountId'] = _budgetSourceAccountId;
@@ -333,8 +349,9 @@ class _TransactionFormState extends State<TransactionForm> {
               currency: a.currency,
               type: a.type.wire,
             );
-      Ref? categoryRef(TxCategory? c) =>
-          c == null ? null : Ref(id: c.id, name: c.name, icon: c.icon, color: c.color);
+      Ref? categoryRef(TxCategory? c) => c == null
+          ? null
+          : Ref(id: c.id, name: c.name, icon: c.icon, color: c.color);
 
       if (_isEdit) {
         final existing = widget.existing!;
@@ -356,10 +373,14 @@ class _TransactionFormState extends State<TransactionForm> {
           note: _note.text.trim().isEmpty ? null : _note.text.trim(),
           pending: PendingState.pending,
         );
-        final result = await sync.updateTransaction(existing.id, body, optimistic);
+        final result = await sync.updateTransaction(
+          existing.id,
+          body,
+          optimistic,
+        );
         if (!mounted) return;
         if (result.queued) {
-          toast(context, 'Saved offline — will sync when you are back online');
+          toast(context, 'Saved offline   will sync when you are back online');
         }
         Navigator.pop(context, true);
       } else {
@@ -385,7 +406,7 @@ class _TransactionFormState extends State<TransactionForm> {
         final result = await sync.saveTransaction(body, optimistic);
         if (!mounted) return;
         if (result.queued) {
-          toast(context, 'Saved offline — will sync when you are back online');
+          toast(context, 'Saved offline   will sync when you are back online');
         }
         Navigator.pop(context, true);
       }
@@ -485,7 +506,8 @@ class _TransactionFormState extends State<TransactionForm> {
                           tint: tint,
                           autofocus: !_isEdit,
                           focused: _amountFocused,
-                          onFocusChange: (f) => setState(() => _amountFocused = f),
+                          onFocusChange: (f) =>
+                              setState(() => _amountFocused = f),
                         ),
                       ),
                       const Gap(S.lg),
@@ -524,7 +546,9 @@ class _TransactionFormState extends State<TransactionForm> {
                           spacing: 14,
                           startIndex: _isEdit ? 1 : 2,
                           children: [
-                            if (_kind == TxKind.expense && plans.isNotEmpty && !_isEdit)
+                            if (_kind == TxKind.expense &&
+                                plans.isNotEmpty &&
+                                !_isEdit)
                               PickerField<BudgetSpendSource>(
                                 label: 'Pay from',
                                 hint:
@@ -539,12 +563,16 @@ class _TransactionFormState extends State<TransactionForm> {
                                 iconOf: (p) => p.isUnplanned
                                     ? Icons.account_balance_wallet_outlined
                                     : financeIcon(p.icon),
-                                colorOf: (p) => parseHexColor(p.color) ?? t.primary,
+                                colorOf: (p) =>
+                                    parseHexColor(p.color) ?? t.primary,
                                 onChanged: (p) => setState(() {
                                   _budgetId = p?.id;
                                   _budgetSourceAccountId = null;
-                                  if (p != null && !p.isUnplanned && p.sources.length == 1) {
-                                    _budgetSourceAccountId = p.sources.first.account?.id;
+                                  if (p != null &&
+                                      !p.isUnplanned &&
+                                      p.sources.length == 1) {
+                                    _budgetSourceAccountId =
+                                        p.sources.first.account?.id;
                                   }
                                   // Plans with a linked category pre-select it.
                                   final planCat = p?.categoryId;
@@ -562,14 +590,20 @@ class _TransactionFormState extends State<TransactionForm> {
                                     'This plan was filled from more than one wallet. '
                                     'Pick which one the money actually leaves.',
                                 value: plan.sources
-                                    .where((s) => s.account?.id == _budgetSourceAccountId)
+                                    .where(
+                                      (s) =>
+                                          s.account?.id ==
+                                          _budgetSourceAccountId,
+                                    )
                                     .firstOrNull,
                                 options: plan.sources,
                                 labelOf: (s) =>
                                     '${s.account?.name ?? 'Unknown'} · ${formatMoney(s.available, currency: plan.currency)}',
-                                iconOf: (s) => accountTypeIcon(s.account?.type ?? 'OTHER'),
-                                onChanged: (s) =>
-                                    setState(() => _budgetSourceAccountId = s?.account?.id),
+                                iconOf: (s) =>
+                                    accountTypeIcon(s.account?.type ?? 'OTHER'),
+                                onChanged: (s) => setState(
+                                  () => _budgetSourceAccountId = s?.account?.id,
+                                ),
                                 sheetTitle: 'Funding wallet',
                               ),
 
@@ -580,8 +614,10 @@ class _TransactionFormState extends State<TransactionForm> {
                                 options: categories,
                                 labelOf: (c) => c.name,
                                 iconOf: (c) => financeIcon(c.icon),
-                                colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
-                                onChanged: (c) => setState(() => _categoryId = c?.id),
+                                colorOf: (c) =>
+                                    parseHexColor(c.color) ?? t.mutedForeground,
+                                onChanged: (c) =>
+                                    setState(() => _categoryId = c?.id),
                                 placeholder: 'Pick a category',
                                 sheetTitle: '${_kind.label} category',
                               ),
@@ -599,8 +635,10 @@ class _TransactionFormState extends State<TransactionForm> {
                                 subtitleOf: (a) =>
                                     '${formatMoney(a.balance, currency: a.currency)} available',
                                 iconOf: (a) => accountTypeIcon(a.type.wire),
-                                colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
-                                onChanged: (a) => setState(() => _accountId = a?.id),
+                                colorOf: (a) =>
+                                    parseHexColor(a.color) ?? t.mutedForeground,
+                                onChanged: (a) =>
+                                    setState(() => _accountId = a?.id),
                                 placeholder: 'Pick an account',
                               ),
 
@@ -608,20 +646,25 @@ class _TransactionFormState extends State<TransactionForm> {
                               PickerField<Account>(
                                 label: 'To account',
                                 value: accountById(_transferAccountId),
-                                options: accounts.where((a) => a.id != _accountId).toList(),
+                                options: accounts
+                                    .where((a) => a.id != _accountId)
+                                    .toList(),
                                 labelOf: (a) => a.name,
                                 subtitleOf: (a) =>
                                     '${formatMoney(a.balance, currency: a.currency)} available',
                                 iconOf: (a) => accountTypeIcon(a.type.wire),
-                                colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
-                                onChanged: (a) => setState(() => _transferAccountId = a?.id),
+                                colorOf: (a) =>
+                                    parseHexColor(a.color) ?? t.mutedForeground,
+                                onChanged: (a) =>
+                                    setState(() => _transferAccountId = a?.id),
                                 placeholder: 'Pick a destination',
                               ),
 
                             DateField(
                               label: 'Date',
                               value: _date,
-                              onChanged: (d) => setState(() => _date = d ?? _date),
+                              onChanged: (d) =>
+                                  setState(() => _date = d ?? _date),
                             ),
                           ],
                         ),
@@ -640,7 +683,8 @@ class _TransactionFormState extends State<TransactionForm> {
                             ? FadeInUp(
                                 delay: const Duration(milliseconds: 60),
                                 child: Column(
-                                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                                  crossAxisAlignment:
+                                      CrossAxisAlignment.stretch,
                                   children: [
                                     const Gap(S.md),
                                     AppTextField(
@@ -665,10 +709,11 @@ class _TransactionFormState extends State<TransactionForm> {
                                       label: 'Tags',
                                       hint:
                                           'Comma-separated. Tags let you slice spending in '
-                                          'ways categories cannot — "wedding", "trip", "unnecessary".',
+                                          'ways categories cannot   "wedding", "trip", "unnecessary".',
                                       placeholder: 'unnecessary, trip',
                                       prefixIcon: Icons.sell_outlined,
-                                      textCapitalization: TextCapitalization.none,
+                                      textCapitalization:
+                                          TextCapitalization.none,
                                     ),
                                   ],
                                 ),
@@ -680,11 +725,16 @@ class _TransactionFormState extends State<TransactionForm> {
                         const Gap(S.md),
                         FadeInUp(
                           child: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                            padding: const EdgeInsets.symmetric(
+                              horizontal: S.lg,
+                              vertical: S.md,
+                            ),
                             decoration: BoxDecoration(
                               color: t.danger.withValues(alpha: 0.12),
                               borderRadius: BorderRadius.circular(R.lg),
-                              border: Border.all(color: t.danger.withValues(alpha: 0.35)),
+                              border: Border.all(
+                                color: t.danger.withValues(alpha: 0.35),
+                              ),
                               boxShadow: [
                                 BoxShadow(
                                   color: t.danger.withValues(alpha: 0.15),
@@ -695,7 +745,11 @@ class _TransactionFormState extends State<TransactionForm> {
                             ),
                             child: Row(
                               children: [
-                                Icon(Icons.error_outline_rounded, size: 18, color: t.danger),
+                                Icon(
+                                  Icons.error_outline_rounded,
+                                  size: 18,
+                                  color: t.danger,
+                                ),
                                 const GapX(S.sm),
                                 Expanded(
                                   child: Text(
@@ -717,7 +771,9 @@ class _TransactionFormState extends State<TransactionForm> {
                       FadeInUp.staggered(
                         index: 8,
                         child: _GlowSubmitButton(
-                          label: _isEdit ? 'Save changes' : 'Add ${_kind.label.toLowerCase()}',
+                          label: _isEdit
+                              ? 'Save changes'
+                              : 'Add ${_kind.label.toLowerCase()}',
                           tint: tint,
                           loading: _saving,
                           ready: _amountReady,
@@ -774,7 +830,11 @@ class _ModalHeader extends StatelessWidget {
                 ],
               ),
               boxShadow: [
-                BoxShadow(color: tint.withValues(alpha: 0.35), blurRadius: 8, spreadRadius: -1),
+                BoxShadow(
+                  color: tint.withValues(alpha: 0.35),
+                  blurRadius: 8,
+                  spreadRadius: -1,
+                ),
               ],
             ),
           ),
@@ -839,7 +899,9 @@ class _ModalHeader extends StatelessWidget {
                 icon: Icon(Icons.close_rounded, color: t.mutedForeground),
                 style: IconButton.styleFrom(
                   backgroundColor: t.surfaceMuted.withValues(alpha: 0.7),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(R.md),
+                  ),
                 ),
               ),
             ],
@@ -959,7 +1021,10 @@ class _FuturisticKindPicker extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [active.withValues(alpha: 0.38), active.withValues(alpha: 0.14)],
+                      colors: [
+                        active.withValues(alpha: 0.38),
+                        active.withValues(alpha: 0.14),
+                      ],
                     ),
                     boxShadow: [
                       BoxShadow(
@@ -987,7 +1052,9 @@ class _FuturisticKindPicker extends StatelessWidget {
                             curve: Motion.easeOut,
                             style: TextStyle(
                               fontSize: AppType.label,
-                              fontWeight: k == value ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: k == value
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                               color: k == value ? active : t.mutedForeground,
                             ),
                             child: Column(
@@ -996,7 +1063,9 @@ class _FuturisticKindPicker extends StatelessWidget {
                                 Icon(
                                   iconOf(k),
                                   size: 18,
-                                  color: k == value ? active : t.mutedForeground,
+                                  color: k == value
+                                      ? active
+                                      : t.mutedForeground,
                                 ),
                                 const Gap(S.xxs),
                                 Text(k.label),
@@ -1124,8 +1193,14 @@ class _HeroAmountFieldState extends State<_HeroAmountField> {
                     controller: widget.controller,
                     focusNode: _focus,
                     autofocus: widget.autofocus,
-                    keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                    inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                    keyboardType: const TextInputType.numberWithOptions(
+                      decimal: true,
+                    ),
+                    inputFormatters: [
+                      FilteringTextInputFormatter.allow(
+                        RegExp(r'^\d*\.?\d{0,2}'),
+                      ),
+                    ],
                     cursorColor: widget.tint,
                     style: TextStyle(
                       fontSize: AppType.hero,
@@ -1149,11 +1224,16 @@ class _HeroAmountFieldState extends State<_HeroAmountField> {
                   ),
                 ),
                 Container(
-                  padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: S.md,
+                    vertical: S.xs,
+                  ),
                   decoration: BoxDecoration(
                     color: widget.tint.withValues(alpha: 0.12),
                     borderRadius: BorderRadius.circular(R.pill),
-                    border: Border.all(color: widget.tint.withValues(alpha: 0.25)),
+                    border: Border.all(
+                      color: widget.tint.withValues(alpha: 0.25),
+                    ),
                   ),
                   child: Text(
                     widget.currency,
@@ -1191,14 +1271,21 @@ class _MoreDetailsToggle extends StatelessWidget {
         onTap: onTap,
         borderRadius: BorderRadius.circular(R.lg),
         child: Padding(
-          padding: const EdgeInsets.symmetric(vertical: S.sm, horizontal: S.xxs),
+          padding: const EdgeInsets.symmetric(
+            vertical: S.sm,
+            horizontal: S.xxs,
+          ),
           child: Row(
             children: [
               AnimatedRotation(
                 turns: expanded ? 0.5 : 0,
                 duration: Motion.fast,
                 curve: Motion.easeOut,
-                child: Icon(Icons.expand_more_rounded, size: 20, color: t.primary),
+                child: Icon(
+                  Icons.expand_more_rounded,
+                  size: 20,
+                  color: t.primary,
+                ),
               ),
               const GapX(S.xs),
               Text(
@@ -1282,12 +1369,19 @@ class _GlowSubmitButton extends StatelessWidget {
                 ? SizedBox(
                     width: 22,
                     height: 22,
-                    child: CircularProgressIndicator(strokeWidth: 2.5, color: t.primaryForeground),
+                    child: CircularProgressIndicator(
+                      strokeWidth: 2.5,
+                      color: t.primaryForeground,
+                    ),
                   )
                 : Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Icon(Icons.bolt_rounded, color: t.primaryForeground, size: 20),
+                      Icon(
+                        Icons.bolt_rounded,
+                        color: t.primaryForeground,
+                        size: 20,
+                      ),
                       const GapX(S.sm),
                       Text(
                         label,

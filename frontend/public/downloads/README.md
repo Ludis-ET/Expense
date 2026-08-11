@@ -13,5 +13,5 @@ The download button, the mobile banner, and the popup ad all point at
 `NEXT_PUBLIC_ANDROID_APP_URL` and leave this folder empty.
 
 Before handing the APK to anyone other than yourself, replace the debug signing
-config in `mobile/android/app/build.gradle.kts` with a real one — the release
+config in `mobile/android/app/build.gradle.kts` with a real one the release
 build is currently signed with the debug key.

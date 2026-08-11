@@ -91,7 +91,7 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                     const Gap(S.xs),
                     Muted(
                       'When a bank SMS includes a remaining balance, Santim '
-                      'compares it to the mapped wallet. Soft alerts only — '
+                      'compares it to the mapped wallet. Soft alerts only   '
                       'nothing is changed automatically.',
                       size: 12.5,
                       height: 1.4,
@@ -100,7 +100,10 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                     const Gap(S.md),
                     Text(
                       'Alert when drift ≥ ${_threshold.toStringAsFixed(0)}',
-                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                      style: TextStyle(
+                        fontSize: AppType.label,
+                        color: t.mutedForeground,
+                      ),
                     ),
                     Slider(
                       value: _threshold,
@@ -134,15 +137,21 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                     padding: const EdgeInsets.only(bottom: S.sm),
                     child: AppCard(
                       padding: const EdgeInsets.all(S.lg),
-                      onTap: () => Navigator.of(
-                        context,
-                      ).push(MaterialPageRoute(builder: (_) => const MessagingPointsScreen())),
+                      onTap: () => Navigator.of(context).push(
+                        MaterialPageRoute(
+                          builder: (_) => const MessagingPointsScreen(),
+                        ),
+                      ),
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Row(
                             children: [
-                              IconTile(icon: Icons.balance_rounded, color: t.warning, size: 40),
+                              IconTile(
+                                icon: Icons.balance_rounded,
+                                color: t.warning,
+                                size: 40,
+                              ),
                               const GapX(S.md),
                               Expanded(
                                 child: Column(
@@ -150,15 +159,23 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                                   children: [
                                     Text(
                                       d.account.name,
-                                      style: const TextStyle(fontWeight: FontWeight.w800),
+                                      style: const TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                      ),
                                     ),
-                                    Muted(d.message.bankLabel ?? d.message.sender, size: 12),
+                                    Muted(
+                                      d.message.bankLabel ?? d.message.sender,
+                                      size: 12,
+                                    ),
                                   ],
                                 ),
                               ),
                               Text(
                                 'Δ ${prefs.money(d.drift, currency: d.account.currency)}',
-                                style: TextStyle(fontWeight: FontWeight.w800, color: t.warning),
+                                style: TextStyle(
+                                  fontWeight: FontWeight.w800,
+                                  color: t.warning,
+                                ),
                               ),
                             ],
                           ),
@@ -168,13 +185,19 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                               Expanded(
                                 child: _Fig(
                                   label: 'SMS says',
-                                  value: prefs.money(d.smsBalance, currency: d.account.currency),
+                                  value: prefs.money(
+                                    d.smsBalance,
+                                    currency: d.account.currency,
+                                  ),
                                 ),
                               ),
                               Expanded(
                                 child: _Fig(
                                   label: 'Santim wallet',
-                                  value: prefs.money(d.walletBalance, currency: d.account.currency),
+                                  value: prefs.money(
+                                    d.walletBalance,
+                                    currency: d.account.currency,
+                                  ),
                                 ),
                               ),
                             ],
@@ -215,7 +238,10 @@ class _Fig extends StatelessWidget {
         ),
         Text(
           value,
-          style: const TextStyle(fontWeight: FontWeight.w700, fontSize: AppType.body),
+          style: const TextStyle(
+            fontWeight: FontWeight.w700,
+            fontSize: AppType.body,
+          ),
         ),
       ],
     );

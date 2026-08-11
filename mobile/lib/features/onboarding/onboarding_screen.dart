@@ -30,7 +30,7 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
       title: 'Start with where your money sits',
       body:
           'Add a wallet for cash, one for each bank account, one for mobile '
-          'money. Santim keeps every currency separate — totals are never mixed.',
+          'money. Santim keeps every currency separate   totals are never mixed.',
     ),
     _Page(
       art: OnboardingArtKind.plans,
@@ -83,7 +83,10 @@ class _OnboardingScreenState extends State<OnboardingScreen> {
             Align(
               alignment: Alignment.centerRight,
               child: Padding(
-                padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: S.md,
+                  vertical: S.sm,
+                ),
                 child: TextButton(
                   onPressed: _finish,
                   style: TextButton.styleFrom(
@@ -186,7 +189,11 @@ class _PageView extends StatelessWidget {
             child: Text(
               page.body,
               textAlign: TextAlign.center,
-              style: TextStyle(fontSize: AppType.body, height: 1.55, color: t.mutedForeground),
+              style: TextStyle(
+                fontSize: AppType.body,
+                height: 1.55,
+                color: t.mutedForeground,
+              ),
             ),
           ),
         ],
@@ -246,7 +253,10 @@ class _ArtPainter extends CustomPainter {
       86,
       Paint()
         ..shader = RadialGradient(
-          colors: [primary.withValues(alpha: 0.16), primary.withValues(alpha: 0)],
+          colors: [
+            primary.withValues(alpha: 0.16),
+            primary.withValues(alpha: 0),
+          ],
         ).createShader(Rect.fromCircle(center: Offset(cx, cy), radius: 86)),
     );
 
@@ -272,8 +282,12 @@ class _ArtPainter extends CustomPainter {
           canvas.drawRRect(rect, i == 0 ? brand : fill);
           canvas.drawRRect(rect, stroke);
           canvas.drawRRect(
-            RRect.fromRectAndRadius(const Rect.fromLTWH(-68, -8, 42, 8), const Radius.circular(4)),
-            Paint()..color = (i == 0 ? Colors.white : muted).withValues(alpha: 0.55),
+            RRect.fromRectAndRadius(
+              const Rect.fromLTWH(-68, -8, 42, 8),
+              const Radius.circular(4),
+            ),
+            Paint()
+              ..color = (i == 0 ? Colors.white : muted).withValues(alpha: 0.55),
           );
           canvas.restore();
         }
@@ -338,12 +352,16 @@ class _ArtPainter extends CustomPainter {
         canvas.drawRRect(row, stroke);
         canvas.drawCircle(Offset(cx - 26, cy + 52), 12, brand);
         canvas.drawRRect(
-          RRect.fromRectAndRadius(Rect.fromLTWH(cx - 6, cy + 48, 60, 8), const Radius.circular(4)),
+          RRect.fromRectAndRadius(
+            Rect.fromLTWH(cx - 6, cy + 48, 60, 8),
+            const Radius.circular(4),
+          ),
           Paint()..color = muted.withValues(alpha: 0.45),
         );
     }
   }
 
   @override
-  bool shouldRepaint(_ArtPainter old) => old.art != art || old.primary != primary;
+  bool shouldRepaint(_ArtPainter old) =>
+      old.art != art || old.primary != primary;
 }

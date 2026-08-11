@@ -21,7 +21,8 @@ Future<void> maybePromptAppUpdate(
   if (!context.mounted) return;
 
   if (info == null) {
-    if (manual) toast(context, 'Could not check for updates right now.', error: true);
+    if (manual)
+      toast(context, 'Could not check for updates right now.', error: true);
     return;
   }
   if (!info.configured) {
@@ -30,7 +31,10 @@ Future<void> maybePromptAppUpdate(
   }
   if (!info.updateAvailable) {
     if (manual) {
-      toast(context, 'You’re on the latest version (${info.currentVersionName}).');
+      toast(
+        context,
+        'You’re on the latest version (${info.currentVersionName}).',
+      );
     }
     return;
   }
@@ -79,7 +83,7 @@ class _UpdateSheetState extends State<_UpdateSheet> {
       );
       await widget.service.installApk(file);
       if (mounted) {
-        toast(context, 'Install prompt opened — confirm to finish updating.');
+        toast(context, 'Install prompt opened   confirm to finish updating.');
         if (!widget.info.mustUpdate) Navigator.of(context).pop();
       }
     } on ApiError catch (e) {
@@ -126,7 +130,10 @@ class _UpdateSheetState extends State<_UpdateSheet> {
                       borderRadius: BorderRadius.circular(14),
                       gradient: LinearGradient(colors: [t.primary, t.accent]),
                     ),
-                    child: Icon(Icons.system_update_alt_rounded, color: t.primaryForeground),
+                    child: Icon(
+                      Icons.system_update_alt_rounded,
+                      color: t.primaryForeground,
+                    ),
                   ),
                   const GapX(S.md),
                   Expanded(
@@ -165,7 +172,11 @@ class _UpdateSheetState extends State<_UpdateSheet> {
               const Gap(S.sm),
               Text(
                 info.changelog.trim(),
-                style: TextStyle(fontSize: AppType.bodySm, height: 1.5, color: t.foreground),
+                style: TextStyle(
+                  fontSize: AppType.bodySm,
+                  height: 1.5,
+                  color: t.foreground,
+                ),
               ),
             ],
             if (_downloading) ...[
@@ -189,7 +200,10 @@ class _UpdateSheetState extends State<_UpdateSheet> {
             ],
             if (_error != null) ...[
               const Gap(S.md),
-              Text(_error!, style: TextStyle(fontSize: AppType.bodySm, color: t.danger)),
+              Text(
+                _error!,
+                style: TextStyle(fontSize: AppType.bodySm, color: t.danger),
+              ),
             ],
             const Gap(S.xl),
             AppButton(

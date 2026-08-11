@@ -2,6 +2,7 @@ import 'dart:math' as math;
 
 import 'package:flutter/material.dart';
 
+import '../../core/haptics.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/utils/format.dart';
@@ -10,14 +11,180 @@ import '../../models/models.dart';
 import '../../state/prefs_state.dart';
 import '../../widgets/charts.dart';
 import '../../widgets/ui.dart';
+import 'dashboard_layout.dart';
 
 typedef Money = String Function(Object? amount);
+
+// ---------------------------------------------------------------------------
+// Worth-knowing peeks   uniform shell + detail sheet
+// ---------------------------------------------------------------------------
+
+/// Shared chrome for carousel insight tiles: fills [kInsightPeekHeight],
+/// keeps content density even, and opens a detail sheet on tap.
+class InsightPeekFrame extends StatelessWidget {
+  const InsightPeekFrame({
+    super.key,
+    required this.icon,
+    required this.eyebrow,
+    required this.child,
+    required this.onOpen,
+    this.accent,
+    this.cta = 'Tap for details',
+  });
+
+  final IconData icon;
+  final String eyebrow;
+  final Widget child;
+  final VoidCallback onOpen;
+  final Color? accent;
+  final String cta;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final color = accent ?? t.primary;
+
+    return AppCard(
+      padding: const EdgeInsets.fromLTRB(S.lg, S.md, S.lg, S.md),
+      onTap: () {
+        Haptics.select();
+        onOpen();
+      },
+      child: SizedBox.expand(
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Container(
+                  width: 34,
+                  height: 34,
+                  decoration: BoxDecoration(
+                    color: color.withValues(alpha: 0.12),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(icon, size: 18, color: color),
+                ),
+                const GapX(S.sm),
+                Expanded(
+                  child: Text(
+                    eyebrow,
+                    style: TextStyle(
+                      fontSize: AppType.label,
+                      fontWeight: FontWeight.w800,
+                      letterSpacing: 0.4,
+                      color: t.mutedForeground,
+                    ),
+                  ),
+                ),
+                Icon(
+                  Icons.fullscreen_rounded,
+                  size: 16,
+                  color: t.mutedForeground,
+                ),
+              ],
+            ),
+            const Gap(S.sm),
+            Expanded(child: child),
+            const Gap(S.sm),
+            Container(
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: 7,
+              ),
+              decoration: BoxDecoration(
+                color: color.withValues(alpha: 0.08),
+                borderRadius: BorderRadius.circular(R.pill),
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Text(
+                    cta,
+                    style: TextStyle(
+                      fontSize: AppType.caption,
+                      fontWeight: FontWeight.w800,
+                      color: color,
+                    ),
+                  ),
+                  const GapX(S.xs),
+                  Icon(Icons.arrow_forward_rounded, size: 14, color: color),
+                ],
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+void _openInsightSheet(
+  BuildContext context, {
+  required String title,
+  String? subtitle,
+  required Widget Function(BuildContext) builder,
+}) {
+  showAppSheet(
+    context,
+    title: title,
+    subtitle: subtitle,
+    scrollable: true,
+    builder: (ctx) => Padding(
+      padding: const EdgeInsets.fromLTRB(S.xl, 0, S.xl, S.huge),
+      child: builder(ctx),
+    ),
+  );
+}
+
+/// Compact metric chip used inside peeks.
+class _PeekChip extends StatelessWidget {
+  const _PeekChip({required this.label, required this.value, this.color});
+
+  final String label;
+  final String value;
+  final Color? color;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Expanded(
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.sm),
+        decoration: BoxDecoration(
+          color: t.surfaceMuted.withValues(alpha: 0.7),
+          borderRadius: BorderRadius.circular(R.md),
+        ),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Muted(label, size: 10, maxLines: 1),
+            const Gap(2),
+            FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Text(
+                value,
+                maxLines: 1,
+                style: TextStyle(
+                  fontSize: AppType.bodySm,
+                  fontWeight: FontWeight.w800,
+                  color: color ?? t.foreground,
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
 
 // ---------------------------------------------------------------------------
 // Hero
 // ---------------------------------------------------------------------------
 
-/// `HeroBalance` — greeting, both calendars, the available balance, and the
+/// `HeroBalance`   greeting, both calendars, the available balance, and the
 /// income/spent/saved chips over the gradient panel.
 class HeroBalance extends StatelessWidget {
   const HeroBalance({
@@ -43,7 +210,9 @@ class HeroBalance extends StatelessWidget {
     // Available money: what is in the accounts minus what budget plans hold.
     final balance = breakdown?.totalBalance ?? data.totalBalance;
     final locked = toNum(breakdown?.budgetLocked ?? data.budgetLocked);
-    final accounts = data.accounts.where((a) => a.currency == currency).toList();
+    final accounts = data.accounts
+        .where((a) => a.currency == currency)
+        .toList();
 
     final income = toNum(month.income);
     final expense = toNum(month.expense);
@@ -113,14 +282,21 @@ class HeroBalance extends StatelessWidget {
                   color: white.withValues(alpha: 0.15),
                   borderRadius: BorderRadius.circular(R.md),
                 ),
-                child: Icon(Icons.account_balance_wallet_outlined, size: 19, color: white),
+                child: Icon(
+                  Icons.account_balance_wallet_outlined,
+                  size: 19,
+                  color: white,
+                ),
               ),
             ],
           ),
           const Gap(S.md),
           Text(
             'Available to spend · $currency',
-            style: TextStyle(fontSize: AppType.caption, color: white.withValues(alpha: 0.65)),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              color: white.withValues(alpha: 0.65),
+            ),
           ),
           const Gap(S.xxs),
           AnimatedNumber(
@@ -184,7 +360,8 @@ class HeroBalance extends StatelessWidget {
                 value: money(expense),
                 delta: month.expenseDeltaPct,
               ),
-              if (savingsRate != null) _HeroStat(label: 'Saved', value: '$savingsRate%'),
+              if (savingsRate != null)
+                _HeroStat(label: 'Saved', value: '$savingsRate%'),
             ],
           ),
           if (accounts.isNotEmpty) ...[
@@ -240,7 +417,11 @@ class HeroBalance extends StatelessWidget {
                   ),
                 ),
                 const GapX(S.xxs),
-                Icon(Icons.arrow_forward, size: 13, color: white.withValues(alpha: 0.85)),
+                Icon(
+                  Icons.arrow_forward,
+                  size: 13,
+                  color: white.withValues(alpha: 0.85),
+                ),
               ],
             ),
           ),
@@ -251,7 +432,12 @@ class HeroBalance extends StatelessWidget {
 }
 
 class _HeroStat extends StatelessWidget {
-  const _HeroStat({required this.label, required this.value, this.icon, this.delta});
+  const _HeroStat({
+    required this.label,
+    required this.value,
+    this.icon,
+    this.delta,
+  });
 
   final String label;
   final String value;
@@ -338,23 +524,23 @@ class HealthFactor {
 /// number behind it, so the score is auditable rather than a vibe. A factor
 /// with nothing to measure scores null and is left out of the average.
 class FinancialHealthCard extends StatelessWidget {
-  const FinancialHealthCard({super.key, required this.data, required this.money});
+  const FinancialHealthCard({
+    super.key,
+    required this.data,
+    required this.money,
+  });
 
   final DashboardData data;
   final Money money;
 
   static double _clamp(double n) => n.clamp(0, 100).roundToDouble();
 
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
+  List<HealthFactor> _factors(SantimTokens t) {
     final income = toNum(data.month.income);
     final expense = toNum(data.month.expense);
     final net = toNum(data.month.net);
     final unnecessary = toNum(data.unnecessary.total);
 
-    // 1. Savings rate: what share of income you kept this month. 20% saved is
-    //    the common target, so that maps to a full score.
     final savingsRate = income > 0 ? net / income * 100 : null;
     final savings = HealthFactor(
       label: 'Savings rate',
@@ -365,12 +551,13 @@ class FinancialHealthCard extends StatelessWidget {
       icon: Icons.trending_up,
     );
 
-    // 2. Plan health: are your active plans still holding money?
     final atRisk = data.budgetsAtRisk.length;
     final activePlans = data.budgetTotals.activeCount;
     final plans = HealthFactor(
       label: 'Plans',
-      score: activePlans == 0 ? null : _clamp((activePlans - atRisk) / activePlans * 100),
+      score: activePlans == 0
+          ? null
+          : _clamp((activePlans - atRisk) / activePlans * 100),
       detail: activePlans == 0
           ? 'no plans yet'
           : atRisk == 0
@@ -379,7 +566,6 @@ class FinancialHealthCard extends StatelessWidget {
       icon: Icons.shield_outlined,
     );
 
-    // 3. Funding: how much of what you planned is actually set aside.
     final planned = toNum(data.budgetTotals.planned);
     final funded = toNum(data.budgetTotals.funded);
     final funding = HealthFactor(
@@ -391,7 +577,6 @@ class FinancialHealthCard extends StatelessWidget {
       icon: Icons.savings_outlined,
     );
 
-    // 4. Discipline: 10% of spend on impulse buys zeroes it out.
     final wasteShare = expense > 0 ? unnecessary / expense * 100 : null;
     final discipline = HealthFactor(
       label: 'Discipline',
@@ -404,11 +589,18 @@ class FinancialHealthCard extends StatelessWidget {
       icon: Icons.monitor_heart_outlined,
     );
 
-    final factors = [savings, plans, funding, discipline];
+    return [savings, plans, funding, discipline];
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final factors = _factors(t);
     final scored = factors.where((f) => f.score != null).toList();
     final score = scored.isEmpty
         ? null
-        : (scored.fold<double>(0, (s, f) => s + f.score!) / scored.length).round();
+        : (scored.fold<double>(0, (s, f) => s + f.score!) / scored.length)
+              .round();
 
     final (label, color) = switch (score) {
       null => ('Not enough data', t.mutedForeground),
@@ -418,49 +610,42 @@ class FinancialHealthCard extends StatelessWidget {
       _ => ('Needs attention', t.danger),
     };
 
-    return AppCard(
-      padding: const EdgeInsets.all(S.xl),
-      child: Column(
+    return InsightPeekFrame(
+      icon: Icons.favorite_outline_rounded,
+      eyebrow: 'FINANCIAL HEALTH',
+      accent: color,
+      onOpen: () => _openInsightSheet(
+        context,
+        title: 'Financial health',
+        subtitle: score == null
+            ? 'Waiting on more activity'
+            : '$label · score $score',
+        builder: (_) => _HealthDetail(
+          factors: factors,
+          score: score,
+          label: label,
+          color: color,
+        ),
+      ),
+      child: Row(
         children: [
-          Row(
-            children: [
-              Text(
-                'Financial health',
-                style: TextStyle(
-                  fontSize: AppType.bodySm,
-                  fontWeight: FontWeight.w600,
-                  color: t.mutedForeground,
-                ),
-              ),
-              const Spacer(),
-              InfoHint(
-                label: 'Financial health',
-                body:
-                    'Averaged over the ${scored.length} factor'
-                    '${scored.length == 1 ? '' : 's'} there is data for. '
-                    'Each factor shows the real figure it came from.',
-                size: 15,
-              ),
-            ],
-          ),
-          const Gap(S.lg),
           SizedBox(
-            width: 124,
-            height: 124,
+            width: 88,
+            height: 88,
             child: Stack(
               alignment: Alignment.center,
               children: [
                 TweenAnimationBuilder<double>(
                   tween: Tween(begin: 0, end: (score ?? 0) / 100),
-                  duration: const Duration(milliseconds: 1000),
+                  duration: const Duration(milliseconds: 900),
                   curve: Motion.easeOut,
                   builder: (context, v, _) => CustomPaint(
-                    size: const Size.square(124),
+                    size: const Size.square(88),
                     painter: RingPainter(
                       progress: v,
                       trackColor: t.surfaceMuted,
                       colors: [t.primary, t.accent],
-                      strokeWidth: 9,
+                      strokeWidth: 8,
                     ),
                   ),
                 ),
@@ -468,19 +653,21 @@ class FinancialHealthCard extends StatelessWidget {
                   mainAxisSize: MainAxisSize.min,
                   children: [
                     Text(
-                      score?.toString() ?? '-',
+                      score?.toString() ?? '–',
                       style: TextStyle(
-                        fontSize: AppType.display,
-                        fontWeight: FontWeight.bold,
+                        fontSize: 26,
+                        fontWeight: FontWeight.w800,
                         color: t.foreground,
                         fontFeatures: const [FontFeature.tabularFigures()],
                       ),
                     ),
                     Text(
                       label,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                        fontSize: AppType.caption,
-                        fontWeight: FontWeight.w700,
+                        fontSize: 10,
+                        fontWeight: FontWeight.w800,
                         color: color,
                       ),
                     ),
@@ -489,25 +676,20 @@ class FinancialHealthCard extends StatelessWidget {
               ],
             ),
           ),
-          const Gap(S.lg),
-          for (final f in factors)
-            Padding(
-              padding: const EdgeInsets.only(bottom: S.xs),
-              child: Container(
-                padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-                decoration: BoxDecoration(
-                  color: t.surfaceMuted.withValues(alpha: 0.6),
-                  borderRadius: BorderRadius.circular(R.sm + 2),
-                ),
-                child: Row(
-                  children: [
-                    Icon(f.icon, size: 15, color: t.mutedForeground),
-                    const GapX(S.sm),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
+          const GapX(S.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                for (final f in factors.take(3))
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: 6),
+                    child: Row(
+                      children: [
+                        Icon(f.icon, size: 13, color: t.mutedForeground),
+                        const GapX(6),
+                        Expanded(
+                          child: Text(
                             f.label,
                             style: TextStyle(
                               fontSize: AppType.caption,
@@ -515,54 +697,139 @@ class FinancialHealthCard extends StatelessWidget {
                               color: t.foreground,
                             ),
                           ),
-                          Muted(f.detail, size: 10, maxLines: 1),
-                        ],
-                      ),
-                    ),
-                    const GapX(S.sm),
-                    if (f.score == null)
-                      Muted('-', size: 10)
-                    else ...[
-                      SizedBox(
-                        width: 34,
-                        child: ProgressBar(
-                          value: f.score!,
-                          height: 4,
-                          gradient: [
-                            f.score! >= 70
-                                ? t.success
-                                : f.score! >= 40
-                                ? t.primary
-                                : t.warning,
-                            f.score! >= 70
-                                ? t.success
-                                : f.score! >= 40
-                                ? t.accent
-                                : t.warning,
-                          ],
                         ),
-                      ),
-                      const GapX(S.xs),
-                      SizedBox(
-                        width: 24,
-                        child: Text(
-                          '${f.score!.round()}',
-                          textAlign: TextAlign.right,
+                        Text(
+                          f.score == null ? '–' : '${f.score!.round()}',
                           style: TextStyle(
                             fontSize: AppType.caption,
-                            fontWeight: FontWeight.w700,
+                            fontWeight: FontWeight.w800,
                             color: t.foreground,
-                            fontFeatures: const [FontFeature.tabularFigures()],
                           ),
                         ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
+                      ],
+                    ),
+                  ),
+                Muted('${scored.length} factors scored', size: 10),
+              ],
             ),
+          ),
         ],
       ),
+    );
+  }
+}
+
+class _HealthDetail extends StatelessWidget {
+  const _HealthDetail({
+    required this.factors,
+    required this.score,
+    required this.label,
+    required this.color,
+  });
+
+  final List<HealthFactor> factors;
+  final int? score;
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Center(
+          child: SizedBox(
+            width: 132,
+            height: 132,
+            child: Stack(
+              alignment: Alignment.center,
+              children: [
+                CustomPaint(
+                  size: const Size.square(132),
+                  painter: RingPainter(
+                    progress: (score ?? 0) / 100,
+                    trackColor: t.surfaceMuted,
+                    colors: [t.primary, t.accent],
+                    strokeWidth: 10,
+                  ),
+                ),
+                Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(
+                      score?.toString() ?? '–',
+                      style: TextStyle(
+                        fontSize: AppType.display,
+                        fontWeight: FontWeight.bold,
+                        color: t.foreground,
+                      ),
+                    ),
+                    Text(
+                      label,
+                      style: TextStyle(
+                        fontSize: AppType.caption,
+                        fontWeight: FontWeight.w800,
+                        color: color,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+        ),
+        const Gap(S.xl),
+        for (final f in factors)
+          Padding(
+            padding: const EdgeInsets.only(bottom: S.sm),
+            child: Container(
+              padding: const EdgeInsets.all(S.md),
+              decoration: BoxDecoration(
+                color: t.surfaceMuted.withValues(alpha: 0.65),
+                borderRadius: BorderRadius.circular(R.md),
+              ),
+              child: Row(
+                children: [
+                  Icon(f.icon, size: 18, color: t.mutedForeground),
+                  const GapX(S.md),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          f.label,
+                          style: TextStyle(
+                            fontSize: AppType.bodySm,
+                            fontWeight: FontWeight.w700,
+                            color: t.foreground,
+                          ),
+                        ),
+                        Muted(f.detail, size: 12, maxLines: 2),
+                      ],
+                    ),
+                  ),
+                  if (f.score != null) ...[
+                    const GapX(S.sm),
+                    SizedBox(
+                      width: 48,
+                      child: ProgressBar(value: f.score!, height: 5),
+                    ),
+                    const GapX(S.xs),
+                    Text(
+                      '${f.score!.round()}',
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        fontWeight: FontWeight.w800,
+                        color: t.foreground,
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+      ],
     );
   }
 }
@@ -571,7 +838,7 @@ class FinancialHealthCard extends StatelessWidget {
 // Small widgets
 // ---------------------------------------------------------------------------
 
-/// `SmartInsight` — the single most useful sentence the data supports.
+/// `SmartInsight`   the single most useful sentence the data supports.
 class SmartInsightCard extends StatelessWidget {
   const SmartInsightCard({super.key, required this.data, required this.money});
 
@@ -582,7 +849,9 @@ class SmartInsightCard extends StatelessWidget {
     final net = toNum(data.month.net);
     final income = toNum(data.month.income);
 
-    final drained = data.budgetsAtRisk.where((b) => b.health == BudgetHealth.drained).length;
+    final drained = data.budgetsAtRisk
+        .where((b) => b.health == BudgetHealth.drained)
+        .length;
     if (drained > 0) {
       return '$drained budget plan${drained > 1 ? 's are' : ' is'} empty - '
           'top up or hold off until the next cycle.';
@@ -629,68 +898,116 @@ class SmartInsightCard extends StatelessWidget {
     final month = data.month;
     final net = toNum(month.net);
     final insight = _insight();
+    final income = toNum(month.income);
+    final expense = toNum(month.expense);
 
-    return GlassCard(
-      padding: const EdgeInsets.all(S.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              IconTile(icon: Icons.lightbulb_outline, color: t.primary, size: 36),
-              const GapX(S.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Eyebrow('Smart insight'),
-                    const Gap(S.xxs),
-                    Text(
-                      insight,
-                      style: TextStyle(fontSize: AppType.bodySm, height: 1.5, color: t.foreground),
-                    ),
+    return InsightPeekFrame(
+      icon: Icons.lightbulb_outline_rounded,
+      eyebrow: 'SMART INSIGHT',
+      accent: t.primary,
+      onOpen: () => _openInsightSheet(
+        context,
+        title: 'Smart insight',
+        subtitle: 'The most useful signal from your numbers right now',
+        builder: (_) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              padding: const EdgeInsets.all(S.lg),
+              decoration: BoxDecoration(
+                gradient: LinearGradient(
+                  colors: [
+                    t.primary.withValues(alpha: 0.12),
+                    t.accent.withValues(alpha: 0.06),
                   ],
                 ),
+                borderRadius: BorderRadius.circular(R.card),
               ),
-            ],
-          ),
-          const Gap(S.md),
-          Container(
-            width: double.infinity,
-            padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
-            decoration: BoxDecoration(
-              color: t.primary.withValues(alpha: 0.07),
-              borderRadius: BorderRadius.circular(R.md),
+              child: Text(
+                insight,
+                style: TextStyle(
+                  fontSize: AppType.body,
+                  height: 1.55,
+                  fontWeight: FontWeight.w600,
+                  color: t.foreground,
+                ),
+              ),
             ),
-            child: Row(
+            const Gap(S.lg),
+            Row(
               children: [
-                Icon(
-                  net >= 0 ? Icons.trending_up_rounded : Icons.trending_down_rounded,
-                  size: 15,
-                  color: net >= 0 ? t.success : t.danger,
+                _PeekChip(
+                  label: 'Income',
+                  value: money(month.income),
+                  color: t.success,
                 ),
                 const GapX(S.sm),
-                Expanded(
-                  child: Text(
-                    'Net this month · ${money(month.net)}',
-                    style: TextStyle(
-                      fontSize: AppType.caption,
-                      fontWeight: FontWeight.w700,
-                      color: t.foreground,
-                    ),
-                  ),
+                _PeekChip(
+                  label: 'Spent',
+                  value: money(month.expense),
+                  color: t.danger,
                 ),
-                Text(
-                  'Swipe →',
-                  style: TextStyle(
-                    fontSize: AppType.micro,
-                    fontWeight: FontWeight.w700,
-                    color: t.mutedForeground,
-                  ),
+                const GapX(S.sm),
+                _PeekChip(
+                  label: 'Net',
+                  value: money(month.net),
+                  color: net >= 0 ? t.success : t.danger,
                 ),
               ],
             ),
+            const Gap(S.lg),
+            Muted(
+              income > 0
+                  ? 'Savings rate this month: ${((net / income) * 100).round()}%.'
+                  : 'Add income to unlock a savings-rate read.',
+              size: 12,
+              maxLines: 3,
+            ),
+            if (toNum(data.unnecessary.total) > 0) ...[
+              const Gap(S.sm),
+              Muted(
+                '${money(data.unnecessary.total)} flagged as unnecessary so far.',
+                size: 12,
+                maxLines: 2,
+              ),
+            ],
+            if (expense > 0) ...[
+              const Gap(S.sm),
+              Muted('Avg daily spend ${money(month.avgDailySpend)}.', size: 12),
+            ],
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Expanded(
+            child: Text(
+              insight,
+              maxLines: 3,
+              overflow: TextOverflow.ellipsis,
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.4,
+                fontWeight: FontWeight.w600,
+                color: t.foreground,
+              ),
+            ),
+          ),
+          Row(
+            children: [
+              _PeekChip(
+                label: 'Income',
+                value: money(month.income),
+                color: t.success,
+              ),
+              const GapX(S.sm),
+              _PeekChip(
+                label: 'Net',
+                value: money(month.net),
+                color: net >= 0 ? t.success : t.danger,
+              ),
+            ],
           ),
         ],
       ),
@@ -698,10 +1015,14 @@ class SmartInsightCard extends StatelessWidget {
   }
 }
 
-/// `WeeklySnapshot` — this week against last, from the stored Sunday-boundary
+/// `WeeklySnapshot`   this week against last, from the stored Sunday-boundary
 /// snapshots. Bars compare both weeks on whichever spent more.
 class WeeklySnapshotCard extends StatelessWidget {
-  const WeeklySnapshotCard({super.key, required this.data, required this.prefs});
+  const WeeklySnapshotCard({
+    super.key,
+    required this.data,
+    required this.prefs,
+  });
 
   final WeeklySnapshot data;
   final PrefsState prefs;
@@ -717,97 +1038,111 @@ class WeeklySnapshotCard extends StatelessWidget {
     String money(Object? v, {bool compact = false}) =>
         prefs.money(v, currency: data.currency, compact: compact);
 
-    return AppCard(
-      padding: const EdgeInsets.all(S.lg),
+    return InsightPeekFrame(
+      icon: Icons.calendar_view_week_rounded,
+      eyebrow: 'WEEKLY SNAPSHOT',
+      accent: t.accent,
+      onOpen: () => _openInsightSheet(
+        context,
+        title: 'Weekly snapshot',
+        subtitle:
+            '${formatDayMonth(cur.weekStart)} – ${formatDayMonth(cur.weekEnd.subtract(const Duration(days: 1)))}',
+        builder: (_) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            _MiniRow(
+              label: 'Income',
+              value: money(cur.income),
+              delta: data.incomeDelta,
+              goodWhenUp: true,
+            ),
+            const Gap(S.sm),
+            _MiniRow(
+              label: 'Spent',
+              value: money(cur.expense),
+              delta: data.expenseDelta,
+              goodWhenUp: false,
+            ),
+            const Gap(S.sm),
+            _MiniRow(
+              label: 'Net',
+              value: money(cur.net),
+              emphasise: true,
+              tone: toNum(cur.net) >= 0 ? t.success : t.danger,
+            ),
+            const Gap(S.lg),
+            _CompareBar(
+              label: 'This week',
+              value: money(cur.expense, compact: true),
+              pct: math.max(2, toNum(cur.expense) / peak * 100),
+              active: true,
+            ),
+            const Gap(S.sm),
+            _CompareBar(
+              label: 'Last week',
+              value: money(prev.expense, compact: true),
+              pct: math.max(2, toNum(prev.expense) / peak * 100),
+            ),
+            const Gap(S.lg),
+            Text(
+              toNum(prev.expense) == 0 && toNum(cur.expense) == 0
+                  ? 'No spending either week.'
+                  : 'You spent ${money(toNum(data.expenseAmount).abs(), compact: true)} '
+                        '${spentMore ? 'more' : 'less'} than last week'
+                        '${cur.topCategory != null ? ' · mostly ${cur.topCategory}' : ''}.',
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.45,
+                color: t.foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Weekly snapshot',
-                      style: TextStyle(
-                        fontSize: AppType.bodySm,
-                        fontWeight: FontWeight.w600,
-                        color: t.mutedForeground,
-                      ),
-                    ),
-                    const Gap(S.hair),
-                    Muted(
-                      '${formatDayMonth(cur.weekStart)} - '
-                      '${formatDayMonth(cur.weekEnd.subtract(const Duration(days: 1)))}',
-                      size: 10.5,
-                    ),
-                  ],
-                ),
+              _PeekChip(
+                label: 'Income',
+                value: money(cur.income, compact: true),
+                color: t.success,
               ),
-              Icon(Icons.calendar_month_outlined, size: 16, color: t.mutedForeground),
+              const GapX(S.sm),
+              _PeekChip(
+                label: 'Spent',
+                value: money(cur.expense, compact: true),
+                color: t.danger,
+              ),
+              const GapX(S.sm),
+              _PeekChip(
+                label: 'Net',
+                value: money(cur.net, compact: true),
+                color: toNum(cur.net) >= 0 ? t.success : t.danger,
+              ),
             ],
           ),
-          const Gap(S.md),
-          _MiniRow(
-            label: 'Income',
-            value: money(cur.income),
-            delta: data.incomeDelta,
-            goodWhenUp: true,
-          ),
-          const Gap(S.xs),
-          _MiniRow(
-            label: 'Spent',
-            value: money(cur.expense),
-            delta: data.expenseDelta,
-            goodWhenUp: false,
-          ),
-          const Gap(S.xs),
-          _MiniRow(
-            label: 'Net',
-            value: money(cur.net),
-            emphasise: true,
-            tone: toNum(cur.net) >= 0 ? t.success : t.danger,
-          ),
-          const Gap(S.md),
-          Divider(color: t.border, height: 1),
-          const Gap(S.md),
-          _CompareBar(
-            label: 'This week',
-            value: money(cur.expense, compact: true),
-            pct: math.max(2, toNum(cur.expense) / peak * 100),
-            active: true,
-          ),
           const Gap(S.sm),
-          _CompareBar(
-            label: 'Last week',
-            value: money(prev.expense, compact: true),
-            pct: math.max(2, toNum(prev.expense) / peak * 100),
-          ),
-          const Gap(S.md),
-          if (toNum(prev.expense) == 0 && toNum(cur.expense) == 0)
-            Muted('No spending either week.', size: 11, height: 1.4)
-          else
-            RichText(
-              text: TextSpan(
-                style: TextStyle(fontSize: AppType.caption, height: 1.45, color: t.mutedForeground),
-                children: [
-                  const TextSpan(text: 'You have spent '),
-                  TextSpan(
-                    text:
-                        '${money(toNum(data.expenseAmount).abs(), compact: true)} '
-                        '${spentMore ? 'more' : 'less'}',
-                    style: TextStyle(
-                      fontWeight: FontWeight.w700,
-                      color: spentMore ? t.warning : t.success,
-                    ),
-                  ),
-                  const TextSpan(text: ' than last week'),
-                  if (cur.topCategory != null) TextSpan(text: ' · mostly ${cur.topCategory}'),
-                ],
-              ),
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                _CompareBar(
+                  label: 'This week',
+                  value: money(cur.expense, compact: true),
+                  pct: math.max(2, toNum(cur.expense) / peak * 100),
+                  active: true,
+                ),
+                const Gap(S.xs),
+                _CompareBar(
+                  label: 'Last week',
+                  value: money(prev.expense, compact: true),
+                  pct: math.max(2, toNum(prev.expense) / peak * 100),
+                ),
+              ],
             ),
+          ),
         ],
       ),
     );
@@ -852,7 +1187,11 @@ class _MiniRow extends StatelessWidget {
             child: FittedBox(
               fit: BoxFit.scaleDown,
               alignment: Alignment.centerRight,
-              child: Amount(value, size: emphasise ? 14.5 : 13, color: tone ?? t.foreground),
+              child: Amount(
+                value,
+                size: emphasise ? 14.5 : 13,
+                color: tone ?? t.foreground,
+              ),
             ),
           ),
           if (delta != null) ...[
@@ -913,10 +1252,14 @@ class _CompareBar extends StatelessWidget {
   }
 }
 
-/// `SpendingStreaks` — the run of days under the average daily pace, with the
+/// `SpendingStreaks`   the run of days under the average daily pace, with the
 /// full window as a dot strip so broken days stay visible.
 class SpendingStreaksCard extends StatelessWidget {
-  const SpendingStreaksCard({super.key, required this.data, required this.prefs});
+  const SpendingStreaksCard({
+    super.key,
+    required this.data,
+    required this.prefs,
+  });
 
   final SpendingStreak data;
   final PrefsState prefs;
@@ -924,57 +1267,84 @@ class SpendingStreaksCard extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return AppCard(
-      padding: const EdgeInsets.all(S.lg),
+    return InsightPeekFrame(
+      icon: Icons.local_fire_department_rounded,
+      eyebrow: 'SPENDING STREAK',
+      accent: t.warning,
+      onOpen: () => _openInsightSheet(
+        context,
+        title: 'Spending streak',
+        subtitle: data.label,
+        builder: (_) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.baseline,
+              textBaseline: TextBaseline.alphabetic,
+              children: [
+                Amount('${data.currentDays}', size: 42),
+                const GapX(S.sm),
+                Muted('days under pace', size: 14),
+              ],
+            ),
+            const Gap(S.md),
+            Muted(
+              'Pace ${prefs.money(data.avgDailySpend, currency: data.currency)}/day · best ${data.bestStreak}',
+              size: 13,
+            ),
+            const Gap(S.lg),
+            SpendStrip(days: [for (final d in data.days) (d.under, d.spent)]),
+            const Gap(S.md),
+            Muted(
+              '${data.daysUnder} of ${data.dayCount} days under your average pace.',
+              size: 12,
+              maxLines: 2,
+            ),
+          ],
+        ),
+      ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          Row(
-            children: [
-              Text(
-                'Spending streak',
-                style: TextStyle(
-                  fontSize: AppType.bodySm,
-                  fontWeight: FontWeight.w600,
-                  color: t.mutedForeground,
-                ),
-              ),
-              const Spacer(),
-              Icon(Icons.local_fire_department_outlined, size: 16, color: t.warning),
-            ],
-          ),
-          const Gap(S.md),
           Row(
             crossAxisAlignment: CrossAxisAlignment.baseline,
             textBaseline: TextBaseline.alphabetic,
             children: [
-              Amount('${data.currentDays}', size: 30),
+              Amount('${data.currentDays}', size: 34),
               const GapX(S.xs),
-              Padding(
-                padding: const EdgeInsets.only(bottom: S.xxs),
-                child: Muted('day${data.currentDays == 1 ? '' : 's'} under pace', size: 11.5),
-              ),
+              Muted('days under pace', size: 12),
+              const Spacer(),
+              Muted('best ${data.bestStreak}', size: 11),
             ],
           ),
-          const Gap(S.xxs),
-          Muted(
-            'Pace ${prefs.money(data.avgDailySpend, currency: data.currency)}/day · '
-            'best ${data.bestStreak}',
-            size: 11,
+          const Gap(S.sm),
+          Expanded(
+            child: Align(
+              alignment: Alignment.center,
+              child: SpendStrip(
+                days: [for (final d in data.days) (d.under, d.spent)],
+              ),
+            ),
           ),
-          const Gap(S.md),
-          SpendStrip(days: [for (final d in data.days) (d.under, d.spent)]),
-          const Gap(S.md),
-          Muted('${data.daysUnder} of ${data.dayCount} days under · ${data.label}', size: 10.5),
+          Muted(
+            '${data.daysUnder}/${data.dayCount} under · ${prefs.money(data.avgDailySpend, currency: data.currency)}/day',
+            size: 11,
+            maxLines: 1,
+          ),
         ],
       ),
     );
   }
 }
 
-/// `TabWidget` — open lends and borrows with the settle-on-time forecast.
+/// `TabWidget`   open lends and borrows with the settle-on-time forecast.
 class TabWidgetCard extends StatelessWidget {
-  const TabWidgetCard({super.key, required this.tab, required this.money, this.onOpen});
+  const TabWidgetCard({
+    super.key,
+    required this.tab,
+    required this.money,
+    this.onOpen,
+  });
 
   final LedgerSummary tab;
   final Money money;
@@ -1003,13 +1373,25 @@ class TabWidgetCard extends StatelessWidget {
               ),
               const Spacer(),
               if (tab.overdueCount > 0)
-                AppBadge('${tab.overdueCount} overdue', tone: BadgeTone.danger, dense: true)
+                AppBadge(
+                  '${tab.overdueCount} overdue',
+                  tone: BadgeTone.danger,
+                  dense: true,
+                )
               else
-                Icon(Icons.volunteer_activism_outlined, size: 16, color: t.mutedForeground),
+                Icon(
+                  Icons.volunteer_activism_outlined,
+                  size: 16,
+                  color: t.mutedForeground,
+                ),
             ],
           ),
           const Gap(S.md),
-          Amount(money(net.abs()), size: 24, color: net >= 0 ? t.success : t.danger),
+          Amount(
+            money(net.abs()),
+            size: 24,
+            color: net >= 0 ? t.success : t.danger,
+          ),
           const Gap(S.hair),
           Muted(net >= 0 ? 'owed to you, net' : 'you owe, net', size: 11),
           const Gap(S.md),
@@ -1024,7 +1406,11 @@ class TabWidgetCard extends StatelessWidget {
               ),
               const GapX(S.sm),
               Expanded(
-                child: _TinyStat(label: 'You owe', value: money(tab.payable), color: t.danger),
+                child: _TinyStat(
+                  label: 'You owe',
+                  value: money(tab.payable),
+                  color: t.danger,
+                ),
               ),
             ],
           ),
@@ -1074,7 +1460,7 @@ class _TinyStat extends StatelessWidget {
   }
 }
 
-/// `WishlistWidget` — a want is just the idea of a thing, so this counts them
+/// `WishlistWidget`   a want is just the idea of a thing, so this counts them
 /// rather than showing money.
 class WishlistWidgetCard extends StatelessWidget {
   const WishlistWidgetCard({super.key, required this.wishlist, this.onOpen});
@@ -1114,7 +1500,10 @@ class WishlistWidgetCard extends StatelessWidget {
               const GapX(S.xs),
               Padding(
                 padding: const EdgeInsets.only(bottom: S.xxs),
-                child: Muted('want${wishlist.activeCount == 1 ? '' : 's'}', size: 11.5),
+                child: Muted(
+                  'want${wishlist.activeCount == 1 ? '' : 's'}',
+                  size: 11.5,
+                ),
               ),
             ],
           ),
@@ -1127,16 +1516,23 @@ class WishlistWidgetCard extends StatelessWidget {
                 padding: const EdgeInsets.only(bottom: S.xs),
                 child: Row(
                   children: [
-                    Text(w.emoji ?? '✨', style: const TextStyle(fontSize: AppType.bodySm)),
+                    Text(
+                      w.emoji ?? '✨',
+                      style: const TextStyle(fontSize: AppType.bodySm),
+                    ),
                     const GapX(S.xs),
                     Expanded(
                       child: Text(
                         w.name,
                         overflow: TextOverflow.ellipsis,
-                        style: TextStyle(fontSize: AppType.label, color: t.foreground),
+                        style: TextStyle(
+                          fontSize: AppType.label,
+                          color: t.foreground,
+                        ),
                       ),
                     ),
-                    if (w.plan != null) AppBadge('planned', tone: BadgeTone.primary, dense: true),
+                    if (w.plan != null)
+                      AppBadge('planned', tone: BadgeTone.primary, dense: true),
                   ],
                 ),
               ),
@@ -1147,9 +1543,13 @@ class WishlistWidgetCard extends StatelessWidget {
   }
 }
 
-/// `CategoryHeatAlerts` — categories running hotter than last month.
+/// `CategoryHeatAlerts`   categories running hotter than last month.
 class CategoryHeatCard extends StatelessWidget {
-  const CategoryHeatCard({super.key, required this.alerts, required this.money});
+  const CategoryHeatCard({
+    super.key,
+    required this.alerts,
+    required this.money,
+  });
 
   final List<CategoryHeatAlert> alerts;
   final Money money;
@@ -1177,7 +1577,9 @@ class CategoryHeatCard extends StatelessWidget {
           else
             for (var i = 0; i < alerts.length; i++)
               Padding(
-                padding: EdgeInsets.only(bottom: i == alerts.length - 1 ? 0 : 9),
+                padding: EdgeInsets.only(
+                  bottom: i == alerts.length - 1 ? 0 : 9,
+                ),
                 child: FadeInUp.staggered(
                   index: i,
                   offset: 6,
@@ -1227,7 +1629,7 @@ class CategoryHeatCard extends StatelessWidget {
   }
 }
 
-/// `FamilySupportTracker` — money sent to family, a first-class category in
+/// `FamilySupportTracker`   money sent to family, a first-class category in
 /// the Ethiopian context this app was built for.
 class FamilySupportCard extends StatelessWidget {
   const FamilySupportCard({super.key, required this.data, required this.money});
@@ -1264,7 +1666,9 @@ class FamilySupportCard extends StatelessWidget {
                     padding: const EdgeInsets.only(bottom: S.xxs),
                     child: AppBadge(
                       formatPct(data.deltaPct),
-                      tone: data.deltaPct! > 0 ? BadgeTone.warning : BadgeTone.success,
+                      tone: data.deltaPct! > 0
+                          ? BadgeTone.warning
+                          : BadgeTone.success,
                       dense: true,
                     ),
                   ),
@@ -1287,7 +1691,10 @@ class FamilySupportCard extends StatelessWidget {
                         child: Text(
                           tx.payee ?? tx.note ?? 'Transfer',
                           overflow: TextOverflow.ellipsis,
-                          style: TextStyle(fontSize: AppType.label, color: t.foreground),
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            color: t.foreground,
+                          ),
                         ),
                       ),
                       Muted(formatDayMonth(tx.date), size: 11),
@@ -1304,9 +1711,13 @@ class FamilySupportCard extends StatelessWidget {
   }
 }
 
-/// `HouseholdWidget` — shared wallets and the partners who can see them.
+/// `HouseholdWidget`   shared wallets and the partners who can see them.
 class HouseholdCard extends StatelessWidget {
-  const HouseholdCard({super.key, required this.household, required this.money});
+  const HouseholdCard({
+    super.key,
+    required this.household,
+    required this.money,
+  });
 
   final HouseholdOverview household;
   final Money money;
@@ -1336,7 +1747,10 @@ class HouseholdCard extends StatelessWidget {
                       const Gap(S.xxs),
                       Text(
                         m.isYou ? 'You' : m.name.split(' ').first,
-                        style: TextStyle(fontSize: AppType.micro, color: t.mutedForeground),
+                        style: TextStyle(
+                          fontSize: AppType.micro,
+                          color: t.mutedForeground,
+                        ),
                       ),
                     ],
                   ),
@@ -1359,12 +1773,18 @@ class HouseholdCard extends StatelessWidget {
               children: [
                 for (final a in household.sharedAccounts)
                   Container(
-                    padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.xs),
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: S.md,
+                      vertical: S.xs,
+                    ),
                     decoration: BoxDecoration(
                       color: t.surfaceMuted.withValues(alpha: 0.7),
                       borderRadius: BorderRadius.circular(R.sm),
                       border: Border(
-                        left: BorderSide(color: parseHexColor(a.color) ?? t.primary, width: 3),
+                        left: BorderSide(
+                          color: parseHexColor(a.color) ?? t.primary,
+                          width: 3,
+                        ),
                       ),
                     ),
                     child: Text(
@@ -1389,7 +1809,7 @@ class HouseholdCard extends StatelessWidget {
   }
 }
 
-/// `SpendingPace` — where the month's spend sits against a straight-line
+/// `SpendingPace`   where the month's spend sits against a straight-line
 /// budget for the days elapsed.
 class SpendingPaceCard extends StatelessWidget {
   const SpendingPaceCard({super.key, required this.month, required this.money});
@@ -1406,91 +1826,137 @@ class SpendingPaceCard extends StatelessWidget {
     final expense = toNum(month.expense);
     final income = toNum(month.income);
 
-    // Straight-line pace: if you keep spending like this, where do you land?
     final projected = elapsed == 0 ? 0.0 : expense / elapsed * daysInMonth;
     final onTrack = income <= 0 || projected <= income;
     final pctOfMonth = elapsed / daysInMonth * 100;
-    final pctSpent = income > 0 ? (expense / income * 100).clamp(0, 200).toDouble() : 0.0;
+    final pctSpent = income > 0
+        ? (expense / income * 100).clamp(0, 200).toDouble()
+        : 0.0;
+    final accent = !onTrack ? t.danger : t.primary;
 
-    return AppCard(
-      padding: const EdgeInsets.all(S.lg),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          CardTitleRow(
-            title: 'Spending pace',
-            icon: Icons.speed_outlined,
-            hint:
-                'Projects the month from what you have spent so far. '
-                'It assumes the rest of the month looks like the part already gone.',
-          ),
-          const Gap(S.md),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+    return InsightPeekFrame(
+      icon: Icons.speed_rounded,
+      eyebrow: 'SPENDING PACE',
+      accent: accent,
+      onOpen: () => _openInsightSheet(
+        context,
+        title: 'Spending pace',
+        subtitle: 'Day $elapsed of $daysInMonth',
+        builder: (_) => Column(
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Muted('Spent so far', size: 12),
+                      const Gap(S.hair),
+                      Amount(money(expense), size: 26),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Muted('Spent so far', size: 11),
+                    Muted('On this pace', size: 12),
                     const Gap(S.hair),
-                    Amount(money(expense), size: 20),
+                    Amount(
+                      money(projected),
+                      size: 26,
+                      color: onTrack ? t.foreground : t.danger,
+                    ),
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Muted('On this pace', size: 11),
-                  const Gap(S.hair),
-                  Amount(money(projected), size: 20, color: onTrack ? t.foreground : t.danger),
-                ],
-              ),
-            ],
-          ),
-          const Gap(S.md),
-          Stack(
-            alignment: Alignment.centerLeft,
-            children: [
-              ProgressBar(
-                value: pctSpent,
-                height: 10,
-                tone: !onTrack
-                    ? BadgeTone.danger
-                    : pctSpent > pctOfMonth
-                    ? BadgeTone.warning
-                    : BadgeTone.primary,
-              ),
-              // The day marker: where a straight-line budget would be today.
-              if (income > 0)
-                FractionallySizedBox(
-                  widthFactor: (pctOfMonth / 100).clamp(0.0, 1.0),
-                  child: Align(
-                    alignment: Alignment.centerRight,
-                    child: Container(
-                      width: 2,
-                      height: 14,
-                      decoration: BoxDecoration(
+              ],
+            ),
+            const Gap(S.lg),
+            Stack(
+              alignment: Alignment.centerLeft,
+              children: [
+                ProgressBar(
+                  value: pctSpent,
+                  height: 12,
+                  tone: !onTrack
+                      ? BadgeTone.danger
+                      : pctSpent > pctOfMonth
+                      ? BadgeTone.warning
+                      : BadgeTone.primary,
+                ),
+                if (income > 0)
+                  FractionallySizedBox(
+                    widthFactor: (pctOfMonth / 100).clamp(0.0, 1.0),
+                    child: Align(
+                      alignment: Alignment.centerRight,
+                      child: Container(
+                        width: 2,
+                        height: 16,
                         color: t.foreground.withValues(alpha: 0.55),
-                        borderRadius: BorderRadius.circular(1),
                       ),
                     ),
                   ),
-                ),
+              ],
+            ),
+            const Gap(S.md),
+            Text(
+              income > 0
+                  ? onTrack
+                        ? 'You’re on track   projected spend stays under income.'
+                        : 'This pace would overshoot income by month end.'
+                  : 'Avg ${money(month.avgDailySpend)}/day so far.',
+              style: TextStyle(
+                fontSize: AppType.bodySm,
+                height: 1.45,
+                color: t.foreground,
+              ),
+            ),
+          ],
+        ),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _PeekChip(label: 'Spent', value: money(expense)),
+              const GapX(S.sm),
+              _PeekChip(
+                label: 'Pace →',
+                value: money(projected),
+                color: onTrack ? t.foreground : t.danger,
+              ),
             ],
           ),
           const Gap(S.sm),
-          Row(
-            children: [
-              Muted('Day $elapsed of $daysInMonth', size: 11),
-              const Spacer(),
-              Muted(
-                income > 0
-                    ? '${pctSpent.round()}% of income spent'
-                    : 'Avg ${money(month.avgDailySpend)}/day',
-                size: 11,
-              ),
-            ],
+          Expanded(
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                ProgressBar(
+                  value: pctSpent,
+                  height: 9,
+                  tone: !onTrack
+                      ? BadgeTone.danger
+                      : pctSpent > pctOfMonth
+                      ? BadgeTone.warning
+                      : BadgeTone.primary,
+                ),
+                const Gap(S.sm),
+                Row(
+                  children: [
+                    Muted('Day $elapsed/$daysInMonth', size: 11),
+                    const Spacer(),
+                    Muted(
+                      income > 0
+                          ? '${pctSpent.round()}% of income'
+                          : '${money(month.avgDailySpend)}/day',
+                      size: 11,
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
         ],
       ),

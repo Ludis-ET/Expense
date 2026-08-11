@@ -15,10 +15,13 @@ import '../../widgets/fields.dart';
 import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 
-/// Money Tab — who owes you, who you owe, and what is expected either way.
+/// Money Tab   who owes you, who you owe, and what is expected either way.
 /// Grouped by person, because that is how the debt is actually remembered.
 class TabScreen extends StatefulWidget {
-  const TabScreen({super.key});
+  const TabScreen({super.key, this.focusEntryId});
+
+  /// When set (e.g. from a notification `/tab?e=`), open that entry after load.
+  final String? focusEntryId;
 
   @override
   State<TabScreen> createState() => _TabScreenState();
@@ -30,6 +33,7 @@ class _TabScreenState extends State<TabScreen> {
   bool _loading = true;
   Object? _error;
   bool _showSettled = false;
+  bool _didFocusEntry = false;
 
   @override
   void initState() {
@@ -45,20 +49,34 @@ class _TabScreenState extends State<TabScreen> {
 
       if (_showSettled) {
         final results = await Future.wait([
-          api.get<Map<String, dynamic>>('/ledger/summary', query: {'currency': currency}),
-          api.get<Map<String, dynamic>>('/ledger', query: {'status': 'all', 'currency': currency}),
+          api.get<Map<String, dynamic>>(
+            '/ledger/summary',
+            query: {'currency': currency},
+          ),
+          api.get<Map<String, dynamic>>(
+            '/ledger',
+            query: {'status': 'all', 'currency': currency},
+          ),
         ]);
         if (!mounted) return;
         setState(() {
           _summary = LedgerSummary.fromJson(results[0]);
-          _people = _groupEntries(mapItemsList(results[1], LedgerEntry.fromJson));
+          _people = _groupEntries(
+            mapItemsList(results[1], LedgerEntry.fromJson),
+          );
           _loading = false;
           _error = null;
         });
       } else {
         final results = await Future.wait([
-          api.get<Map<String, dynamic>>('/ledger/summary', query: {'currency': currency}),
-          api.get<Map<String, dynamic>>('/ledger/people', query: {'currency': currency}),
+          api.get<Map<String, dynamic>>(
+            '/ledger/summary',
+            query: {'currency': currency},
+          ),
+          api.get<Map<String, dynamic>>(
+            '/ledger/people',
+            query: {'currency': currency},
+          ),
         ]);
         if (!mounted) return;
         setState(() {
@@ -68,6 +86,7 @@ class _TabScreenState extends State<TabScreen> {
           _error = null;
         });
       }
+      _maybeFocusEntry();
     } catch (e) {
       if (!mounted) return;
       setState(() {
@@ -77,7 +96,30 @@ class _TabScreenState extends State<TabScreen> {
     }
   }
 
-  /// Fallback when showing settled/all entries — groups the flat ledger list.
+  Future<void> _maybeFocusEntry() async {
+    final id = widget.focusEntryId;
+    if (id == null || id.isEmpty || _didFocusEntry || !mounted) return;
+    LedgerEntry? match;
+    for (final group in _people) {
+      for (final e in group.entries) {
+        if (e.id == id) {
+          match = e;
+          break;
+        }
+      }
+      if (match != null) break;
+    }
+    if (match == null) {
+      // Not in the open people list — still land on Money Tab.
+      _didFocusEntry = true;
+      return;
+    }
+    _didFocusEntry = true;
+    await showLedgerForm(context, existing: match);
+    if (mounted) _load();
+  }
+
+  /// Fallback when showing settled/all entries   groups the flat ledger list.
   List<LedgerPersonGroup> _groupEntries(List<LedgerEntry> entries) {
     final groups = <String, List<LedgerEntry>>{};
     for (final e in entries) {
@@ -123,7 +165,10 @@ class _TabScreenState extends State<TabScreen> {
         ),
       );
     }
-    out.sort((a, b) => toNum(b.netRemaining).abs().compareTo(toNum(a.netRemaining).abs()));
+    out.sort(
+      (a, b) =>
+          toNum(b.netRemaining).abs().compareTo(toNum(a.netRemaining).abs()),
+    );
     return out;
   }
 
@@ -156,7 +201,9 @@ class _TabScreenState extends State<TabScreen> {
               final saved = await showLedgerForm(context);
               if (saved == true) {
                 _load();
-                if (context.mounted) await context.read<DataState>().refreshAfterWrite();
+                if (context.mounted) {
+                  await context.read<DataState>().refreshAfterWrite();
+                }
               }
             },
           ),
@@ -170,7 +217,12 @@ class _TabScreenState extends State<TabScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const OfflineBanner(),
@@ -201,7 +253,11 @@ class _TabScreenState extends State<TabScreen> {
                         children: [
                           Row(
                             children: [
-                              Icon(Icons.warning_amber_rounded, size: 17, color: t.danger),
+                              Icon(
+                                Icons.warning_amber_rounded,
+                                size: 17,
+                                color: t.danger,
+                              ),
                               const GapX(S.sm),
                               Text(
                                 '${s.overdueCount} overdue',
@@ -231,7 +287,11 @@ class _TabScreenState extends State<TabScreen> {
                                   ),
                                   Muted(formatDayMonth(e.dueDate), size: 11),
                                   const GapX(S.sm),
-                                  Amount(money(e.remaining), size: 12.5, color: t.danger),
+                                  Amount(
+                                    money(e.remaining),
+                                    size: 12.5,
+                                    color: t.danger,
+                                  ),
                                 ],
                               ),
                             ),
@@ -265,7 +325,7 @@ class _TabScreenState extends State<TabScreen> {
                     title: 'Nothing on the tab',
                     description:
                         'Track money you lent, borrowed, or are still '
-                        'expecting — so nobody has to remember it.',
+                        'expecting   so nobody has to remember it.',
                     action: AppButton(
                       label: 'Add an entry',
                       icon: Icons.add,
@@ -288,7 +348,9 @@ class _TabScreenState extends State<TabScreen> {
                           onChanged: () async {
                             _load();
                             if (context.mounted) {
-                              await context.read<DataState>().refreshAfterWrite();
+                              await context
+                                  .read<DataState>()
+                                  .refreshAfterWrite();
                             }
                           },
                         ),
@@ -346,7 +408,10 @@ class _SummaryHero extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _Fig(label: 'Owed to you', value: money(summary.receivable)),
+                child: _Fig(
+                  label: 'Owed to you',
+                  value: money(summary.receivable),
+                ),
               ),
               const GapX(S.sm),
               Expanded(
@@ -358,11 +423,17 @@ class _SummaryHero extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: _Fig(label: 'Expected in', value: money(summary.expectedIn)),
+                child: _Fig(
+                  label: 'Expected in',
+                  value: money(summary.expectedIn),
+                ),
               ),
               const GapX(S.sm),
               Expanded(
-                child: _Fig(label: 'Expected out', value: money(summary.expectedOut)),
+                child: _Fig(
+                  label: 'Expected out',
+                  value: money(summary.expectedOut),
+                ),
               ),
             ],
           ),
@@ -424,7 +495,11 @@ class _Fig extends StatelessWidget {
 }
 
 class _PersonCard extends StatefulWidget {
-  const _PersonCard({required this.group, required this.money, required this.onChanged});
+  const _PersonCard({
+    required this.group,
+    required this.money,
+    required this.onChanged,
+  });
 
   final LedgerPersonGroup group;
   final String Function(Object?) money;
@@ -467,7 +542,10 @@ class _PersonCardState extends State<_PersonCard> {
                       ),
                     ),
                     const Gap(S.hair),
-                    Muted('${g.openCount} open item${g.openCount == 1 ? '' : 's'}', size: 11.5),
+                    Muted(
+                      '${g.openCount} open item${g.openCount == 1 ? '' : 's'}',
+                      size: 11.5,
+                    ),
                   ],
                 ),
               ),
@@ -487,7 +565,11 @@ class _PersonCardState extends State<_PersonCard> {
               AnimatedRotation(
                 turns: _open ? 0.5 : 0,
                 duration: Motion.fast,
-                child: Icon(Icons.expand_more, size: 19, color: t.mutedForeground),
+                child: Icon(
+                  Icons.expand_more,
+                  size: 19,
+                  color: t.mutedForeground,
+                ),
               ),
             ],
           ),
@@ -519,7 +601,11 @@ class _PersonCardState extends State<_PersonCard> {
 }
 
 class _EntryRow extends StatelessWidget {
-  const _EntryRow({required this.entry, required this.money, required this.onChanged});
+  const _EntryRow({
+    required this.entry,
+    required this.money,
+    required this.onChanged,
+  });
 
   final LedgerEntry entry;
   final String Function(Object?) money;
@@ -529,14 +615,18 @@ class _EntryRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final t = context.t;
     final e = entry;
-    final tone = e.isOverdue ? t.danger : (e.kind.inbound ? t.success : t.warning);
+    final tone = e.isOverdue
+        ? t.danger
+        : (e.kind.inbound ? t.success : t.warning);
 
     return Container(
       padding: const EdgeInsets.all(S.md),
       decoration: BoxDecoration(
         color: t.surfaceMuted.withValues(alpha: 0.45),
         borderRadius: BorderRadius.circular(R.md),
-        border: e.isOverdue ? Border.all(color: t.danger.withValues(alpha: 0.3)) : null,
+        border: e.isOverdue
+            ? Border.all(color: t.danger.withValues(alpha: 0.3))
+            : null,
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -544,7 +634,9 @@ class _EntryRow extends StatelessWidget {
           Row(
             children: [
               Icon(
-                e.kind.inbound ? Icons.south_west_rounded : Icons.north_east_rounded,
+                e.kind.inbound
+                    ? Icons.south_west_rounded
+                    : Icons.north_east_rounded,
                 size: 15,
                 color: tone,
               ),
@@ -561,7 +653,10 @@ class _EntryRow extends StatelessWidget {
                 ),
               ),
               if (!e.isOpen)
-                AppBadge(e.status == 'SETTLED' ? 'Settled' : 'Cancelled', dense: true)
+                AppBadge(
+                  e.status == 'SETTLED' ? 'Settled' : 'Cancelled',
+                  dense: true,
+                )
               else
                 Amount(money(e.remaining), size: 13, color: tone),
             ],
@@ -576,7 +671,10 @@ class _EntryRow extends StatelessWidget {
             const Gap(S.xs),
             Row(
               children: [
-                Muted('${money(e.paid)} of ${money(e.totalAmount)} paid', size: 11),
+                Muted(
+                  '${money(e.paid)} of ${money(e.totalAmount)} paid',
+                  size: 11,
+                ),
                 const Spacer(),
                 if (e.dueDate != null)
                   Muted(
@@ -604,7 +702,11 @@ class _EntryRow extends StatelessWidget {
                   ),
                 ),
                 const GapX(S.sm),
-                IconPill(icon: Icons.more_horiz, size: 34, onTap: () => _menu(context)),
+                IconPill(
+                  icon: Icons.more_horiz,
+                  size: 34,
+                  onTap: () => _menu(context),
+                ),
               ],
             ),
           ],
@@ -620,23 +722,35 @@ class _EntryRow extends StatelessWidget {
       subtitle: entry.title ?? entry.kind.label,
       scrollable: false,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.only(
+          bottom: 16 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
             ListTile(
               onTap: () => Navigator.pop(ctx, 'edit'),
               leading: const Icon(Icons.edit_outlined, size: 20),
-              title: const Text('Edit', style: TextStyle(fontSize: AppType.body)),
+              title: const Text(
+                'Edit',
+                style: TextStyle(fontSize: AppType.body),
+              ),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'cancel'),
               leading: const Icon(Icons.block, size: 20),
-              title: const Text('Cancel this entry', style: TextStyle(fontSize: AppType.body)),
+              title: const Text(
+                'Cancel this entry',
+                style: TextStyle(fontSize: AppType.body),
+              ),
             ),
             ListTile(
               onTap: () => Navigator.pop(ctx, 'delete'),
-              leading: Icon(Icons.delete_outline, size: 20, color: ctx.t.danger),
+              leading: Icon(
+                Icons.delete_outline,
+                size: 20,
+                color: ctx.t.danger,
+              ),
               title: Text(
                 'Delete',
                 style: TextStyle(fontSize: AppType.body, color: ctx.t.danger),
@@ -659,7 +773,10 @@ class _EntryRow extends StatelessWidget {
             label: entry.counterparty,
           );
           if (result.queued && context.mounted) {
-            toast(context, 'Queued offline — will sync when you are back online');
+            toast(
+              context,
+              'Queued offline   will sync when you are back online',
+            );
           }
           onChanged();
         } on ApiError catch (e) {
@@ -669,7 +786,8 @@ class _EntryRow extends StatelessWidget {
         final ok = await confirm(
           context,
           title: 'Delete this entry?',
-          message: 'Payments already recorded against it stay in your transactions.',
+          message:
+              'Payments already recorded against it stay in your transactions.',
         );
         if (!ok || !context.mounted) return;
         try {
@@ -678,7 +796,10 @@ class _EntryRow extends StatelessWidget {
             label: entry.counterparty,
           );
           if (result.queued && context.mounted) {
-            toast(context, 'Delete queued — will sync when you are back online');
+            toast(
+              context,
+              'Delete queued   will sync when you are back online',
+            );
           }
           onChanged();
         } on ApiError catch (e) {
@@ -707,9 +828,13 @@ class _LedgerForm extends StatefulWidget {
 
 class _LedgerFormState extends State<_LedgerForm> {
   late final _amount = TextEditingController(
-    text: widget.existing == null ? '' : toNum(widget.existing!.totalAmount).toString(),
+    text: widget.existing == null
+        ? ''
+        : toNum(widget.existing!.totalAmount).toString(),
   );
-  late final _counterparty = TextEditingController(text: widget.existing?.counterparty ?? '');
+  late final _counterparty = TextEditingController(
+    text: widget.existing?.counterparty ?? '',
+  );
   late final _title = TextEditingController(text: widget.existing?.title ?? '');
   late final _note = TextEditingController(text: widget.existing?.note ?? '');
 
@@ -729,7 +854,9 @@ class _LedgerFormState extends State<_LedgerForm> {
       await context.read<DataState>().loadAccounts();
       if (!mounted) return;
       final accounts = context.read<DataState>().scopedAccounts;
-      final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+      final fallback =
+          accounts.where((a) => a.isDefault).firstOrNull ??
+          accounts.firstOrNull;
       setState(() => _sourceAccountId = fallback?.id);
     });
   }
@@ -786,7 +913,8 @@ class _LedgerFormState extends State<_LedgerForm> {
             if (_title.text.trim().isNotEmpty) 'title': _title.text.trim(),
             'totalAmount': amount,
             'currency': data.activeCurrency,
-            if (_dueDate != null) 'dueDate': _dueDate!.toUtc().toIso8601String(),
+            if (_dueDate != null)
+              'dueDate': _dueDate!.toUtc().toIso8601String(),
             if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
             if (canMove && _recordMovement) ...{
               'recordMovement': true,
@@ -797,7 +925,7 @@ class _LedgerFormState extends State<_LedgerForm> {
       }
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -817,7 +945,12 @@ class _LedgerFormState extends State<_LedgerForm> {
     final canMove = _kind == LedgerKind.lent || _kind == LedgerKind.borrowed;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -827,7 +960,9 @@ class _LedgerFormState extends State<_LedgerForm> {
               value: _kind,
               options: LedgerKind.values,
               labelOf: (k) => k.label,
-              iconOf: (k) => k.inbound ? Icons.south_west_rounded : Icons.north_east_rounded,
+              iconOf: (k) => k.inbound
+                  ? Icons.south_west_rounded
+                  : Icons.north_east_rounded,
               colorOf: (k) => k.inbound ? t.success : t.warning,
               onChanged: (k) => setState(() => _kind = k ?? _kind),
             ),
@@ -868,7 +1003,8 @@ class _LedgerFormState extends State<_LedgerForm> {
               title: _kind == LedgerKind.lent
                   ? 'Money left my wallet now'
                   : 'Money arrived in my wallet now',
-              subtitle: 'Records the matching transaction so balances stay true.',
+              subtitle:
+                  'Records the matching transaction so balances stay true.',
               icon: Icons.account_balance_wallet_outlined,
               value: _recordMovement,
               onChanged: (v) => setState(() => _recordMovement = v),
@@ -877,10 +1013,13 @@ class _LedgerFormState extends State<_LedgerForm> {
               const Gap(S.sm),
               PickerField<Account>(
                 label: _kind == LedgerKind.lent ? 'From wallet' : 'Into wallet',
-                value: accounts.where((a) => a.id == _sourceAccountId).firstOrNull,
+                value: accounts
+                    .where((a) => a.id == _sourceAccountId)
+                    .firstOrNull,
                 options: accounts,
                 labelOf: (a) => a.name,
-                subtitleOf: (a) => '${formatMoney(a.balance, currency: a.currency)} available',
+                subtitleOf: (a) =>
+                    '${formatMoney(a.balance, currency: a.currency)} available',
                 iconOf: (a) => accountTypeIcon(a.type.wire),
                 onChanged: (a) => setState(() => _sourceAccountId = a?.id),
               ),
@@ -918,7 +1057,10 @@ class _LedgerFormState extends State<_LedgerForm> {
 
 /// Record a payment against an entry, optionally posting the matching
 /// transaction so balances stay true.
-Future<bool?> showPaymentSheet(BuildContext context, {required LedgerEntry entry}) {
+Future<bool?> showPaymentSheet(
+  BuildContext context, {
+  required LedgerEntry entry,
+}) {
   return showAppSheet<bool>(
     context,
     title: 'Record payment',
@@ -953,7 +1095,9 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       await context.read<DataState>().loadAccounts();
       if (!mounted) return;
       final accounts = context.read<DataState>().scopedAccounts;
-      final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+      final fallback =
+          accounts.where((a) => a.isDefault).firstOrNull ??
+          accounts.firstOrNull;
       setState(() => _accountId = fallback?.id);
     });
   }
@@ -996,7 +1140,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -1015,7 +1159,12 @@ class _PaymentSheetState extends State<_PaymentSheet> {
     final inbound = widget.entry.kind.inbound;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -1048,7 +1197,8 @@ class _PaymentSheetState extends State<_PaymentSheet> {
               value: accounts.where((a) => a.id == _accountId).firstOrNull,
               options: accounts,
               labelOf: (a) => a.name,
-              subtitleOf: (a) => '${formatMoney(a.balance, currency: a.currency)} available',
+              subtitleOf: (a) =>
+                  '${formatMoney(a.balance, currency: a.currency)} available',
               iconOf: (a) => accountTypeIcon(a.type.wire),
               onChanged: (a) => setState(() => _accountId = a?.id),
             ),

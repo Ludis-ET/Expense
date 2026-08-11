@@ -24,7 +24,7 @@ import '../wishlist/wishlist_screen.dart';
 /// One field over everything the app knows about.
 ///
 /// The Activity tab could already filter transactions, but nothing searched
-/// across budgets, accounts, categories or recurring rules — finding a plan by
+/// across budgets, accounts, categories or recurring rules   finding a plan by
 /// name meant remembering which tab it lived in. This is the mobile answer to
 /// the web app's command palette.
 ///
@@ -65,7 +65,10 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       });
       return;
     }
-    _debounce = Timer(const Duration(milliseconds: 300), () => _fetch(value.trim()));
+    _debounce = Timer(
+      const Duration(milliseconds: 300),
+      () => _fetch(value.trim()),
+    );
   }
 
   Future<void> _fetch(String q) async {
@@ -87,7 +90,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       if (!mounted) return;
       setState(() {
         // Local results still stand, so this is a partial failure, not a dead
-        // end — say which half is missing.
+        // end   say which half is missing.
         _error = 'Could not reach the server, showing local matches only.';
         _searching = false;
       });
@@ -109,7 +112,9 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
         : (data.accounts.data ?? const []).where((a) => hit(a.name)).toList();
     final budgets = q.isEmpty
         ? const <BudgetRow>[]
-        : (data.budgets.data?.items ?? const []).where((b) => hit(b.name)).toList();
+        : (data.budgets.data?.items ?? const [])
+              .where((b) => hit(b.name))
+              .toList();
     final categories = q.isEmpty
         ? const <TxCategory>[]
         : (data.categories.data ?? const []).where((c) => hit(c.name)).toList();
@@ -134,7 +139,7 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
             controller: _controller,
             placeholder: 'Search anything',
             prefixIcon: Icons.search,
-            // The user tapped search to type — the keyboard should be up.
+            // The user tapped search to type   the keyboard should be up.
             autofocus: true,
             onChanged: _onChanged,
             textInputAction: TextInputAction.search,
@@ -155,7 +160,12 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
       ),
       body: ListView(
         keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
-        padding: EdgeInsets.fromLTRB(S.lg, S.md, S.lg, ShellLayout.bottomClearance(context)),
+        padding: EdgeInsets.fromLTRB(
+          S.lg,
+          S.md,
+          S.lg,
+          ShellLayout.bottomClearance(context),
+        ),
         children: [
           if (q.length < 2)
             const EmptyState(
@@ -182,8 +192,11 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
               builder: (tx) => _Row(
                 icon: financeIcon(tx.category?.icon),
                 color: parseHexColor(tx.category?.color),
-                title: tx.payee?.isNotEmpty == true ? tx.payee! : (tx.note ?? 'Transaction'),
-                subtitle: '${formatDate(tx.date)} · ${tx.category?.name ?? 'Uncategorised'}',
+                title: tx.payee?.isNotEmpty == true
+                    ? tx.payee!
+                    : (tx.note ?? 'Transaction'),
+                subtitle:
+                    '${formatDate(tx.date)} · ${tx.category?.name ?? 'Uncategorised'}',
                 trailing: prefs.money(tx.amount, currency: tx.currency),
                 onTap: () => showTransactionDetail(context, tx),
               ),
@@ -195,7 +208,8 @@ class _GlobalSearchScreenState extends State<GlobalSearchScreen> {
                 icon: Icons.savings_outlined,
                 color: t.primary,
                 title: b.name,
-                subtitle: '${prefs.money(b.balance, currency: b.currency)} left',
+                subtitle:
+                    '${prefs.money(b.balance, currency: b.currency)} left',
                 onTap: () {
                   Navigator.of(context).pop();
                   shell.push(BudgetDetailScreen(budgetId: b.id));
@@ -293,7 +307,11 @@ class _Notice extends StatelessWidget {
 }
 
 class _Group<T> extends StatelessWidget {
-  const _Group({required this.label, required this.items, required this.builder});
+  const _Group({
+    required this.label,
+    required this.items,
+    required this.builder,
+  });
 
   final String label;
   final List<T> items;
@@ -346,7 +364,10 @@ class _Row extends StatelessWidget {
           label: '$title. $subtitle.${trailing == null ? '' : ' $trailing.'}',
           child: ExcludeSemantics(
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.surface,
                 borderRadius: BorderRadius.circular(R.md),

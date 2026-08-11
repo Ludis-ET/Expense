@@ -1,6 +1,6 @@
 name: santim
 description: "Santim - know where every birr goes. Android client."
-publish_to: 'none'
+publish_to: "none"
 version: 1.0.10+4009
 
 environment:
@@ -73,7 +73,7 @@ flutter:
   assets:
     - assets/brand/santim_icon.png
   fonts:
-    # Geist Sans — the same face the web app loads as `--font-geist-sans`, so
+    # Geist Sans   the same face the web app loads as `--font-geist-sans`, so
     # both clients render identically. Bundled rather than fetched at runtime
     # because the app has to work offline.
     - family: Geist

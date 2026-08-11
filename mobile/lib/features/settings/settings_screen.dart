@@ -52,7 +52,12 @@ class SettingsScreen extends StatelessWidget {
       body: MeshBackground(
         showGrid: false,
         child: ListView(
-          padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+          padding: EdgeInsets.fromLTRB(
+            14,
+            4,
+            14,
+            ShellLayout.bottomClearance(context),
+          ),
           children: [
             FadeInUp(
               child: AppCard(
@@ -60,7 +65,11 @@ class SettingsScreen extends StatelessWidget {
                 onTap: () => _editProfile(context),
                 child: Row(
                   children: [
-                    Avatar(name: user?.name ?? '?', avatarId: user?.avatarId, size: 52),
+                    Avatar(
+                      name: user?.name ?? '?',
+                      avatarId: user?.avatarId,
+                      size: 52,
+                    ),
                     const GapX(S.md),
                     Expanded(
                       child: Column(
@@ -79,7 +88,11 @@ class SettingsScreen extends StatelessWidget {
                         ],
                       ),
                     ),
-                    Icon(Icons.edit_outlined, size: 18, color: t.mutedForeground),
+                    Icon(
+                      Icons.edit_outlined,
+                      size: 18,
+                      color: t.mutedForeground,
+                    ),
                   ],
                 ),
               ),
@@ -95,7 +108,11 @@ class SettingsScreen extends StatelessWidget {
                     label: 'Theme',
                     child: SegmentedTabs<ThemeMode>(
                       value: prefs.themeMode,
-                      options: const [ThemeMode.system, ThemeMode.light, ThemeMode.dark],
+                      options: const [
+                        ThemeMode.system,
+                        ThemeMode.light,
+                        ThemeMode.dark,
+                      ],
                       labelOf: (m) => switch (m) {
                         ThemeMode.system => 'System',
                         ThemeMode.light => 'Light',
@@ -119,7 +136,8 @@ class SettingsScreen extends StatelessWidget {
                   ),
                   SwitchRow(
                     title: 'Reduce motion',
-                    subtitle: 'Turns off the drifting background and entrance animations.',
+                    subtitle:
+                        'Turns off the drifting background and entrance animations.',
                     icon: Icons.motion_photos_off_outlined,
                     value: prefs.reduceMotion,
                     onChanged: prefs.setReduceMotion,
@@ -133,18 +151,19 @@ class SettingsScreen extends StatelessWidget {
             _Tile(
               icon: Icons.sell_outlined,
               title: 'Categories',
-              subtitle: '${(data.categories.data ?? const <TxCategory>[]).length} in use',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const CategoriesScreen())),
+              subtitle:
+                  '${(data.categories.data ?? const <TxCategory>[]).length} in use',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const CategoriesScreen()),
+              ),
             ),
             _Tile(
               icon: Icons.currency_exchange,
               title: 'Exchange rates',
               subtitle: 'Needed to combine currencies into one total',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const ExchangeRatesScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const ExchangeRatesScreen()),
+              ),
             ),
             _Tile(
               icon: Icons.payments_outlined,
@@ -165,17 +184,17 @@ class SettingsScreen extends StatelessWidget {
               icon: Icons.group_outlined,
               title: 'Household',
               subtitle: 'Share wallets with a partner',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const HouseholdScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const HouseholdScreen()),
+              ),
             ),
             _Tile(
               icon: Icons.auto_awesome,
               title: 'AI providers',
               subtitle: 'Bring your own key for Ask Santim',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AiProvidersScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const AiProvidersScreen()),
+              ),
             ),
             const Gap(S.lg),
 
@@ -185,18 +204,20 @@ class SettingsScreen extends StatelessWidget {
               title: 'App lock',
               subtitle: lock.enabled
                   ? (lock.biometricEnabled ? 'PIN + biometrics on' : 'PIN on')
-                  : 'Off — protect your money privately',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const AppLockSettingsScreen())),
+                  : 'Off   protect your money privately',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (_) => const AppLockSettingsScreen(),
+                ),
+              ),
             ),
             _Tile(
               icon: Icons.sms_rounded,
               title: 'Bank SMS',
               subtitle: 'Capture & review messaging points',
-              onTap: () => Navigator.of(
-                context,
-              ).push(MaterialPageRoute(builder: (_) => const SmsSettingsScreen())),
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const SmsSettingsScreen()),
+              ),
             ),
             _Tile(
               icon: Icons.system_update_alt_rounded,
@@ -221,10 +242,12 @@ class SettingsScreen extends StatelessWidget {
                 final ok = await confirm(
                   context,
                   title: 'Sign out?',
-                  message: 'You will need your email and password to get back in.',
+                  message:
+                      'You will need your email and password to get back in.',
                   confirmLabel: 'Sign out',
                 );
-                if (ok && context.mounted) await context.read<AuthState>().logout();
+                if (ok && context.mounted)
+                  await context.read<AuthState>().logout();
               },
             ),
             const Gap(S.xl),
@@ -260,7 +283,12 @@ class SettingsScreen extends StatelessWidget {
       context,
       title: 'Your profile',
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          24 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -307,7 +335,9 @@ class SettingsScreen extends StatelessWidget {
       subtitle: 'Used for new wallets and as the base for conversions.',
       scrollable: false,
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.only(
+          bottom: 16 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -346,9 +376,12 @@ class SettingsScreen extends StatelessWidget {
     final picked = await showAppSheet<String>(
       context,
       title: 'Cash wallet',
-      subtitle: 'The wallet that holds physical cash. ATM withdrawals transfer into it.',
+      subtitle:
+          'The wallet that holds physical cash. ATM withdrawals transfer into it.',
       builder: (ctx) => Padding(
-        padding: EdgeInsets.only(bottom: 16 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.only(
+          bottom: 16 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
@@ -362,7 +395,10 @@ class SettingsScreen extends StatelessWidget {
                   color: parseHexColor(a.color),
                   size: 34,
                 ),
-                title: Text(a.name, style: const TextStyle(fontSize: AppType.body)),
+                title: Text(
+                  a.name,
+                  style: const TextStyle(fontSize: AppType.body),
+                ),
                 trailing: a.id == auth.user?.cashAccountId
                     ? Icon(Icons.check_circle, size: 20, color: ctx.t.primary)
                     : null,
@@ -423,7 +459,8 @@ class _Tile extends StatelessWidget {
                 ],
               ),
             ),
-            if (onTap != null) Icon(Icons.chevron_right, size: 19, color: t.mutedForeground),
+            if (onTap != null)
+              Icon(Icons.chevron_right, size: 19, color: t.mutedForeground),
           ],
         ),
       ),

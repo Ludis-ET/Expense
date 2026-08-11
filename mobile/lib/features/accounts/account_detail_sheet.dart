@@ -16,7 +16,7 @@ import '../transactions/transaction_list.dart';
 import 'account_form.dart';
 import 'transfer_sheet.dart';
 
-/// `AccountDetailModal` — the wallet's figures plus its recent movements.
+/// `AccountDetailModal`   the wallet's figures plus its recent movements.
 Future<void> showAccountDetail(BuildContext context, Account account) {
   return showAppSheet<void>(
     context,
@@ -48,7 +48,11 @@ class _AccountDetailState extends State<_AccountDetail> {
     try {
       final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
         '/transactions',
-        query: {'accountId': widget.account.id, 'pageSize': 8, 'sort': 'date_desc'},
+        query: {
+          'accountId': widget.account.id,
+          'pageSize': 8,
+          'sort': 'date_desc',
+        },
       );
       if (!mounted) return;
       setState(() {
@@ -67,13 +71,19 @@ class _AccountDetailState extends State<_AccountDetail> {
     final a = widget.account;
     final tint = parseHexColor(a.color) ?? t.primary;
 
-    String money(Object? v) => prefs.money(v, currency: a.currency, decimals: true);
+    String money(Object? v) =>
+        prefs.money(v, currency: a.currency, decimals: true);
     String moneyIn(Object? v, String c) => prefs.money(v, currency: c);
 
     final locked = toNum(a.lockedAmount);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -81,7 +91,9 @@ class _AccountDetailState extends State<_AccountDetail> {
             child: Column(
               children: [
                 IconTile(
-                  icon: a.icon != null ? financeIcon(a.icon) : accountTypeIcon(a.type.wire),
+                  icon: a.icon != null
+                      ? financeIcon(a.icon)
+                      : accountTypeIcon(a.type.wire),
                   color: tint,
                   size: 56,
                   radius: R.lg,
@@ -95,9 +107,11 @@ class _AccountDetailState extends State<_AccountDetail> {
                   Wrap(
                     spacing: 6,
                     children: [
-                      if (a.isDefault) AppBadge('Default', tone: BadgeTone.primary),
+                      if (a.isDefault)
+                        AppBadge('Default', tone: BadgeTone.primary),
                       if (a.isShared) AppBadge('Shared', tone: BadgeTone.info),
-                      if (a.archived) AppBadge('Archived', tone: BadgeTone.neutral),
+                      if (a.archived)
+                        AppBadge('Archived', tone: BadgeTone.neutral),
                     ],
                   ),
                 ],
@@ -108,7 +122,10 @@ class _AccountDetailState extends State<_AccountDetail> {
           Row(
             children: [
               Expanded(
-                child: _Figure(label: 'Real balance', value: money(a.realBalance)),
+                child: _Figure(
+                  label: 'Real balance',
+                  value: money(a.realBalance),
+                ),
               ),
               const GapX(S.sm),
               Expanded(
@@ -124,7 +141,10 @@ class _AccountDetailState extends State<_AccountDetail> {
           Row(
             children: [
               Expanded(
-                child: _Figure(label: 'Opening balance', value: money(a.openingBalance)),
+                child: _Figure(
+                  label: 'Opening balance',
+                  value: money(a.openingBalance),
+                ),
               ),
               const GapX(S.sm),
               Expanded(
@@ -182,7 +202,10 @@ class _AccountDetailState extends State<_AccountDetail> {
             const EmptyState(title: 'Nothing yet in this wallet', compact: true)
           else
             AppCard(
-              padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.xxs),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.sm,
+                vertical: S.xxs,
+              ),
               child: TransactionList(
                 items: _recent!,
                 money: moneyIn,
@@ -196,7 +219,9 @@ class _AccountDetailState extends State<_AccountDetail> {
           const Gap(S.lg),
           AppButton(
             label: a.archived ? 'Delete wallet' : 'Archive wallet',
-            icon: a.archived ? Icons.delete_outline : Icons.inventory_2_outlined,
+            icon: a.archived
+                ? Icons.delete_outline
+                : Icons.inventory_2_outlined,
             variant: BtnVariant.ghost,
             expand: true,
             onPressed: () => _archiveOrDelete(context),
@@ -216,7 +241,7 @@ class _AccountDetailState extends State<_AccountDetail> {
         context,
         title: 'Delete ${a.name}?',
         message:
-            'This is permanent. Wallets with transactions cannot be deleted — '
+            'This is permanent. Wallets with transactions cannot be deleted   '
             'archive them instead.',
       );
       if (!ok || !context.mounted) return;
@@ -227,7 +252,9 @@ class _AccountDetailState extends State<_AccountDetail> {
           Navigator.pop(context);
           toast(
             context,
-            result.queued ? 'Delete queued — will sync when you are back online' : 'Wallet deleted',
+            result.queued
+                ? 'Delete queued   will sync when you are back online'
+                : 'Wallet deleted',
           );
         }
       } on ApiError catch (e) {
@@ -247,13 +274,19 @@ class _AccountDetailState extends State<_AccountDetail> {
     );
     if (!ok || !context.mounted) return;
     try {
-      final result = await sync.saveAccount(id: a.id, name: a.name, body: {'archived': true});
+      final result = await sync.saveAccount(
+        id: a.id,
+        name: a.name,
+        body: {'archived': true},
+      );
       await data.refreshAfterWrite();
       if (context.mounted) {
         Navigator.pop(context);
         toast(
           context,
-          result.queued ? 'Archive queued — will sync when you are back online' : 'Wallet archived',
+          result.queued
+              ? 'Archive queued   will sync when you are back online'
+              : 'Wallet archived',
         );
       }
     } on ApiError catch (e) {

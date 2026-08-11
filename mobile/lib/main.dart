@@ -39,7 +39,7 @@ Future<void> main() async {
   final api = ApiClient(tokens: tokens);
 
   // Anyone already signed in when this build arrived has been using Santim for
-  // a while — the intro is for new accounts, not for an upgrade.
+  // a while   the intro is for new accounts, not for an upgrade.
   if (!prefs.containsKey(PrefsState.onboardedKey) && tokens.refresh != null) {
     await prefs.setBool(PrefsState.onboardedKey, true);
   }
@@ -59,24 +59,18 @@ class SantimApp extends StatelessWidget {
       providers: [
         Provider<ApiClient>.value(value: api),
         ChangeNotifierProvider(create: (_) => PrefsState(prefs)),
-        ChangeNotifierProvider(
-          create: (_) => AppLockState(prefs)..bootstrap(),
-        ),
+        ChangeNotifierProvider(create: (_) => AppLockState(prefs)..bootstrap()),
         ChangeNotifierProvider(
           create: (_) => AuthState(api: api, prefs: prefs)..bootstrap(),
         ),
-        ChangeNotifierProvider(
-          create: (_) => SyncState(api: api)..start(),
-        ),
+        ChangeNotifierProvider(create: (_) => SyncState(api: api)..start()),
         ChangeNotifierProvider(
           create: (ctx) => DataState(api, sync: ctx.read<SyncState>()),
         ),
         ChangeNotifierProvider(
-          create: (ctx) => SmsState(
-            api: api,
-            prefs: prefs,
-            sync: ctx.read<SyncState>(),
-          )..start(),
+          create: (ctx) =>
+              SmsState(api: api, prefs: prefs, sync: ctx.read<SyncState>())
+                ..start(),
         ),
       ],
       child: Consumer<PrefsState>(
@@ -89,7 +83,7 @@ class SantimApp extends StatelessWidget {
           builder: (context, child) => MediaQuery(
             data: MediaQuery.of(context).copyWith(
               // The ceiling used to be 1.25, which meant someone who set 200%
-              // text in Android settings got 125% — the app overriding an
+              // text in Android settings got 125%   the app overriding an
               // accessibility control rather than honouring it. 1.6 covers the
               // large-text range; beyond that the densest screens (analytics
               // tables, the ledger) stop fitting on a phone at all.

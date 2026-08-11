@@ -9,7 +9,7 @@ import '../../models/common.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
-/// `AiProviders` — bring your own key. Providers are tried in the order shown,
+/// `AiProviders`   bring your own key. Providers are tried in the order shown,
 /// so the first enabled one that answers wins.
 class AiProvidersScreen extends StatefulWidget {
   const AiProvidersScreen({super.key});
@@ -68,7 +68,9 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
     setState(() => _loading = true);
     try {
       final json = await context.read<ApiClient>().get<dynamic>('/ai/settings');
-      final list = json is List ? json : (json is Map ? json['providers'] : null);
+      final list = json is List
+          ? json
+          : (json is Map ? json['providers'] : null);
       if (!mounted) return;
       final found = mapList(list, _Provider.fromJson);
       setState(() {
@@ -76,7 +78,12 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
         _providers = [
           for (final id in _Provider.labels.keys)
             found.where((p) => p.id == id).firstOrNull ??
-                _Provider(id: id, label: _Provider.labels[id]!, enabled: false, hasKey: false),
+                _Provider(
+                  id: id,
+                  label: _Provider.labels[id]!,
+                  enabled: false,
+                  hasKey: false,
+                ),
         ];
         _loading = false;
         _error = null;
@@ -102,7 +109,8 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
                 'id': p.id,
                 'enabled': p.enabled,
                 if (p.model != null && p.model!.isNotEmpty) 'model': p.model,
-                if (p.id == id && apiKey != null && apiKey.isNotEmpty) 'apiKey': apiKey,
+                if (p.id == id && apiKey != null && apiKey.isNotEmpty)
+                  'apiKey': apiKey,
               },
           ],
         },
@@ -127,7 +135,9 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
       final ok = asBool(json['ok'], true);
       toast(
         context,
-        ok ? 'Connection works' : asStr(json['error'], 'That key did not work.'),
+        ok
+            ? 'Connection works'
+            : asStr(json['error'], 'That key did not work.'),
         error: !ok,
       );
     } on ApiError catch (e) {
@@ -159,7 +169,12 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               AppCard(
@@ -230,7 +245,12 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
       title: provider.label,
       subtitle: 'Paste a key from your own account with that provider.',
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          24 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -238,7 +258,9 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
             AppTextField(
               controller: key,
               label: 'API key',
-              placeholder: provider.hasKey ? 'Leave blank to keep the current key' : 'sk-…',
+              placeholder: provider.hasKey
+                  ? 'Leave blank to keep the current key'
+                  : 'sk-…',
               prefixIcon: Icons.vpn_key_outlined,
               obscure: true,
               textCapitalization: TextCapitalization.none,
@@ -264,7 +286,9 @@ class _AiProvidersScreenState extends State<AiProvidersScreen> {
               size: BtnSize.lg,
               expand: true,
               onPressed: () {
-                provider.model = model.text.trim().isEmpty ? null : model.text.trim();
+                provider.model = model.text.trim().isEmpty
+                    ? null
+                    : model.text.trim();
                 provider.enabled = true;
                 Navigator.pop(ctx);
                 _save(id: provider.id, apiKey: key.text.trim());

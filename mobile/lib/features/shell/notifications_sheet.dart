@@ -7,6 +7,7 @@ import '../../core/utils/format.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../widgets/ui.dart';
+import 'notification_links.dart';
 
 /// `NotificationsMenu` as a bottom sheet — budget alerts, tab reminders and
 /// recurring postings, newest first.
@@ -22,6 +23,14 @@ Future<void> showNotificationsSheet(BuildContext context) {
 
 class _NotificationsList extends StatelessWidget {
   const _NotificationsList();
+
+  Future<void> _open(BuildContext context, AppNotification n) async {
+    final data = context.read<DataState>();
+    if (!n.readFlag) {
+      data.markNotificationRead(n.id);
+    }
+    await openNotificationDestination(context, n);
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -89,13 +98,21 @@ class _NotificationsList extends StatelessWidget {
                 offset: 6,
                 child: AppCard(
                   padding: const EdgeInsets.all(S.md),
-                  color: n.readFlag ? t.surface : t.primary.withValues(alpha: 0.06),
-                  borderColor: n.readFlag ? t.border : t.primary.withValues(alpha: 0.25),
-                  onTap: n.readFlag ? null : () => data.markNotificationRead(n.id),
+                  color: n.readFlag
+                      ? t.surface
+                      : t.primary.withValues(alpha: 0.06),
+                  borderColor: n.readFlag
+                      ? t.border
+                      : t.primary.withValues(alpha: 0.25),
+                  onTap: () => _open(context, n),
                   child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      IconTile(icon: _iconFor(n.type), color: _toneFor(context, n.type), size: 34),
+                      IconTile(
+                        icon: _iconFor(n.type),
+                        color: _toneFor(context, n.type),
+                        size: 34,
+                      ),
                       const GapX(S.md),
                       Expanded(
                         child: Column(
@@ -106,12 +123,27 @@ class _NotificationsList extends StatelessWidget {
                               style: TextStyle(
                                 fontSize: AppType.bodySm,
                                 height: 1.4,
-                                fontWeight: n.readFlag ? FontWeight.w400 : FontWeight.w600,
+                                fontWeight: n.readFlag
+                                    ? FontWeight.w400
+                                    : FontWeight.w600,
                                 color: t.foreground,
                               ),
                             ),
                             const Gap(S.xxs),
-                            Muted(relativeTime(n.createdAt), size: 11),
+                            Row(
+                              children: [
+                                Muted(relativeTime(n.createdAt), size: 11),
+                                const GapX(S.sm),
+                                Text(
+                                  _destinationLabel(n),
+                                  style: TextStyle(
+                                    fontSize: 11,
+                                    fontWeight: FontWeight.w700,
+                                    color: t.primary,
+                                  ),
+                                ),
+                              ],
+                            ),
                           ],
                         ),
                       ),
@@ -120,7 +152,19 @@ class _NotificationsList extends StatelessWidget {
                           margin: const EdgeInsets.only(top: S.xs, left: S.xs),
                           width: 7,
                           height: 7,
-                          decoration: BoxDecoration(color: t.primary, shape: BoxShape.circle),
+                          decoration: BoxDecoration(
+                            color: t.primary,
+                            shape: BoxShape.circle,
+                          ),
+                        )
+                      else
+                        Padding(
+                          padding: const EdgeInsets.only(left: S.xs, top: 2),
+                          child: Icon(
+                            Icons.chevron_right_rounded,
+                            size: 18,
+                            color: t.mutedForeground,
+                          ),
                         ),
                     ],
                   ),
@@ -133,11 +177,28 @@ class _NotificationsList extends StatelessWidget {
     );
   }
 
+  static String _destinationLabel(AppNotification n) {
+    final link = (n.link ?? '').toLowerCase();
+    final type = n.type.toLowerCase();
+    if (link.contains('wishlist') || type.contains('wish')) return 'Open wishlist';
+    if (link.contains('/budgets/') || (type.contains('budget') && link.contains('budgets'))) {
+      return 'Open plan';
+    }
+    if (type.contains('budget')) return 'Open plans';
+    if (link.contains('recurring') || type.contains('recurring')) return 'Open recurring';
+    if (link.contains('/tab') || type.contains('tab') || type.contains('ledger')) {
+      return 'Open Money Tab';
+    }
+    return 'Open';
+  }
+
   static IconData _iconFor(String type) {
     final t = type.toLowerCase();
     if (t.contains('budget')) return Icons.savings_outlined;
     if (t.contains('recurring')) return Icons.repeat;
-    if (t.contains('ledger') || t.contains('tab')) return Icons.volunteer_activism_outlined;
+    if (t.contains('ledger') || t.contains('tab')) {
+      return Icons.volunteer_activism_outlined;
+    }
     if (t.contains('household')) return Icons.group_outlined;
     if (t.contains('wish')) return Icons.favorite_border;
     return Icons.notifications_none_rounded;

@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { Suspense, useEffect, useMemo, useState } from 'react';
+import { useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { toast } from 'sonner';
 import {
@@ -38,7 +39,17 @@ const filters: { id: TabFilter; label: string; icon: typeof HandCoins }[] = [
 ];
 
 export default function TabPage() {
+  return (
+    <Suspense fallback={<Skeleton className="h-96" />}>
+      <TabInner />
+    </Suspense>
+  );
+}
+
+function TabInner() {
   const confirm = useConfirm();
+  const searchParams = useSearchParams();
+  const focusEntryId = searchParams.get('e');
   const { activeCurrency } = useCurrencyView();
   const { money } = useMoney();
   const [filter, setFilter] = useState<TabFilter>('all');
@@ -47,17 +58,33 @@ export default function TabPage() {
   const [paying, setPaying] = useState<LedgerEntry | null>(null);
   const [editing, setEditing] = useState<LedgerEntry | null>(null);
   const [viewingEntry, setViewingEntry] = useState<LedgerEntry | null>(null);
+  const [focusedOnce, setFocusedOnce] = useState(false);
 
   const query = filter === 'all'
     ? `/ledger?status=open&currency=${encodeURIComponent(activeCurrency)}`
     : `/ledger?status=open&kind=${filter}&currency=${encodeURIComponent(activeCurrency)}`;
-  const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(view === 'entries' ? query : null);
+  // Always load open entries when a notification deep-link is present.
+  const { data: list, mutate: mutateList } = useSWR<{ items: LedgerEntry[] }>(
+    view === 'entries' || !!focusEntryId ? query : null,
+  );
   const { data: people, mutate: mutatePeople } = useSWR<{ items: LedgerPersonGroup[] }>(
     view === 'people' ? `/ledger/people?currency=${encodeURIComponent(activeCurrency)}` : null,
   );
   const { data: summary, mutate: mutateSummary } = useSWR<LedgerSummary>(
     `/ledger/summary?currency=${encodeURIComponent(activeCurrency)}`,
   );
+
+  useEffect(() => {
+    if (!focusEntryId || focusedOnce || !list) return;
+    const hit = list.items.find((e) => e.id === focusEntryId);
+    if (!hit) {
+      setFocusedOnce(true);
+      return;
+    }
+    setView('entries');
+    setViewingEntry(hit);
+    setFocusedOnce(true);
+  }, [focusEntryId, focusedOnce, list]);
 
   const refresh = () => {
     void mutateList();

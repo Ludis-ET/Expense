@@ -143,7 +143,10 @@ class AppTextField extends StatelessWidget {
           prefixIcon: prefixIcon == null
               ? null
               : Icon(prefixIcon, size: 18, color: t.mutedForeground),
-          prefixIconConstraints: const BoxConstraints(minWidth: 42, minHeight: 42),
+          prefixIconConstraints: const BoxConstraints(
+            minWidth: 42,
+            minHeight: 42,
+          ),
           suffixIcon: suffix,
           filled: true,
           fillColor: t.surfaceMuted.withValues(alpha: t.isDark ? 0.55 : 0.7),
@@ -224,8 +227,12 @@ class AmountField extends StatelessWidget {
               child: TextField(
                 controller: controller,
                 autofocus: autofocus,
-                keyboardType: const TextInputType.numberWithOptions(decimal: true),
-                inputFormatters: [FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}'))],
+                keyboardType: const TextInputType.numberWithOptions(
+                  decimal: true,
+                ),
+                inputFormatters: [
+                  FilteringTextInputFormatter.allow(RegExp(r'^\d*\.?\d{0,2}')),
+                ],
                 cursorColor: t.primary,
                 style: TextStyle(
                   fontSize: AppType.display,
@@ -262,7 +269,7 @@ class AmountField extends StatelessWidget {
   }
 }
 
-/// A pressable field that opens a picker sheet — the mobile stand-in for a
+/// A pressable field that opens a picker sheet   the mobile stand-in for a
 /// `<select>`.
 class PickerField<T> extends StatelessWidget {
   const PickerField({
@@ -350,7 +357,12 @@ class PickerField<T> extends StatelessWidget {
                   leading!,
                   const GapX(S.sm),
                 ] else if (has && iconOf != null) ...[
-                  IconTile(icon: iconOf!(value as T), color: tint, size: 30, radius: R.sm),
+                  IconTile(
+                    icon: iconOf!(value as T),
+                    color: tint,
+                    size: 30,
+                    radius: R.sm,
+                  ),
                   const GapX(S.sm),
                 ],
                 Expanded(
@@ -360,7 +372,9 @@ class PickerField<T> extends StatelessWidget {
                     style: TextStyle(
                       fontSize: AppType.body,
                       fontWeight: has ? FontWeight.w600 : FontWeight.w400,
-                      color: has ? t.foreground : t.mutedForeground.withValues(alpha: 0.8),
+                      color: has
+                          ? t.foreground
+                          : t.mutedForeground.withValues(alpha: 0.8),
                     ),
                   ),
                 ),
@@ -409,7 +423,12 @@ class _PickerListState<T> extends State<_PickerList<T>> {
     final items = _query.isEmpty
         ? widget.options
         : widget.options
-              .where((o) => widget.labelOf(o).toLowerCase().contains(_query.toLowerCase()))
+              .where(
+                (o) => widget
+                    .labelOf(o)
+                    .toLowerCase()
+                    .contains(_query.toLowerCase()),
+              )
               .toList();
 
     return Column(
@@ -428,17 +447,31 @@ class _PickerListState<T> extends State<_PickerList<T>> {
         Flexible(
           child: ListView.builder(
             shrinkWrap: true,
-            padding: EdgeInsets.fromLTRB(12, 0, 12, 24 + MediaQuery.paddingOf(context).bottom),
+            padding: EdgeInsets.fromLTRB(
+              12,
+              0,
+              12,
+              24 + MediaQuery.paddingOf(context).bottom,
+            ),
             itemCount: items.length + (widget.allowClear ? 1 : 0),
             itemBuilder: (context, i) {
               if (widget.allowClear && i == 0) {
                 return ListTile(
                   onTap: () => widget.onPick(null),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
-                  leading: Icon(Icons.block, size: 20, color: t.mutedForeground),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(R.md),
+                  ),
+                  leading: Icon(
+                    Icons.block,
+                    size: 20,
+                    color: t.mutedForeground,
+                  ),
                   title: Text(
                     'None',
-                    style: TextStyle(fontSize: AppType.body, color: t.mutedForeground),
+                    style: TextStyle(
+                      fontSize: AppType.body,
+                      color: t.mutedForeground,
+                    ),
                   ),
                 );
               }
@@ -452,11 +485,20 @@ class _PickerListState<T> extends State<_PickerList<T>> {
                   onTap: () => widget.onPick(o),
                   selected: selected,
                   selectedTileColor: t.primary.withValues(alpha: 0.08),
-                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(R.md)),
-                  contentPadding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.hair),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(R.md),
+                  ),
+                  contentPadding: const EdgeInsets.symmetric(
+                    horizontal: S.md,
+                    vertical: S.hair,
+                  ),
                   leading: widget.iconOf == null
                       ? null
-                      : IconTile(icon: widget.iconOf!(o), color: tint, size: 36),
+                      : IconTile(
+                          icon: widget.iconOf!(o),
+                          color: tint,
+                          size: 36,
+                        ),
                   title: Text(
                     widget.labelOf(o),
                     style: TextStyle(
@@ -468,7 +510,9 @@ class _PickerListState<T> extends State<_PickerList<T>> {
                   subtitle: widget.subtitleOf == null
                       ? null
                       : Muted(widget.subtitleOf!(o), size: 12),
-                  trailing: selected ? Icon(Icons.check_circle, size: 20, color: t.primary) : null,
+                  trailing: selected
+                      ? Icon(Icons.check_circle, size: 20, color: t.primary)
+                      : null,
                 ),
               );
             },
@@ -479,7 +523,7 @@ class _PickerListState<T> extends State<_PickerList<T>> {
   }
 }
 
-/// Segmented control — the income/expense/transfer switch and every two- or
+/// Segmented control   the income/expense/transfer switch and every two- or
 /// three-way filter in the app.
 class SegmentedTabs<T> extends StatelessWidget {
   const SegmentedTabs({
@@ -542,7 +586,11 @@ class SegmentedTabs<T> extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         if (iconOf != null) ...[
-                          Icon(iconOf!(o), size: 15, color: selected ? tint : t.mutedForeground),
+                          Icon(
+                            iconOf!(o),
+                            size: 15,
+                            color: selected ? tint : t.mutedForeground,
+                          ),
                           const GapX(S.xs),
                         ],
                         Flexible(
@@ -551,7 +599,9 @@ class SegmentedTabs<T> extends StatelessWidget {
                             overflow: TextOverflow.ellipsis,
                             style: TextStyle(
                               fontSize: AppType.bodySm,
-                              fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
                               color: selected ? tint : t.mutedForeground,
                             ),
                           ),
@@ -615,7 +665,9 @@ class DateField extends StatelessWidget {
                   surface: t.surfaceElevated,
                   onSurface: t.foreground,
                 ),
-                dialogTheme: DialogThemeData(backgroundColor: t.surfaceElevated),
+                dialogTheme: DialogThemeData(
+                  backgroundColor: t.surfaceElevated,
+                ),
               ),
               child: child!,
             ),
@@ -632,14 +684,20 @@ class DateField extends StatelessWidget {
           ),
           child: Row(
             children: [
-              Icon(Icons.calendar_today_outlined, size: 16, color: t.mutedForeground),
+              Icon(
+                Icons.calendar_today_outlined,
+                size: 16,
+                color: t.mutedForeground,
+              ),
               const GapX(S.sm),
               Expanded(
                 child: Text(
                   value == null ? placeholder : formatDate(value),
                   style: TextStyle(
                     fontSize: AppType.body,
-                    fontWeight: value == null ? FontWeight.w400 : FontWeight.w600,
+                    fontWeight: value == null
+                        ? FontWeight.w400
+                        : FontWeight.w600,
                     color: value == null ? t.mutedForeground : t.foreground,
                   ),
                 ),
@@ -689,7 +747,10 @@ class SwitchRow extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: S.sm, horizontal: S.hair),
         child: Row(
           children: [
-            if (icon != null) ...[Icon(icon, size: 18, color: t.mutedForeground), const GapX(S.md)],
+            if (icon != null) ...[
+              Icon(icon, size: 18, color: t.mutedForeground),
+              const GapX(S.md),
+            ],
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -702,7 +763,10 @@ class SwitchRow extends StatelessWidget {
                       color: t.foreground,
                     ),
                   ),
-                  if (subtitle != null) ...[const Gap(S.hair), Muted(subtitle!, size: 12)],
+                  if (subtitle != null) ...[
+                    const Gap(S.hair),
+                    Muted(subtitle!, size: 12),
+                  ],
                 ],
               ),
             ),
@@ -746,7 +810,8 @@ class ColorPickerRow extends StatelessWidget {
           for (final c in colors)
             Builder(
               builder: (context) {
-                final hex = '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
+                final hex =
+                    '#${(c.toARGB32() & 0xFFFFFF).toRadixString(16).padLeft(6, '0')}';
                 final selected = value?.toLowerCase() == hex;
                 return GestureDetector(
                   onTap: () {
@@ -761,14 +826,23 @@ class ColorPickerRow extends StatelessWidget {
                       color: c,
                       shape: BoxShape.circle,
                       border: Border.all(
-                        color: selected ? context.t.foreground : Colors.transparent,
+                        color: selected
+                            ? context.t.foreground
+                            : Colors.transparent,
                         width: 2.5,
                       ),
                       boxShadow: selected
-                          ? [BoxShadow(color: c.withValues(alpha: 0.5), blurRadius: 10)]
+                          ? [
+                              BoxShadow(
+                                color: c.withValues(alpha: 0.5),
+                                blurRadius: 10,
+                              ),
+                            ]
                           : null,
                     ),
-                    child: selected ? const Icon(Icons.check, size: 16, color: Colors.white) : null,
+                    child: selected
+                        ? const Icon(Icons.check, size: 16, color: Colors.white)
+                        : null,
                   ),
                 );
               },

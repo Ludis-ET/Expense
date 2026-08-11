@@ -13,23 +13,22 @@ RecurringRule _rule({
   Frequency frequency = Frequency.monthly,
   int interval = 1,
   int? dayOfMonth,
-}) =>
-    RecurringRule.fromJson({
-      'id': id,
-      'name': name,
-      'kind': kind == TxKind.income ? 'INCOME' : 'EXPENSE',
-      'amount': amount.toStringAsFixed(2),
-      'currency': 'ETB',
-      'accountId': 'acc-1',
-      'categoryId': categoryId,
-      'frequency': frequency.name.toUpperCase(),
-      'interval': interval,
-      'dayOfMonth': dayOfMonth,
-      'nextRun': DateTime.utc(2026, 8, dayOfMonth ?? 1).toIso8601String(),
-      'autoPost': true,
-      'active': true,
-      'postedCount': 0,
-    });
+}) => RecurringRule.fromJson({
+  'id': id,
+  'name': name,
+  'kind': kind == TxKind.income ? 'INCOME' : 'EXPENSE',
+  'amount': amount.toStringAsFixed(2),
+  'currency': 'ETB',
+  'accountId': 'acc-1',
+  'categoryId': categoryId,
+  'frequency': frequency.name.toUpperCase(),
+  'interval': interval,
+  'dayOfMonth': dayOfMonth,
+  'nextRun': DateTime.utc(2026, 8, dayOfMonth ?? 1).toIso8601String(),
+  'autoPost': true,
+  'active': true,
+  'postedCount': 0,
+});
 
 BudgetRow _plan({
   required String id,
@@ -37,59 +36,56 @@ BudgetRow _plan({
   required double planned,
   String? categoryId,
   bool unplanned = false,
-}) =>
-    BudgetRow.fromJson({
-      'id': id,
-      'name': name,
-      'categoryId': categoryId,
-      'kind': unplanned ? 'UNPLANNED' : 'RECURRING',
-      'isUnplanned': unplanned,
-      'recurrenceUnit': 'MONTH',
-      'recurrenceInterval': 1,
-      'currency': 'ETB',
-      'state': 'ACTIVE',
-      'plannedAmount': planned.toStringAsFixed(2),
-      'openingPlanned': planned.toStringAsFixed(2),
-      'adjustedThisCycle': '0.00',
-      'fundedAmount': '0.00',
-      'carriedIn': '0.00',
-      'fillable': '0.00',
-      'spentAmount': '0.00',
-      'balance': '0.00',
-      'pctFunded': 0,
-      'pctOfPlan': 0,
-      'pctSpentOfFunded': 0,
-      'cycleIndex': 0,
-    });
+}) => BudgetRow.fromJson({
+  'id': id,
+  'name': name,
+  'categoryId': categoryId,
+  'kind': unplanned ? 'UNPLANNED' : 'RECURRING',
+  'isUnplanned': unplanned,
+  'recurrenceUnit': 'MONTH',
+  'recurrenceInterval': 1,
+  'currency': 'ETB',
+  'state': 'ACTIVE',
+  'plannedAmount': planned.toStringAsFixed(2),
+  'openingPlanned': planned.toStringAsFixed(2),
+  'adjustedThisCycle': '0.00',
+  'fundedAmount': '0.00',
+  'carriedIn': '0.00',
+  'fillable': '0.00',
+  'spentAmount': '0.00',
+  'balance': '0.00',
+  'pctFunded': 0,
+  'pctOfPlan': 0,
+  'pctSpentOfFunded': 0,
+  'cycleIndex': 0,
+});
 
 OutlookHistory _history({
   double median = 0,
   int sampleMonths = 0,
   List<Map<String, dynamic>> months = const [],
-}) =>
-    OutlookHistory.fromJson({
-      'currency': 'ETB',
-      'months': months,
-      'unplannedMedian': median.toStringAsFixed(2),
-      'unplannedSampleMonths': sampleMonths,
-      'repeatCandidates': const [],
-      'patternWindowDays': 90,
-    });
+}) => OutlookHistory.fromJson({
+  'currency': 'ETB',
+  'months': months,
+  'unplannedMedian': median.toStringAsFixed(2),
+  'unplannedSampleMonths': sampleMonths,
+  'repeatCandidates': const [],
+  'patternWindowDays': 90,
+});
 
 MonthlyOutlook _build({
   List<RecurringRule> rules = const [],
   List<BudgetRow> budgets = const [],
   OutlookHistory? history,
   DateTime? now,
-}) =>
-    buildMonthlyOutlook(
-      currency: 'ETB',
-      rules: rules,
-      budgets: budgets,
-      month: null,
-      history: history,
-      now: now ?? DateTime(2026, 8, 15),
-    );
+}) => buildMonthlyOutlook(
+  currency: 'ETB',
+  rules: rules,
+  budgets: budgets,
+  month: null,
+  history: history,
+  now: now ?? DateTime(2026, 8, 15),
+);
 
 void main() {
   group('income target layers', () {
@@ -107,7 +103,9 @@ void main() {
 
     test('steady adds plans on top of the floor', () {
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense)],
+        rules: [
+          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense),
+        ],
         budgets: [_plan(id: 'b1', name: 'Groceries', planned: 3000)],
       );
 
@@ -116,7 +114,9 @@ void main() {
 
     test('comfortable adds the buffer', () {
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense)],
+        rules: [
+          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense),
+        ],
         history: _history(median: 900, sampleMonths: 3),
       );
 
@@ -138,7 +138,12 @@ void main() {
           ),
         ],
         budgets: [
-          _plan(id: 'b1', name: 'Rent envelope', planned: 5000, categoryId: 'cat-rent'),
+          _plan(
+            id: 'b1',
+            name: 'Rent envelope',
+            planned: 5000,
+            categoryId: 'cat-rent',
+          ),
         ],
       );
 
@@ -163,7 +168,12 @@ void main() {
           ),
         ],
         budgets: [
-          _plan(id: 'b1', name: 'Rent envelope', planned: 6500, categoryId: 'cat-rent'),
+          _plan(
+            id: 'b1',
+            name: 'Rent envelope',
+            planned: 6500,
+            categoryId: 'cat-rent',
+          ),
         ],
       );
 
@@ -183,7 +193,12 @@ void main() {
           ),
         ],
         budgets: [
-          _plan(id: 'b1', name: 'Groceries', planned: 3000, categoryId: 'cat-food'),
+          _plan(
+            id: 'b1',
+            name: 'Groceries',
+            planned: 3000,
+            categoryId: 'cat-food',
+          ),
         ],
       );
 
@@ -195,7 +210,9 @@ void main() {
   group('surprise buffer', () {
     test('prefers a cushion the user set over history', () {
       final o = _build(
-        budgets: [_plan(id: 'u1', name: 'Unplanned', planned: 1500, unplanned: true)],
+        budgets: [
+          _plan(id: 'u1', name: 'Unplanned', planned: 1500, unplanned: true),
+        ],
         history: _history(median: 400, sampleMonths: 4),
       );
 
@@ -213,7 +230,9 @@ void main() {
 
     test('is zero with no cushion and no history', () {
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense)],
+        rules: [
+          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense),
+        ],
       );
 
       expect(o.buffer, 0);
@@ -226,7 +245,7 @@ void main() {
 
     test('never grows from the current cycle\'s unplanned spending', () {
       // An Unplanned envelope with no planned cushion but heavy spend this
-      // cycle used to inflate the target — the bug that started all this.
+      // cycle used to inflate the target   the bug that started all this.
       final spent = BudgetRow.fromJson({
         'id': 'u1',
         'name': 'Unplanned',
@@ -287,11 +306,24 @@ void main() {
   group('per-payday', () {
     test('splits the monthly target across pay periods', () {
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 3043.6875, kind: TxKind.expense)],
+        rules: [
+          _rule(
+            id: 'r1',
+            name: 'Rent',
+            amount: 3043.6875,
+            kind: TxKind.expense,
+          ),
+        ],
       );
 
-      expect(o.perPeriod(OutlookTarget.floor, PayCadence.monthly), closeTo(3043.69, 0.01));
-      expect(o.perPeriod(OutlookTarget.floor, PayCadence.weekly), closeTo(700, 0.01));
+      expect(
+        o.perPeriod(OutlookTarget.floor, PayCadence.monthly),
+        closeTo(3043.69, 0.01),
+      );
+      expect(
+        o.perPeriod(OutlookTarget.floor, PayCadence.weekly),
+        closeTo(700, 0.01),
+      );
     });
   });
 
@@ -323,8 +355,20 @@ void main() {
     test('is null when income never catches up', () {
       final o = _build(
         rules: [
-          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense, dayOfMonth: 5),
-          _rule(id: 'i1', name: 'Salary', amount: 1000, kind: TxKind.income, dayOfMonth: 25),
+          _rule(
+            id: 'r1',
+            name: 'Rent',
+            amount: 5000,
+            kind: TxKind.expense,
+            dayOfMonth: 5,
+          ),
+          _rule(
+            id: 'i1',
+            name: 'Salary',
+            amount: 1000,
+            kind: TxKind.income,
+            dayOfMonth: 25,
+          ),
         ],
       );
 
@@ -333,7 +377,9 @@ void main() {
 
     test('is null when there are no bills at all', () {
       final o = _build(
-        rules: [_rule(id: 'i1', name: 'Salary', amount: 9000, kind: TxKind.income)],
+        rules: [
+          _rule(id: 'i1', name: 'Salary', amount: 9000, kind: TxKind.income),
+        ],
       );
 
       expect(o.breakEvenDay, isNull);
@@ -362,7 +408,9 @@ void main() {
       });
 
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense)],
+        rules: [
+          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense),
+        ],
         history: history,
       );
 
@@ -374,12 +422,16 @@ void main() {
   group('insights', () {
     test('explain where the buffer came from', () {
       final o = _build(
-        rules: [_rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense)],
+        rules: [
+          _rule(id: 'r1', name: 'Rent', amount: 5000, kind: TxKind.expense),
+        ],
         history: _history(median: 800, sampleMonths: 3),
       );
 
       expect(
-        o.insights.any((i) => i.contains('median unplanned spend over 3 completed months')),
+        o.insights.any(
+          (i) => i.contains('median unplanned spend over 3 completed months'),
+        ),
         isTrue,
       );
     });
@@ -395,10 +447,15 @@ void main() {
             categoryId: 'cat-rent',
           ),
         ],
-        budgets: [_plan(id: 'b1', name: 'Rent', planned: 5000, categoryId: 'cat-rent')],
+        budgets: [
+          _plan(id: 'b1', name: 'Rent', planned: 5000, categoryId: 'cat-rent'),
+        ],
       );
 
-      expect(o.insights.any((i) => i.contains('counted once, not twice')), isTrue);
+      expect(
+        o.insights.any((i) => i.contains('counted once, not twice')),
+        isTrue,
+      );
     });
   });
 }

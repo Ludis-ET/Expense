@@ -11,7 +11,11 @@ const _currencyLocale = <String, String>{
 
 final _cache = <String, NumberFormat>{};
 
-NumberFormat _fmt(String currency, {bool decimals = false, bool compact = false}) {
+NumberFormat _fmt(
+  String currency, {
+  bool decimals = false,
+  bool compact = false,
+}) {
   final key = '$currency|$decimals|$compact';
   return _cache.putIfAbsent(key, () {
     final locale = _currencyLocale[currency] ?? 'en_US';
@@ -33,14 +37,14 @@ NumberFormat _fmt(String currency, {bool decimals = false, bool compact = false}
 }
 
 String currencySymbol(String currency) => switch (currency) {
-      'ETB' => 'Br',
-      'USD' => r'$',
-      'EUR' => '€',
-      'GBP' => '£',
-      'KES' => 'KSh',
-      'AED' => 'AED',
-      _ => currency,
-    };
+  'ETB' => 'Br',
+  'USD' => r'$',
+  'EUR' => '€',
+  'GBP' => '£',
+  'KES' => 'KSh',
+  'AED' => 'AED',
+  _ => currency,
+};
 
 double toNum(Object? amount) {
   if (amount == null) return 0;
@@ -48,7 +52,7 @@ double toNum(Object? amount) {
   return double.tryParse('$amount') ?? 0;
 }
 
-/// `formatMoney` — "Br 12,450".
+/// `formatMoney`   "Br 12,450".
 String formatMoney(
   Object? amount, {
   String currency = 'ETB',
@@ -64,13 +68,18 @@ String formatMoney(
 }
 
 /// Masked balance shown when amounts are hidden (banking-app style).
-String formatHiddenMoney([String currency = 'ETB']) => '${currencySymbol(currency)} ••••••';
+String formatHiddenMoney([String currency = 'ETB']) =>
+    '${currencySymbol(currency)} ••••••';
 
 String formatHiddenNumber() => '••••••';
 
-/// "+Br 500" in green contexts / "−Br 500" in red — the sign is carried here,
+/// "+Br 500" in green contexts / "−Br 500" in red   the sign is carried here,
 /// the colour by the caller.
-String formatSignedMoney(Object? amount, String kind, {String currency = 'ETB'}) {
+String formatSignedMoney(
+  Object? amount,
+  String kind, {
+  String currency = 'ETB',
+}) {
   final formatted = formatMoney(amount, currency: currency);
   return switch (kind) {
     'INCOME' => '+$formatted',
@@ -95,7 +104,8 @@ String formatDate(DateTime? date) =>
 String formatDayMonth(DateTime? date) =>
     date == null ? '-' : DateFormat('d MMM').format(date);
 
-String formatLongDate(DateTime date) => DateFormat('EEEE, d MMMM yyyy').format(date);
+String formatLongDate(DateTime date) =>
+    DateFormat('EEEE, d MMMM yyyy').format(date);
 
 String formatTime(DateTime date) => DateFormat('HH:mm').format(date);
 
@@ -104,7 +114,7 @@ String isoDate(DateTime date) => DateFormat('yyyy-MM-dd').format(date);
 
 String monthKey(DateTime date) => DateFormat('yyyy-MM').format(date);
 
-/// `relativeTime` — "2 days ago", "in 3 hours", "just now".
+/// `relativeTime`   "2 days ago", "in 3 hours", "just now".
 String relativeTime(DateTime date) {
   final diff = date.difference(DateTime.now());
   final abs = diff.abs();
@@ -141,7 +151,11 @@ String dayLabel(DateTime date) {
 }
 
 String initials(String name) {
-  final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).toList();
+  final parts = name
+      .trim()
+      .split(RegExp(r'\s+'))
+      .where((p) => p.isNotEmpty)
+      .toList();
   if (parts.isEmpty) return '?';
   return parts.take(2).map((p) => p[0]).join().toUpperCase();
 }
@@ -162,8 +176,19 @@ String formatPct(num? pct, {bool signed = true}) {
 const _ethiopicEpoch = 1723856; // JDN of 1 Meskerem, year 1
 
 const ethiopianMonths = <String>[
-  'Meskerem', 'Tikimt', 'Hidar', 'Tahsas', 'Tir', 'Yekatit', 'Megabit',
-  'Miazia', 'Ginbot', 'Sene', 'Hamle', 'Nehase', 'Pagume',
+  'Meskerem',
+  'Tikimt',
+  'Hidar',
+  'Tahsas',
+  'Tir',
+  'Yekatit',
+  'Megabit',
+  'Miazia',
+  'Ginbot',
+  'Sene',
+  'Hamle',
+  'Nehase',
+  'Pagume',
 ];
 
 int _mod(int n, int m) => ((n % m) + m) % m;
@@ -197,10 +222,18 @@ EthiopianDate toEthiopian(DateTime date) {
   final jdn = _gregorianToJdn(date.year, date.month, date.day);
   final r = _mod(jdn - _ethiopicEpoch, 1461);
   final n = _mod(r, 365) + 365 * (r / 1460).floor();
-  final year = 4 * ((jdn - _ethiopicEpoch) / 1461).floor() + (r / 365).floor() - (r / 1460).floor();
+  final year =
+      4 * ((jdn - _ethiopicEpoch) / 1461).floor() +
+      (r / 365).floor() -
+      (r / 1460).floor();
   final month = (n / 30).floor() + 1;
   final day = _mod(n, 30) + 1;
-  return EthiopianDate(year, month, day, ethiopianMonths[(month - 1).clamp(0, 12)]);
+  return EthiopianDate(
+    year,
+    month,
+    day,
+    ethiopianMonths[(month - 1).clamp(0, 12)],
+  );
 }
 
 /// e.g. "15 Sene 2018"

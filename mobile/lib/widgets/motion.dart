@@ -5,7 +5,8 @@ import 'package:flutter/material.dart';
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 
-bool _skipMotion(BuildContext context) => MediaQuery.disableAnimationsOf(context);
+bool _skipMotion(BuildContext context) =>
+    MediaQuery.disableAnimationsOf(context);
 
 /// Fast rise-in for list sections. Skips when Reduce motion is on.
 class FadeInUp extends StatefulWidget {
@@ -34,7 +35,8 @@ class FadeInUp extends StatefulWidget {
   State<FadeInUp> createState() => _FadeInUpState();
 }
 
-class _FadeInUpState extends State<FadeInUp> with SingleTickerProviderStateMixin {
+class _FadeInUpState extends State<FadeInUp>
+    with SingleTickerProviderStateMixin {
   AnimationController? _c;
   Animation<double>? _curve;
 
@@ -83,7 +85,7 @@ class _FadeInUpState extends State<FadeInUp> with SingleTickerProviderStateMixin
   }
 }
 
-/// `.stagger-children` — wraps a column's children so each rises after the one above.
+/// `.stagger-children`   wraps a column's children so each rises after the one above.
 class StaggerColumn extends StatelessWidget {
   const StaggerColumn({
     super.key,
@@ -109,7 +111,7 @@ class StaggerColumn extends StatelessWidget {
   }
 }
 
-/// `@keyframes shimmer` — highlight sweeping left to right across a placeholder.
+/// `@keyframes shimmer`   highlight sweeping left to right across a placeholder.
 class Shimmer extends StatefulWidget {
   const Shimmer({super.key, required this.child});
   final Widget child;
@@ -129,7 +131,10 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
       _c = null;
       return;
     }
-    _c ??= AnimationController(vsync: this, duration: const Duration(milliseconds: 1400))..repeat();
+    _c ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1400),
+    )..repeat();
   }
 
   @override
@@ -168,7 +173,13 @@ class _ShimmerState extends State<Shimmer> with SingleTickerProviderStateMixin {
 
 /// A shimmering placeholder block.
 class Skeleton extends StatelessWidget {
-  const Skeleton({super.key, this.height = 16, this.width, this.radius = R.md, this.margin});
+  const Skeleton({
+    super.key,
+    this.height = 16,
+    this.width,
+    this.radius = R.md,
+    this.margin,
+  });
 
   final double height;
   final double? width;
@@ -192,7 +203,7 @@ class Skeleton extends StatelessWidget {
   }
 }
 
-/// `@keyframes bounce-dot` — the three-dot "thinking" indicator.
+/// `@keyframes bounce-dot`   the three-dot "thinking" indicator.
 class BouncingDots extends StatefulWidget {
   const BouncingDots({super.key, this.color, this.size = 6});
   final Color? color;
@@ -202,7 +213,8 @@ class BouncingDots extends StatefulWidget {
   State<BouncingDots> createState() => _BouncingDotsState();
 }
 
-class _BouncingDotsState extends State<BouncingDots> with SingleTickerProviderStateMixin {
+class _BouncingDotsState extends State<BouncingDots>
+    with SingleTickerProviderStateMixin {
   late final AnimationController _c = AnimationController(
     vsync: this,
     duration: const Duration(milliseconds: 1000),
@@ -251,7 +263,10 @@ class _BouncingDotsState extends State<BouncingDots> with SingleTickerProviderSt
                 child: Container(
                   width: widget.size,
                   height: widget.size,
-                  decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                  decoration: BoxDecoration(
+                    color: color,
+                    shape: BoxShape.circle,
+                  ),
                 ),
               ),
             ),
@@ -262,7 +277,7 @@ class _BouncingDotsState extends State<BouncingDots> with SingleTickerProviderSt
   }
 }
 
-/// Soft opacity breathe — disabled under Reduce motion.
+/// Soft opacity breathe   disabled under Reduce motion.
 class PulseGlow extends StatefulWidget {
   const PulseGlow({super.key, required this.child, this.min = 0.6});
   final Widget child;
@@ -272,7 +287,8 @@ class PulseGlow extends StatefulWidget {
   State<PulseGlow> createState() => _PulseGlowState();
 }
 
-class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMixin {
+class _PulseGlowState extends State<PulseGlow>
+    with SingleTickerProviderStateMixin {
   AnimationController? _c;
 
   @override
@@ -283,8 +299,10 @@ class _PulseGlowState extends State<PulseGlow> with SingleTickerProviderStateMix
       _c = null;
       return;
     }
-    _c ??= AnimationController(vsync: this, duration: const Duration(milliseconds: 2000))
-      ..repeat(reverse: true);
+    _c ??= AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2000),
+    )..repeat(reverse: true);
   }
 
   @override
@@ -324,12 +342,18 @@ class AnimatedNumber extends StatefulWidget {
   State<AnimatedNumber> createState() => _AnimatedNumberState();
 }
 
-class _AnimatedNumberState extends State<AnimatedNumber> with SingleTickerProviderStateMixin {
-  late final AnimationController _c = AnimationController(vsync: this, duration: widget.duration);
+class _AnimatedNumberState extends State<AnimatedNumber>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _c = AnimationController(
+    vsync: this,
+    duration: widget.duration,
+  );
   late Animation<double> _anim = _tween(0, widget.value);
 
-  Animation<double> _tween(double from, double to) =>
-      Tween(begin: from, end: to).animate(CurvedAnimation(parent: _c, curve: Motion.easeOut));
+  Animation<double> _tween(double from, double to) => Tween(
+    begin: from,
+    end: to,
+  ).animate(CurvedAnimation(parent: _c, curve: Motion.easeOut));
 
   @override
   void initState() {
@@ -409,13 +433,15 @@ class _PressableScaleState extends State<PressableScale> {
 
     Widget visual = AnimatedScale(
       scale: _down ? widget.scale : 1,
-      duration: _skipMotion(context) ? Duration.zero : const Duration(milliseconds: 90),
+      duration: _skipMotion(context)
+          ? Duration.zero
+          : const Duration(milliseconds: 90),
       curve: Curves.easeOut,
       child: widget.child,
     );
 
     // `Center` hands the visual loose constraints, so the minimum below grows
-    // only the transparent hit area around it — the drawn control keeps its
+    // only the transparent hit area around it   the drawn control keeps its
     // own size.
     if (min != null) {
       visual = Center(widthFactor: 1, heightFactor: 1, child: visual);
@@ -442,7 +468,7 @@ class _PressableScaleState extends State<PressableScale> {
   }
 }
 
-/// `@keyframes lock-shake` — horizontal shake on a wrong PIN.
+/// `@keyframes lock-shake`   horizontal shake on a wrong PIN.
 class ShakeX extends StatefulWidget {
   const ShakeX({super.key, required this.child, required this.trigger});
   final Widget child;
@@ -485,7 +511,7 @@ class _ShakeXState extends State<ShakeX> with SingleTickerProviderStateMixin {
   }
 }
 
-/// `@keyframes sync-pop` — overshoot scale-in for the "just synced" tick.
+/// `@keyframes sync-pop`   overshoot scale-in for the "just synced" tick.
 class PopIn extends StatefulWidget {
   const PopIn({super.key, required this.child, this.delay = Duration.zero});
   final Widget child;

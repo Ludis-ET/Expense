@@ -10,7 +10,7 @@ import '../data/outbox_store.dart';
 import '../state/sync_state.dart';
 import 'ui.dart';
 
-/// Compact status chip for the top bar — offline / syncing / pending / synced.
+/// Compact status chip for the top bar   offline / syncing / pending / synced.
 class SyncStatusPill extends StatelessWidget {
   const SyncStatusPill({super.key});
 
@@ -29,7 +29,9 @@ class SyncStatusPill extends StatelessWidget {
       icon = Icons.check_circle_rounded;
     } else if (!sync.online) {
       accent = const Color(0xFF38BDF8);
-      label = sync.pendingCount > 0 ? 'Offline · ${sync.pendingCount}' : 'Offline';
+      label = sync.pendingCount > 0
+          ? 'Offline · ${sync.pendingCount}'
+          : 'Offline';
       icon = Icons.cloud_off_rounded;
     } else if (sync.syncing) {
       accent = t.accent;
@@ -67,7 +69,10 @@ class SyncStatusPill extends StatelessWidget {
               SizedBox(
                 width: 12,
                 height: 12,
-                child: CircularProgressIndicator(strokeWidth: 1.6, color: accent),
+                child: CircularProgressIndicator(
+                  strokeWidth: 1.6,
+                  color: accent,
+                ),
               )
             else
               Icon(icon, size: 13, color: accent),
@@ -108,11 +113,16 @@ Future<void> showSyncSheet(BuildContext context) {
             opacity: anim,
             child: GestureDetector(
               onTap: () => Navigator.pop(ctx),
-              child: Container(color: Colors.black.withValues(alpha: 0.45 * anim.value)),
+              child: Container(
+                color: Colors.black.withValues(alpha: 0.45 * anim.value),
+              ),
             ),
           ),
           SlideTransition(
-            position: Tween(begin: const Offset(0, 0.08), end: Offset.zero).animate(curved),
+            position: Tween(
+              begin: const Offset(0, 0.08),
+              end: Offset.zero,
+            ).animate(curved),
             child: FadeTransition(opacity: curved, child: child),
           ),
         ],
@@ -135,12 +145,15 @@ class SyncSheet extends StatelessWidget {
       child: ClipRRect(
         borderRadius: BorderRadius.circular(28),
         child: Container(
-          constraints: BoxConstraints(maxHeight: MediaQuery.sizeOf(context).height * 0.72),
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.sizeOf(context).height * 0.72,
+          ),
           decoration: BoxDecoration(
             borderRadius: BorderRadius.circular(28),
             color: t.surface,
             border: Border.all(
-              color: (sync.online ? t.primary : const Color(0xFF38BDF8)).withValues(alpha: 0.35),
+              color: (sync.online ? t.primary : const Color(0xFF38BDF8))
+                  .withValues(alpha: 0.35),
             ),
             boxShadow: t.elevatedShadow,
           ),
@@ -154,7 +167,10 @@ class SyncSheet extends StatelessWidget {
                 decoration: BoxDecoration(
                   borderRadius: BorderRadius.circular(R.pill),
                   gradient: LinearGradient(
-                    colors: [t.primary.withValues(alpha: 0.4), t.accent.withValues(alpha: 0.7)],
+                    colors: [
+                      t.primary.withValues(alpha: 0.4),
+                      t.accent.withValues(alpha: 0.7),
+                    ],
                   ),
                 ),
               ),
@@ -228,7 +244,9 @@ class SyncSheet extends StatelessWidget {
                       child: _StatOrb(
                         label: 'Link',
                         value: sync.online ? 'Live' : 'Off',
-                        color: sync.online ? t.success : const Color(0xFF38BDF8),
+                        color: sync.online
+                            ? t.success
+                            : const Color(0xFF38BDF8),
                       ),
                     ),
                   ],
@@ -337,7 +355,11 @@ class _OrbitBadge extends StatelessWidget {
 }
 
 class _StatOrb extends StatelessWidget {
-  const _StatOrb({required this.label, required this.value, required this.color});
+  const _StatOrb({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
 
   final String label;
   final String value;
@@ -401,7 +423,9 @@ class _OpCard extends StatelessWidget {
     final subtitle =
         op.detail ??
         op.error ??
-        (op.status == OutboxStatus.syncing ? 'Uploading…' : 'Waiting for connection');
+        (op.status == OutboxStatus.syncing
+            ? 'Uploading…'
+            : 'Waiting for connection');
 
     return Container(
       padding: const EdgeInsets.all(S.md),
@@ -435,7 +459,10 @@ class _OpCard extends StatelessWidget {
                 if (op.optimistic != null) ...[
                   const Gap(S.xxs),
                   Amount(
-                    formatMoney(op.optimistic!.amount, currency: op.optimistic!.currency),
+                    formatMoney(
+                      op.optimistic!.amount,
+                      currency: op.optimistic!.currency,
+                    ),
                     size: 12.5,
                     color: color,
                   ),
@@ -458,12 +485,17 @@ class _OpCard extends StatelessWidget {
             SizedBox(
               width: 18,
               height: 18,
-              child: CircularProgressIndicator(strokeWidth: 2, color: t.primary),
+              child: CircularProgressIndicator(
+                strokeWidth: 2,
+                color: t.primary,
+              ),
             )
           else
             AppBadge(
               op.status.name,
-              tone: op.status == OutboxStatus.pending ? BadgeTone.warning : BadgeTone.info,
+              tone: op.status == OutboxStatus.pending
+                  ? BadgeTone.warning
+                  : BadgeTone.info,
               dense: true,
             ),
         ],
@@ -492,14 +524,19 @@ class OfflineBanner extends StatelessWidget {
         decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(R.lg),
           gradient: LinearGradient(
-            colors: [color.withValues(alpha: 0.16), color.withValues(alpha: 0.05)],
+            colors: [
+              color.withValues(alpha: 0.16),
+              color.withValues(alpha: 0.05),
+            ],
           ),
           border: Border.all(color: color.withValues(alpha: 0.35)),
         ),
         child: Row(
           children: [
             Icon(
-              sync.justSynced ? Icons.check_circle_rounded : Icons.sensors_rounded,
+              sync.justSynced
+                  ? Icons.check_circle_rounded
+                  : Icons.sensors_rounded,
               size: 18,
               color: color,
             ),
@@ -507,7 +544,7 @@ class OfflineBanner extends StatelessWidget {
             Expanded(
               child: Text(
                 sync.justSynced
-                    ? 'Back online — everything just synced'
+                    ? 'Back online   everything just synced'
                     : asOf != null
                     ? 'Offline · showing data from ${relativeTime(asOf!)}'
                     : 'You are offline · edits will sync later',

@@ -13,7 +13,7 @@ import '../../state/sync_state.dart';
 import '../../widgets/ui.dart';
 import 'transaction_form.dart';
 
-/// `TransactionDetailModal` — the full record, with edit and delete.
+/// `TransactionDetailModal`   the full record, with edit and delete.
 /// Returns true when the transaction was changed or removed.
 Future<bool?> showTransactionDetail(BuildContext context, Transaction tx) {
   return showAppSheet<bool>(
@@ -36,12 +36,19 @@ class _TransactionDetail extends StatelessWidget {
 
     final tint = isTransfer
         ? t.accent
-        : parseHexColor(tx.category?.color) ?? (isIncome ? t.success : t.danger);
+        : parseHexColor(tx.category?.color) ??
+              (isIncome ? t.success : t.danger);
 
-    String money(Object? v) => prefs.money(v, currency: tx.currency, decimals: true);
+    String money(Object? v) =>
+        prefs.money(v, currency: tx.currency, decimals: true);
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -49,14 +56,18 @@ class _TransactionDetail extends StatelessWidget {
             child: Column(
               children: [
                 IconTile(
-                  icon: isTransfer ? Icons.swap_horiz_rounded : financeIcon(tx.category?.icon),
+                  icon: isTransfer
+                      ? Icons.swap_horiz_rounded
+                      : financeIcon(tx.category?.icon),
                   color: tint,
                   size: 56,
                   radius: R.lg,
                 ),
                 const Gap(S.md),
                 Amount(
-                  isTransfer ? money(tx.amount) : '${isIncome ? '+' : '−'}${money(tx.amount)}',
+                  isTransfer
+                      ? money(tx.amount)
+                      : '${isIncome ? '+' : '−'}${money(tx.amount)}',
                   size: 30,
                   color: isTransfer
                       ? t.foreground
@@ -89,8 +100,13 @@ class _TransactionDetail extends StatelessWidget {
                           : BadgeTone.neutral,
                     ),
                     if (tx.recurringRuleId != null)
-                      AppBadge('Recurring', tone: BadgeTone.primary, icon: Icons.repeat),
-                    for (final tag in tx.tags) AppBadge('#$tag', tone: BadgeTone.neutral),
+                      AppBadge(
+                        'Recurring',
+                        tone: BadgeTone.primary,
+                        icon: Icons.repeat,
+                      ),
+                    for (final tag in tx.tags)
+                      AppBadge('#$tag', tone: BadgeTone.neutral),
                   ],
                 ),
               ],
@@ -129,7 +145,9 @@ class _TransactionDetail extends StatelessWidget {
           if (tx.budget != null)
             _DetailRow(
               label: 'Budget plan',
-              value: tx.budget!.name + (tx.budgetCycle != null ? ' · cycle ${tx.budgetCycle}' : ''),
+              value:
+                  tx.budget!.name +
+                  (tx.budgetCycle != null ? ' · cycle ${tx.budgetCycle}' : ''),
               icon: Icons.savings_outlined,
               color: parseHexColor(tx.budget!.color),
             ),
@@ -140,9 +158,18 @@ class _TransactionDetail extends StatelessWidget {
               icon: Icons.lock_open_outlined,
             ),
           if (tx.payee != null)
-            _DetailRow(label: 'Payee', value: tx.payee!, icon: Icons.storefront_outlined),
+            _DetailRow(
+              label: 'Payee',
+              value: tx.payee!,
+              icon: Icons.storefront_outlined,
+            ),
           if (tx.note != null)
-            _DetailRow(label: 'Note', value: tx.note!, icon: Icons.notes_outlined, wrap: true),
+            _DetailRow(
+              label: 'Note',
+              value: tx.note!,
+              icon: Icons.notes_outlined,
+              wrap: true,
+            ),
           const Gap(S.xl),
           // The most common thing anyone wants from a past transaction is
           // another one just like it, so that gets the primary button.
@@ -152,7 +179,10 @@ class _TransactionDetail extends StatelessWidget {
               icon: Icons.replay_rounded,
               expand: true,
               onPressed: () async {
-                final created = await showTransactionForm(context, template: tx);
+                final created = await showTransactionForm(
+                  context,
+                  template: tx,
+                );
                 if (created == true && context.mounted) {
                   await context.read<DataState>().refreshAfterWrite();
                   if (context.mounted) Navigator.pop(context, true);
@@ -169,7 +199,10 @@ class _TransactionDetail extends StatelessWidget {
                   variant: BtnVariant.outline,
                   expand: true,
                   onPressed: () async {
-                    final changed = await showTransactionForm(context, existing: tx);
+                    final changed = await showTransactionForm(
+                      context,
+                      existing: tx,
+                    );
                     if (changed == true && context.mounted) {
                       await context.read<DataState>().refreshAfterWrite();
                       if (context.mounted) Navigator.pop(context, true);
@@ -212,7 +245,7 @@ class _TransactionDetail extends StatelessWidget {
         toast(
           context,
           result.queued
-              ? 'Delete queued — will sync when you are back online'
+              ? 'Delete queued   will sync when you are back online'
               : 'Transaction deleted',
         );
       }
@@ -243,7 +276,9 @@ class _DetailRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: S.md),
       child: Row(
-        crossAxisAlignment: wrap ? CrossAxisAlignment.start : CrossAxisAlignment.center,
+        crossAxisAlignment: wrap
+            ? CrossAxisAlignment.start
+            : CrossAxisAlignment.center,
         children: [
           Icon(icon, size: 16, color: color ?? t.mutedForeground),
           const GapX(S.md),

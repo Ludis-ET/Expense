@@ -14,7 +14,9 @@ BadgeTone healthTone(BudgetHealth health) => switch (health) {
   BudgetHealth.ready || BudgetHealth.spending => BadgeTone.primary,
   BudgetHealth.partlyFunded => BadgeTone.info,
   BudgetHealth.scheduled => BadgeTone.info,
-  BudgetHealth.closed || BudgetHealth.unplanned || BudgetHealth.empty => BadgeTone.neutral,
+  BudgetHealth.closed ||
+  BudgetHealth.unplanned ||
+  BudgetHealth.empty => BadgeTone.neutral,
 };
 
 Color healthColor(BuildContext context, BudgetHealth health) {
@@ -30,15 +32,21 @@ Color healthColor(BuildContext context, BudgetHealth health) {
 
 /// One line of plain English explaining where the plan stands, so the numbers
 /// never have to be decoded.
-String healthSentence(BudgetRow b, String Function(Object?) money) => switch (b.health) {
-  BudgetHealth.unplanned => 'Spending that never went through a funded plan lands here.',
+String healthSentence(
+  BudgetRow b,
+  String Function(Object?) money,
+) => switch (b.health) {
+  BudgetHealth.unplanned =>
+    'Spending that never went through a funded plan lands here.',
   BudgetHealth.scheduled =>
-    'Starts ${_startPhrase(b.startsAt)} — nothing can be spent before then.',
+    'Starts ${_startPhrase(b.startsAt)}   nothing can be spent before then.',
   BudgetHealth.empty => 'Nothing filled yet. Add money from a wallet to start.',
-  BudgetHealth.partlyFunded => '${money(b.fillable)} more can still go in before it hits the plan.',
+  BudgetHealth.partlyFunded =>
+    '${money(b.fillable)} more can still go in before it hits the plan.',
   BudgetHealth.ready => 'Filled and ready. ${money(b.balance)} to spend.',
-  BudgetHealth.spending => '${money(b.balance)} left of ${money(b.fundedAmount)} filled.',
-  BudgetHealth.low => 'Running low — only ${money(b.balance)} left.',
+  BudgetHealth.spending =>
+    '${money(b.balance)} left of ${money(b.fundedAmount)} filled.',
+  BudgetHealth.low => 'Running low   only ${money(b.balance)} left.',
   BudgetHealth.drained => 'Empty. Top it up or hold off until the next cycle.',
   BudgetHealth.closed => 'Closed. Kept for the record.',
 };
@@ -50,7 +58,7 @@ String _startPhrase(DateTime startsAt) {
   return 'in $days days';
 }
 
-/// "monthly", "every 6 hours" — the API sends this ready to print, but
+/// "monthly", "every 6 hours"   the API sends this ready to print, but
 /// one-time plans have none.
 String cadenceLabel(BudgetRow b) {
   if (b.isUnplanned) return 'Catch-all';
@@ -90,7 +98,11 @@ class AdjustmentChip extends StatelessWidget {
           const GapX(S.xxs),
           Text(
             '${up ? 'Raised' : 'Cut'} by ${money(n.abs())}',
-            style: TextStyle(fontSize: AppType.caption, fontWeight: FontWeight.w700, color: color),
+            style: TextStyle(
+              fontSize: AppType.caption,
+              fontWeight: FontWeight.w700,
+              color: color,
+            ),
           ),
         ],
       ),

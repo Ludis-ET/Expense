@@ -58,7 +58,7 @@ enum OutlookSource { recurring, budgetPlan, buffer }
 /// cycle's unplanned spend, and a guess inferred from the last eight
 /// transactions. Layering makes each part visible and separately arguable.
 enum OutlookTarget {
-  /// Recurring expense rules only — what lands whether or not you act.
+  /// Recurring expense rules only   what lands whether or not you act.
   floor,
 
   /// Floor plus the budget plans a rule does not already pay for.
@@ -70,19 +70,19 @@ enum OutlookTarget {
 
 extension OutlookTargetX on OutlookTarget {
   String get label => switch (this) {
-        OutlookTarget.floor => 'Floor',
-        OutlookTarget.steady => 'Steady',
-        OutlookTarget.comfortable => 'Comfortable',
-      };
+    OutlookTarget.floor => 'Floor',
+    OutlookTarget.steady => 'Steady',
+    OutlookTarget.comfortable => 'Comfortable',
+  };
 
   String get question => switch (this) {
-        OutlookTarget.floor => 'If I do nothing, what must I cover?',
-        OutlookTarget.steady => 'What to run the month as planned',
-        OutlookTarget.comfortable => 'Planned, plus room for surprises',
-      };
+    OutlookTarget.floor => 'If I do nothing, what must I cover?',
+    OutlookTarget.steady => 'What to run the month as planned',
+    OutlookTarget.comfortable => 'Planned, plus room for surprises',
+  };
 }
 
-/// Where the surprise buffer came from — shown so the figure is never magic.
+/// Where the surprise buffer came from   shown so the figure is never magic.
 enum BufferBasis {
   /// The user set a planned cushion on the Unplanned envelope.
   planned,
@@ -122,7 +122,7 @@ class MonthlyOutlook {
   /// What recurring income rules say you will bring in.
   final double expectedIncome;
 
-  /// Recurring expense rules — the floor.
+  /// Recurring expense rules   the floor.
   final double floorSpend;
 
   /// Budget plans, already net of anything a recurring rule pays for.
@@ -143,7 +143,7 @@ class MonthlyOutlook {
   final List<OutlookLine> expenseLines;
   final List<OutlookLine> planLines;
 
-  /// When the outlook was computed — a couple of insights depend on how far
+  /// When the outlook was computed   a couple of insights depend on how far
   /// into the month we are.
   final DateTime asOf;
 
@@ -165,7 +165,7 @@ class MonthlyOutlook {
   /// reduced. Surfaced so the deduction is explainable.
   final int duplicateCategories;
 
-  /// Expense categories with real spending but neither a rule nor a plan —
+  /// Expense categories with real spending but neither a rule nor a plan
   /// the reason a target might read low.
   final int uncoveredExpenseCategories;
 
@@ -173,10 +173,10 @@ class MonthlyOutlook {
 
   /// The income target for [target].
   double requiredFor(OutlookTarget target) => switch (target) {
-        OutlookTarget.floor => floorSpend,
-        OutlookTarget.steady => floorSpend + planSpend,
-        OutlookTarget.comfortable => floorSpend + planSpend + buffer,
-      };
+    OutlookTarget.floor => floorSpend,
+    OutlookTarget.steady => floorSpend + planSpend,
+    OutlookTarget.comfortable => floorSpend + planSpend + buffer,
+  };
 
   /// Default headline: the full picture, but every layer is reachable.
   double get requiredIncome => requiredFor(OutlookTarget.comfortable);
@@ -203,8 +203,9 @@ class MonthlyOutlook {
 
   double get incomeGap => expectedIncome - actualIncomeMtd;
 
-  double get spendHeadroom =>
-      floorSpend <= 0 ? 0 : (floorSpend - actualExpenseMtd).clamp(0, double.infinity);
+  double get spendHeadroom => floorSpend <= 0
+      ? 0
+      : (floorSpend - actualExpenseMtd).clamp(0, double.infinity);
 
   /// What [target] works out to per pay period.
   double perPeriod(OutlookTarget target, PayCadence cadence) =>
@@ -232,7 +233,7 @@ class MonthlyOutlook {
         '$duplicateCategories overlapping ${duplicateCategories == 1 ? 'category was' : 'categories were'} counted once',
     ];
     return 'Based on ${parts.join(' and ')}'
-        '${caveats.isEmpty ? '.' : ' — ${caveats.join('; ')}.'}';
+        '${caveats.isEmpty ? '.' : '   ${caveats.join('; ')}.'}';
   }
 }
 
@@ -241,26 +242,30 @@ enum PayCadence { monthly, fortnightly, weekly }
 
 extension PayCadenceX on PayCadence {
   double get periodsPerMonth => switch (this) {
-        PayCadence.monthly => 1,
-        PayCadence.fortnightly => 30.436875 / 14,
-        PayCadence.weekly => 30.436875 / 7,
-      };
+    PayCadence.monthly => 1,
+    PayCadence.fortnightly => 30.436875 / 14,
+    PayCadence.weekly => 30.436875 / 7,
+  };
 
   String get label => switch (this) {
-        PayCadence.monthly => 'per month',
-        PayCadence.fortnightly => 'per fortnight',
-        PayCadence.weekly => 'per week',
-      };
+    PayCadence.monthly => 'per month',
+    PayCadence.fortnightly => 'per fortnight',
+    PayCadence.weekly => 'per week',
+  };
 
   String get short => switch (this) {
-        PayCadence.monthly => 'Monthly',
-        PayCadence.fortnightly => 'Fortnightly',
-        PayCadence.weekly => 'Weekly',
-      };
+    PayCadence.monthly => 'Monthly',
+    PayCadence.fortnightly => 'Fortnightly',
+    PayCadence.weekly => 'Weekly',
+  };
 }
 
 /// Aligns Recurring / Analytics / Outlook on one monthly conversion.
-double monthlyEquivalentAmount(double amount, Frequency frequency, int interval) {
+double monthlyEquivalentAmount(
+  double amount,
+  Frequency frequency,
+  int interval,
+) {
   final perPeriod = amount / (interval <= 0 ? 1 : interval);
   const daysPerMonth = 30.436875;
   return switch (frequency) {
@@ -271,7 +276,7 @@ double monthlyEquivalentAmount(double amount, Frequency frequency, int interval)
   };
 }
 
-/// Monthly figure for a real budget plan — always **plannedAmount**, never spent.
+/// Monthly figure for a real budget plan   always **plannedAmount**, never spent.
 double monthlyBudgetPlan(BudgetRow b) {
   if (b.isUnplanned || b.isClosed) return 0;
   final planned = toNum(b.plannedAmount);
@@ -321,40 +326,51 @@ MonthlyOutlook buildMonthlyOutlook({
   }).toList();
 
   OutlookLine lineFromRule(RecurringRule r) => OutlookLine(
-        id: r.id,
-        title: r.name,
-        monthlyAmount: monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval),
-        kind: r.kind,
-        source: OutlookSource.recurring,
-        subtitle: [
-          if (r.payee != null && r.payee!.trim().isNotEmpty) r.payee,
-          if (r.category != null) r.category!.name,
-          if (r.account != null) r.account!.name,
-        ].whereType<String>().join(' · '),
-        cadence: r.cadence,
-        nextDate: r.nextRun,
-        payee: r.payee,
-        note: r.note,
-        categoryName: r.category?.name,
-        autoPost: r.autoPost,
-      );
+    id: r.id,
+    title: r.name,
+    monthlyAmount: monthlyEquivalentAmount(
+      toNum(r.amount),
+      r.frequency,
+      r.interval,
+    ),
+    kind: r.kind,
+    source: OutlookSource.recurring,
+    subtitle: [
+      if (r.payee != null && r.payee!.trim().isNotEmpty) r.payee,
+      if (r.category != null) r.category!.name,
+      if (r.account != null) r.account!.name,
+    ].whereType<String>().join(' · '),
+    cadence: r.cadence,
+    nextDate: r.nextRun,
+    payee: r.payee,
+    note: r.note,
+    categoryName: r.category?.name,
+    autoPost: r.autoPost,
+  );
 
-  final incomeLines = activeRules.where((r) => r.kind == TxKind.income).map(lineFromRule).toList()
-    ..sort((a, b) => b.monthlyAmount.compareTo(a.monthlyAmount));
+  final incomeLines =
+      activeRules
+          .where((r) => r.kind == TxKind.income)
+          .map(lineFromRule)
+          .toList()
+        ..sort((a, b) => b.monthlyAmount.compareTo(a.monthlyAmount));
 
-  final expenseRules = activeRules.where((r) => r.kind == TxKind.expense).toList();
+  final expenseRules = activeRules
+      .where((r) => r.kind == TxKind.expense)
+      .toList();
   final expenseLines = expenseRules.map(lineFromRule).toList()
     ..sort((a, b) => b.monthlyAmount.compareTo(a.monthlyAmount));
 
   // How much recurring spend each category already carries. A plan for the
-  // same category is how you *fund* that bill, not a second bill — without
+  // same category is how you *fund* that bill, not a second bill   without
   // this, rent set aside in an envelope and rent paid by a rule both landed in
   // the target.
   final ruleSpendByCategory = <String, double>{};
   for (final r in expenseRules) {
     final id = r.categoryId;
     if (id == null) continue;
-    ruleSpendByCategory[id] = (ruleSpendByCategory[id] ?? 0) +
+    ruleSpendByCategory[id] =
+        (ruleSpendByCategory[id] ?? 0) +
         monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval);
   }
 
@@ -406,7 +422,7 @@ MonthlyOutlook buildMonthlyOutlook({
   // --- buffer ----------------------------------------------------------------
 
   // Priority: a cushion the user set, then the median of completed months.
-  // Never this cycle's unplanned spend — that made the target climb through
+  // Never this cycle's unplanned spend   that made the target climb through
   // the month and rewarded overspending with a higher "needed income".
   var buffer = 0.0;
   var bufferBasis = BufferBasis.none;
@@ -418,13 +434,21 @@ MonthlyOutlook buildMonthlyOutlook({
       bufferBasis = BufferBasis.planned;
     }
   }
-  if (bufferBasis == BufferBasis.none && history != null && history.unplannedMedian > 0) {
+  if (bufferBasis == BufferBasis.none &&
+      history != null &&
+      history.unplannedMedian > 0) {
     buffer = history.unplannedMedian;
     bufferBasis = BufferBasis.median;
   }
 
-  final forecastedIncome = incomeLines.fold<double>(0, (s, l) => s + l.monthlyAmount);
-  final floorSpend = expenseLines.fold<double>(0, (s, l) => s + l.monthlyAmount);
+  final forecastedIncome = incomeLines.fold<double>(
+    0,
+    (s, l) => s + l.monthlyAmount,
+  );
+  final floorSpend = expenseLines.fold<double>(
+    0,
+    (s, l) => s + l.monthlyAmount,
+  );
   final planSpend = planLines.fold<double>(0, (s, l) => s + l.monthlyAmount);
 
   // Categories with real spending that neither a rule nor a plan accounts for.
@@ -467,7 +491,7 @@ MonthlyOutlook buildMonthlyOutlook({
 /// The day of the month by which recurring income has covered recurring bills.
 ///
 /// Rules are placed on the day they next run, which is exact for monthly rules
-/// and an approximation for weekly ones — good enough to answer "am I short at
+/// and an approximation for weekly ones   good enough to answer "am I short at
 /// the start of the month and fine by the 25th, or the other way round?".
 int? _breakEvenDay(List<RecurringRule> rules, DateTime today) {
   final daysInMonth = DateTime(today.year, today.month + 1, 0).day;
@@ -475,7 +499,11 @@ int? _breakEvenDay(List<RecurringRule> rules, DateTime today) {
   final expense = List<double>.filled(daysInMonth + 1, 0);
 
   for (final r in rules) {
-    final monthly = monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval);
+    final monthly = monthlyEquivalentAmount(
+      toNum(r.amount),
+      r.frequency,
+      r.interval,
+    );
     if (monthly <= 0) continue;
 
     if (r.frequency == Frequency.daily || r.frequency == Frequency.weekly) {
@@ -524,7 +552,7 @@ List<String> _buildInsights(MonthlyOutlook o, DateTime today) {
       );
     } else if (o.forecastedIncome < o.floorSpend) {
       insights.add(
-        'Recurring income does not cover recurring bills — short ${(o.floorSpend - o.forecastedIncome).round()} before you spend on anything else.',
+        'Recurring income does not cover recurring bills   short ${(o.floorSpend - o.forecastedIncome).round()} before you spend on anything else.',
       );
     } else if (o.forecastedIncome < steady) {
       insights.add(
@@ -543,7 +571,7 @@ List<String> _buildInsights(MonthlyOutlook o, DateTime today) {
 
   if (o.breakEvenDay != null) {
     insights.add(
-      'Your bills are paid off by day ${o.breakEvenDay} of the month — before that you are running on last month\'s balance.',
+      'Your bills are paid off by day ${o.breakEvenDay} of the month   before that you are running on last month\'s balance.',
     );
   } else if (o.floorSpend > 0 && o.forecastedIncome > 0) {
     insights.add(
@@ -558,7 +586,7 @@ List<String> _buildInsights(MonthlyOutlook o, DateTime today) {
       );
     case BufferBasis.median:
       insights.add(
-        'The ${o.buffer.round()} buffer is your median unplanned spend over ${o.bufferSampleMonths} completed ${o.bufferSampleMonths == 1 ? 'month' : 'months'} — it does not move during the month.',
+        'The ${o.buffer.round()} buffer is your median unplanned spend over ${o.bufferSampleMonths} completed ${o.bufferSampleMonths == 1 ? 'month' : 'months'}   it does not move during the month.',
       );
     case BufferBasis.none:
       if (o.floorSpend > 0) {
@@ -570,7 +598,7 @@ List<String> _buildInsights(MonthlyOutlook o, DateTime today) {
 
   if (o.duplicateCategories > 0) {
     insights.add(
-      '${o.duplicateCategories} ${o.duplicateCategories == 1 ? 'plan covers a category' : 'plans cover categories'} a recurring bill already pays — counted once, not twice.',
+      '${o.duplicateCategories} ${o.duplicateCategories == 1 ? 'plan covers a category' : 'plans cover categories'} a recurring bill already pays   counted once, not twice.',
     );
   }
 
@@ -594,13 +622,17 @@ List<String> _buildInsights(MonthlyOutlook o, DateTime today) {
     );
   }
 
-  if (o.forecastedIncome > 0 && o.actualIncomeMtd < o.forecastedIncome * 0.5 && today.day >= 10) {
-    insights.add('Income so far is well below forecast. Check a pending salary or receipt.');
+  if (o.forecastedIncome > 0 &&
+      o.actualIncomeMtd < o.forecastedIncome * 0.5 &&
+      today.day >= 10) {
+    insights.add(
+      'Income so far is well below forecast. Check a pending salary or receipt.',
+    );
   }
 
   if (insights.isEmpty) {
     insights.add(
-      'Add your recurring bills and budget plans — Santim will work out the income the month needs.',
+      'Add your recurring bills and budget plans   Santim will work out the income the month needs.',
     );
   }
   return insights;

@@ -41,9 +41,15 @@ class _AccountsScreenState extends State<AccountsScreen> {
     final currency = data.activeCurrency;
 
     final all = data.accounts.data ?? const <Account>[];
-    final active = all.where((a) => !a.archived && a.currency == currency).toList();
-    final archived = all.where((a) => a.archived && a.currency == currency).toList();
-    final otherCurrencyCount = all.where((a) => !a.archived && a.currency != currency).length;
+    final active = all
+        .where((a) => !a.archived && a.currency == currency)
+        .toList();
+    final archived = all
+        .where((a) => a.archived && a.currency == currency)
+        .toList();
+    final otherCurrencyCount = all
+        .where((a) => !a.archived && a.currency != currency)
+        .length;
 
     final real = active.fold<double>(0, (s, a) => s + toNum(a.realBalance));
     final locked = active.fold<double>(0, (s, a) => s + toNum(a.lockedAmount));
@@ -56,7 +62,12 @@ class _AccountsScreenState extends State<AccountsScreen> {
       color: t.primary,
       backgroundColor: t.surface,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(14, 14, 14, ShellLayout.bottomClearance(context)),
+        padding: EdgeInsets.fromLTRB(
+          14,
+          14,
+          14,
+          ShellLayout.bottomClearance(context),
+        ),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           PageHeader(
@@ -176,13 +187,21 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 padding: const EdgeInsets.all(S.lg),
                 child: Row(
                   children: [
-                    Icon(Icons.currency_exchange_rounded, size: 18, color: t.primary),
+                    Icon(
+                      Icons.currency_exchange_rounded,
+                      size: 18,
+                      color: t.primary,
+                    ),
                     const GapX(S.sm),
                     Expanded(
                       child: Text(
                         'You have $otherCurrencyCount wallet${otherCurrencyCount == 1 ? '' : 's'} '
                         'in another currency. Switch the currency badge in the top bar.',
-                        style: TextStyle(fontSize: AppType.label, height: 1.4, color: t.foreground),
+                        style: TextStyle(
+                          fontSize: AppType.label,
+                          height: 1.4,
+                          color: t.foreground,
+                        ),
                       ),
                     ),
                   ],
@@ -204,7 +223,10 @@ class _AccountsScreenState extends State<AccountsScreen> {
                     ),
                     const GapX(S.xs),
                     Container(
-                      padding: const EdgeInsets.symmetric(horizontal: S.sm, vertical: S.hair),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: S.sm,
+                        vertical: S.hair,
+                      ),
                       decoration: BoxDecoration(
                         color: t.primary.withValues(alpha: 0.1),
                         borderRadius: BorderRadius.circular(R.pill),
@@ -239,7 +261,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
                 art: EmptyArt.wallet,
                 title: 'No $currency wallets yet',
                 description:
-                    'Add the accounts you actually keep money in — '
+                    'Add the accounts you actually keep money in   '
                     'cash, a bank account, mobile money.',
                 action: AppButton(
                   label: 'Add a wallet',
@@ -287,7 +309,11 @@ class _AccountsScreenState extends State<AccountsScreen> {
 }
 
 class _HeroFigure extends StatelessWidget {
-  const _HeroFigure({required this.label, required this.value, required this.icon});
+  const _HeroFigure({
+    required this.label,
+    required this.value,
+    required this.icon,
+  });
   final String label;
   final String value;
   final IconData icon;
@@ -335,7 +361,11 @@ class _HeroFigure extends StatelessWidget {
 }
 
 class _HeroAction extends StatelessWidget {
-  const _HeroAction({required this.label, required this.icon, required this.onTap});
+  const _HeroAction({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
   final String label;
   final IconData icon;
   final VoidCallback onTap;
@@ -375,7 +405,12 @@ class _HeroAction extends StatelessWidget {
 /// One wallet: type icon in the account's colour, both balances, and a bar
 /// showing how much of it is locked away in plans.
 class AccountCard extends StatelessWidget {
-  const AccountCard({super.key, required this.account, required this.money, this.onTap});
+  const AccountCard({
+    super.key,
+    required this.account,
+    required this.money,
+    this.onTap,
+  });
 
   final Account account;
   final String Function(Object?) money;
@@ -432,11 +467,19 @@ class AccountCard extends StatelessWidget {
                           ),
                           if (account.isDefault) ...[
                             const GapX(S.xs),
-                            AppBadge('Default', tone: BadgeTone.primary, dense: true),
+                            AppBadge(
+                              'Default',
+                              tone: BadgeTone.primary,
+                              dense: true,
+                            ),
                           ],
                           if (account.isShared) ...[
                             const GapX(S.xs),
-                            AppBadge('Shared', tone: BadgeTone.info, dense: true),
+                            AppBadge(
+                              'Shared',
+                              tone: BadgeTone.info,
+                              dense: true,
+                            ),
                           ],
                         ],
                       ),
@@ -452,7 +495,10 @@ class AccountCard extends StatelessWidget {
                             ),
                           ),
                           const GapX(S.xxs),
-                          Muted('${account.type.label} · ${account.currency}', size: 11.5),
+                          Muted(
+                            '${account.type.label} · ${account.currency}',
+                            size: 11.5,
+                          ),
                         ],
                       ),
                     ],
@@ -488,19 +534,32 @@ class AccountCard extends StatelessWidget {
             ),
           ),
           if (locked > 0) ...[
-            Divider(height: 1, color: t.border.withValues(alpha: 0.5), indent: 14, endIndent: 14),
+            Divider(
+              height: 1,
+              color: t.border.withValues(alpha: 0.5),
+              indent: 14,
+              endIndent: 14,
+            ),
             Padding(
               padding: const EdgeInsets.fromLTRB(S.lg, S.md, S.lg, S.md),
               child: Column(
                 children: [
-                  ProgressBar(value: lockedPct, height: 4, tone: BadgeTone.info),
+                  ProgressBar(
+                    value: lockedPct,
+                    height: 4,
+                    tone: BadgeTone.info,
+                  ),
                   const Gap(S.sm),
                   Row(
                     children: [
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.account_balance_rounded, size: 10, color: t.mutedForeground),
+                          Icon(
+                            Icons.account_balance_rounded,
+                            size: 10,
+                            color: t.mutedForeground,
+                          ),
                           const GapX(S.xxs),
                           Muted(money(real), size: 11),
                         ],
@@ -509,7 +568,11 @@ class AccountCard extends StatelessWidget {
                       Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.lock_outline_rounded, size: 10, color: t.mutedForeground),
+                          Icon(
+                            Icons.lock_outline_rounded,
+                            size: 10,
+                            color: t.mutedForeground,
+                          ),
                           const GapX(S.xxs),
                           Muted('${money(locked)} in plans', size: 11),
                         ],

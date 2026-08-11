@@ -27,7 +27,7 @@ import 'dashboard_widgets.dart';
 
 /// The dashboard, in tiers rather than as one flat stack.
 ///
-/// It used to render seventeen blocks unconditionally at equal visual weight —
+/// It used to render seventeen blocks unconditionally at equal visual weight
 /// on a phone that is a single scroll several thousand pixels long where only
 /// the balance is above the fold. Now:
 ///
@@ -60,7 +60,12 @@ class DashboardScreen extends StatelessWidget {
       color: context.t.primary,
       backgroundColor: context.t.surface,
       child: ListView(
-        padding: EdgeInsets.fromLTRB(S.lg, S.lg, S.lg, ShellLayout.bottomClearance(context)),
+        padding: EdgeInsets.fromLTRB(
+          S.lg,
+          S.lg,
+          S.lg,
+          ShellLayout.bottomClearance(context),
+        ),
         physics: const AlwaysScrollableScrollPhysics(),
         children: [
           PageHeader(
@@ -113,12 +118,15 @@ class DashboardScreen extends StatelessWidget {
     // The active currency's slice replaces the top-level totals, so switching
     // currency never refetches.
     final month = breakdown?.month ?? raw.month;
-    final scoped = raw.recentTransactions.where((tx) => tx.currency == currency).toList();
+    final scoped = raw.recentTransactions
+        .where((tx) => tx.currency == currency)
+        .toList();
 
     // A card shows when the user has not switched it off *and* it has
     // something to say. The second half is what stops a new user scrolling
     // past four empty states.
-    bool shows(String id, {bool hasData = true}) => prefs.isCardVisible(id) && hasData;
+    bool shows(String id, {bool hasData = true}) =>
+        prefs.isCardVisible(id) && hasData;
 
     // --- tier 2: the insight strip -------------------------------------------
 
@@ -131,7 +139,9 @@ class DashboardScreen extends StatelessWidget {
       'streaks': SpendingStreaksCard(data: raw.spendingStreak, prefs: prefs),
     };
     final insightPages = [
-      for (final id in prefs.applyOrder(kInsightCards.map((c) => c.id).toList()))
+      for (final id in prefs.applyOrder(
+        kInsightCards.map((c) => c.id).toList(),
+      ))
         if (shows(id) && insights.containsKey(id)) insights[id]!,
     ];
 
@@ -173,11 +183,15 @@ class DashboardScreen extends StatelessWidget {
                 children: [
                   for (var i = 0; i < raw.budgets.length; i++)
                     Padding(
-                      padding: EdgeInsets.only(bottom: i == raw.budgets.length - 1 ? 0 : S.lg),
+                      padding: EdgeInsets.only(
+                        bottom: i == raw.budgets.length - 1 ? 0 : S.lg,
+                      ),
                       child: _BudgetMiniRow(
                         budget: raw.budgets[i],
                         money: moneyIn,
-                        onTap: () => shell.push(BudgetDetailScreen(budgetId: raw.budgets[i].id)),
+                        onTap: () => shell.push(
+                          BudgetDetailScreen(budgetId: raw.budgets[i].id),
+                        ),
                       ),
                     ),
                 ],
@@ -200,8 +214,13 @@ class DashboardScreen extends StatelessWidget {
           children: [
             for (var i = 0; i < raw.upcomingRecurring.length; i++)
               Padding(
-                padding: EdgeInsets.only(bottom: i == raw.upcomingRecurring.length - 1 ? 0 : S.sm),
-                child: _UpcomingRow(rule: raw.upcomingRecurring[i], money: moneyIn),
+                padding: EdgeInsets.only(
+                  bottom: i == raw.upcomingRecurring.length - 1 ? 0 : S.sm,
+                ),
+                child: _UpcomingRow(
+                  rule: raw.upcomingRecurring[i],
+                  money: moneyIn,
+                ),
               ),
           ],
         ),
@@ -226,7 +245,10 @@ class DashboardScreen extends StatelessWidget {
         ],
       ),
       'familySupport': FamilySupportCard(data: raw.familySupport, money: money),
-      'categoryHeat': CategoryHeatCard(alerts: raw.categoryHeatAlerts, money: money),
+      'categoryHeat': CategoryHeatCard(
+        alerts: raw.categoryHeatAlerts,
+        money: money,
+      ),
       if (raw.household != null)
         'household': HouseholdCard(household: raw.household!, money: money),
       'analytics': AppCard(
@@ -290,6 +312,8 @@ class DashboardScreen extends StatelessWidget {
       if (insightPages.isNotEmpty) ...[
         const Gap(S.xl),
         const _TierLabel('Worth knowing'),
+        const Gap(S.xs),
+        Muted('Swipe cards · tap any for the full story', size: 12),
         const Gap(S.md),
         FadeInUp(
           delay: const Duration(milliseconds: 60),
@@ -327,7 +351,11 @@ class _TierLabel extends StatelessWidget {
 
 /// The four mini figures, as one 2×2 block rather than four separate cards.
 class _QuickStats extends StatelessWidget {
-  const _QuickStats({required this.raw, required this.month, required this.money});
+  const _QuickStats({
+    required this.raw,
+    required this.month,
+    required this.money,
+  });
 
   final DashboardData raw;
   final MonthSummary month;
@@ -400,7 +428,7 @@ class _SetAside extends StatelessWidget {
         const Gap(S.hair),
         Muted(
           'locked in ${totals.activeCount} active plan'
-          '${totals.activeCount == 1 ? '' : 's'} — every balance above is shown '
+          '${totals.activeCount == 1 ? '' : 's'}   every balance above is shown '
           'after this money is taken out',
           size: AppType.caption,
         ),
@@ -491,8 +519,13 @@ class _BudgetMiniRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final planned = toNum(budget.plannedAmount) <= 0 ? 0.01 : toNum(budget.plannedAmount);
-    final spentPct = (toNum(budget.spentAmount) / planned * 100).clamp(0.0, 100.0);
+    final planned = toNum(budget.plannedAmount) <= 0
+        ? 0.01
+        : toNum(budget.plannedAmount);
+    final spentPct = (toNum(budget.spentAmount) / planned * 100).clamp(
+      0.0,
+      100.0,
+    );
     final spent = money(budget.spentAmount, budget.currency);
     final filled = money(budget.fundedAmount, budget.currency);
     final left = money(budget.balance, budget.currency);

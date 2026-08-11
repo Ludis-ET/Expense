@@ -12,7 +12,7 @@ import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
-/// `CategoryManager` — the labels that make analytics mean anything.
+/// `CategoryManager`   the labels that make analytics mean anything.
 class CategoriesScreen extends StatefulWidget {
   const CategoriesScreen({super.key});
 
@@ -67,7 +67,12 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               SegmentedTabs<TxKind>(
@@ -115,7 +120,11 @@ class _CategoriesScreenState extends State<CategoriesScreen> {
     );
   }
 
-  Future<void> _edit(BuildContext context, {TxCategory? existing, TxKind? kind}) async {
+  Future<void> _edit(
+    BuildContext context, {
+    TxCategory? existing,
+    TxKind? kind,
+  }) async {
     final saved = await showAppSheet<bool>(
       context,
       title: existing == null ? 'New category' : 'Edit category',
@@ -231,7 +240,7 @@ class _CategoryFormState extends State<_CategoryForm> {
       );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -249,12 +258,22 @@ class _CategoryFormState extends State<_CategoryForm> {
     final tint = parseHexColor(_color) ?? t.primary;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
           Center(
-            child: IconTile(icon: financeIcon(_icon), color: tint, size: 56, radius: R.lg),
+            child: IconTile(
+              icon: financeIcon(_icon),
+              color: tint,
+              size: 56,
+              radius: R.lg,
+            ),
           ),
           const Gap(S.xl),
           AppTextField(
@@ -315,12 +334,14 @@ class _CategoryFormState extends State<_CategoryForm> {
                   context,
                   title: 'Delete ${widget.existing!.name}?',
                   message:
-                      'Categories with transactions cannot be deleted — '
+                      'Categories with transactions cannot be deleted   '
                       'archive them instead.',
                 );
                 if (!ok || !context.mounted) return;
                 try {
-                  await context.read<ApiClient>().delete('/categories/${widget.existing!.id}');
+                  await context.read<ApiClient>().delete(
+                    '/categories/${widget.existing!.id}',
+                  );
                   if (context.mounted) Navigator.pop(context, true);
                 } on ApiError catch (e) {
                   if (context.mounted) toast(context, e.message, error: true);

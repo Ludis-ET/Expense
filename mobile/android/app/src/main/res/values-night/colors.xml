@@ -3,7 +3,7 @@
     <color name="santim_background">#080B12</color>
     <color name="santim_primary">#34D399</color>
 
-    <!-- Home-screen widget, dark set — matches `SantimTokens.dark`. -->
+    <!-- Home-screen widget, dark set   matches `SantimTokens.dark`. -->
     <color name="widget_surface">#0F1419</color>
     <color name="widget_border">#232B3A</color>
     <color name="widget_foreground">#EEF2F8</color>

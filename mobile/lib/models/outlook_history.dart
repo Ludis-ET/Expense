@@ -1,7 +1,7 @@
 import 'common.dart';
 import 'models.dart' show Ref;
 
-/// `GET /analytics/outlook-history` — the history the monthly outlook needs
+/// `GET /analytics/outlook-history`   the history the monthly outlook needs
 /// that the dashboard payload cannot provide.
 class OutlookHistory {
   const OutlookHistory({
@@ -16,7 +16,7 @@ class OutlookHistory {
   final String currency;
 
   /// Completed months only, oldest first. The current month is excluded on
-  /// purpose — it is partial, and letting it in is what made the old buffer
+  /// purpose   it is partial, and letting it in is what made the old buffer
   /// climb as the month went on.
   final List<OutlookMonth> months;
 
@@ -25,7 +25,7 @@ class OutlookHistory {
   /// bad Tuesday.
   final double unplannedMedian;
 
-  /// How many months the median was taken from — drives the confidence line.
+  /// How many months the median was taken from   drives the confidence line.
   final int unplannedSampleMonths;
 
   /// Repeating payees with no recurring rule yet.
@@ -37,13 +37,13 @@ class OutlookHistory {
   int get coveredMonths => months.where((m) => m.covered).length;
 
   factory OutlookHistory.fromJson(Map<String, dynamic> j) => OutlookHistory(
-        currency: asStr(j['currency'], 'ETB'),
-        months: mapList(j['months'], OutlookMonth.fromJson),
-        unplannedMedian: asNum(j['unplannedMedian']),
-        unplannedSampleMonths: (asNum(j['unplannedSampleMonths'])).round(),
-        repeatCandidates: mapList(j['repeatCandidates'], RepeatCandidate.fromJson),
-        patternWindowDays: (asNum(j['patternWindowDays'], 90)).round(),
-      );
+    currency: asStr(j['currency'], 'ETB'),
+    months: mapList(j['months'], OutlookMonth.fromJson),
+    unplannedMedian: asNum(j['unplannedMedian']),
+    unplannedSampleMonths: (asNum(j['unplannedSampleMonths'])).round(),
+    repeatCandidates: mapList(j['repeatCandidates'], RepeatCandidate.fromJson),
+    patternWindowDays: (asNum(j['patternWindowDays'], 90)).round(),
+  );
 }
 
 class OutlookMonth {
@@ -65,13 +65,13 @@ class OutlookMonth {
   final bool covered;
 
   factory OutlookMonth.fromJson(Map<String, dynamic> j) => OutlookMonth(
-        month: asStr(j['month'], ''),
-        income: asNum(j['income']),
-        expense: asNum(j['expense']),
-        unplanned: asNum(j['unplanned']),
-        net: asNum(j['net']),
-        covered: j['covered'] == true,
-      );
+    month: asStr(j['month'], ''),
+    income: asNum(j['income']),
+    expense: asNum(j['expense']),
+    unplanned: asNum(j['unplanned']),
+    net: asNum(j['net']),
+    covered: j['covered'] == true,
+  );
 }
 
 /// A payee seen often enough to look like a commitment, with no rule behind it.
@@ -96,7 +96,7 @@ class RepeatCandidate {
   final int count;
   final double avgAmount;
 
-  /// A true monthly rate, derived from the gap between occurrences — not the
+  /// A true monthly rate, derived from the gap between occurrences   not the
   /// average of one occurrence, which is what the old client-side guess used.
   final double monthlyAmount;
 
@@ -112,15 +112,15 @@ class RepeatCandidate {
   bool get isExpense => kind == 'EXPENSE';
 
   factory RepeatCandidate.fromJson(Map<String, dynamic> j) => RepeatCandidate(
-        payee: asStr(j['payee'], ''),
-        kind: asStr(j['kind'], 'EXPENSE'),
-        count: (asNum(j['count'])).round(),
-        avgAmount: asNum(j['avgAmount']),
-        monthlyAmount: asNum(j['monthlyAmount']),
-        avgGapDays: (asNum(j['avgGapDays'])).round(),
-        cadence: asStr(j['cadence'], ''),
-        categoryId: asStrOrNull(j['categoryId']),
-        category: Ref.maybe(j['category']),
-        lastSeen: asDate(j['lastSeen']),
-      );
+    payee: asStr(j['payee'], ''),
+    kind: asStr(j['kind'], 'EXPENSE'),
+    count: (asNum(j['count'])).round(),
+    avgAmount: asNum(j['avgAmount']),
+    monthlyAmount: asNum(j['monthlyAmount']),
+    avgGapDays: (asNum(j['avgGapDays'])).round(),
+    cadence: asStr(j['cadence'], ''),
+    categoryId: asStrOrNull(j['categoryId']),
+    category: Ref.maybe(j['category']),
+    lastSeen: asDate(j['lastSeen']),
+  );
 }

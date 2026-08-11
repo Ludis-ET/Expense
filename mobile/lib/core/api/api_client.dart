@@ -52,13 +52,14 @@ class TokenStore {
 /// a 401 and replays the original request, exactly like `lib/api.ts` does.
 class ApiClient {
   ApiClient({required this.tokens, http.Client? httpClient, String? defaultBase})
-      : _http = httpClient ?? http.Client(),
-        _defaultBase = defaultBase ??
-            const String.fromEnvironment(
-              // Override at build time: `flutter build apk --dart-define=API_BASE=...`
-              'API_BASE',
-              defaultValue: 'https://expense-7py7.onrender.com/api/v1',
-            );
+    : _http = httpClient ?? http.Client(),
+      _defaultBase =
+          defaultBase ??
+          const String.fromEnvironment(
+            // Override at build time: `flutter build apk --dart-define=API_BASE=...`
+            'API_BASE',
+            defaultValue: 'https://expense-7py7.onrender.com/api/v1',
+          );
 
   final TokenStore tokens;
   final http.Client _http;
@@ -70,15 +71,20 @@ class ApiClient {
 
   String get baseUrl => _defaultBase;
 
-  Future<T> get<T>(String path, {Map<String, dynamic>? query, bool skipAuth = false}) =>
-      _request<T>('GET', path, query: query, skipAuth: skipAuth);
+  Future<T> get<T>(
+    String path, {
+    Map<String, dynamic>? query,
+    bool skipAuth = false,
+  }) => _request<T>('GET', path, query: query, skipAuth: skipAuth);
 
   Future<T> post<T>(String path, {Object? body, bool skipAuth = false}) =>
       _request<T>('POST', path, body: body, skipAuth: skipAuth);
 
-  Future<T> put<T>(String path, {Object? body}) => _request<T>('PUT', path, body: body);
+  Future<T> put<T>(String path, {Object? body}) =>
+      _request<T>('PUT', path, body: body);
 
-  Future<T> patch<T>(String path, {Object? body}) => _request<T>('PATCH', path, body: body);
+  Future<T> patch<T>(String path, {Object? body}) =>
+      _request<T>('PATCH', path, body: body);
 
   Future<T> delete<T>(String path) => _request<T>('DELETE', path);
 
@@ -100,7 +106,9 @@ class ApiClient {
     try {
       final req = http.Request(method, uri)..headers.addAll(headers);
       if (body != null) req.body = jsonEncode(body);
-      final streamed = await _http.send(req).timeout(const Duration(seconds: 30));
+      final streamed = await _http
+          .send(req)
+          .timeout(const Duration(seconds: 30));
       res = await http.Response.fromStream(streamed);
     } on TimeoutException {
       throw ApiError(0, 'The server took too long to respond.');
@@ -110,7 +118,10 @@ class ApiClient {
 
     if (res.statusCode == 204 || res.bodyBytes.isEmpty) {
       if (res.statusCode >= 200 && res.statusCode < 300) return null as T;
-      throw ApiError(res.statusCode, res.reasonPhrase ?? 'Empty response from server');
+      throw ApiError(
+        res.statusCode,
+        res.reasonPhrase ?? 'Empty response from server',
+      );
     }
 
     Object? data;
@@ -127,7 +138,9 @@ class ApiClient {
         (err is Map && err['message'] is String)
             ? err['message'] as String
             : res.reasonPhrase ?? 'Request failed',
-        code: (err is Map && err['code'] is String) ? err['code'] as String : null,
+        code: (err is Map && err['code'] is String)
+            ? err['code'] as String
+            : null,
         details: (err is Map) ? err['details'] : null,
       );
     }
@@ -146,7 +159,7 @@ class ApiClient {
     final uri = _uri(path, query, cacheBust: cacheBust || method == 'GET');
     final headers = <String, String>{
       'Content-Type': 'application/json',
-      // Flutter web uses the browser fetch stack — without this, GETs often
+      // Flutter web uses the browser fetch stack   without this, GETs often
       // come back 304 with an empty body and our JSON parser sees null.
       'Cache-Control': 'no-cache, no-store, must-revalidate',
       'Pragma': 'no-cache',
@@ -158,7 +171,9 @@ class ApiClient {
     try {
       final req = http.Request(method, uri)..headers.addAll(headers);
       if (body != null) req.body = jsonEncode(body);
-      final streamed = await _http.send(req).timeout(const Duration(seconds: 30));
+      final streamed = await _http
+          .send(req)
+          .timeout(const Duration(seconds: 30));
       res = await http.Response.fromStream(streamed);
     } on TimeoutException {
       throw ApiError(0, 'The server took too long to respond.');
@@ -166,9 +181,18 @@ class ApiClient {
       throw ApiError(0, 'Cannot reach the server. Check your connection.');
     }
 
-    if (res.statusCode == 401 && !skipAuth && !isRetry && tokens.refresh != null) {
+    if (res.statusCode == 401 &&
+        !skipAuth &&
+        !isRetry &&
+        tokens.refresh != null) {
       if (await _tryRefresh()) {
-        return _request<T>(method, path, body: body, query: query, isRetry: true);
+        return _request<T>(
+          method,
+          path,
+          body: body,
+          query: query,
+          isRetry: true,
+        );
       }
       await tokens.clear();
       _unauthorized.add(null);
@@ -206,8 +230,12 @@ class ApiClient {
       final err = (data is Map<String, dynamic>) ? data['error'] : null;
       throw ApiError(
         res.statusCode,
-        (err is Map && err['message'] is String) ? err['message'] as String : res.reasonPhrase ?? 'Request failed',
-        code: (err is Map && err['code'] is String) ? err['code'] as String : null,
+        (err is Map && err['message'] is String)
+            ? err['message'] as String
+            : res.reasonPhrase ?? 'Request failed',
+        code: (err is Map && err['code'] is String)
+            ? err['code'] as String
+            : null,
         details: (err is Map) ? err['details'] : null,
       );
     }
@@ -240,8 +268,12 @@ class ApiClient {
           )
           .timeout(const Duration(seconds: 20));
       if (res.statusCode < 200 || res.statusCode >= 300) return false;
-      final data = jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
-      await tokens.set(data['accessToken'] as String, data['refreshToken'] as String);
+      final data =
+          jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
+      await tokens.set(
+        data['accessToken'] as String,
+        data['refreshToken'] as String,
+      );
       return true;
     } catch (_) {
       return false;

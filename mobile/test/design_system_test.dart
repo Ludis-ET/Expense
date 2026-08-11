@@ -9,12 +9,12 @@ import 'package:santim/widgets/charts.dart';
 import 'package:santim/widgets/ui.dart';
 
 Widget _wrap(Widget child, {TextScaler? scaler}) => MaterialApp(
-      theme: buildTheme(SantimTokens.light),
-      home: MediaQuery(
-        data: MediaQueryData(textScaler: scaler ?? TextScaler.noScaling),
-        child: Scaffold(body: child),
-      ),
-    );
+  theme: buildTheme(SantimTokens.light),
+  home: MediaQuery(
+    data: MediaQueryData(textScaler: scaler ?? TextScaler.noScaling),
+    child: Scaffold(body: child),
+  ),
+);
 
 void main() {
   group('type scale', () {
@@ -146,7 +146,12 @@ void main() {
 
       // The drawn pill is deliberately smaller than the tappable box.
       final pill = tester.getSize(
-        find.descendant(of: find.byType(AppButton), matching: find.byType(Container)).first,
+        find
+            .descendant(
+              of: find.byType(AppButton),
+              matching: find.byType(Container),
+            )
+            .first,
       );
       expect(pill.height, 40);
 
@@ -171,7 +176,7 @@ void main() {
       expect(tester.getSize(find.byType(IconPill)).height, 48);
 
       // A tap 22dp from centre lands outside the 38dp circle but inside the
-      // hit area — this is exactly the mis-tap the old 38dp pill lost.
+      // hit area   this is exactly the mis-tap the old 38dp pill lost.
       final centre = tester.getCenter(find.byType(IconPill));
       await tester.tapAt(centre + const Offset(0, 22));
       await tester.pump();

@@ -13,7 +13,7 @@ import '../../state/prefs_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
-/// `HouseholdPanel` — share chosen wallets with a partner. Nothing is shared
+/// `HouseholdPanel`   share chosen wallets with a partner. Nothing is shared
 /// until a wallet is explicitly marked as such.
 class HouseholdScreen extends StatefulWidget {
   const HouseholdScreen({super.key});
@@ -40,7 +40,9 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
       final json = await api.get<Map<String, dynamic>?>('/household');
       if (!mounted) return;
       setState(() {
-        _household = json == null || json.isEmpty ? null : HouseholdOverview.fromJson(json);
+        _household = json == null || json.isEmpty
+            ? null
+            : HouseholdOverview.fromJson(json);
         _loading = false;
         _error = null;
       });
@@ -80,7 +82,12 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
           color: t.primary,
           backgroundColor: t.surface,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 4, 14, ShellLayout.bottomClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              4,
+              14,
+              ShellLayout.bottomClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               if (_loading && h == null)
@@ -114,7 +121,11 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                     children: [
                       Row(
                         children: [
-                          IconTile(icon: Icons.home_outlined, color: t.primary, size: 44),
+                          IconTile(
+                            icon: Icons.home_outlined,
+                            color: t.primary,
+                            size: 44,
+                          ),
                           const GapX(S.md),
                           Expanded(
                             child: Column(
@@ -146,7 +157,10 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                           Muted('Shared balance', size: 11.5),
                           const Spacer(),
                           Amount(
-                            prefs.money(h.sharedBalance, currency: data.activeCurrency),
+                            prefs.money(
+                              h.sharedBalance,
+                              currency: data.activeCurrency,
+                            ),
                             size: 16,
                           ),
                         ],
@@ -161,7 +175,10 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                   Padding(
                     padding: const EdgeInsets.only(bottom: S.md),
                     child: AppCard(
-                      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: S.md,
+                        vertical: S.md,
+                      ),
                       child: Row(
                         children: [
                           Avatar(name: m.name, avatarId: m.avatarId, size: 38),
@@ -184,7 +201,9 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                           ),
                           AppBadge(
                             m.role == 'OWNER' ? 'Owner' : 'Partner',
-                            tone: m.role == 'OWNER' ? BadgeTone.primary : BadgeTone.neutral,
+                            tone: m.role == 'OWNER'
+                                ? BadgeTone.primary
+                                : BadgeTone.neutral,
                             dense: true,
                           ),
                         ],
@@ -250,7 +269,12 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
       context,
       title: 'Create a household',
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          24 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -271,7 +295,9 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                 try {
                   await ctx.read<ApiClient>().post(
                     '/household',
-                    body: {if (name.text.trim().isNotEmpty) 'name': name.text.trim()},
+                    body: {
+                      if (name.text.trim().isNotEmpty) 'name': name.text.trim(),
+                    },
                   );
                   if (ctx.mounted) Navigator.pop(ctx, true);
                 } on ApiError catch (e) {
@@ -293,7 +319,12 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
       title: 'Invite someone',
       subtitle: 'They get an email with a link to join.',
       builder: (ctx) => Padding(
-        padding: EdgeInsets.fromLTRB(20, 4, 20, 24 + MediaQuery.of(ctx).padding.bottom),
+        padding: EdgeInsets.fromLTRB(
+          20,
+          4,
+          20,
+          24 + MediaQuery.of(ctx).padding.bottom,
+        ),
         child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -332,7 +363,11 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
     );
   }
 
-  Future<void> _toggleShare(BuildContext context, Account account, bool shared) async {
+  Future<void> _toggleShare(
+    BuildContext context,
+    Account account,
+    bool shared,
+  ) async {
     try {
       await context.read<ApiClient>().put(
         '/household/accounts/${account.id}/share',
@@ -349,7 +384,8 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
     final ok = await confirm(
       context,
       title: 'Leave this household?',
-      message: 'Your wallets stop being visible to the others, and theirs to you.',
+      message:
+          'Your wallets stop being visible to the others, and theirs to you.',
       confirmLabel: 'Leave',
     );
     if (!ok || !context.mounted) return;

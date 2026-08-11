@@ -9,12 +9,12 @@ import 'package:flutter/services.dart';
 ///
 /// The policy, applied everywhere:
 ///
-/// * [select] — moving between equivalent options: a tab, a page in a
+/// * [select]   moving between equivalent options: a tab, a page in a
 ///   carousel, a segmented control, a picker row.
-/// * [toggle] — flipping a switch, opening or closing a section.
-/// * [commit] — an action that changed stored data: a transaction saved, a
+/// * [toggle]   flipping a switch, opening or closing a section.
+/// * [commit]   an action that changed stored data: a transaction saved, a
 ///   budget funded, a wish bought.
-/// * [reject] — the action did not go through: validation failed, the balance
+/// * [reject]   the action did not go through: validation failed, the balance
 ///   guard refused, the PIN was wrong.
 abstract final class Haptics {
   /// Moving between equivalent choices.

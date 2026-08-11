@@ -1,11 +1,11 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import { Download, Smartphone, X } from 'lucide-react';
-import { Button } from '@/components/ui/button';
-import { cn } from '@/lib/utils';
-import { usePwaInstall } from '@/lib/pwa-install-context';
-import { ANDROID_APP, isAndroid } from '@/lib/android-app';
+import { useEffect, useState } from "react";
+import { Download, Smartphone, X } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
+import { usePwaInstall } from "@/lib/pwa-install-context";
+import { ANDROID_APP, isAndroid } from "@/lib/android-app";
 
 /**
  * Bottom sheet shown when Chrome offers the native install prompt.
@@ -16,7 +16,13 @@ import { ANDROID_APP, isAndroid } from '@/lib/android-app';
  * be doing the user a disservice.
  */
 export function InstallPrompt() {
-  const { canInstall, bannerDismissed, dismissBanner, install, hasNativePrompt } = usePwaInstall();
+  const {
+    canInstall,
+    bannerDismissed,
+    dismissBanner,
+    install,
+    hasNativePrompt,
+  } = usePwaInstall();
   const [android, setAndroid] = useState(false);
 
   useEffect(() => setAndroid(isAndroid()), []);
@@ -27,9 +33,9 @@ export function InstallPrompt() {
   return (
     <div
       role="region"
-      aria-label={android ? 'Get the Santim Android app' : 'Install Santim app'}
+      aria-label={android ? "Get the Santim Android app" : "Install Santim app"}
       className={cn(
-        'fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in rounded-2xl border border-border bg-surface p-4 shadow-xl lg:hidden',
+        "fixed bottom-4 left-4 right-4 z-50 mx-auto max-w-md animate-in rounded-2xl border border-border bg-surface p-4 shadow-xl lg:hidden",
       )}
     >
       <div className="flex items-start gap-3">
@@ -42,12 +48,12 @@ export function InstallPrompt() {
         </span>
         <div className="min-w-0 flex-1">
           <p className="font-semibold">
-            {android ? 'Get the Santim Android app' : 'Download Santim app'}
+            {android ? "Get the Santim Android app" : "Download Santim app"}
           </p>
           <p className="mt-0.5 text-sm text-muted">
             {android
-              ? 'Reads your bank SMS and fills in transactions for you — one tap to confirm.'
-              : 'Install on your home screen for quick access and a full-screen app experience.'}
+              ? "Reads your bank SMS and fills in transactions for you   one tap to confirm."
+              : "Install on your home screen for quick access and a full-screen app experience."}
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             {android ? (

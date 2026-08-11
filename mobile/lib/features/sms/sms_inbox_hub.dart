@@ -50,7 +50,9 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
       toast(context, 'Nothing to review right now');
       return;
     }
-    await Navigator.of(context).push(MaterialPageRoute(builder: (_) => const SmsReviewDeck()));
+    await Navigator.of(
+      context,
+    ).push(MaterialPageRoute(builder: (_) => const SmsReviewDeck()));
     if (mounted) await sms.loadUnresolved(force: true);
   }
 
@@ -78,9 +80,9 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
           IconPill(
             icon: Icons.settings_outlined,
             size: 34,
-            onTap: () => Navigator.of(
-              context,
-            ).push(MaterialPageRoute(builder: (_) => const SmsSettingsScreen())),
+            onTap: () => Navigator.of(context).push(
+              MaterialPageRoute(builder: (_) => const SmsSettingsScreen()),
+            ),
           ),
           const GapX(S.sm),
         ],
@@ -90,7 +92,12 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
           onRefresh: () => sms.loadUnresolved(force: true),
           color: t.primary,
           child: ListView(
-            padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
+            padding: EdgeInsets.fromLTRB(
+              14,
+              8,
+              14,
+              ShellLayout.pageClearance(context),
+            ),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               FadeInUp(
@@ -106,9 +113,14 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                             height: 42,
                             decoration: BoxDecoration(
                               borderRadius: BorderRadius.circular(14),
-                              gradient: LinearGradient(colors: [t.primary, t.accent]),
+                              gradient: LinearGradient(
+                                colors: [t.primary, t.accent],
+                              ),
                               boxShadow: [
-                                BoxShadow(color: t.primary.withValues(alpha: 0.4), blurRadius: 16),
+                                BoxShadow(
+                                  color: t.primary.withValues(alpha: 0.4),
+                                  blurRadius: 16,
+                                ),
                               ],
                             ),
                             child: Icon(
@@ -146,9 +158,13 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                       const Gap(S.lg),
                       AppButton(
                         label: needsSetup ? 'Set up capture' : 'Review all',
-                        icon: needsSetup ? Icons.phonelink_setup_rounded : Icons.style_rounded,
+                        icon: needsSetup
+                            ? Icons.phonelink_setup_rounded
+                            : Icons.style_rounded,
                         expand: true,
-                        onPressed: needsSetup ? () => showSmsSetupWizard(context) : _openDeck,
+                        onPressed: needsSetup
+                            ? () => showSmsSetupWizard(context)
+                            : _openDeck,
                       ),
                     ],
                   ),
@@ -199,14 +215,16 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
               else if (sms.unresolved.isEmpty)
                 const EmptyState(
                   title: 'Inbox clear',
-                  description: 'New bank messages will land here for a one-swipe confirm.',
+                  description:
+                      'New bank messages will land here for a one-swipe confirm.',
                   icon: Icons.inbox_outlined,
                 )
               else
                 for (final m in sms.unresolved)
                   _InboxRow(
                     message: m,
-                    money: (v) => prefs.money(v, currency: m.parsedCurrency ?? 'ETB'),
+                    money: (v) =>
+                        prefs.money(v, currency: m.parsedCurrency ?? 'ETB'),
                     onTap: () async {
                       final body = await showSmsEditSheet(context, message: m);
                       if (body == null || !context.mounted) return;
@@ -217,7 +235,8 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                           await context.read<DataState>().refreshAfterWrite();
                         }
                       } on ApiError catch (e) {
-                        if (context.mounted) toast(context, e.message, error: true);
+                        if (context.mounted)
+                          toast(context, e.message, error: true);
                       }
                     },
                     onSkip: () async {
@@ -225,7 +244,8 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                       try {
                         await sms.reject(m.id);
                       } on ApiError catch (e) {
-                        if (context.mounted) toast(context, e.message, error: true);
+                        if (context.mounted)
+                          toast(context, e.message, error: true);
                       }
                     },
                   ),
@@ -263,7 +283,9 @@ class _InboxRow extends StatelessWidget {
         child: Row(
           children: [
             IconTile(
-              icon: credit ? Icons.south_west_rounded : Icons.north_east_rounded,
+              icon: credit
+                  ? Icons.south_west_rounded
+                  : Icons.north_east_rounded,
               color: credit ? t.success : t.danger,
               size: 40,
             ),
@@ -297,7 +319,7 @@ class _InboxRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  amount == null ? '—' : money(amount),
+                  amount == null ? ' ' : money(amount),
                   style: TextStyle(
                     fontWeight: FontWeight.w800,
                     color: credit ? t.success : t.foreground,
@@ -309,7 +331,10 @@ class _InboxRow extends StatelessWidget {
                     visualDensity: VisualDensity.compact,
                     foregroundColor: t.mutedForeground,
                   ),
-                  child: const Text('Skip', style: TextStyle(fontSize: AppType.label)),
+                  child: const Text(
+                    'Skip',
+                    style: TextStyle(fontSize: AppType.label),
+                  ),
                 ),
               ],
             ),

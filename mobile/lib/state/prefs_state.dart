@@ -7,13 +7,14 @@ import '../core/utils/format.dart';
 /// scope. Everything here is deliberately kept off the server.
 class PrefsState extends ChangeNotifier {
   PrefsState(this._prefs)
-      : _themeMode = _readTheme(_prefs),
-        _amountsHidden = _prefs.getBool(_hiddenKey) ?? false,
-        _reduceMotion = _prefs.getBool(_motionKey) ?? false,
-        _hiddenCards = (_prefs.getStringList(_cardsHiddenKey) ?? const []).toSet(),
-        _cardOrder = _prefs.getStringList(_cardOrderKey) ?? const [],
-        _collapsed = (_prefs.getStringList(_collapsedKey) ?? const []).toSet(),
-        _onboarded = _prefs.getBool(onboardedKey) ?? false;
+    : _themeMode = _readTheme(_prefs),
+      _amountsHidden = _prefs.getBool(_hiddenKey) ?? false,
+      _reduceMotion = _prefs.getBool(_motionKey) ?? false,
+      _hiddenCards = (_prefs.getStringList(_cardsHiddenKey) ?? const [])
+          .toSet(),
+      _cardOrder = _prefs.getStringList(_cardOrderKey) ?? const [],
+      _collapsed = (_prefs.getStringList(_collapsedKey) ?? const []).toSet(),
+      _onboarded = _prefs.getBool(onboardedKey) ?? false;
 
   static const _themeKey = 'santim.theme';
   static const _hiddenKey = 'santim.amountsHidden';
@@ -21,6 +22,7 @@ class PrefsState extends ChangeNotifier {
   static const _cardsHiddenKey = 'santim.dashboard.hidden';
   static const _cardOrderKey = 'santim.dashboard.order';
   static const _collapsedKey = 'santim.dashboard.collapsed';
+
   /// Public so `main()` can pre-set it for an existing install before the
   /// provider tree is built.
   static const onboardedKey = 'santim.onboarded';
@@ -34,7 +36,8 @@ class PrefsState extends ChangeNotifier {
   Set<String> _collapsed;
   bool _onboarded;
 
-  static ThemeMode _readTheme(SharedPreferences p) => switch (p.getString(_themeKey)) {
+  static ThemeMode _readTheme(SharedPreferences p) =>
+      switch (p.getString(_themeKey)) {
         'light' => ThemeMode.light,
         'dark' => ThemeMode.dark,
         _ => ThemeMode.system,
@@ -145,12 +148,23 @@ class PrefsState extends ChangeNotifier {
     await _prefs.setBool(onboardedKey, false);
   }
 
-  /// `useMoney().money(...)` — formats through the visibility toggle so a single
+  /// `useMoney().money(...)`   formats through the visibility toggle so a single
   /// call site handles both states.
-  String money(Object? amount, {String currency = 'ETB', bool decimals = false, bool compact = false}) {
+  String money(
+    Object? amount, {
+    String currency = 'ETB',
+    bool decimals = false,
+    bool compact = false,
+  }) {
     if (_amountsHidden) return formatHiddenMoney(currency);
-    return formatMoney(amount, currency: currency, decimals: decimals, compact: compact);
+    return formatMoney(
+      amount,
+      currency: currency,
+      decimals: decimals,
+      compact: compact,
+    );
   }
 
-  String number(Object? value) => _amountsHidden ? formatHiddenNumber() : '$value';
+  String number(Object? value) =>
+      _amountsHidden ? formatHiddenNumber() : '$value';
 }

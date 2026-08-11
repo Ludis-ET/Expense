@@ -36,7 +36,7 @@ class _AppLockScreenState extends State<AppLockScreen> {
     if (!mounted) return;
     setState(() => _busy = false);
     if (!ok) {
-      // Stay on PIN — user cancelled or failed biometrics.
+      // Stay on PIN   user cancelled or failed biometrics.
     }
   }
 
@@ -108,7 +108,11 @@ class _AppLockScreenState extends State<AppLockScreen> {
               const Gap(S.xxl),
               ShakeX(
                 trigger: _shake,
-                child: _PinDots(length: lock.pinLength, filled: _pin.length, error: _error != null),
+                child: _PinDots(
+                  length: lock.pinLength,
+                  filled: _pin.length,
+                  error: _error != null,
+                ),
               ),
               if (_error != null) ...[
                 const Gap(S.md),
@@ -138,7 +142,11 @@ class _AppLockScreenState extends State<AppLockScreen> {
 }
 
 class _PinDots extends StatelessWidget {
-  const _PinDots({required this.length, required this.filled, required this.error});
+  const _PinDots({
+    required this.length,
+    required this.filled,
+    required this.error,
+  });
 
   final int length;
   final int filled;
@@ -182,7 +190,12 @@ class _Keypad extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    Widget key(String label, {VoidCallback? onTap, IconData? icon, Color? color}) {
+    Widget key(
+      String label, {
+      VoidCallback? onTap,
+      IconData? icon,
+      Color? color,
+    }) {
       return Expanded(
         child: Padding(
           padding: const EdgeInsets.all(S.xs),
@@ -196,7 +209,11 @@ class _Keypad extends StatelessWidget {
                 height: 58,
                 child: Center(
                   child: icon != null
-                      ? Icon(icon, color: color ?? context.t.foreground, size: 26)
+                      ? Icon(
+                          icon,
+                          color: color ?? context.t.foreground,
+                          size: 26,
+                        )
                       : Text(
                           label,
                           style: TextStyle(
@@ -222,7 +239,9 @@ class _Keypad extends StatelessWidget {
             ['4', '5', '6'],
             ['7', '8', '9'],
           ])
-            Row(children: [for (final d in row) key(d, onTap: () => onDigit(d))]),
+            Row(
+              children: [for (final d in row) key(d, onTap: () => onDigit(d))],
+            ),
           Row(
             children: [
               biometric

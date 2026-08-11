@@ -13,7 +13,7 @@ import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
-/// `TransferModal` — money between two of your own wallets. Nothing is earned
+/// `TransferModal`   money between two of your own wallets. Nothing is earned
 /// or spent, so this never touches income or expense totals.
 Future<bool?> showTransferSheet(BuildContext context, {Account? from}) {
   return showAppSheet<bool>(
@@ -50,7 +50,9 @@ class _TransferSheetState extends State<_TransferSheet> {
       await context.read<DataState>().loadAccounts();
       if (!mounted || _fromId != null) return;
       final accounts = context.read<DataState>().scopedAccounts;
-      final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+      final fallback =
+          accounts.where((a) => a.isDefault).firstOrNull ??
+          accounts.firstOrNull;
       if (fallback != null) setState(() => _fromId = fallback.id);
     });
   }
@@ -74,10 +76,14 @@ class _TransferSheetState extends State<_TransferSheet> {
       return;
     }
     if (_fromId == _toId) {
-      setState(() => _error = 'Transfer destination must be a different account.');
+      setState(
+        () => _error = 'Transfer destination must be a different account.',
+      );
       return;
     }
-    final source = data.scopedAccounts.where((a) => a.id == _fromId).firstOrNull;
+    final source = data.scopedAccounts
+        .where((a) => a.id == _fromId)
+        .firstOrNull;
     if (source != null && amount > toNum(source.balance)) {
       setState(
         () => _error =
@@ -128,10 +134,13 @@ class _TransferSheetState extends State<_TransferSheet> {
         note: _note.text.trim().isEmpty ? null : _note.text.trim(),
         pending: PendingState.pending,
       );
-      final result = await context.read<SyncState>().saveTransaction(body, optimistic);
+      final result = await context.read<SyncState>().saveTransaction(
+        body,
+        optimistic,
+      );
       if (!mounted) return;
       if (result.queued) {
-        toast(context, 'Saved offline — will sync when you are back online');
+        toast(context, 'Saved offline   will sync when you are back online');
       }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
@@ -149,10 +158,16 @@ class _TransferSheetState extends State<_TransferSheet> {
     final data = context.watch<DataState>();
     final accounts = data.scopedAccounts;
 
-    Account? byId(String? id) => id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
+    Account? byId(String? id) =>
+        id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
 
     return SingleChildScrollView(
-      padding: EdgeInsets.fromLTRB(20, 0, 20, 24 + MediaQuery.of(context).padding.bottom),
+      padding: EdgeInsets.fromLTRB(
+        20,
+        0,
+        20,
+        24 + MediaQuery.of(context).padding.bottom,
+      ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
@@ -168,7 +183,8 @@ class _TransferSheetState extends State<_TransferSheet> {
             value: byId(_fromId),
             options: accounts,
             labelOf: (a) => a.name,
-            subtitleOf: (a) => '${formatMoney(a.balance, currency: a.currency)} available',
+            subtitleOf: (a) =>
+                '${formatMoney(a.balance, currency: a.currency)} available',
             iconOf: (a) => accountTypeIcon(a.type.wire),
             colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
             onChanged: (a) => setState(() {
@@ -185,7 +201,11 @@ class _TransferSheetState extends State<_TransferSheet> {
                 color: t.accent.withValues(alpha: 0.12),
                 shape: BoxShape.circle,
               ),
-              child: Icon(Icons.arrow_downward_rounded, size: 17, color: t.accent),
+              child: Icon(
+                Icons.arrow_downward_rounded,
+                size: 17,
+                color: t.accent,
+              ),
             ),
           ),
           const Gap(S.sm),
@@ -194,7 +214,8 @@ class _TransferSheetState extends State<_TransferSheet> {
             value: byId(_toId),
             options: accounts.where((a) => a.id != _fromId).toList(),
             labelOf: (a) => a.name,
-            subtitleOf: (a) => '${formatMoney(a.balance, currency: a.currency)} available',
+            subtitleOf: (a) =>
+                '${formatMoney(a.balance, currency: a.currency)} available',
             iconOf: (a) => accountTypeIcon(a.type.wire),
             colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
             onChanged: (a) => setState(() => _toId = a?.id),
@@ -215,7 +236,10 @@ class _TransferSheetState extends State<_TransferSheet> {
           if (_error != null) ...[
             const Gap(S.md),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.md),
+              padding: const EdgeInsets.symmetric(
+                horizontal: S.md,
+                vertical: S.md,
+              ),
               decoration: BoxDecoration(
                 color: t.danger.withValues(alpha: 0.1),
                 borderRadius: BorderRadius.circular(R.md),
@@ -228,7 +252,11 @@ class _TransferSheetState extends State<_TransferSheet> {
                   Expanded(
                     child: Text(
                       _error!,
-                      style: TextStyle(fontSize: AppType.bodySm, height: 1.4, color: t.foreground),
+                      style: TextStyle(
+                        fontSize: AppType.bodySm,
+                        height: 1.4,
+                        color: t.foreground,
+                      ),
                     ),
                   ),
                 ],

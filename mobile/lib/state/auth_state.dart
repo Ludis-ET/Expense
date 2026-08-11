@@ -39,7 +39,7 @@ class AuthState extends ChangeNotifier {
       final json = await api.get<Map<String, dynamic>>('/users/me');
       _user = User.fromJson(json);
     } on ApiError catch (e) {
-      // A dead network should not log the user out — only a rejected session.
+      // A dead network should not log the user out   only a rejected session.
       if (e.isAuth) await api.tokens.clear();
       _error = e.isNetwork ? e.message : null;
     } finally {
@@ -55,7 +55,10 @@ class AuthState extends ChangeNotifier {
       body: {'email': email.trim(), 'password': password},
       skipAuth: true,
     );
-    await api.tokens.set(res['accessToken'] as String, res['refreshToken'] as String);
+    await api.tokens.set(
+      res['accessToken'] as String,
+      res['refreshToken'] as String,
+    );
     final me = await api.get<Map<String, dynamic>>('/users/me');
     _user = User.fromJson(me);
     notifyListeners();
@@ -68,7 +71,10 @@ class AuthState extends ChangeNotifier {
       body: {'name': name.trim(), 'email': email.trim(), 'password': password},
       skipAuth: true,
     );
-    await api.tokens.set(res['accessToken'] as String, res['refreshToken'] as String);
+    await api.tokens.set(
+      res['accessToken'] as String,
+      res['refreshToken'] as String,
+    );
     final me = await api.get<Map<String, dynamic>>('/users/me');
     _user = User.fromJson(me);
     notifyListeners();

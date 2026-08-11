@@ -1,30 +1,32 @@
-'use client';
+"use client";
 
-import { useEffect, useState } from 'react';
-import useSWR from 'swr';
-import { toast } from 'sonner';
-import { Banknote, Plus, Wallet } from 'lucide-react';
-import { Modal } from '@/components/ui/modal';
-import { Button } from '@/components/ui/button';
-import { Field, Input } from '@/components/ui/input';
-import { api, ApiError } from '@/lib/api';
-import { useAuth } from '@/lib/auth';
-import { cn } from '@/lib/utils';
-import type { Account } from '@/lib/types';
+import { useEffect, useState } from "react";
+import useSWR from "swr";
+import { toast } from "sonner";
+import { Banknote, Plus, Wallet } from "lucide-react";
+import { Modal } from "@/components/ui/modal";
+import { Button } from "@/components/ui/button";
+import { Field, Input } from "@/components/ui/input";
+import { api, ApiError } from "@/lib/api";
+import { useAuth } from "@/lib/auth";
+import { cn } from "@/lib/utils";
+import type { Account } from "@/lib/types";
 
-const SKIP_KEY = 'santim.cashWalletPrompt.skip';
+const SKIP_KEY = "santim.cashWalletPrompt.skip";
 
 /**
- * After sign-in, ask which wallet holds physical cash — ATM withdrawals are
+ * After sign-in, ask which wallet holds physical cash   ATM withdrawals are
  * booked as transfers into it. Users can pick an existing wallet or create one.
  */
 export function CashWalletPrompt() {
   const { user, loading, refreshUser } = useAuth();
-  const { data, mutate } = useSWR<{ items: Account[] }>(user ? '/accounts' : null);
+  const { data, mutate } = useSWR<{ items: Account[] }>(
+    user ? "/accounts" : null,
+  );
   const [open, setOpen] = useState(false);
   const [busy, setBusy] = useState(false);
-  const [mode, setMode] = useState<'pick' | 'create'>('pick');
-  const [newName, setNewName] = useState('Cash');
+  const [mode, setMode] = useState<"pick" | "create">("pick");
+  const [newName, setNewName] = useState("Cash");
   const [selectedId, setSelectedId] = useState<string | null>(null);
 
   const accounts = (data?.items ?? []).filter((a) => !a.archived);
@@ -52,13 +54,13 @@ export function CashWalletPrompt() {
   useEffect(() => {
     if (!open) return;
     if (accounts.length === 0) {
-      setMode('create');
+      setMode("create");
       return;
     }
     // Prefer an existing CASH-typed wallet as the default pick.
-    const cashTyped = accounts.find((a) => a.type === 'CASH');
+    const cashTyped = accounts.find((a) => a.type === "CASH");
     setSelectedId((prev) => prev ?? cashTyped?.id ?? accounts[0]?.id ?? null);
-    setMode('pick');
+    setMode("pick");
   }, [open, accounts]);
 
   function skip() {
@@ -75,32 +77,36 @@ export function CashWalletPrompt() {
   async function assign(accountId: string) {
     setBusy(true);
     try {
-      await api.put('/users/me', { cashAccountId: accountId });
+      await api.put("/users/me", { cashAccountId: accountId });
       await refreshUser();
-      toast.success('Cash wallet saved');
+      toast.success("Cash wallet saved");
       setOpen(false);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Could not save cash wallet');
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not save cash wallet",
+      );
     } finally {
       setBusy(false);
     }
   }
 
   async function createAndAssign() {
-    const name = newName.trim() || 'Cash';
+    const name = newName.trim() || "Cash";
     setBusy(true);
     try {
-      const created = await api.post<Account>('/accounts', {
+      const created = await api.post<Account>("/accounts", {
         name,
-        type: 'CASH',
-        currency: user?.currency ?? 'ETB',
-        icon: 'banknote',
-        color: '#22c55e',
+        type: "CASH",
+        currency: user?.currency ?? "ETB",
+        icon: "banknote",
+        color: "#22c55e",
       });
       await mutate();
       await assign(created.id);
     } catch (err) {
-      toast.error(err instanceof ApiError ? err.message : 'Could not create wallet');
+      toast.error(
+        err instanceof ApiError ? err.message : "Could not create wallet",
+      );
       setBusy(false);
     }
   }
@@ -118,10 +124,12 @@ export function CashWalletPrompt() {
         <div className="flex gap-2 rounded-xl border border-border bg-surface-muted/40 p-1">
           <button
             type="button"
-            onClick={() => setMode('pick')}
+            onClick={() => setMode("pick")}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              mode === 'pick' ? 'bg-surface text-foreground shadow-sm' : 'text-muted hover:text-foreground',
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              mode === "pick"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
             )}
           >
             <Wallet className="h-4 w-4" />
@@ -129,10 +137,12 @@ export function CashWalletPrompt() {
           </button>
           <button
             type="button"
-            onClick={() => setMode('create')}
+            onClick={() => setMode("create")}
             className={cn(
-              'flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors',
-              mode === 'create' ? 'bg-surface text-foreground shadow-sm' : 'text-muted hover:text-foreground',
+              "flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+              mode === "create"
+                ? "bg-surface text-foreground shadow-sm"
+                : "text-muted hover:text-foreground",
             )}
           >
             <Plus className="h-4 w-4" />
@@ -140,7 +150,7 @@ export function CashWalletPrompt() {
           </button>
         </div>
 
-        {mode === 'pick' ? (
+        {mode === "pick" ? (
           accounts.length === 0 ? (
             <p className="rounded-xl border border-dashed border-border px-4 py-6 text-center text-sm text-muted">
               No wallets yet. Create a cash wallet to continue.
@@ -155,31 +165,37 @@ export function CashWalletPrompt() {
                       type="button"
                       onClick={() => setSelectedId(a.id)}
                       className={cn(
-                        'flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors',
+                        "flex w-full items-center gap-3 rounded-xl border px-3 py-2.5 text-left transition-colors",
                         selected
-                          ? 'border-primary bg-primary/5'
-                          : 'border-border hover:bg-surface-muted',
+                          ? "border-primary bg-primary/5"
+                          : "border-border hover:bg-surface-muted",
                       )}
                     >
                       <span
                         className={cn(
-                          'flex h-9 w-9 items-center justify-center rounded-xl',
-                          selected ? 'bg-primary/15 text-primary' : 'bg-surface-muted text-muted',
+                          "flex h-9 w-9 items-center justify-center rounded-xl",
+                          selected
+                            ? "bg-primary/15 text-primary"
+                            : "bg-surface-muted text-muted",
                         )}
                       >
                         <Banknote className="h-4 w-4" />
                       </span>
                       <span className="min-w-0 flex-1">
-                        <span className="block truncate text-sm font-semibold">{a.name}</span>
+                        <span className="block truncate text-sm font-semibold">
+                          {a.name}
+                        </span>
                         <span className="block text-xs text-muted">
-                          {a.type.replaceAll('_', ' ').toLowerCase()}
-                          {a.type === 'CASH' ? ' · good default' : ''}
+                          {a.type.replaceAll("_", " ").toLowerCase()}
+                          {a.type === "CASH" ? " · good default" : ""}
                         </span>
                       </span>
                       <span
                         className={cn(
-                          'h-4 w-4 rounded-full border-2',
-                          selected ? 'border-primary bg-primary' : 'border-border',
+                          "h-4 w-4 rounded-full border-2",
+                          selected
+                            ? "border-primary bg-primary"
+                            : "border-border",
                         )}
                       />
                     </button>
@@ -203,7 +219,7 @@ export function CashWalletPrompt() {
           <Button type="button" variant="ghost" onClick={skip} disabled={busy}>
             Not now
           </Button>
-          {mode === 'pick' ? (
+          {mode === "pick" ? (
             <Button
               type="button"
               loading={busy}
@@ -213,7 +229,11 @@ export function CashWalletPrompt() {
               Use this wallet
             </Button>
           ) : (
-            <Button type="button" loading={busy} onClick={() => void createAndAssign()}>
+            <Button
+              type="button"
+              loading={busy}
+              onClick={() => void createAndAssign()}
+            >
               Create &amp; use
             </Button>
           )}

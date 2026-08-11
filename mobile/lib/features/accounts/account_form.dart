@@ -8,6 +8,7 @@ import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
@@ -72,7 +73,6 @@ class _AccountFormState extends State<_AccountForm> {
       _error = null;
     });
 
-    final api = context.read<ApiClient>();
     final body = <String, dynamic>{
       'name': _name.text.trim(),
       'type': _type.wire,
@@ -85,12 +85,16 @@ class _AccountFormState extends State<_AccountForm> {
     };
 
     try {
-      if (_isEdit) {
-        await api.put('/accounts/${widget.existing!.id}', body: body);
-      } else {
-        await api.post('/accounts', body: body);
-      }
+      final sync = context.read<SyncState>();
+      final result = await sync.saveAccount(
+        body: body,
+        id: _isEdit ? widget.existing!.id : null,
+        name: _name.text.trim(),
+      );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

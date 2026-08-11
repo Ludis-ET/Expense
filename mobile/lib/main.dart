@@ -12,6 +12,7 @@ import 'features/splash/splash_screen.dart';
 import 'state/auth_state.dart';
 import 'state/data_state.dart';
 import 'state/prefs_state.dart';
+import 'state/sync_state.dart';
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -49,7 +50,12 @@ class SantimApp extends StatelessWidget {
         ChangeNotifierProvider(
           create: (_) => AuthState(api: api, prefs: prefs)..bootstrap(),
         ),
-        ChangeNotifierProvider(create: (_) => DataState(api)),
+        ChangeNotifierProvider(
+          create: (_) => SyncState(api: api)..start(),
+        ),
+        ChangeNotifierProvider(
+          create: (ctx) => DataState(api, sync: ctx.read<SyncState>()),
+        ),
       ],
       child: Consumer<PrefsState>(
         builder: (context, prefsState, _) => MaterialApp(

@@ -8,6 +8,7 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import 'account_detail_sheet.dart';
 import 'account_form.dart';
@@ -68,6 +69,7 @@ class _AccountsScreenState extends State<AccountsScreen> {
               onTap: () => _create(context),
             ),
           ),
+          const OfflineBanner(),
 
           if (!data.accounts.hasData) ...[
             if (data.accounts.hasError)

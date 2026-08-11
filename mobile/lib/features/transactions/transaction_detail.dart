@@ -9,6 +9,7 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/ui.dart';
 import 'transaction_form.dart';
 
@@ -184,14 +185,19 @@ class _TransactionDetail extends StatelessWidget {
     );
     if (!ok || !context.mounted) return;
 
-    final api = context.read<ApiClient>();
     final data = context.read<DataState>();
+    final sync = context.read<SyncState>();
     try {
-      await api.delete('/transactions/${tx.id}');
+      final result = await sync.deleteTransaction(tx.id);
       await data.refreshAfterWrite();
       if (context.mounted) {
         Navigator.pop(context, true);
-        toast(context, 'Transaction deleted');
+        toast(
+          context,
+          result.queued
+              ? 'Delete queued — will sync when you are back online'
+              : 'Transaction deleted',
+        );
       }
     } on ApiError catch (e) {
       if (context.mounted) toast(context, e.message, error: true);

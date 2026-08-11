@@ -9,6 +9,7 @@ import '../../core/theme/tokens.dart';
 import '../../state/auth_state.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../accounts/accounts_screen.dart';
 import '../analytics/analytics_screen.dart';
@@ -229,6 +230,8 @@ class _Topbar extends StatelessWidget {
               const SizedBox(width: 8),
               const BrandWord(fontSize: 17),
               const Spacer(),
+              const SyncStatusPill(),
+              const SizedBox(width: 6),
               if (data.currencies.length > 1) ...[
                 _CurrencySwitcher(data: data),
                 const SizedBox(width: 6),

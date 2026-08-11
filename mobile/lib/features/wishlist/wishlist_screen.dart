@@ -9,7 +9,9 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../budgets/budget_detail_screen.dart';
 
@@ -92,6 +94,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              const OfflineBanner(),
               Row(
                 children: [
                   Expanded(
@@ -375,7 +378,6 @@ class _WishCard extends StatelessWidget {
   }
 
   Future<void> _openMenu(BuildContext context) async {
-    final api = context.read<ApiClient>();
     final action = await showAppSheet<String>(
       context,
       title: item.name,
@@ -431,7 +433,13 @@ class _WishCard extends StatelessWidget {
         }
       case 'bought':
         try {
-          await api.post('/wishlist/${item.id}/bought');
+          final result = await context.read<SyncState>().wishlistBought(
+                item.id,
+                name: item.name,
+              );
+          if (result.queued && context.mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           onChanged();
         } on ApiError catch (e) {
           if (context.mounted) toast(context, e.message, error: true);
@@ -444,7 +452,14 @@ class _WishCard extends StatelessWidget {
         if (saved == true) onChanged();
       case 'drop':
         try {
-          await api.put('/wishlist/${item.id}', body: {'status': 'DROPPED'});
+          final result = await context.read<SyncState>().saveWishlist(
+                id: item.id,
+                name: item.name,
+                body: {'status': 'DROPPED'},
+              );
+          if (result.queued && context.mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           onChanged();
         } on ApiError catch (e) {
           if (context.mounted) toast(context, e.message, error: true);
@@ -455,9 +470,15 @@ class _WishCard extends StatelessWidget {
           title: 'Delete ${item.name}?',
           message: 'The want goes away. Any plan it created stays.',
         );
-        if (!ok) return;
+        if (!ok || !context.mounted) return;
         try {
-          await api.delete('/wishlist/${item.id}');
+          final result = await context.read<SyncState>().deleteWishlist(
+                item.id,
+                name: item.name,
+              );
+          if (result.queued && context.mounted) {
+            toast(context, 'Delete queued — will sync when you are back online');
+          }
           onChanged();
         } on ApiError catch (e) {
           if (context.mounted) toast(context, e.message, error: true);
@@ -574,7 +595,6 @@ class _WishFormState extends State<_WishForm> {
       _saving = true;
       _error = null;
     });
-    final api = context.read<ApiClient>();
     final body = {
       'name': _name.text.trim(),
       'priority': _priority.round(),
@@ -583,12 +603,15 @@ class _WishFormState extends State<_WishForm> {
       'link': _link.text.trim().isEmpty ? null : _link.text.trim(),
     };
     try {
-      if (widget.existing != null) {
-        await api.put('/wishlist/${widget.existing!.id}', body: body);
-      } else {
-        await api.post('/wishlist', body: body);
-      }
+      final result = await context.read<SyncState>().saveWishlist(
+            body: body,
+            id: widget.existing?.id,
+            name: _name.text.trim(),
+          );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;
@@ -747,19 +770,23 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
       _error = null;
     });
     try {
-      await context.read<ApiClient>().post(
-        '/wishlist/${widget.item.id}/plan',
-        body: {
-          'name': _name.text.trim(),
-          'plannedAmount': amount,
-          'currency': context.read<DataState>().activeCurrency,
-          'kind': _kind.wire,
-          'startsAt': _startsAt.toUtc().toIso8601String(),
-          'endDate': _endDate?.toUtc().toIso8601String(),
-          if (_kind == BudgetKind.recurring) 'recurrenceUnit': _unit!.wire,
-        },
-      );
+      final result = await context.read<SyncState>().wishlistPlan(
+            id: widget.item.id,
+            name: _name.text.trim(),
+            body: {
+              'name': _name.text.trim(),
+              'plannedAmount': amount,
+              'currency': context.read<DataState>().activeCurrency,
+              'kind': _kind.wire,
+              'startsAt': _startsAt.toUtc().toIso8601String(),
+              'endDate': _endDate?.toUtc().toIso8601String(),
+              if (_kind == BudgetKind.recurring) 'recurrenceUnit': _unit!.wire,
+            },
+          );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

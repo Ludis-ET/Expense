@@ -7,7 +7,9 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
+import '../../data/outbox_store.dart';
 import '../../state/data_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
@@ -86,18 +88,49 @@ class _TransferSheetState extends State<_TransferSheet> {
       _saving = true;
       _error = null;
     });
+    final from = source;
+    final to = data.scopedAccounts.where((a) => a.id == _toId).firstOrNull;
+    Ref? asRef(Account? a) => a == null
+        ? null
+        : Ref(
+            id: a.id,
+            name: a.name,
+            icon: a.icon,
+            color: a.color,
+            currency: a.currency,
+            type: a.type.wire,
+          );
+    final body = {
+      'kind': 'TRANSFER',
+      'amount': amount,
+      'currency': data.activeCurrency,
+      'date': _date.toUtc().toIso8601String(),
+      'accountId': _fromId,
+      'transferAccountId': _toId,
+      'tags': <String>[],
+      if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+    };
     try {
-      await context.read<ApiClient>().post('/transactions', body: {
-        'kind': 'TRANSFER',
-        'amount': amount,
-        'currency': data.activeCurrency,
-        'date': _date.toUtc().toIso8601String(),
-        'accountId': _fromId,
-        'transferAccountId': _toId,
-        'tags': <String>[],
-        if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-      });
+      final localId = newLocalId();
+      final optimistic = Transaction(
+        id: localId,
+        kind: TxKind.transfer,
+        amount: amount.toString(),
+        currency: data.activeCurrency,
+        date: _date,
+        accountId: _fromId!,
+        tags: const [],
+        account: asRef(from),
+        transferAccountId: _toId,
+        transferAccount: asRef(to),
+        note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+        pending: PendingState.pending,
+      );
+      final result = await context.read<SyncState>().saveTransaction(body, optimistic);
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

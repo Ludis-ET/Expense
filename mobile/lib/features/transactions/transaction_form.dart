@@ -11,8 +11,9 @@ import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
+import '../../state/sync_state.dart';
+import '../../data/outbox_store.dart';
 import '../../widgets/fields.dart';
-import '../../widgets/motion.dart';
 import '../../widgets/ui.dart';
 
 /// Opens the add/edit sheet. Returns true when something was written.
@@ -159,13 +160,19 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
         data.loadSpendSources(force: true),
       ]);
       if (!mounted) return;
-      if (_accountId == null) {
-        final accounts = data.scopedAccounts;
-        final fallback = accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
-        if (fallback != null) setState(() => _accountId = fallback.id);
-      } else {
-        setState(() {});
-      }
+      setState(() {
+        if (_accountId == null) {
+          final accounts = data.scopedAccounts;
+          final fallback =
+              accounts.where((a) => a.isDefault).firstOrNull ?? accounts.firstOrNull;
+          if (fallback != null) _accountId = fallback.id;
+        }
+        // Preset plan (e.g. Spend from plan detail) should also adopt its category.
+        if (!_isEdit && _categoryId == null && _budgetId != null) {
+          final planCat = _plan(data)?.categoryId;
+          if (planCat != null) _categoryId = planCat;
+        }
+      });
     });
   }
 
@@ -240,7 +247,6 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
       _error = null;
     });
 
-    final api = context.read<ApiClient>();
     final plan = _plan(data);
     final payingFromPot = plan != null && !plan.isUnplanned;
     final tags = _tags.text
@@ -292,13 +298,78 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
     }
 
     try {
+      final sync = context.read<SyncState>();
+      final accounts = data.scopedAccounts;
+      final categories = data.categoriesOfKind(_kind);
+      Account? accountById(String? id) =>
+          id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
+      TxCategory? categoryById(String? id) =>
+          id == null ? null : categories.where((c) => c.id == id).firstOrNull;
+
+      final account = accountById(_accountId);
+      final category = categoryById(_categoryId);
+      final transfer = accountById(_transferAccountId);
+
+      Ref? accountRef(Account? a) => a == null
+          ? null
+          : Ref(id: a.id, name: a.name, icon: a.icon, color: a.color, currency: a.currency, type: a.type.wire);
+      Ref? categoryRef(TxCategory? c) => c == null
+          ? null
+          : Ref(id: c.id, name: c.name, icon: c.icon, color: c.color);
+
       if (_isEdit) {
-        await api.put('/transactions/${widget.existing!.id}', body: body);
+        final existing = widget.existing!;
+        final optimistic = Transaction(
+          id: existing.id,
+          kind: existing.kind,
+          amount: body['amount'].toString(),
+          currency: data.activeCurrency,
+          date: _date,
+          accountId: _accountId ?? existing.accountId,
+          tags: tags,
+          account: accountRef(account) ?? existing.account,
+          transferAccountId: _transferAccountId ?? existing.transferAccountId,
+          transferAccount: accountRef(transfer) ?? existing.transferAccount,
+          categoryId: _categoryId ?? existing.categoryId,
+          category: categoryRef(category) ?? existing.category,
+          budgetId: existing.budgetId,
+          payee: _payee.text.trim().isEmpty ? null : _payee.text.trim(),
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          pending: PendingState.pending,
+        );
+        final result = await sync.updateTransaction(existing.id, body, optimistic);
+        if (!mounted) return;
+        if (result.queued) {
+          toast(context, 'Saved offline — will sync when you are back online');
+        }
+        Navigator.pop(context, true);
       } else {
-        await api.post('/transactions', body: body);
+        final localId = newLocalId();
+        final optimistic = Transaction(
+          id: localId,
+          kind: _kind,
+          amount: body['amount'].toString(),
+          currency: data.activeCurrency,
+          date: _date,
+          accountId: _accountId ?? '',
+          tags: tags,
+          account: accountRef(account),
+          transferAccountId: _transferAccountId,
+          transferAccount: accountRef(transfer),
+          categoryId: _categoryId,
+          category: categoryRef(category),
+          budgetId: payingFromPot ? plan.id : null,
+          payee: _payee.text.trim().isEmpty ? null : _payee.text.trim(),
+          note: _note.text.trim().isEmpty ? null : _note.text.trim(),
+          pending: PendingState.pending,
+        );
+        final result = await sync.saveTransaction(body, optimistic);
+        if (!mounted) return;
+        if (result.queued) {
+          toast(context, 'Saved offline — will sync when you are back online');
+        }
+        Navigator.pop(context, true);
       }
-      if (!mounted) return;
-      Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;
       setState(() {
@@ -446,19 +517,6 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
                                 spacing: 14,
                                 startIndex: _isEdit ? 1 : 2,
                                 children: [
-                                  if (_kind != TxKind.transfer)
-                                    PickerField<TxCategory>(
-                                      label: 'Category',
-                                      value: categoryById(_categoryId),
-                                      options: categories,
-                                      labelOf: (c) => c.name,
-                                      iconOf: (c) => financeIcon(c.icon),
-                                      colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
-                                      onChanged: (c) => setState(() => _categoryId = c?.id),
-                                      placeholder: 'Pick a category',
-                                      sheetTitle: '${_kind.label} category',
-                                    ),
-
                                   if (_kind == TxKind.expense && plans.isNotEmpty && !_isEdit)
                                     PickerField<BudgetSpendSource>(
                                       label: 'Pay from',
@@ -480,6 +538,9 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
                                         if (p != null && !p.isUnplanned && p.sources.length == 1) {
                                           _budgetSourceAccountId = p.sources.first.account?.id;
                                         }
+                                        // Plans with a linked category pre-select it.
+                                        final planCat = p?.categoryId;
+                                        if (planCat != null) _categoryId = planCat;
                                       }),
                                       allowClear: true,
                                       placeholder: 'Straight from an account',
@@ -501,6 +562,19 @@ class _TransactionFormState extends State<TransactionForm> with TickerProviderSt
                                       onChanged: (s) =>
                                           setState(() => _budgetSourceAccountId = s?.account?.id),
                                       sheetTitle: 'Funding wallet',
+                                    ),
+
+                                  if (_kind != TxKind.transfer)
+                                    PickerField<TxCategory>(
+                                      label: 'Category',
+                                      value: categoryById(_categoryId),
+                                      options: categories,
+                                      labelOf: (c) => c.name,
+                                      iconOf: (c) => financeIcon(c.icon),
+                                      colorOf: (c) => parseHexColor(c.color) ?? t.mutedForeground,
+                                      onChanged: (c) => setState(() => _categoryId = c?.id),
+                                      placeholder: 'Pick a category',
+                                      sheetTitle: '${_kind.label} category',
                                     ),
 
                                   if (!payingFromPot)

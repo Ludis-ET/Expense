@@ -9,6 +9,7 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/ui.dart';
 import '../transactions/transaction_detail.dart';
 import '../transactions/transaction_list.dart';
@@ -201,7 +202,7 @@ class _AccountDetailState extends State<_AccountDetail> {
 
   Future<void> _archiveOrDelete(BuildContext context) async {
     final a = widget.account;
-    final api = context.read<ApiClient>();
+    final sync = context.read<SyncState>();
     final data = context.read<DataState>();
 
     if (a.archived) {
@@ -213,11 +214,16 @@ class _AccountDetailState extends State<_AccountDetail> {
       );
       if (!ok || !context.mounted) return;
       try {
-        await api.delete('/accounts/${a.id}');
+        final result = await sync.deleteAccount(a.id, name: a.name);
         await data.refreshAfterWrite();
         if (context.mounted) {
           Navigator.pop(context);
-          toast(context, 'Wallet deleted');
+          toast(
+            context,
+            result.queued
+                ? 'Delete queued — will sync when you are back online'
+                : 'Wallet deleted',
+          );
         }
       } on ApiError catch (e) {
         if (context.mounted) toast(context, e.message, error: true);
@@ -235,11 +241,20 @@ class _AccountDetailState extends State<_AccountDetail> {
     );
     if (!ok || !context.mounted) return;
     try {
-      await api.put('/accounts/${a.id}', body: {'archived': true});
+      final result = await sync.saveAccount(
+        id: a.id,
+        name: a.name,
+        body: {'archived': true},
+      );
       await data.refreshAfterWrite();
       if (context.mounted) {
         Navigator.pop(context);
-        toast(context, 'Wallet archived');
+        toast(
+          context,
+          result.queued
+              ? 'Archive queued — will sync when you are back online'
+              : 'Wallet archived',
+        );
       }
     } on ApiError catch (e) {
       if (context.mounted) toast(context, e.message, error: true);

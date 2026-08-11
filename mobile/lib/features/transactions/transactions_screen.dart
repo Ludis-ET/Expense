@@ -10,7 +10,9 @@ import '../../core/utils/format.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../recurring/recurring_screen.dart';
 import '../shell/app_shell.dart';
@@ -111,10 +113,12 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _error = null;
       _page = 1;
     });
+    final sync = context.read<SyncState>();
     try {
       final json = await context
           .read<ApiClient>()
           .get<Map<String, dynamic>>('/transactions', query: _query4(1));
+      await sync.cacheTransactionPage(json);
       final page = TransactionPage.fromJson(json);
       if (!mounted) return;
       setState(() {
@@ -127,6 +131,23 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      // Fall back to cached page + outbox when offline.
+      if (e is ApiError && e.isNetwork) {
+        final cached = await sync.readCachedTransactionPage();
+        if (cached != null) {
+          final page = TransactionPage.fromJson(cached);
+          setState(() {
+            _items
+              ..clear()
+              ..addAll(page.items);
+            _total = page.total;
+            _loading = false;
+            _initialised = true;
+            _error = null;
+          });
+          return;
+        }
+      }
       setState(() {
         _error = e;
         _loading = false;
@@ -176,9 +197,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   }
 
   /// Groups rows under "Today" / "Yesterday" / a date, like the web list.
-  List<(String, List<Transaction>)> get _grouped {
+  List<(String, List<Transaction>)> _groupedOf(List<Transaction> items) {
     final out = <(String, List<Transaction>)>[];
-    for (final tx in _items) {
+    for (final tx in items) {
       final label = dayLabel(tx.date);
       if (out.isNotEmpty && out.last.$1 == label) {
         out.last.$2.add(tx);
@@ -194,13 +215,15 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final t = context.t;
     final prefs = context.watch<PrefsState>();
     final data = context.watch<DataState>();
+    final sync = context.watch<SyncState>();
     final shell = AppShell.of(context);
+    final items = sync.mergeTransactions(_items);
 
     String money(Object? v, String c) => prefs.money(v, currency: c);
 
-    final groups = _grouped;
-    final income = _items.where((x) => x.kind == TxKind.income).fold<double>(0, (s, x) => s + x.value);
-    final expense = _items.where((x) => x.kind == TxKind.expense).fold<double>(0, (s, x) => s + x.value);
+    final groups = _groupedOf(items);
+    final income = items.where((x) => x.kind == TxKind.income).fold<double>(0, (s, x) => s + x.value);
+    final expense = items.where((x) => x.kind == TxKind.expense).fold<double>(0, (s, x) => s + x.value);
 
     return RefreshIndicator(
       onRefresh: _reload,
@@ -225,6 +248,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                     onTap: () => shell.push(const RecurringScreen()),
                   ),
                 ),
+                const OfflineBanner(),
                 AppTextField(
                   controller: _searchController,
                   placeholder: 'Search payee, note or tag',
@@ -314,7 +338,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                   ],
                 ),
                 const SizedBox(height: 14),
-                if (_items.isNotEmpty)
+                if (items.isNotEmpty)
                   Row(
                     children: [
                       Expanded(
@@ -338,7 +362,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       Expanded(
                         child: _Totals(
                           label: 'Shown',
-                          value: '${_items.length}/$_total',
+                          value: '${items.length}/$_total',
                           color: t.mutedForeground,
                           icon: Icons.list_alt_outlined,
                         ),
@@ -369,7 +393,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                 ),
               ),
             )
-          else if (_items.isEmpty)
+          else if (items.isEmpty)
             SliverToBoxAdapter(
               child: Padding(
                 padding: const EdgeInsets.symmetric(horizontal: 14),
@@ -452,9 +476,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           SliverToBoxAdapter(
             child: Padding(
               padding: const EdgeInsets.fromLTRB(14, 0, 14, 130),
-              child: _items.isEmpty
+              child: items.isEmpty
                   ? const SizedBox.shrink()
-                  : _items.length >= _total
+                  : items.length >= _total
                       ? Center(child: Muted('That is all $_total.', size: 11.5))
                       : Center(
                           child: _loading

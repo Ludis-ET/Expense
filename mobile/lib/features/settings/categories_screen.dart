@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
@@ -209,7 +210,6 @@ class _CategoryFormState extends State<_CategoryForm> {
       _saving = true;
       _error = null;
     });
-    final api = context.read<ApiClient>();
     final body = {
       'name': _name.text.trim(),
       'kind': widget.kind == TxKind.income ? 'INCOME' : 'EXPENSE',
@@ -218,12 +218,16 @@ class _CategoryFormState extends State<_CategoryForm> {
       if (_isEdit) 'archived': _archived,
     };
     try {
-      if (_isEdit) {
-        await api.put('/categories/${widget.existing!.id}', body: body);
-      } else {
-        await api.post('/categories', body: body);
-      }
+      final sync = context.read<SyncState>();
+      final result = await sync.saveCategory(
+        body: body,
+        id: _isEdit ? widget.existing!.id : null,
+        name: _name.text.trim(),
+      );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

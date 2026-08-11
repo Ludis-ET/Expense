@@ -8,6 +8,7 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../shell/app_shell.dart';
 import '../wishlist/wishlist_screen.dart';
@@ -73,6 +74,8 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
               onTap: () => _create(context),
             ),
           ),
+
+          const OfflineBanner(),
 
           if (response == null) ...[
             if (data.budgets.hasError)

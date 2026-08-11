@@ -10,6 +10,8 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
+import '../../data/outbox_store.dart';
 import '../../widgets/ui.dart';
 import '../transactions/transaction_detail.dart';
 import '../transactions/transaction_form.dart';
@@ -235,7 +237,15 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         if (saved == true) await _afterWrite();
       case 'reopen':
         try {
-          await context.read<ApiClient>().post('/budgets/${b.id}/reopen');
+          final result = await context.read<SyncState>().budgetAction(
+                budgetId: b.id,
+                action: OutboxAction.reopen,
+                label: 'Reopen plan',
+                detail: b.name,
+              );
+          if (result.queued && mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           await _afterWrite();
         } on ApiError catch (e) {
           if (mounted) toast(context, e.message, error: true);
@@ -244,7 +254,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   }
 
   Future<void> _menuAction(String action, BudgetDetail detail) async {
-    final api = context.read<ApiClient>();
+    final sync = context.read<SyncState>();
     final b = detail.row;
 
     switch (action) {
@@ -266,14 +276,30 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         );
         if (!ok) return;
         try {
-          await api.post('/budgets/${b.id}/close');
+          final result = await sync.budgetAction(
+            budgetId: b.id,
+            action: OutboxAction.close,
+            label: 'Close plan',
+            detail: b.name,
+          );
+          if (result.queued && mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           await _afterWrite();
         } on ApiError catch (e) {
           if (mounted) toast(context, e.message, error: true);
         }
       case 'reopen':
         try {
-          await api.post('/budgets/${b.id}/reopen');
+          final result = await sync.budgetAction(
+            budgetId: b.id,
+            action: OutboxAction.reopen,
+            label: 'Reopen plan',
+            detail: b.name,
+          );
+          if (result.queued && mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           await _afterWrite();
         } on ApiError catch (e) {
           if (mounted) toast(context, e.message, error: true);
@@ -288,9 +314,19 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         );
         if (!ok) return;
         try {
-          await api.delete('/budgets/${b.id}');
+          final result = await sync.budgetAction(
+            budgetId: b.id,
+            action: OutboxAction.delete,
+            label: 'Delete plan',
+            detail: b.name,
+          );
           if (mounted) await context.read<DataState>().refreshAfterWrite();
-          if (mounted) Navigator.pop(context);
+          if (mounted) {
+            if (result.queued) {
+              toast(context, 'Delete queued — will sync when you are back online');
+            }
+            Navigator.pop(context);
+          }
         } on ApiError catch (e) {
           if (mounted) toast(context, e.message, error: true);
         }

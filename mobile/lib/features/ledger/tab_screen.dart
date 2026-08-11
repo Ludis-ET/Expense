@@ -9,7 +9,9 @@ import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 
 /// Money Tab — who owes you, who you owe, and what is expected either way.
@@ -47,7 +49,7 @@ class _TabScreenState extends State<TabScreen> {
         ]);
         if (!mounted) return;
         setState(() {
-          _summary = LedgerSummary.fromJson(results[0] as Map<String, dynamic>);
+          _summary = LedgerSummary.fromJson(results[0]);
           _people = _groupEntries(mapItemsList(results[1], LedgerEntry.fromJson));
           _loading = false;
           _error = null;
@@ -59,7 +61,7 @@ class _TabScreenState extends State<TabScreen> {
         ]);
         if (!mounted) return;
         setState(() {
-          _summary = LedgerSummary.fromJson(results[0] as Map<String, dynamic>);
+          _summary = LedgerSummary.fromJson(results[0]);
           _people = mapItemsList(results[1], LedgerPersonGroup.fromJson);
           _loading = false;
           _error = null;
@@ -166,6 +168,7 @@ class _TabScreenState extends State<TabScreen> {
             padding: const EdgeInsets.fromLTRB(14, 4, 14, 40),
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
+              const OfflineBanner(),
               if (_loading && s == null)
                 const PageLoader(rows: 4)
               else if (_error != null && s == null)
@@ -602,7 +605,6 @@ class _EntryRow extends StatelessWidget {
   }
 
   Future<void> _menu(BuildContext context) async {
-    final api = context.read<ApiClient>();
     final action = await showAppSheet<String>(
       context,
       title: entry.counterparty,
@@ -643,7 +645,13 @@ class _EntryRow extends StatelessWidget {
         if (saved == true) onChanged();
       case 'cancel':
         try {
-          await api.post('/ledger/${entry.id}/cancel');
+          final result = await context.read<SyncState>().ledgerCancel(
+                entry.id,
+                label: entry.counterparty,
+              );
+          if (result.queued && context.mounted) {
+            toast(context, 'Queued offline — will sync when you are back online');
+          }
           onChanged();
         } on ApiError catch (e) {
           if (context.mounted) toast(context, e.message, error: true);
@@ -654,9 +662,15 @@ class _EntryRow extends StatelessWidget {
           title: 'Delete this entry?',
           message: 'Payments already recorded against it stay in your transactions.',
         );
-        if (!ok) return;
+        if (!ok || !context.mounted) return;
         try {
-          await api.delete('/ledger/${entry.id}');
+          final result = await context.read<SyncState>().deleteLedger(
+                entry.id,
+                label: entry.counterparty,
+              );
+          if (result.queued && context.mounted) {
+            toast(context, 'Delete queued — will sync when you are back online');
+          }
           onChanged();
         } on ApiError catch (e) {
           if (context.mounted) toast(context, e.message, error: true);
@@ -736,36 +750,47 @@ class _LedgerFormState extends State<_LedgerForm> {
       _error = null;
     });
 
-    final api = context.read<ApiClient>();
     final data = context.read<DataState>();
     // Only LENT and BORROWED move cash right now; the expected kinds do not.
     final canMove = _kind == LedgerKind.lent || _kind == LedgerKind.borrowed;
 
     try {
+      final sync = context.read<SyncState>();
+      final QueueResult result;
       if (_isEdit) {
-        await api.put('/ledger/${widget.existing!.id}', body: {
-          'counterparty': _counterparty.text.trim(),
-          'title': _title.text.trim().isEmpty ? null : _title.text.trim(),
-          'totalAmount': amount,
-          'dueDate': _dueDate?.toUtc().toIso8601String(),
-          'note': _note.text.trim().isEmpty ? null : _note.text.trim(),
-        });
-      } else {
-        await api.post('/ledger', body: {
-          'kind': _kind.wire,
-          'counterparty': _counterparty.text.trim(),
-          if (_title.text.trim().isNotEmpty) 'title': _title.text.trim(),
-          'totalAmount': amount,
-          'currency': data.activeCurrency,
-          if (_dueDate != null) 'dueDate': _dueDate!.toUtc().toIso8601String(),
-          if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-          if (canMove && _recordMovement) ...{
-            'recordMovement': true,
-            if (_sourceAccountId != null) 'sourceAccountId': _sourceAccountId,
+        result = await sync.saveLedger(
+          id: widget.existing!.id,
+          label: _counterparty.text.trim(),
+          body: {
+            'counterparty': _counterparty.text.trim(),
+            'title': _title.text.trim().isEmpty ? null : _title.text.trim(),
+            'totalAmount': amount,
+            'dueDate': _dueDate?.toUtc().toIso8601String(),
+            'note': _note.text.trim().isEmpty ? null : _note.text.trim(),
           },
-        });
+        );
+      } else {
+        result = await sync.saveLedger(
+          label: _counterparty.text.trim(),
+          body: {
+            'kind': _kind.wire,
+            'counterparty': _counterparty.text.trim(),
+            if (_title.text.trim().isNotEmpty) 'title': _title.text.trim(),
+            'totalAmount': amount,
+            'currency': data.activeCurrency,
+            if (_dueDate != null) 'dueDate': _dueDate!.toUtc().toIso8601String(),
+            if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+            if (canMove && _recordMovement) ...{
+              'recordMovement': true,
+              if (_sourceAccountId != null) 'sourceAccountId': _sourceAccountId,
+            },
+          },
+        );
       }
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;
@@ -946,17 +971,21 @@ class _PaymentSheetState extends State<_PaymentSheet> {
       _error = null;
     });
     try {
-      await context.read<ApiClient>().post(
-        '/ledger/${widget.entry.id}/payments',
-        body: {
-          'amount': amount,
-          'date': _date.toUtc().toIso8601String(),
-          if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-          'recordTransaction': _recordTransaction,
-          if (_recordTransaction && _accountId != null) 'accountId': _accountId,
-        },
-      );
+      final result = await context.read<SyncState>().ledgerPayment(
+            entryId: widget.entry.id,
+            label: widget.entry.counterparty,
+            body: {
+              'amount': amount,
+              'date': _date.toUtc().toIso8601String(),
+              if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+              'recordTransaction': _recordTransaction,
+              if (_recordTransaction && _accountId != null) 'accountId': _accountId,
+            },
+          );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

@@ -8,6 +8,8 @@ import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
+import '../../state/sync_state.dart';
+import '../../data/outbox_store.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 
@@ -93,7 +95,6 @@ class _BudgetFormState extends State<_BudgetForm> {
       _error = null;
     });
 
-    final api = context.read<ApiClient>();
     final data = context.read<DataState>();
     final body = <String, dynamic>{
       'name': _name.text.trim(),
@@ -116,12 +117,16 @@ class _BudgetFormState extends State<_BudgetForm> {
     };
 
     try {
-      if (_isEdit) {
-        await api.put('/budgets/${widget.existing!.id}', body: body);
-      } else {
-        await api.post('/budgets', body: body);
-      }
+      final sync = context.read<SyncState>();
+      final result = await sync.saveBudget(
+        body: body,
+        id: _isEdit ? widget.existing!.id : null,
+        name: _name.text.trim(),
+      );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;
@@ -417,16 +422,23 @@ class _FundSheetState extends State<_FundSheet> {
     });
 
     try {
-      await context.read<ApiClient>().post(
-        '/budgets/${b.id}/${widget.release ? 'release' : 'fund'}',
-        body: {
-          if (_accountId != null) 'accountId': _accountId,
-          'amount': amount,
-          'date': _date.toUtc().toIso8601String(),
-          if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
-        },
-      );
+      final body = {
+        if (_accountId != null) 'accountId': _accountId,
+        'amount': amount,
+        'date': _date.toUtc().toIso8601String(),
+        if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
+      };
+      final result = await context.read<SyncState>().budgetAction(
+            budgetId: b.id,
+            action: widget.release ? OutboxAction.release : OutboxAction.fund,
+            label: widget.release ? 'Give money back' : 'Fill the pot',
+            detail: b.name,
+            body: body,
+          );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;
@@ -634,15 +646,21 @@ class _AdjustSheetState extends State<_AdjustSheet> {
       _error = null;
     });
     try {
-      await context.read<ApiClient>().post(
-        '/budgets/${widget.budget.id}/adjust',
-        body: {
-          'direction': _add ? 'ADD' : 'DEDUCT',
-          'amount': amount,
-          if (_reason.text.trim().isNotEmpty) 'reason': _reason.text.trim(),
-        },
-      );
+      final result = await context.read<SyncState>().budgetAction(
+            budgetId: widget.budget.id,
+            action: OutboxAction.adjust,
+            label: _add ? 'Raise plan amount' : 'Cut plan amount',
+            detail: widget.budget.name,
+            body: {
+              'direction': _add ? 'ADD' : 'DEDUCT',
+              'amount': amount,
+              if (_reason.text.trim().isNotEmpty) 'reason': _reason.text.trim(),
+            },
+          );
       if (!mounted) return;
+      if (result.queued) {
+        toast(context, 'Saved offline — will sync when you are back online');
+      }
       Navigator.pop(context, true);
     } on ApiError catch (e) {
       if (!mounted) return;

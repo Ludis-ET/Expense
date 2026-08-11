@@ -9,6 +9,7 @@ import '../../models/models.dart';
 import '../../state/auth_state.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
+import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../analytics/analytics_screen.dart';
 import '../budgets/budget_detail_screen.dart';
@@ -58,6 +59,7 @@ class DashboardScreen extends StatelessWidget {
                 ? AppBadge(currency, tone: BadgeTone.primary)
                 : null,
           ),
+          const OfflineBanner(),
           if (raw == null) ...[
             if (async.hasError)
               ErrorState(

@@ -2,6 +2,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/api/api_client.dart';
 import '../models/models.dart';
+import 'sync_state.dart';
 
 /// A single fetch's lifecycle. The UI branches on `hasData` first so a refresh
 /// never blanks a screen that already has content — the same behaviour SWR
@@ -29,9 +30,10 @@ class Async<T> {
 /// categories, budget spend sources) plus the dashboard payload. Screens with
 /// their own paging — transactions, wishlist, ledger — fetch directly instead.
 class DataState extends ChangeNotifier {
-  DataState(this.api);
+  DataState(this.api, {this.sync});
 
   final ApiClient api;
+  final SyncState? sync;
 
   Async<DashboardData> dashboard = const Async.idle();
   Async<List<Account>> accounts = const Async.idle();
@@ -79,21 +81,46 @@ class DataState extends ChangeNotifier {
   int get unreadCount =>
       notifications.data?.where((n) => !n.readFlag).length ?? 0;
 
+  bool _isNetwork(Object e) => e is ApiError && e.isNetwork;
+
   Future<void> _load<T>(
     Async<T> Function() read,
     void Function(Async<T>) write,
     Future<T> Function() fetch, {
     bool force = false,
+    Future<T?> Function()? fromCache,
   }) async {
     final current = read();
     if (!force && current.hasData) return;
     write(Async<T>.loading(previous: current.data));
     notifyListeners();
+
+    // Seed from disk while the network round-trip is in flight.
+    if (!current.hasData && fromCache != null) {
+      try {
+        final cached = await fromCache();
+        if (cached != null && read().data == null) {
+          write(Async<T>.loading(previous: cached));
+          notifyListeners();
+        }
+      } catch (_) {}
+    }
+
     try {
       final value = await fetch();
       write(Async<T>.data(value));
     } catch (e) {
-      write(Async<T>.failed(e, previous: current.data));
+      if (_isNetwork(e) && fromCache != null) {
+        try {
+          final cached = await fromCache();
+          if (cached != null) {
+            write(Async<T>.data(cached));
+            notifyListeners();
+            return;
+          }
+        } catch (_) {}
+      }
+      write(Async<T>.failed(e, previous: read().data ?? current.data));
     }
     notifyListeners();
   }
@@ -104,35 +131,67 @@ class DataState extends ChangeNotifier {
           dashboard = v;
           if (v.data != null) _syncCurrencyFromDashboard(v.data!);
         },
-        () async => DashboardData.fromJson(await api.get<Map<String, dynamic>>('/dashboard')),
+        () async {
+          final json = await api.get<Map<String, dynamic>>('/dashboard');
+          await sync?.cacheDashboard(json);
+          return DashboardData.fromJson(json);
+        },
         force: force,
+        fromCache: () async {
+          final json = await sync?.readCachedDashboard();
+          if (json == null) return null;
+          return DashboardData.fromJson(json);
+        },
       );
 
   Future<void> loadAccounts({bool force = false}) => _load<List<Account>>(
         () => accounts,
         (v) => accounts = v,
-        () async => mapItemsList(await api.get('/accounts'), Account.fromJson),
+        () async {
+          final items = mapItemsList(await api.get('/accounts'), Account.fromJson);
+          await sync?.cacheAccounts(items);
+          return items;
+        },
         force: force,
+        fromCache: () async {
+          if (sync == null) return null;
+          return sync!.readCachedAccounts();
+        },
       );
 
   Future<void> loadCategories({bool force = false}) => _load<List<TxCategory>>(
         () => categories,
         (v) => categories = v,
-        () async => mapItemsList(await api.get('/categories'), TxCategory.fromJson),
+        () async {
+          final items = mapItemsList(await api.get('/categories'), TxCategory.fromJson);
+          await sync?.cacheCategories(items);
+          return items;
+        },
         force: force,
+        fromCache: () async {
+          if (sync == null) return null;
+          return sync!.readCachedCategories();
+        },
       );
 
   Future<void> loadBudgets({bool force = false, bool includeClosed = false}) =>
       _load<BudgetsResponse>(
         () => budgets,
         (v) => budgets = v,
-        () async => BudgetsResponse.fromJson(
-          await api.get<Map<String, dynamic>>(
+        () async {
+          final json = await api.get<Map<String, dynamic>>(
             '/budgets',
             query: includeClosed ? {'includeClosed': 'true'} : null,
-          ),
-        ),
+          );
+          await sync?.cacheBudgets(json);
+          return BudgetsResponse.fromJson(json);
+        },
         force: force,
+        fromCache: () async {
+          final json = await sync?.readCachedBudgets();
+          if (json == null) return null;
+          return BudgetsResponse.fromJson(json);
+        },
       );
 
   Future<void> loadSpendSources({bool force = false}) => _load<List<BudgetSpendSource>>(
@@ -140,9 +199,15 @@ class DataState extends ChangeNotifier {
         (v) => spendSources = v,
         () async {
           final json = await api.get<Map<String, dynamic>>('/budgets/sources');
+          await sync?.cacheSpendSources(json);
           return mapList(json['items'], BudgetSpendSource.fromJson);
         },
         force: force,
+        fromCache: () async {
+          final json = await sync?.readCachedSpendSources();
+          if (json == null) return null;
+          return mapList(json['items'], BudgetSpendSource.fromJson);
+        },
       );
 
   Future<void> loadRecurring({bool force = false}) => _load<List<RecurringRule>>(

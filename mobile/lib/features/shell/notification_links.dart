@@ -15,24 +15,23 @@ import '../wishlist/wishlist_screen.dart';
 /// - `/budgets?tab=wishlist`
 /// - `/recurring`
 /// - `/tab` / `/tab?e={entryId}`
+///
+/// Call this with a live [AppShellState] (not a bottom-sheet context). Sheets
+/// sit on the root navigator and are not descendants of [AppShell], and their
+/// context is unmounted as soon as they close.
 Future<void> openNotificationDestination(
-  BuildContext context,
+  AppShellState shell,
   AppNotification n,
 ) async {
   Haptics.select();
-  final shell = AppShell.of(context);
+  if (!shell.mounted) return;
+
   final target = _resolve(n);
-
-  // Close the notifications sheet first so the pushed route is visible.
-  Navigator.of(context).maybePop();
-  await Future<void>.delayed(const Duration(milliseconds: 160));
-  if (!context.mounted) return;
-
   switch (target) {
     case _BudgetDetail(:final id):
       shell.goTo(ShellTab.plan);
-      await Future<void>.delayed(const Duration(milliseconds: 40));
-      if (!context.mounted) return;
+      await _afterTabSettle(shell);
+      if (!shell.mounted) return;
       await shell.push(BudgetDetailScreen(budgetId: id));
     case _Wishlist():
       await shell.push(const WishlistScreen());
@@ -45,6 +44,12 @@ Future<void> openNotificationDestination(
     case _Home():
       shell.goTo(ShellTab.home);
   }
+}
+
+Future<void> _afterTabSettle(AppShellState shell) async {
+  await Future<void>.delayed(const Duration(milliseconds: 50));
+  if (!shell.mounted) return;
+  await WidgetsBinding.instance.endOfFrame;
 }
 
 sealed class _Dest {}
@@ -75,7 +80,17 @@ _Dest _resolve(AppNotification n) {
 
 _Dest? _fromLink(String? raw) {
   if (raw == null || raw.trim().isEmpty) return null;
-  final uri = Uri.tryParse(raw.trim());
+  var text = raw.trim();
+  // Tolerate absolute URLs accidentally stored as links.
+  if (text.startsWith('http://') || text.startsWith('https://')) {
+    final abs = Uri.tryParse(text);
+    if (abs != null) {
+      text = abs.hasQuery ? '${abs.path}?${abs.query}' : abs.path;
+    }
+  }
+  if (!text.startsWith('/')) text = '/$text';
+
+  final uri = Uri.tryParse(text);
   if (uri == null) return null;
 
   final segments = uri.pathSegments.where((s) => s.isNotEmpty).toList();
@@ -97,10 +112,15 @@ _Dest? _fromLink(String? raw) {
       return _Recurring();
     case 'tab':
     case 'ledger':
-      return _Tab(entryId: uri.queryParameters['e'] ?? uri.queryParameters['entry']);
+      return _Tab(
+        entryId: uri.queryParameters['e'] ?? uri.queryParameters['entry'],
+      );
     case 'plan':
     case 'plans':
       return _Plans();
+    case 'dashboard':
+    case 'home':
+      return _Home();
     default:
       return null;
   }

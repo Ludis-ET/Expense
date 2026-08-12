@@ -185,7 +185,8 @@ class ApiClient {
         !skipAuth &&
         !isRetry &&
         tokens.refresh != null) {
-      if (await _tryRefresh()) {
+      final refreshed = await refreshSession();
+      if (refreshed == true) {
         return _request<T>(
           method,
           path,
@@ -193,6 +194,11 @@ class ApiClient {
           query: query,
           isRetry: true,
         );
+      }
+      // Network blip during refresh must not wipe the session — callers keep
+      // their cached data and retry when connectivity returns.
+      if (refreshed == null) {
+        throw ApiError(0, 'Cannot reach the server. Check your connection.');
       }
       await tokens.clear();
       _unauthorized.add(null);
@@ -258,15 +264,23 @@ class ApiClient {
     return uri.replace(queryParameters: merged.isEmpty ? null : merged);
   }
 
-  Future<bool> _tryRefresh() async {
+  /// Refresh the access token.
+  ///
+  /// Returns `true` on success, `false` when the server rejected the refresh
+  /// (session dead), and `null` when the network itself failed — so offline
+  /// launches never clear a still-valid session.
+  Future<bool?> refreshSession() async {
+    final refresh = tokens.refresh;
+    if (refresh == null) return false;
     try {
       final res = await _http
           .post(
             _uri('/auth/refresh', null),
             headers: {'Content-Type': 'application/json'},
-            body: jsonEncode({'refreshToken': tokens.refresh}),
+            body: jsonEncode({'refreshToken': refresh}),
           )
           .timeout(const Duration(seconds: 20));
+      if (res.statusCode == 401 || res.statusCode == 403) return false;
       if (res.statusCode < 200 || res.statusCode >= 300) return false;
       final data =
           jsonDecode(utf8.decode(res.bodyBytes)) as Map<String, dynamic>;
@@ -275,8 +289,10 @@ class ApiClient {
         data['refreshToken'] as String,
       );
       return true;
+    } on TimeoutException {
+      return null;
     } catch (_) {
-      return false;
+      return null;
     }
   }
 

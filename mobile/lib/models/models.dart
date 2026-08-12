@@ -40,6 +40,19 @@ class User {
     cashAccountId: asStrOrNull(j['cashAccountId']),
   );
 
+  Map<String, dynamic> toJson() => {
+    'id': id,
+    'name': name,
+    'email': email,
+    'currency': currency,
+    'firstDayOfWeek': firstDayOfWeek,
+    if (locale != null) 'locale': locale,
+    if (calendar != null) 'calendar': calendar,
+    if (avatarId != null) 'avatarId': avatarId,
+    if (bannerId != null) 'bannerId': bannerId,
+    if (cashAccountId != null) 'cashAccountId': cashAccountId,
+  };
+
   String get firstName => name.split(' ').first;
 }
 

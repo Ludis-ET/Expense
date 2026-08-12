@@ -849,6 +849,107 @@ class SyncState extends ChangeNotifier {
     }
   }
 
+  Future<void> cacheNotifications(List<AppNotification> items) async {
+    try {
+      await _db.putBlobList(
+        CacheKeys.notifications,
+        items.map(_notificationJson).toList(),
+      );
+    } catch (e) {
+      debugPrint('cacheNotifications failed: $e');
+    }
+  }
+
+  Future<List<AppNotification>?> readCachedNotifications() async {
+    try {
+      final list = await _db.getBlobList(CacheKeys.notifications);
+      if (list == null) return null;
+      return list
+          .whereType<Map>()
+          .map((m) => AppNotification.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+    } catch (e) {
+      debugPrint('readCachedNotifications failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> cacheRecurring(List<RecurringRule> items) async {
+    try {
+      await _db.putBlobList(
+        CacheKeys.recurring,
+        items.map(_recurringJson).toList(),
+      );
+    } catch (e) {
+      debugPrint('cacheRecurring failed: $e');
+    }
+  }
+
+  Future<List<RecurringRule>?> readCachedRecurring() async {
+    try {
+      final list = await _db.getBlobList(CacheKeys.recurring);
+      if (list == null) return null;
+      return list
+          .whereType<Map>()
+          .map((m) => RecurringRule.fromJson(Map<String, dynamic>.from(m)))
+          .toList();
+    } catch (e) {
+      debugPrint('readCachedRecurring failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> cacheOutlookHistory(Map<String, dynamic> json) async {
+    try {
+      await _db.putBlob(CacheKeys.outlookHistory, json);
+    } catch (e) {
+      debugPrint('cacheOutlookHistory failed: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> readCachedOutlookHistory() async {
+    try {
+      return await _db.getBlob(CacheKeys.outlookHistory);
+    } catch (e) {
+      debugPrint('readCachedOutlookHistory failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> cacheWishlist(Map<String, dynamic> json) async {
+    try {
+      await _db.putBlob(CacheKeys.wishlist, json);
+    } catch (e) {
+      debugPrint('cacheWishlist failed: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> readCachedWishlist() async {
+    try {
+      return await _db.getBlob(CacheKeys.wishlist);
+    } catch (e) {
+      debugPrint('readCachedWishlist failed: $e');
+      return null;
+    }
+  }
+
+  Future<void> cacheLedger(Map<String, dynamic> json) async {
+    try {
+      await _db.putBlob(CacheKeys.ledger, json);
+    } catch (e) {
+      debugPrint('cacheLedger failed: $e');
+    }
+  }
+
+  Future<Map<String, dynamic>?> readCachedLedger() async {
+    try {
+      return await _db.getBlob(CacheKeys.ledger);
+    } catch (e) {
+      debugPrint('readCachedLedger failed: $e');
+      return null;
+    }
+  }
+
   Future<DateTime?> cacheTime(String key) async {
     try {
       final ms = await _db.blobUpdatedAt(key);
@@ -911,4 +1012,47 @@ Map<String, dynamic> _categoryJson(TxCategory c) => {
   'isDefault': c.isDefault,
   'archived': c.archived,
   if (c.transactionCount != null) 'transactionCount': c.transactionCount,
+};
+
+Map<String, dynamic>? _refJson(Ref? r) {
+  if (r == null) return null;
+  return {
+    'id': r.id,
+    'name': r.name,
+    if (r.icon != null) 'icon': r.icon,
+    if (r.color != null) 'color': r.color,
+    if (r.currency != null) 'currency': r.currency,
+    if (r.type != null) 'type': r.type,
+  };
+}
+
+Map<String, dynamic> _notificationJson(AppNotification n) => {
+  'id': n.id,
+  'type': n.type,
+  'message': n.message,
+  if (n.link != null) 'link': n.link,
+  'readFlag': n.readFlag,
+  'createdAt': n.createdAt.toIso8601String(),
+};
+
+Map<String, dynamic> _recurringJson(RecurringRule r) => {
+  'id': r.id,
+  'name': r.name,
+  'kind': r.kind.wire,
+  'amount': r.amount,
+  'currency': r.currency,
+  'accountId': r.accountId,
+  if (r.account != null) 'account': _refJson(r.account),
+  if (r.categoryId != null) 'categoryId': r.categoryId,
+  if (r.category != null) 'category': _refJson(r.category),
+  if (r.payee != null) 'payee': r.payee,
+  if (r.note != null) 'note': r.note,
+  'frequency': r.frequency.wire,
+  'interval': r.interval,
+  if (r.dayOfMonth != null) 'dayOfMonth': r.dayOfMonth,
+  'nextRun': r.nextRun.toIso8601String(),
+  if (r.endDate != null) 'endDate': r.endDate!.toIso8601String(),
+  'autoPost': r.autoPost,
+  'active': r.active,
+  'postedCount': r.postedCount,
 };

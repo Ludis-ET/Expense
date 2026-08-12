@@ -250,69 +250,144 @@ class DataState extends ChangeNotifier {
         },
       );
 
-  /// History behind the monthly outlook   completed months, the surprise
+  /// History behind the monthly outlook — completed months, the surprise
   /// buffer, and repeating payees. Scoped to the active currency, so switching
   /// currency refetches.
   Future<void> loadOutlookHistory({bool force = false}) =>
       _load<OutlookHistory>(
         () => outlookHistory,
         (v) => outlookHistory = v,
-        () async => OutlookHistory.fromJson(
-          await api.get<Map<String, dynamic>>(
+        () async {
+          final json = await api.get<Map<String, dynamic>>(
             '/analytics/outlook-history',
             query: {'currency': activeCurrency, 'months': '6'},
-          ),
-        ),
+          );
+          await sync?.cacheOutlookHistory({
+            ...json,
+            '_cacheCurrency': activeCurrency,
+          });
+          return OutlookHistory.fromJson(json);
+        },
         force: force,
+        fromCache: () async {
+          final json = await sync?.readCachedOutlookHistory();
+          if (json == null) return null;
+          final cachedCurrency = json['_cacheCurrency'] as String?;
+          if (cachedCurrency != null && cachedCurrency != activeCurrency) {
+            return null;
+          }
+          return OutlookHistory.fromJson(json);
+        },
       );
 
   Future<void> loadRecurring({bool force = false}) =>
       _load<List<RecurringRule>>(
         () => recurring,
         (v) => recurring = v,
-        () async =>
-            mapItemsList(await api.get('/recurring'), RecurringRule.fromJson),
+        () async {
+          final items =
+              mapItemsList(await api.get('/recurring'), RecurringRule.fromJson);
+          await sync?.cacheRecurring(items);
+          return items;
+        },
         force: force,
+        fromCache: () async {
+          if (sync == null) return null;
+          return sync!.readCachedRecurring();
+        },
       );
 
   Future<void> loadNotifications({bool force = false}) =>
       _load<List<AppNotification>>(
         () => notifications,
         (v) => notifications = v,
-        () async => mapItemsList(
-          await api.get('/notifications'),
-          AppNotification.fromJson,
-        ),
+        () async {
+          final items = mapItemsList(
+            await api.get('/notifications'),
+            AppNotification.fromJson,
+          );
+          await sync?.cacheNotifications(items);
+          return items;
+        },
         force: force,
+        fromCache: () async {
+          if (sync == null) return null;
+          return sync!.readCachedNotifications();
+        },
       );
 
   /// Everything the app shell needs before the first frame of the dashboard.
   Future<void> primeAll() => Future.wait([
-    loadDashboard(),
-    loadAccounts(),
-    loadCategories(),
-    loadNotifications(),
-    loadRecurring(),
-    loadBudgets(),
-  ]);
+        loadDashboard(),
+        loadAccounts(),
+        loadCategories(),
+        loadNotifications(),
+        loadRecurring(),
+        loadBudgets(),
+        loadSpendSources(),
+      ]);
 
   /// Called after any write, so balances and plan pots never go stale.
   Future<void> refreshAfterWrite() => Future.wait([
-    loadDashboard(force: true),
-    loadAccounts(force: true),
-    loadBudgets(force: true),
-    loadSpendSources(force: true),
-    loadRecurring(force: true),
-  ]);
+        loadDashboard(force: true),
+        loadAccounts(force: true),
+        loadBudgets(force: true),
+        loadSpendSources(force: true),
+        loadRecurring(force: true),
+      ]);
 
   Future<void> markNotificationRead(String id) async {
-    await api.post('/notifications/$id/read');
-    await loadNotifications(force: true);
+    final current = notifications.data;
+    if (current != null) {
+      final next = [
+        for (final n in current)
+          if (n.id == id)
+            AppNotification(
+              id: n.id,
+              type: n.type,
+              message: n.message,
+              link: n.link,
+              readFlag: true,
+              createdAt: n.createdAt,
+            )
+          else
+            n,
+      ];
+      notifications = Async.data(next);
+      notifyListeners();
+      await sync?.cacheNotifications(next);
+    }
+    try {
+      await api.post('/notifications/$id/read');
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+      // Stay optimistic offline; server will catch up next online load.
+    }
   }
 
   Future<void> markAllNotificationsRead() async {
-    await api.post('/notifications/read-all');
-    await loadNotifications(force: true);
+    final current = notifications.data;
+    if (current != null) {
+      final next = [
+        for (final n in current)
+          AppNotification(
+            id: n.id,
+            type: n.type,
+            message: n.message,
+            link: n.link,
+            readFlag: true,
+            createdAt: n.createdAt,
+          ),
+      ];
+      notifications = Async.data(next);
+      notifyListeners();
+      await sync?.cacheNotifications(next);
+    }
+    try {
+      await api.post('/notifications/read-all');
+    } on ApiError catch (e) {
+      if (!e.isNetwork) rethrow;
+    }
   }
 
   /// Accounts filtered to the active currency   what every picker should show.

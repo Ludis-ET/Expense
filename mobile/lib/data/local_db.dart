@@ -233,6 +233,10 @@ abstract final class CacheKeys {
   static const budgets = 'budgets';
   static const spendSources = 'spend_sources';
   static const notifications = 'notifications';
+  static const recurring = 'recurring';
+  static const outlookHistory = 'outlook_history';
+  static const wishlist = 'wishlist';
+  static const ledger = 'ledger';
   static const transactionsRecent = 'transactions_recent';
   static const inboxUnresolved = 'inbox_unresolved';
 }

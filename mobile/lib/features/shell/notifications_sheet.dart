@@ -7,29 +7,44 @@ import '../../core/utils/format.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../widgets/ui.dart';
+import 'app_shell.dart';
 import 'notification_links.dart';
 
 /// `NotificationsMenu` as a bottom sheet — budget alerts, tab reminders and
 /// recurring postings, newest first.
-Future<void> showNotificationsSheet(BuildContext context) {
+///
+/// Navigation runs *after* the sheet closes, using the [AppShell] that opened
+/// it. The sheet itself is not under [AppShell] in the tree, so tapping cannot
+/// call `AppShell.of(sheetContext)`.
+Future<void> showNotificationsSheet(BuildContext context) async {
   final data = context.read<DataState>();
+  final shell = AppShell.of(context);
   data.loadNotifications(force: true);
-  return showAppSheet<void>(
+
+  final selected = await showAppSheet<AppNotification>(
     context,
     title: 'Notifications',
     builder: (ctx) => const _NotificationsList(),
   );
+
+  if (selected == null || !shell.mounted) return;
+  // Let the sheet finish dismissing before pushing a tab route.
+  await Future<void>.delayed(const Duration(milliseconds: 50));
+  if (!shell.mounted) return;
+  await openNotificationDestination(shell, selected);
 }
 
 class _NotificationsList extends StatelessWidget {
   const _NotificationsList();
 
-  Future<void> _open(BuildContext context, AppNotification n) async {
+  void _open(BuildContext context, AppNotification n) {
     final data = context.read<DataState>();
     if (!n.readFlag) {
       data.markNotificationRead(n.id);
     }
-    await openNotificationDestination(context, n);
+    // Return the notification to [showNotificationsSheet], which navigates
+    // with a live AppShell after this route is gone.
+    Navigator.of(context).pop(n);
   }
 
   @override
@@ -180,13 +195,20 @@ class _NotificationsList extends StatelessWidget {
   static String _destinationLabel(AppNotification n) {
     final link = (n.link ?? '').toLowerCase();
     final type = n.type.toLowerCase();
-    if (link.contains('wishlist') || type.contains('wish')) return 'Open wishlist';
-    if (link.contains('/budgets/') || (type.contains('budget') && link.contains('budgets'))) {
+    if (link.contains('wishlist') || type.contains('wish')) {
+      return 'Open wishlist';
+    }
+    if (link.contains('/budgets/') ||
+        (type.contains('budget') && link.contains('budgets'))) {
       return 'Open plan';
     }
     if (type.contains('budget')) return 'Open plans';
-    if (link.contains('recurring') || type.contains('recurring')) return 'Open recurring';
-    if (link.contains('/tab') || type.contains('tab') || type.contains('ledger')) {
+    if (link.contains('recurring') || type.contains('recurring')) {
+      return 'Open recurring';
+    }
+    if (link.contains('/tab') ||
+        type.contains('tab') ||
+        type.contains('ledger')) {
       return 'Open Money Tab';
     }
     return 'Open';

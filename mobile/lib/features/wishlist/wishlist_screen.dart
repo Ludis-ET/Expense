@@ -39,10 +39,12 @@ class _WishlistScreenState extends State<WishlistScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final sync = context.read<SyncState>();
     try {
       final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
         '/wishlist',
       );
+      await sync.cacheWishlist(json);
       if (!mounted) return;
       setState(() {
         _data = WishlistResponse.fromJson(json);
@@ -51,6 +53,17 @@ class _WishlistScreenState extends State<WishlistScreen> {
       });
     } catch (e) {
       if (!mounted) return;
+      if (e is ApiError && e.isNetwork) {
+        final cached = await sync.readCachedWishlist();
+        if (cached != null && mounted) {
+          setState(() {
+            _data = WishlistResponse.fromJson(cached);
+            _loading = false;
+            _error = null;
+          });
+          return;
+        }
+      }
       setState(() {
         _error = e;
         _loading = false;

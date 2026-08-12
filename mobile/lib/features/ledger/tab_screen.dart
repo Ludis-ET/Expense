@@ -43,6 +43,7 @@ class _TabScreenState extends State<TabScreen> {
 
   Future<void> _load() async {
     setState(() => _loading = true);
+    final sync = context.read<SyncState>();
     try {
       final api = context.read<ApiClient>();
       final currency = context.read<DataState>().activeCurrency;
@@ -78,6 +79,11 @@ class _TabScreenState extends State<TabScreen> {
             query: {'currency': currency},
           ),
         ]);
+        await sync.cacheLedger({
+          'currency': currency,
+          'summary': results[0],
+          'people': results[1],
+        });
         if (!mounted) return;
         setState(() {
           _summary = LedgerSummary.fromJson(results[0]);
@@ -89,6 +95,29 @@ class _TabScreenState extends State<TabScreen> {
       _maybeFocusEntry();
     } catch (e) {
       if (!mounted) return;
+      if (e is ApiError && e.isNetwork && !_showSettled) {
+        final currency = context.read<DataState>().activeCurrency;
+        final cached = await sync.readCachedLedger();
+        if (!mounted) return;
+        if (cached != null &&
+            (cached['currency'] == null || cached['currency'] == currency) &&
+            cached['summary'] is Map &&
+            cached['people'] is Map) {
+          setState(() {
+            _summary = LedgerSummary.fromJson(
+              Map<String, dynamic>.from(cached['summary'] as Map),
+            );
+            _people = mapItemsList(
+              cached['people'],
+              LedgerPersonGroup.fromJson,
+            );
+            _loading = false;
+            _error = null;
+          });
+          _maybeFocusEntry();
+          return;
+        }
+      }
       setState(() {
         _error = e;
         _loading = false;

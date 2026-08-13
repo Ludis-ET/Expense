@@ -7,17 +7,14 @@
  *
  * Two traps are handled centrally rather than left to callers:
  *
- *  - **Reservations.** `locked` is never re-derived here. UNPLANNED expenses
- *    must be excluded from reservation aggregates (they release money that was
- *    never set aside) and RELEASE allocations are stored negative in the same
- *    table as FUND, so a hand-rolled sum gets it wrong in both directions.
- *    `accounts.list()` already carries the answer per account.
+ *  - **Reservations.** `locked` is never re-derived here. There is exactly one
+ *    derivation of what a wallet holds and what plans have reserved of it, in
+ *    `core/money`, and `accounts.list()` already carries its answer.
  *  - **Currency.** Nothing is converted. One currency is in scope at a time and
  *    the response says which other currencies were left out, so an incomplete
  *    total announces itself instead of quietly under-reporting.
  */
 import {
-  BudgetKind,
   Frequency,
   LedgerKind,
   LedgerStatus,
@@ -128,11 +125,10 @@ export async function page(user: AuthUser, month?: string, currencyInput?: strin
       })
       .then((a) => a._sum.amount ?? zero),
     sumExpenses(user.id, currency, prev.start, prev.end),
-    // Spending that was never set aside for: the built-in catch-all, plus any
-    // legacy row that predates plans entirely.
-    sumExpenses(user.id, currency, start, end, {
-      OR: [{ budgetId: null }, { budget: { is: { kind: BudgetKind.UNPLANNED } } }],
-    }),
+    // Spending no money was set aside for. One definition, shared with the
+    // budgets page and the outlook - these three used to disagree, and quoted
+    // three different numbers for the same month.
+    sumExpenses(user.id, currency, start, end, budgetsService.UNPLANNED_WHERE),
     prisma.transaction.findFirst({
       where: { userId: user.id, currency },
       orderBy: { date: 'asc' },

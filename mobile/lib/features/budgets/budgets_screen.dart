@@ -51,10 +51,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final all = (response?.items ?? const <BudgetRow>[])
         .where((b) => b.currency == currency)
         .toList();
-    final active = all.where((b) => !b.isClosed && !b.isUnplanned).toList();
-    final unplanned = all.where((b) => b.isUnplanned).firstOrNull;
+    final active = all.where((b) => !b.isClosed).toList();
     final closed = all.where((b) => b.isClosed).toList();
     final totals = response?.totals;
+    // Not one of `items` any more: spending with no plan behind it is a view
+    // over transactions, not an envelope that could never be funded.
+    final unplanned = response?.unplanned;
 
     return RefreshIndicator(
       onRefresh: () =>
@@ -124,11 +126,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                           ),
                         ),
                         const Gap(S.hair),
-                        Muted(
-                          'Things you want. Turn one into a plan when you are ready.',
-                          size: 12,
-                          maxLines: 2,
-                        ),
+                        Muted('Things you want', size: 12, maxLines: 1),
                       ],
                     ),
                   ),
@@ -172,11 +170,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             if (unplanned != null) ...[
               const Gap(S.xs),
               SectionLabel('CATCH-ALL'),
-              BudgetCard(
-                budget: unplanned,
-                money: money,
-                onTap: () => _open(context, unplanned),
-              ),
+              _UnplannedCard(summary: unplanned, money: money),
             ],
 
             const Gap(S.lg),
@@ -314,16 +308,124 @@ class _TotalsHero extends StatelessWidget {
               ),
             ],
           ),
+          const Gap(S.sm),
+          // Money you have that no plan has claimed. The number envelope
+          // budgeting is actually built around, and the only figure here that
+          // asks you to do something.
+          _Fig(
+            label: 'Ready to assign',
+            value: money(totals.readyToAssign),
+            emphasis: true,
+          ),
         ],
       ),
     );
   }
 }
 
+/// The catch-all card.
+///
+/// Deliberately shaped unlike a plan, because it is not one: no pot, no
+/// progress bar, nothing to fill. It reports what was spent without setting
+/// money aside - a fact about the past, not a container for the future.
+class _UnplannedCard extends StatelessWidget {
+  const _UnplannedCard({required this.summary, required this.money});
+
+  final UnplannedSummary summary;
+  final String Function(Object?) money;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final tone = parseHexColor(summary.color) ?? t.mutedForeground;
+
+    return DashedCard(
+      child: Row(
+        children: [
+          IconTile(icon: Icons.more_horiz_rounded, color: tone),
+          const GapX(S.md),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  summary.name,
+                  style: TextStyle(
+                    fontSize: AppType.body,
+                    fontWeight: FontWeight.w700,
+                    color: t.foreground,
+                  ),
+                ),
+                Text(
+                  'No money set aside · nothing to run out of',
+                  style: TextStyle(
+                    fontSize: AppType.caption,
+                    color: t.mutedForeground,
+                  ),
+                ),
+              ],
+            ),
+          ),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Text(
+                money(summary.spentAmount),
+                style: TextStyle(
+                  fontSize: AppType.lead,
+                  fontWeight: FontWeight.w700,
+                  color: t.foreground,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                ),
+              ),
+              Text(
+                'this month',
+                style: TextStyle(
+                  fontSize: AppType.micro,
+                  color: t.mutedForeground,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// A card that reads as an outline rather than a container, so the catch-all
+/// never looks like something you can put money into.
+class DashedCard extends StatelessWidget {
+  const DashedCard({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Container(
+      padding: const EdgeInsets.all(S.lg),
+      decoration: BoxDecoration(
+        color: t.surface.withValues(alpha: 0.5),
+        borderRadius: BorderRadius.circular(R.lg),
+        border: Border.all(color: t.border),
+      ),
+      child: child,
+    );
+  }
+}
+
 class _Fig extends StatelessWidget {
-  const _Fig({required this.label, required this.value});
+  const _Fig({
+    required this.label,
+    required this.value,
+    this.emphasis = false,
+  });
   final String label;
   final String value;
+
+  /// Full width and a larger figure, for the one number worth acting on.
+  final bool emphasis;
 
   @override
   Widget build(BuildContext context) {
@@ -347,8 +449,8 @@ class _Fig extends StatelessWidget {
             alignment: Alignment.centerLeft,
             child: Text(
               value,
-              style: const TextStyle(
-                fontSize: AppType.body,
+              style: TextStyle(
+                fontSize: emphasis ? AppType.figure : AppType.body,
                 fontWeight: FontWeight.w700,
                 color: Colors.white,
                 fontFeatures: [FontFeature.tabularFigures()],

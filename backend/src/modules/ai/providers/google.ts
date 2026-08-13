@@ -14,7 +14,13 @@ export const googleAdapter: AiProviderAdapter = {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         systemInstruction: { parts: [{ text: req.system }] },
-        contents: [{ role: 'user', parts: [{ text: req.prompt }] }],
+        contents: [
+          ...(req.history ?? []).map((t) => ({
+            role: t.role === 'assistant' ? 'model' : 'user',
+            parts: [{ text: t.content }],
+          })),
+          { role: 'user', parts: [{ text: req.prompt }] },
+        ],
         generationConfig: {
           maxOutputTokens: req.maxTokens ?? 4096,
           ...(req.json ? { responseMimeType: 'application/json' } : {}),

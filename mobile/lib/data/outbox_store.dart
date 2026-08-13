@@ -176,6 +176,30 @@ bool isLocalId(String id) => id.startsWith('local:');
 
 String newLocalId() => 'local:${const Uuid().v4()}';
 
+/// Which queued operations create money rather than change or remove one.
+///
+/// Only these need replay protection: a lost reply to a create is
+/// indistinguishable from the create never landing, so the retry books it a
+/// second time. An update or a delete is naturally idempotent - applying it
+/// twice reaches the same state.
+const _creatingActions = {
+  OutboxAction.create,
+  OutboxAction.transfer,
+  OutboxAction.fund,
+  OutboxAction.release,
+  OutboxAction.adjust,
+  OutboxAction.payment,
+};
+
+/// Attach the op's own id so the server recognises a replay.
+///
+/// Sent on the first attempt too, not only on retries: the reply to the direct
+/// call is exactly what goes missing when a connection drops mid-request.
+Map<String, dynamic>? withOpKey(OutboxOp op, Map<String, dynamic>? body) {
+  if (!_creatingActions.contains(op.action)) return body;
+  return {...?body, 'clientOpId': '${op.action.name}:${op.id}'};
+}
+
 Map<String, dynamic> txToJson(Transaction tx) => {
       'id': tx.id,
       'kind': tx.kind.wire,

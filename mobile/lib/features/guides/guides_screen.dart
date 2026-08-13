@@ -46,7 +46,7 @@ class _GuidesScreenState extends State<GuidesScreen> {
       ]);
       if (!mounted) return;
       final base = GuidesOverview.fromJson(results[0] as Map<String, dynamic>);
-      final forYou = results[1] as Map<String, dynamic>?;
+      final forYou = results[1];
       final personalised = forYou == null
           ? const <GuideSuggestion>[]
           : mapList(forYou['suggestions'], GuideSuggestion.fromJson);

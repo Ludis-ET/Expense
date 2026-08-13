@@ -11,6 +11,7 @@ import { PageHeader, Skeleton, EmptyState } from '@/components/ui/misc';
 import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-badge';
 import { BudgetPlanCard } from '@/components/finance/budget-plan-card';
 import { BudgetPlanForm } from '@/components/finance/budget-plan-modals';
+import { ReadyToAssign, UnplannedCard } from '@/components/finance/assign-and-unplanned';
 import { WishlistPanel } from '@/components/finance/wishlist-panel';
 import { useMoney } from '@/lib/amount-visibility';
 import { useCurrencyView } from '@/lib/currency-view-context';
@@ -107,13 +108,17 @@ function PlansPanel() {
   const activeFilters = (q ? 1 : 0) + (status !== 'open' ? 1 : 0) + (kind !== 'all' ? 1 : 0);
 
   const items = useMemo(() => data?.items ?? [], [data?.items]);
-  const unplanned = items.find((b) => b.isUnplanned);
-  const hasActive = items.some((b) => !b.isUnplanned && b.state === 'ACTIVE');
+  /**
+   * Unplanned is no longer a plan row - it is a view over spending with no plan
+   * behind it. The server sends it as its own summary, which is why it is not
+   * filtered out of `items` here any more: it was never in there.
+   */
+  const unplanned = data?.unplanned;
+  const hasActive = items.some((b) => b.state === 'ACTIVE');
 
   const filtered = useMemo(() => {
     return items
       .filter((b) => {
-        if (b.isUnplanned) return false;
         if (status === 'open' && b.state !== 'ACTIVE') return false;
         if (status === 'closed' && b.state !== 'CLOSED') return false;
         if (kind !== 'all' && b.kind !== kind) return false;
@@ -149,6 +154,7 @@ function PlansPanel() {
       funded: funded.toString(),
       spent: spent.toString(),
       unplannedSpent: data.totals.unplannedSpent,
+      readyToAssign: data.totals.readyToAssign,
     };
   }, [filtered, data?.totals]);
 
@@ -271,6 +277,14 @@ function PlansPanel() {
         </div>
       )}
 
+      {cardTotals && (
+        <ReadyToAssign
+          amount={cardTotals.readyToAssign}
+          currency={data?.totals.currency ?? activeCurrency}
+          onAssign={() => setFormOpen(true)}
+        />
+      )}
+
       {cardTotals && hasActive && (
         <div className="relative overflow-hidden rounded-2xl border border-border bg-gradient-to-br from-indigo-50 via-sky-50 to-emerald-50 p-5 dark:from-indigo-950/40 dark:via-sky-950/30 dark:to-emerald-950/30 sm:p-6">
           <div className="pointer-events-none absolute -right-8 -top-8 h-32 w-32 rounded-full bg-primary/10 blur-3xl" />
@@ -309,7 +323,7 @@ function PlansPanel() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2">
           {/* The catch-all is always first, and always there. */}
-          {unplanned && status !== 'closed' && <BudgetPlanCard key={unplanned.id} plan={unplanned} />}
+          {unplanned && status !== 'closed' && <UnplannedCard key="unplanned" summary={unplanned} />}
           {filtered.map((plan) => (
             <BudgetPlanCard key={plan.id} plan={plan} />
           ))}

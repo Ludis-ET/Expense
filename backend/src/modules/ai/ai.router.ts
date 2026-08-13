@@ -5,6 +5,7 @@ import { requireAuth } from '../../core/middleware/auth.js';
 import { validate } from '../../core/middleware/validate.js';
 import * as ai from './ai.service.js';
 import * as features from './ai.features.js';
+import * as conversations from './ai.conversations.js';
 
 export const aiRouter = Router();
 
@@ -55,13 +56,73 @@ aiRouter.get(
   }),
 );
 
+// --- Conversations (multi-chat) ---
+
+aiRouter.get(
+  '/conversations',
+  asyncHandler(async (req, res) => {
+    res.json(await conversations.listConversations(req.user!.id));
+  }),
+);
+
+aiRouter.post(
+  '/conversations',
+  validate({
+    body: z.object({ title: z.string().min(1).max(80).optional() }),
+  }),
+  asyncHandler(async (req, res) => {
+    res.status(201).json(await conversations.createConversation(req.user!.id, req.body.title));
+  }),
+);
+
+aiRouter.get(
+  '/conversations/:id',
+  validate({ params: z.object({ id: z.string().min(1) }) }),
+  asyncHandler(async (req, res) => {
+    res.json(await conversations.getConversation(req.user!.id, String(req.params.id)));
+  }),
+);
+
+aiRouter.patch(
+  '/conversations/:id',
+  validate({
+    params: z.object({ id: z.string().min(1) }),
+    body: z.object({ title: z.string().min(1).max(80) }),
+  }),
+  asyncHandler(async (req, res) => {
+    res.json(
+      await conversations.renameConversation(req.user!.id, String(req.params.id), req.body.title),
+    );
+  }),
+);
+
+aiRouter.delete(
+  '/conversations/:id',
+  validate({ params: z.object({ id: z.string().min(1) }) }),
+  asyncHandler(async (req, res) => {
+    res.json(await conversations.deleteConversation(req.user!.id, String(req.params.id)));
+  }),
+);
+
 // --- Features ---
 
 aiRouter.post(
   '/ask',
-  validate({ body: z.object({ question: z.string().min(2).max(500) }) }),
+  validate({
+    body: z.object({
+      question: z.string().min(2).max(2000),
+      conversationId: z.string().min(1).optional(),
+      /** Persist this turn into a conversation (creates one if needed). */
+      persist: z.boolean().optional(),
+    }),
+  }),
   asyncHandler(async (req, res) => {
-    res.json(await features.ask(req.user!, req.body.question));
+    res.json(
+      await features.ask(req.user!, req.body.question, {
+        conversationId: req.body.conversationId,
+        persist: req.body.persist,
+      }),
+    );
   }),
 );
 

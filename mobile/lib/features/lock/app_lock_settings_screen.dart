@@ -159,7 +159,11 @@ class AppLockSettingsScreen extends StatelessWidget {
               ),
             ],
             const Gap(S.lg),
-            Muted('Your PIN stays on this phone only. Santim never uploads it.', size: 12.5),
+            const InfoHint(
+              label: 'Your PIN',
+              body:
+                  'Your PIN stays on this phone only. Santim never uploads it.',
+            ),
           ],
         ),
       ),

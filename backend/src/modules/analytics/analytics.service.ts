@@ -6,6 +6,7 @@ import { monthRange } from '../budgets/budgets.service.js';
 import * as budgets from '../budgets/budgets.service.js';
 import { UNNECESSARY_CATEGORY_NAME } from '../categories/default-categories.js';
 import { bucketKey, enumerateBuckets, type Granularity } from './analytics.buckets.js';
+import { elapsedDays as elapsed } from './analytics.averages.js';
 
 const zero = new Prisma.Decimal(0);
 
@@ -50,12 +51,10 @@ export async function summary(user: AuthUser, month?: string, currency?: string)
   const deltaPct = (now: Prisma.Decimal, before: Prisma.Decimal) =>
     before.gt(0) ? Number(now.sub(before).div(before).mul(100).toFixed(1)) : null;
 
-  // Average daily spend over elapsed days (whole month if it's in the past).
-  const now = new Date();
-  const elapsedDays =
-    now >= end
-      ? (end.getTime() - start.getTime()) / 86_400_000
-      : Math.max(1, Math.ceil((now.getTime() - start.getTime()) / 86_400_000));
+  // One definition of "per day", shared with the streak card and the outlook -
+  // see analytics.averages. Three different formulas used to answer the same
+  // question with three different numbers on the same screen.
+  const days = elapsed(start, end);
 
   return {
     currency: cur,
@@ -65,7 +64,10 @@ export async function summary(user: AuthUser, month?: string, currency?: string)
     net: income.sub(expense).toFixed(2),
     incomeDeltaPct: deltaPct(income, prevIncome),
     expenseDeltaPct: deltaPct(expense, prevExpense),
-    avgDailySpend: expense.div(elapsedDays).toFixed(2),
+    avgDailySpend: expense.div(days).toFixed(2),
+    /** Earned per day over the same days, so the two can be compared directly. */
+    avgDailyIncome: income.div(days).toFixed(2),
+    daysElapsed: days,
     biggestExpense: biggest
       ? {
           id: biggest.id,

@@ -125,6 +125,10 @@ class _TransactionFormState extends State<TransactionForm> {
   String? _categoryId;
   String? _budgetId;
   String? _budgetSourceAccountId;
+
+  /// Where the shortfall comes from when the plan cannot cover this on its own.
+  /// `plan:<id>` for another envelope, `account:<id>` for money in no plan.
+  String? _cover;
   late DateTime _date;
 
   bool _saving = false;
@@ -251,13 +255,39 @@ class _TransactionFormState extends State<TransactionForm> {
     }
 
     if (_categoryId == null) return 'Pick a category.';
-    if (!payingFromPot && _accountId == null) {
-      return 'Pick an account or a budget plan to pay from.';
-    }
-    if (payingFromPot && amount > toNum(plan.balance)) {
-      return '${plan.name} only has ${formatMoney(plan.balance, currency: plan.currency)} left.';
+    // Every expense names the wallet the cash leaves now, plan or no plan - a
+    // plan says which envelope it draws down, never where the money came from.
+    if (_accountId == null) return 'Pick the wallet this comes out of.';
+
+    // Going past what a plan holds is allowed, but you have to say where the
+    // rest comes from. Refusing outright just pushes people into recording it
+    // as unplanned, which quietly ruins both numbers.
+    if (payingFromPot && amount > plan.remaining && _cover == null) {
+      final short = amount - plan.remaining;
+      return '${plan.name} is ${formatMoney(short, currency: plan.currency)} short. '
+          'Choose where to cover it from.';
     }
     return null;
+  }
+
+  /// The cover the server understands, or null when nothing is short.
+  Map<String, dynamic>? _coverPayload() {
+    final value = _cover;
+    if (value == null) return null;
+    final parts = value.split(':');
+    if (parts.length != 2) return null;
+    return parts.first == 'plan'
+        ? {'from': 'BUDGET', 'budgetId': parts.last}
+        : {'from': 'ACCOUNT', 'accountId': parts.last};
+  }
+
+  /// How far past the plan this spend goes, or zero when it fits.
+  double _shortfall(DataState data) {
+    final amount = double.tryParse(_amount.text.trim()) ?? 0;
+    final plan = _plan(data);
+    if (plan == null || plan.isUnplanned) return 0;
+    final over = amount - plan.remaining;
+    return over > 0 ? over : 0;
   }
 
   Future<void> _save() async {
@@ -314,14 +344,18 @@ class _TransactionFormState extends State<TransactionForm> {
           body['transferAccountId'] = _transferAccountId;
         case TxKind.expense:
           body['categoryId'] = _categoryId;
+          // The wallet the cash leaves is always sent. The plan, when there is
+          // one, only says which envelope is drawn down; leaving it off means
+          // unplanned, which is the single representation of it now - the web
+          // and the phone no longer describe the same action differently.
+          body['accountId'] = _accountId;
           if (payingFromPot) {
             body['budgetId'] = plan.id;
             if (_budgetSourceAccountId != null) {
               body['budgetSourceAccountId'] = _budgetSourceAccountId;
             }
-            if (_accountId != null) body['accountId'] = _accountId;
-          } else {
-            body['accountId'] = _accountId;
+            final cover = _coverPayload();
+            if (cover != null) body['cover'] = cover;
           }
       }
     }
@@ -504,7 +538,6 @@ class _TransactionFormState extends State<TransactionForm> {
                           controller: _amount,
                           currency: data.activeCurrency,
                           tint: tint,
-                          autofocus: !_isEdit,
                           focused: _amountFocused,
                           onFocusChange: (f) =>
                               setState(() => _amountFocused = f),
@@ -558,8 +591,8 @@ class _TransactionFormState extends State<TransactionForm> {
                                 value: plan,
                                 options: plans,
                                 labelOf: (p) => p.isUnplanned
-                                    ? '${p.name} (from an account)'
-                                    : '${p.name} · ${formatMoney(p.balance, currency: p.currency)} left',
+                                    ? '${p.name} (no money set aside)'
+                                    : '${p.name} · ${formatMoney(p.balance ?? '0', currency: p.currency)} left',
                                 iconOf: (p) => p.isUnplanned
                                     ? Icons.account_balance_wallet_outlined
                                     : financeIcon(p.icon),
@@ -605,6 +638,17 @@ class _TransactionFormState extends State<TransactionForm> {
                                   () => _budgetSourceAccountId = s?.account?.id,
                                 ),
                                 sheetTitle: 'Funding wallet',
+                              ),
+
+                            // The plan is short. Cover it rather than refusing.
+                            if (payingFromPot && _shortfall(data) > 0)
+                              _CoverPicker(
+                                plan: plan,
+                                shortfall: _shortfall(data),
+                                plans: plans,
+                                accounts: accounts,
+                                value: _cover,
+                                onChanged: (v) => setState(() => _cover = v),
                               ),
 
                             if (_kind != TxKind.transfer)
@@ -1092,7 +1136,6 @@ class _HeroAmountField extends StatefulWidget {
     required this.controller,
     required this.currency,
     required this.tint,
-    required this.autofocus,
     required this.focused,
     required this.onFocusChange,
   });
@@ -1100,7 +1143,6 @@ class _HeroAmountField extends StatefulWidget {
   final TextEditingController controller;
   final String currency;
   final Color tint;
-  final bool autofocus;
   final bool focused;
   final ValueChanged<bool> onFocusChange;
 
@@ -1192,10 +1234,17 @@ class _HeroAmountFieldState extends State<_HeroAmountField> {
                   child: TextField(
                     controller: widget.controller,
                     focusNode: _focus,
-                    autofocus: widget.autofocus,
+                    // Never autofocus. The sheet lives inside an AnimatedSwitcher
+                    // that remounts this field whenever the kind changes or the
+                    // form rebuilds, and each remount re-fired autofocus - so the
+                    // keyboard kept shoving itself back up over whatever you were
+                    // trying to tap. It opens when you tap the amount, and only
+                    // then.
                     keyboardType: const TextInputType.numberWithOptions(
                       decimal: true,
                     ),
+                    // Tapping anywhere else puts it away again.
+                    onTapOutside: (_) => _focus.unfocus(),
                     inputFormatters: [
                       FilteringTextInputFormatter.allow(
                         RegExp(r'^\d*\.?\d{0,2}'),
@@ -1405,4 +1454,150 @@ class _GlowSubmitButton extends StatelessWidget {
 
     return button;
   }
+}
+
+/// Where the extra comes from when a plan cannot cover a spend.
+///
+/// Refusing an overspend outright reads as strict but teaches nothing - people
+/// record it as unplanned instead, which quietly ruins both numbers. Naming the
+/// source is the part actually worth knowing, and it keeps the books balanced:
+/// the money is moved into the plan first, and the plan is raised to match.
+class _CoverPicker extends StatelessWidget {
+  const _CoverPicker({
+    required this.plan,
+    required this.shortfall,
+    required this.plans,
+    required this.accounts,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final BudgetSpendSource plan;
+  final double shortfall;
+  final List<BudgetSpendSource> plans;
+  final List<Account> accounts;
+  final String? value;
+  final ValueChanged<String?> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+
+    final donorPlans = plans
+        .where(
+          (p) =>
+              !p.isUnplanned &&
+              p.id != plan.id &&
+              p.currency == plan.currency &&
+              p.remaining >= shortfall,
+        )
+        .toList();
+    final donorAccounts = accounts
+        .where((a) => a.currency == plan.currency && asNum(a.balance) >= shortfall)
+        .toList();
+
+    final options = <_CoverOption>[
+      for (final p in donorPlans)
+        _CoverOption(
+          key: 'plan:${p.id}',
+          title: p.name,
+          subtitle: '${formatMoney(p.balance ?? '0', currency: p.currency)} held',
+          icon: financeIcon(p.icon),
+          color: parseHexColor(p.color) ?? t.primary,
+        ),
+      for (final a in donorAccounts)
+        _CoverOption(
+          key: 'account:${a.id}',
+          title: a.name,
+          subtitle: '${formatMoney(a.balance, currency: a.currency)} free',
+          icon: accountTypeIcon(a.type.wire),
+          color: parseHexColor(a.color) ?? t.mutedForeground,
+        ),
+    ];
+
+    return Container(
+      padding: const EdgeInsets.all(S.md),
+      decoration: BoxDecoration(
+        color: t.warning.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(R.lg),
+        border: Border.all(color: t.warning.withValues(alpha: 0.35)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Icon(Icons.warning_amber_rounded, size: 18, color: t.warning),
+              const GapX(S.sm),
+              Expanded(
+                child: Text(
+                  '${plan.name} is ${formatMoney(shortfall, currency: plan.currency)} short. '
+                  'Where should the extra come from?',
+                  style: TextStyle(
+                    fontSize: AppType.bodySm,
+                    height: 1.4,
+                    color: t.foreground,
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const Gap(S.sm),
+          if (options.isEmpty)
+            Text(
+              'Nothing has ${formatMoney(shortfall, currency: plan.currency)} spare right now. '
+              'Give money back from another plan first, or record this as Unplanned.',
+              style: TextStyle(
+                fontSize: AppType.caption,
+                height: 1.4,
+                color: t.mutedForeground,
+              ),
+            )
+          else
+            PickerField<_CoverOption>(
+              label: 'Cover it from',
+              value: options.where((o) => o.key == value).firstOrNull,
+              options: options,
+              labelOf: (o) => '${o.title} · ${o.subtitle}',
+              iconOf: (o) => o.icon,
+              colorOf: (o) => o.color,
+              onChanged: (o) => onChanged(o?.key),
+              allowClear: true,
+              placeholder: 'Choose where to cover it from',
+              sheetTitle: 'Cover the shortfall',
+            ),
+          if (value != null) ...[
+            const Gap(S.xs),
+            Text(
+              '${plan.name} will be raised to match. The raise shows in its history, '
+              'and undoing this expense undoes it too.',
+              style: TextStyle(
+                fontSize: AppType.caption,
+                height: 1.4,
+                color: t.mutedForeground,
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _CoverOption {
+  const _CoverOption({
+    required this.key,
+    required this.title,
+    required this.subtitle,
+    required this.icon,
+    required this.color,
+  });
+
+  /// `plan:<id>` or `account:<id>`.
+  final String key;
+  final String title;
+  final String subtitle;
+  final IconData icon;
+  final Color color;
 }

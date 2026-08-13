@@ -408,8 +408,11 @@ class _Topbar extends StatelessWidget {
             tooltip: 'Search',
             onTap: () {
               Haptics.select();
+              final shell = AppShell.of(context);
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => const GlobalSearchScreen()),
+                MaterialPageRoute(
+                  builder: (_) => GlobalSearchScreen(shell: shell),
+                ),
               );
             },
           ),

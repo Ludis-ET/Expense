@@ -22,6 +22,7 @@
     "db:deploy": "prisma migrate deploy",
     "db:seed": "tsx prisma/seed.ts",
     "db:backfill-categories": "tsx prisma/backfill-categories.ts",
+    "money:doctor": "tsx src/scripts/money-doctor.ts",
     "db:studio": "prisma studio"
   },
   "prisma": {

@@ -91,25 +91,41 @@ describe('fund / release schemas', () => {
 describe('expenses paid from a plan', () => {
   const base = { amount: 100, date: '2026-07-28', categoryId: 'cat1' };
 
-  it('accepts a budgetId instead of an accountId', () => {
-    const parsed = createTransactionSchema.parse({ kind: 'EXPENSE', ...base, budgetId: 'b1' });
+  it('takes a plan alongside the wallet the cash leaves', () => {
+    // Every expense names a wallet now, plan or no plan. A plan says which
+    // envelope the spend draws down; it never decides where the cash came from,
+    // because those are genuinely two different questions - you can pay from
+    // cash for something reserved in the bank.
+    const parsed = createTransactionSchema.parse({
+      kind: 'EXPENSE',
+      ...base,
+      accountId: 'a1',
+      budgetId: 'b1',
+    });
     expect(parsed.kind === 'EXPENSE' && parsed.budgetId).toBe('b1');
-    expect(parsed.accountId).toBeUndefined();
-  });
-
-  it('still accepts a plain account expense', () => {
-    const parsed = createTransactionSchema.parse({ kind: 'EXPENSE', ...base, accountId: 'a1' });
     expect(parsed.accountId).toBe('a1');
   });
 
-  it('rejects an expense with neither an account nor a plan', () => {
-    expect(createTransactionSchema.safeParse({ kind: 'EXPENSE', ...base }).success).toBe(false);
+  it('treats an expense with no plan as unplanned', () => {
+    const parsed = createTransactionSchema.parse({ kind: 'EXPENSE', ...base, accountId: 'a1' });
+    expect(parsed.kind === 'EXPENSE' && parsed.budgetId).toBeUndefined();
   });
 
-  it('income must still name an account - plans only pay expenses', () => {
+  it('rejects an expense that names no wallet', () => {
     expect(
-      createTransactionSchema.safeParse({ kind: 'INCOME', ...base, budgetId: 'b1' }).success,
+      createTransactionSchema.safeParse({ kind: 'EXPENSE', ...base, budgetId: 'b1' }).success,
     ).toBe(false);
+  });
+
+  it('accepts a cover source for a plan that cannot afford the spend', () => {
+    const parsed = createTransactionSchema.parse({
+      kind: 'EXPENSE',
+      ...base,
+      accountId: 'a1',
+      budgetId: 'b1',
+      cover: { from: 'BUDGET', budgetId: 'b2' },
+    });
+    expect(parsed.kind === 'EXPENSE' && parsed.cover?.from).toBe('BUDGET');
   });
 });
 

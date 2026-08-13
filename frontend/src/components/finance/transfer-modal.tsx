@@ -30,9 +30,25 @@ export function TransferModal({
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [amount, setAmount] = useState('');
+  /** What actually arrived, when the two wallets hold different currencies. */
+  const [received, setReceived] = useState('');
   const [note, setNote] = useState('');
   const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [saving, setSaving] = useState(false);
+
+  const fromAccount = accounts.find((a) => a.id === from);
+  const toAccount = accounts.find((a) => a.id === to);
+  /**
+   * Crossing a currency needs both figures. Crediting the destination the source
+   * amount - which is what used to happen - turns 100 USD into 100 birr and
+   * quietly destroys the difference.
+   */
+  const crossCurrency =
+    !!fromAccount && !!toAccount && fromAccount.currency !== toAccount.currency;
+  const impliedRate =
+    crossCurrency && Number(amount) > 0 && Number(received) > 0
+      ? Number(received) / Number(amount)
+      : null;
 
   useEffect(() => {
     if (open && accounts.length >= 1) {
@@ -41,11 +57,17 @@ export function TransferModal({
     }
   }, [open, accounts]);
 
+  // Same-currency transfers have nothing to ask about.
+  useEffect(() => {
+    if (!crossCurrency && received) setReceived('');
+  }, [crossCurrency, received]);
+
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (from === to) return toast.error('Choose two different accounts');
-    const fromAccount = accounts.find((a) => a.id === from);
-    const toAccount = accounts.find((a) => a.id === to);
+    if (from === to) return toast.error('Choose two different wallets');
+    if (crossCurrency && !(Number(received) > 0)) {
+      return toast.error(`Say how much ${toAccount!.currency} arrived.`);
+    }
     const txDate = date || new Date().toISOString().slice(0, 10);
     setSaving(true);
     const payload = {
@@ -54,6 +76,7 @@ export function TransferModal({
       currency: fromAccount?.currency ?? 'ETB',
       accountId: from,
       transferAccountId: to,
+      ...(crossCurrency ? { transferAmount: Number(received) } : {}),
       date: txDate,
       note: note || undefined,
     };
@@ -67,6 +90,7 @@ export function TransferModal({
       account: fromAccount ? { id: fromAccount.id, name: fromAccount.name, type: fromAccount.type } : undefined,
       transferAccountId: to,
       transferAccount: toAccount ? { id: toAccount.id, name: toAccount.name } : null,
+      transferAmount: crossCurrency ? Number(received).toFixed(2) : null,
       categoryId: null,
       category: null,
       note: note || null,
@@ -78,6 +102,7 @@ export function TransferModal({
       onSaved();
       onClose();
       setAmount('');
+      setReceived('');
       setDate(new Date().toISOString().slice(0, 10));
       setNote('');
     } catch (err) {
@@ -106,17 +131,44 @@ export function TransferModal({
             </Select>
           </Field>
         </div>
-        <Field label="Amount">
-          <Input
-            type="number"
-            step="0.01"
-            min="0"
-            required
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
-            placeholder="0.00"
-          />
-        </Field>
+        <div className={crossCurrency ? 'grid grid-cols-2 gap-3' : ''}>
+          <Field label={crossCurrency ? `Amount sent (${fromAccount!.currency})` : 'Amount'}>
+            <Input
+              type="number"
+              step="0.01"
+              min="0"
+              required
+              value={amount}
+              onChange={(e) => setAmount(e.target.value)}
+              placeholder="0.00"
+            />
+          </Field>
+          {crossCurrency && (
+            <Field
+              label={`Amount received (${toAccount!.currency})`}
+              hint="what actually landed, after any conversion"
+            >
+              <Input
+                type="number"
+                step="0.01"
+                min="0"
+                required
+                value={received}
+                onChange={(e) => setReceived(e.target.value)}
+                placeholder="0.00"
+              />
+            </Field>
+          )}
+        </div>
+
+        {crossCurrency && (
+          <p className="-mt-1 rounded-xl bg-surface-muted px-3 py-2 text-xs text-muted">
+            {impliedRate
+              ? `That is 1 ${fromAccount!.currency} = ${impliedRate.toFixed(4)} ${toAccount!.currency}. Santim records both figures, so neither wallet drifts.`
+              : `These wallets hold different currencies, so Santim needs both figures - the ${toAccount!.currency} amount is what gets credited.`}
+          </p>
+        )}
+
         <Field label="Date">
           <DateInput value={date} onChange={(e) => setDate(e.target.value)} required maxToday />
         </Field>

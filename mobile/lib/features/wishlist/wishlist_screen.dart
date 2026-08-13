@@ -84,13 +84,25 @@ class _WishlistScreenState extends State<WishlistScreen> {
     return Scaffold(
       backgroundColor: Colors.transparent,
       appBar: AppBar(
-        title: Text(
-          'Wishlist',
-          style: TextStyle(
-            fontSize: AppType.lead,
-            fontWeight: FontWeight.w700,
-            color: t.foreground,
-          ),
+        title: Row(
+          children: [
+            Text(
+              'Wishlist',
+              style: TextStyle(
+                fontSize: AppType.lead,
+                fontWeight: FontWeight.w700,
+                color: t.foreground,
+              ),
+            ),
+            const GapX(S.xs),
+            const InfoHint(
+              label: 'Wishlist',
+              body:
+                  'A want is just the idea of a thing. Turn one into a plan '
+                  'and it starts holding real money.',
+              size: 16,
+            ),
+          ],
         ),
         actions: [
           Padding(
@@ -124,20 +136,6 @@ class _WishlistScreenState extends State<WishlistScreen> {
             physics: const AlwaysScrollableScrollPhysics(),
             children: [
               const OfflineBanner(),
-              Row(
-                children: [
-                  Expanded(
-                    child: Muted(
-                      'A want is just the idea of a thing. Turn one into a plan '
-                      'and it starts holding real money.',
-                      size: 12,
-                      height: 1.45,
-                      maxLines: 3,
-                    ),
-                  ),
-                ],
-              ),
-              const Gap(S.md),
 
               if (data != null)
                 SingleChildScrollView(

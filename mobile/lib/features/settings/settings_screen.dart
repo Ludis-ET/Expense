@@ -16,7 +16,10 @@ import '../../state/app_lock_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 import 'ai_providers_screen.dart';
+import '../money/money_doctor_screen.dart';
+import '../money/recent_movements_sheet.dart';
 import 'categories_screen.dart';
+import 'profile_look.dart';
 import 'exchange_rates_screen.dart';
 import 'household_screen.dart';
 import '../lock/app_lock_settings_screen.dart';
@@ -59,42 +62,14 @@ class SettingsScreen extends StatelessWidget {
             ShellLayout.bottomClearance(context),
           ),
           children: [
+            // Banner behind, picture overlapping its lower edge. The two are
+            // the only decorative thing in Settings, so they carry the whole
+            // sense of "this is mine".
             FadeInUp(
-              child: AppCard(
-                padding: const EdgeInsets.all(S.lg),
-                onTap: () => _editProfile(context),
-                child: Row(
-                  children: [
-                    Avatar(
-                      name: user?.name ?? '?',
-                      avatarId: user?.avatarId,
-                      size: 52,
-                    ),
-                    const GapX(S.md),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            user?.name ?? '',
-                            style: TextStyle(
-                              fontSize: AppType.lead,
-                              fontWeight: FontWeight.w700,
-                              color: t.foreground,
-                            ),
-                          ),
-                          const Gap(S.hair),
-                          Muted(user?.email ?? '', size: 12.5, maxLines: 1),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      Icons.edit_outlined,
-                      size: 18,
-                      color: t.mutedForeground,
-                    ),
-                  ],
-                ),
+              child: ProfileHeaderCard(
+                user: user,
+                onEditProfile: () => _editProfile(context),
+                onEditLook: () => showProfileLookPicker(context),
               ),
             ),
             const Gap(S.lg),
@@ -148,6 +123,20 @@ class SettingsScreen extends StatelessWidget {
             const Gap(S.lg),
 
             SectionLabel('MONEY'),
+            _Tile(
+              icon: Icons.health_and_safety_outlined,
+              title: 'Money check',
+              subtitle: 'Confirm your wallets and plans still agree',
+              onTap: () => Navigator.of(context).push(
+                MaterialPageRoute(builder: (_) => const MoneyDoctorScreen()),
+              ),
+            ),
+            _Tile(
+              icon: Icons.history_rounded,
+              title: 'Recent movements',
+              subtitle: 'Undo something you just recorded',
+              onTap: () => showRecentMovements(context),
+            ),
             _Tile(
               icon: Icons.sell_outlined,
               title: 'Categories',

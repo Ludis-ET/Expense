@@ -187,6 +187,7 @@ class AmountField extends StatelessWidget {
     this.tint,
     this.autofocus = false,
     this.label = 'Amount',
+    this.hint,
     this.error,
   });
 
@@ -195,6 +196,9 @@ class AmountField extends StatelessWidget {
   final Color? tint;
   final bool autofocus;
   final String label;
+
+  /// Explanatory copy. Lives behind the (i) beside the label, never inline.
+  final String? hint;
   final String? error;
 
   @override
@@ -203,6 +207,7 @@ class AmountField extends StatelessWidget {
     final color = tint ?? t.foreground;
     return FieldShell(
       label: label,
+      hint: hint,
       error: error,
       child: Container(
         padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
@@ -309,6 +314,10 @@ class PickerField<T> extends StatelessWidget {
 
   Future<void> _open(BuildContext context) async {
     Haptics.select();
+    // Put the keyboard away before the sheet slides up. Leaving it open shoves
+    // the picker into the top third of the screen and then dumps it back down
+    // when the sheet closes.
+    FocusManager.instance.primaryFocus?.unfocus();
     await showAppSheet<void>(
       context,
       title: sheetTitle ?? label ?? 'Select',

@@ -80,22 +80,26 @@ class _SmsBalanceScreenState extends State<SmsBalanceScreen> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(
-                      'SMS vs wallet',
-                      style: TextStyle(
-                        fontWeight: FontWeight.w800,
-                        fontSize: AppType.lead,
-                        color: t.foreground,
-                      ),
-                    ),
-                    const Gap(S.xs),
-                    Muted(
-                      'When a bank SMS includes a remaining balance, Santim '
-                      'compares it to the mapped wallet. Soft alerts only   '
-                      'nothing is changed automatically.',
-                      size: 12.5,
-                      height: 1.4,
-                      maxLines: 5,
+                    Row(
+                      children: [
+                        Text(
+                          'SMS vs wallet',
+                          style: TextStyle(
+                            fontWeight: FontWeight.w800,
+                            fontSize: AppType.lead,
+                            color: t.foreground,
+                          ),
+                        ),
+                        const GapX(S.xs),
+                        const InfoHint(
+                          label: 'SMS vs wallet',
+                          body:
+                              'When a bank SMS includes a remaining balance, Santim '
+                              'compares it to the mapped wallet. Soft alerts only — '
+                              'nothing is changed automatically.',
+                          size: 16,
+                        ),
+                      ],
                     ),
                     const Gap(S.md),
                     Text(

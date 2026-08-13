@@ -291,19 +291,16 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                 child: ListView(
                   padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
                   children: [
-                    Muted(
-                      'Senders Santim is allowed to read. Map each one to a wallet '
-                      'so the review deck can confirm in one swipe.',
-                      size: 13,
-                      height: 1.4,
-                      maxLines: 4,
+                    SectionLabel(
+                      'MAPPED BANK SENDERS',
+                      hint:
+                          'Senders Santim is allowed to read. Map each one to a wallet '
+                          'so the review deck can confirm in one swipe.',
                     ),
                     if (_error != null) ...[
-                      const Gap(S.md),
+                      const Gap(S.sm),
                       Text(_error!, style: TextStyle(color: t.danger)),
                     ],
-                    const Gap(S.lg),
-                    SectionLabel('MAPPED BANK SENDERS'),
                     if (sms.senderRules.isEmpty)
                       const EmptyState(
                         title: 'No bank senders yet',

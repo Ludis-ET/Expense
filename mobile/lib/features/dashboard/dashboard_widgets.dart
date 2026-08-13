@@ -21,6 +21,11 @@ typedef Money = String Function(Object? amount);
 
 /// Shared chrome for carousel insight tiles: fills [kInsightPeekHeight],
 /// keeps content density even, and opens a detail sheet on tap.
+///
+/// The card carries no "tap for details" chip. A card that is obviously a card
+/// does not need to be told it is tappable, and repeating the instruction on
+/// every tile in a swipeable strip crowds out the figure the tile exists to
+/// show. The expand glyph in the corner does that job silently.
 class InsightPeekFrame extends StatelessWidget {
   const InsightPeekFrame({
     super.key,
@@ -29,7 +34,6 @@ class InsightPeekFrame extends StatelessWidget {
     required this.child,
     required this.onOpen,
     this.accent,
-    this.cta = 'Tap for details',
   });
 
   final IconData icon;
@@ -37,7 +41,6 @@ class InsightPeekFrame extends StatelessWidget {
   final Widget child;
   final VoidCallback onOpen;
   final Color? accent;
-  final String cta;
 
   @override
   Widget build(BuildContext context) {
@@ -85,33 +88,8 @@ class InsightPeekFrame extends StatelessWidget {
               ],
             ),
             const Gap(S.sm),
+            // The content gets the room the CTA chip used to take.
             Expanded(child: child),
-            const Gap(S.sm),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: S.md,
-                vertical: 7,
-              ),
-              decoration: BoxDecoration(
-                color: color.withValues(alpha: 0.08),
-                borderRadius: BorderRadius.circular(R.pill),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Text(
-                    cta,
-                    style: TextStyle(
-                      fontSize: AppType.caption,
-                      fontWeight: FontWeight.w800,
-                      color: color,
-                    ),
-                  ),
-                  const GapX(S.xs),
-                  Icon(Icons.arrow_forward_rounded, size: 14, color: color),
-                ],
-              ),
-            ),
           ],
         ),
       ),
@@ -973,7 +951,7 @@ class SmartInsightCard extends StatelessWidget {
             ],
             if (expense > 0) ...[
               const Gap(S.sm),
-              Muted('Avg daily spend ${money(month.avgDailySpend)}.', size: 12),
+              Muted('Spending a day ${money(month.avgDailySpend)}.', size: 12),
             ],
           ],
         ),
@@ -1288,17 +1266,41 @@ class SpendingStreaksCard extends StatelessWidget {
               ],
             ),
             const Gap(S.md),
-            Muted(
-              'Pace ${prefs.money(data.avgDailySpend, currency: data.currency)}/day · best ${data.bestStreak}',
-              size: 13,
-            ),
+            Muted('best run ${data.bestStreak} days', size: 13),
             const Gap(S.lg),
             SpendStrip(days: [for (final d in data.days) (d.under, d.spent)]),
             const Gap(S.md),
             Muted(
-              '${data.daysUnder} of ${data.dayCount} days under your average pace.',
+              '${data.daysUnder} of ${data.dayCount} days under',
               size: 12,
-              maxLines: 2,
+            ),
+            const Gap(S.lg),
+            // The two figures the run is measured against, on the same
+            // denominator, so one can be read against the other.
+            Row(
+              children: [
+                Expanded(
+                  child: _PerDay(
+                    label: 'Spending',
+                    value: prefs.money(
+                      data.avgDailySpend,
+                      currency: data.currency,
+                    ),
+                    tone: context.t.danger,
+                  ),
+                ),
+                const GapX(S.sm),
+                Expanded(
+                  child: _PerDay(
+                    label: 'Income',
+                    value: prefs.money(
+                      data.avgDailyIncome,
+                      currency: data.currency,
+                    ),
+                    tone: context.t.success,
+                  ),
+                ),
+              ],
             ),
           ],
         ),
@@ -1330,6 +1332,57 @@ class SpendingStreaksCard extends StatelessWidget {
             '${data.daysUnder}/${data.dayCount} under · ${prefs.money(data.avgDailySpend, currency: data.currency)}/day',
             size: 11,
             maxLines: 1,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// One of the two per-day figures. Both use the same denominator - days gone by
+/// this month - so putting them side by side is a fair comparison rather than
+/// two unrelated numbers that happen to end in "/day".
+class _PerDay extends StatelessWidget {
+  const _PerDay({required this.label, required this.value, required this.tone});
+
+  final String label;
+  final String value;
+  final Color tone;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+      decoration: BoxDecoration(
+        color: tone.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(R.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            '$label a day'.toUpperCase(),
+            style: TextStyle(
+              fontSize: AppType.micro,
+              fontWeight: FontWeight.w800,
+              letterSpacing: 0.4,
+              color: t.mutedForeground,
+            ),
+          ),
+          const Gap(S.hair),
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: Text(
+              value,
+              style: TextStyle(
+                fontSize: AppType.lead,
+                fontWeight: FontWeight.w800,
+                color: tone,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
           ),
         ],
       ),
@@ -1904,7 +1957,7 @@ class SpendingPaceCard extends StatelessWidget {
                   ? onTrack
                         ? 'You’re on track   projected spend stays under income.'
                         : 'This pace would overshoot income by month end.'
-                  : 'Avg ${money(month.avgDailySpend)}/day so far.',
+                  : '${money(month.avgDailySpend)} a day so far.',
               style: TextStyle(
                 fontSize: AppType.bodySm,
                 height: 1.45,

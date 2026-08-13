@@ -11,6 +11,12 @@ export const createRecurringSchema = z
     currency: z.string().length(3).toUpperCase().default('ETB'),
     accountId: z.string().min(1),
     categoryId: z.string().min(1).optional(),
+    /**
+     * Draw this out of a plan's pot instead of straight from the wallet, so a
+     * subscription spends its own envelope rather than turning up as unplanned
+     * spending every month. Expenses only.
+     */
+    budgetId: z.string().min(1).nullish(),
     payee: z.string().max(200).optional(),
     note: z.string().max(2000).optional(),
     frequency: z.nativeEnum(Frequency),
@@ -32,6 +38,7 @@ export const updateRecurringSchema = z.object({
   currency: z.string().length(3).toUpperCase().optional(),
   accountId: z.string().min(1).optional(),
   categoryId: z.string().min(1).nullable().optional(),
+  budgetId: z.string().min(1).nullable().optional(),
   payee: z.string().max(200).nullable().optional(),
   note: z.string().max(2000).nullable().optional(),
   frequency: z.nativeEnum(Frequency).optional(),

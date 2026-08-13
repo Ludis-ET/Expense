@@ -73,6 +73,9 @@ class Account {
     this.isShared = false,
     this.householdId,
     this.accountNumber,
+    this.reportedBalance,
+    this.reportedAt,
+    this.drift,
   });
 
   final String id;
@@ -99,6 +102,13 @@ class Account {
   /// Trailing digits used to match own-account transfers from bank SMS.
   final String? accountNumber;
 
+  /// What the bank itself last said this wallet holds, read out of a message.
+  final String? reportedBalance;
+  final DateTime? reportedAt;
+
+  /// Ours minus the bank's. Positive means spending that was never recorded.
+  final String? drift;
+
   factory Account.fromJson(Map<String, dynamic> j) => Account(
     id: asStr(j['id'], ''),
     name: asStr(j['name'], ''),
@@ -115,6 +125,9 @@ class Account {
     isShared: asBool(j['isShared']),
     householdId: asStrOrNull(j['householdId']),
     accountNumber: asStrOrNull(j['accountNumber']),
+    reportedBalance: asStrOrNull(j['reportedBalance']),
+    reportedAt: asDate(j['reportedAt']),
+    drift: asStrOrNull(j['drift']),
   );
 }
 
@@ -546,6 +559,8 @@ class BudgetTotals {
     required this.spent,
     required this.locked,
     required this.unplannedSpent,
+    required this.readyToAssign,
+    required this.currency,
     required this.activeCount,
     required this.closedCount,
   });
@@ -555,8 +570,12 @@ class BudgetTotals {
   final String spent;
   final String locked;
 
-  /// Spending that never went through a funded plan, this cycle.
+  /// Spending that never went through a plan, this month.
   final String unplannedSpent;
+
+  /// Money you have that is not in any plan. The number to act on.
+  final String readyToAssign;
+  final String currency;
   final int activeCount;
   final int closedCount;
 
@@ -566,20 +585,69 @@ class BudgetTotals {
     spent: asStr(j['spent']),
     locked: asStr(j['locked']),
     unplannedSpent: asStr(j['unplannedSpent']),
+    readyToAssign: asStr(j['readyToAssign']),
+    currency: asStr(j['currency'], 'ETB'),
     activeCount: asInt(j['activeCount']),
     closedCount: asInt(j['closedCount']),
   );
 }
 
+/// The catch-all card. Not a plan and never a row: spending with no plan behind
+/// it, presented so it has somewhere to live on the page.
+class UnplannedSummary {
+  UnplannedSummary({
+    required this.name,
+    required this.currency,
+    required this.spentAmount,
+    required this.lifetimeSpent,
+    required this.txCount,
+    this.icon,
+    this.color,
+    this.note,
+  });
+
+  static const String id = 'unplanned';
+
+  final String name;
+  final String currency;
+
+  /// Spent this month with no plan behind it.
+  final String spentAmount;
+  final String lifetimeSpent;
+  final int txCount;
+  final String? icon;
+  final String? color;
+  final String? note;
+
+  factory UnplannedSummary.fromJson(Map<String, dynamic> j) => UnplannedSummary(
+    name: asStr(j['name'], 'Unplanned'),
+    currency: asStr(j['currency'], 'ETB'),
+    spentAmount: asStr(j['spentAmount']),
+    lifetimeSpent: asStr(j['lifetimeSpent']),
+    txCount: asInt(j['txCount']),
+    icon: asStrOrNull(j['icon']),
+    color: asStrOrNull(j['color']),
+    note: asStrOrNull(j['note']),
+  );
+}
+
 class BudgetsResponse {
-  BudgetsResponse({required this.items, required this.totals});
+  BudgetsResponse({
+    required this.items,
+    required this.totals,
+    required this.unplanned,
+  });
 
   final List<BudgetRow> items;
   final BudgetTotals totals;
 
+  /// Spending with no plan behind it. A view, not one of `items`.
+  final UnplannedSummary unplanned;
+
   factory BudgetsResponse.fromJson(Map<String, dynamic> j) => BudgetsResponse(
     items: mapList(j['items'], BudgetRow.fromJson),
     totals: BudgetTotals.fromJson(asMap(j['totals'])),
+    unplanned: UnplannedSummary.fromJson(asMap(j['unplanned'])),
   );
 }
 
@@ -855,22 +923,28 @@ class BudgetSpendSource {
   final String id;
   final String name;
   final String currency;
-  final String balance;
+
+  /// Null for Unplanned, which has no pot and so nothing to run out of. It used
+  /// to arrive as a negative number - lifetime spend - which only stayed off the
+  /// screen because every caller special-cased it.
+  final String? balance;
   final String? icon;
   final String? color;
   final String? categoryId;
   final Ref? category;
 
-  /// Unplanned has no pot: the caller picks any account to draw on.
+  /// Unplanned draws on whatever the chosen wallet has free.
   final bool isUnplanned;
   final List<BudgetSource> sources;
+
+  double get remaining => balance == null ? double.infinity : asNum(balance!);
 
   factory BudgetSpendSource.fromJson(Map<String, dynamic> j) =>
       BudgetSpendSource(
         id: asStr(j['id'], ''),
         name: asStr(j['name'], ''),
         currency: asStr(j['currency'], 'ETB'),
-        balance: asStr(j['balance']),
+        balance: asStrOrNull(j['balance']),
         icon: asStrOrNull(j['icon']),
         color: asStrOrNull(j['color']),
         categoryId: asStrOrNull(j['categoryId']),
@@ -914,6 +988,8 @@ class MonthSummary {
     required this.expense,
     required this.net,
     required this.avgDailySpend,
+    this.avgDailyIncome = '0.00',
+    this.daysElapsed = 1,
     this.currency,
     this.incomeDeltaPct,
     this.expenseDeltaPct,
@@ -927,7 +1003,16 @@ class MonthSummary {
   final String net;
   final double? incomeDeltaPct;
   final double? expenseDeltaPct;
+
+  /// Spent per day this month. The one "per day" figure in the app - the same
+  /// number the streak card and the analytics page quote.
   final String avgDailySpend;
+
+  /// Earned per day over the same days, so the two are directly comparable.
+  final String avgDailyIncome;
+
+  /// Days counted so far this month - the denominator behind both averages.
+  final int daysElapsed;
   final Transaction? biggestExpense;
 
   factory MonthSummary.fromJson(Map<String, dynamic> j) => MonthSummary(
@@ -943,6 +1028,8 @@ class MonthSummary {
         ? null
         : asNum(j['expenseDeltaPct']),
     avgDailySpend: asStr(j['avgDailySpend']),
+    avgDailyIncome: asStr(j['avgDailyIncome']),
+    daysElapsed: asInt(j['daysElapsed'], 1),
     biggestExpense: j['biggestExpense'] == null
         ? null
         : Transaction.fromJson({
@@ -963,6 +1050,7 @@ class MonthSummary {
     'incomeDeltaPct': incomeDeltaPct,
     'expenseDeltaPct': expenseDeltaPct,
     'avgDailySpend': avgDailySpend,
+    'avgDailyIncome': avgDailyIncome,
   };
 }
 
@@ -1121,13 +1209,20 @@ class SpendingStreak {
     required this.dayCount,
     required this.total,
     required this.days,
+    this.avgDailyIncome = '0.00',
+    this.daysElapsed = 1,
   });
 
   final String currency;
   final String label;
 
-  /// Average daily spend across the window   the pace to stay under.
+  /// The pace to stay under - identical to `MonthSummary.avgDailySpend`, and to
+  /// the figure the analytics page shows. One "per day" number, everywhere.
   final String avgDailySpend;
+
+  /// Earned per day over the same days. A pace only means something next to it.
+  final String avgDailyIncome;
+  final int daysElapsed;
   final int currentDays;
   final int bestStreak;
   final int daysUnder;
@@ -1139,6 +1234,8 @@ class SpendingStreak {
     currency: asStr(j['currency'], 'ETB'),
     label: asStr(j['label'], ''),
     avgDailySpend: asStr(j['avgDailySpend']),
+    avgDailyIncome: asStr(j['avgDailyIncome']),
+    daysElapsed: asInt(j['daysElapsed'], 1),
     currentDays: asInt(j['currentDays']),
     bestStreak: asInt(j['bestStreak']),
     daysUnder: asInt(j['daysUnder']),

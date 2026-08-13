@@ -86,6 +86,18 @@ export function newId(): string {
   return `local:${Date.now()}-${Math.random().toString(36).slice(2)}`;
 }
 
+/**
+ * The id the server uses to recognise a replay.
+ *
+ * Without one, losing the reply to a queued write is indistinguishable from the
+ * write never landing - so the retry books the money a second time. Derived from
+ * the op's own id, so it survives reloads and stays the same across every retry
+ * of the same operation.
+ */
+export function opKey(op: Pick<OutboxOp, 'id' | 'kind'>): string {
+  return `${op.kind}:${op.id}`;
+}
+
 /** A locally-created transaction that has not synced yet carries a `local:` id. */
 export function isLocalId(id: string | null | undefined): boolean {
   return typeof id === 'string' && id.startsWith('local:');

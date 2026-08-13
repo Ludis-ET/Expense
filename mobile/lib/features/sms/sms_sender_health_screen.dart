@@ -117,21 +117,28 @@ class _SmsSenderHealthScreenState extends State<SmsSenderHealthScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Text(
-                                unhealthy == 0
-                                    ? 'Parsers look healthy'
-                                    : '$unhealthy need attention',
-                                style: TextStyle(
-                                  fontWeight: FontWeight.w800,
-                                  fontSize: AppType.lead,
-                                  color: t.foreground,
-                                ),
-                              ),
-                              Muted(
-                                'When a bank changes its SMS template, confidence drops. '
-                                'Reparse stored messages after a fix.',
-                                size: 12,
-                                maxLines: 3,
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Text(
+                                      unhealthy == 0
+                                          ? 'Parsers look healthy'
+                                          : '$unhealthy need attention',
+                                      style: TextStyle(
+                                        fontWeight: FontWeight.w800,
+                                        fontSize: AppType.lead,
+                                        color: t.foreground,
+                                      ),
+                                    ),
+                                  ),
+                                  const InfoHint(
+                                    label: 'Sender health',
+                                    body:
+                                        'When a bank changes its SMS template, confidence drops. '
+                                        'Reparse stored messages after a fix.',
+                                    size: 16,
+                                  ),
+                                ],
                               ),
                             ],
                           ),

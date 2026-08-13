@@ -43,6 +43,17 @@ export interface Account {
   archived: boolean;
   isShared?: boolean;
   householdId?: string | null;
+  /** What the bank itself last said this wallet holds, read out of an SMS. */
+  reportedBalance?: string | null;
+  reportedAt?: string | null;
+  /** Ours minus the bank's. Positive means spending we never recorded. */
+  drift?: string | null;
+}
+
+/** What one wallet is holding, and for which plan. */
+export interface WalletReservation {
+  plan: { id: string; name: string; icon: string | null; color: string | null; currency: string; state: BudgetState };
+  amount: string;
 }
 
 export interface Category {
@@ -78,12 +89,37 @@ export interface Transaction {
    */
   budgetSourceAccountId?: string | null;
   budgetSourceAccount?: { id: string; name: string; type?: AccountType } | null;
+  /**
+   * True when the wallet that paid is not the wallet holding the plan's money -
+   * it fronted the cash, and the plan's own wallet freed the reservation.
+   */
+  fronted?: boolean;
+  /** What arrived, when a transfer crossed a currency. */
+  transferAmount?: string | null;
+  transferRate?: string | null;
   note?: string | null;
   payee?: string | null;
   tags: string[];
   recurringRuleId?: string | null;
   /** Client-only: set on transactions still queued in the offline outbox. */
   pending?: 'pending' | 'syncing' | 'error';
+}
+
+/** Where the shortfall comes from when a plan cannot cover a spend. */
+export type SpendCover =
+  | { from: 'BUDGET'; budgetId: string }
+  | { from: 'ACCOUNT'; accountId: string };
+
+/**
+ * The structured half of a refusal, so the UI can offer the fix rather than
+ * only printing the sentence.
+ */
+export interface ShortfallDetails {
+  reason: 'PLAN_SHORT' | 'ACCOUNT_SHORT';
+  shortfall: string;
+  currency: string;
+  budgetId?: string;
+  accountId?: string;
 }
 
 export interface TransactionPage {
@@ -191,15 +227,36 @@ export interface BudgetRow {
   updatedAt: string;
 }
 
+/**
+ * The catch-all card. Not a plan and never was a row: spending with no plan
+ * behind it, presented so it has somewhere to live on the page.
+ */
+export interface UnplannedSummary {
+  id: 'unplanned';
+  name: string;
+  currency: string;
+  icon: string;
+  color: string;
+  note: string;
+  /** Spent this month with no plan behind it. */
+  spentAmount: string;
+  lifetimeSpent: string;
+  txCount: number;
+}
+
 export interface BudgetsResponse {
   items: BudgetRow[];
+  unplanned: UnplannedSummary;
   totals: {
     planned: string;
     funded: string;
     spent: string;
     locked: string;
-    /** Spending that never went through a funded plan, this cycle. */
+    /** Spending that never went through a funded plan, this month. */
     unplannedSpent: string;
+    /** Money you have that is not in any plan - the number to act on. */
+    readyToAssign: string;
+    currency: string;
     activeCount: number;
     closedCount: number;
   };
@@ -294,18 +351,188 @@ export interface BudgetSpendSource {
   id: string;
   name: string;
   currency: string;
-  balance: string;
+  /** Null for Unplanned, which has no pot and so nothing to run out of. */
+  balance: string | null;
   icon?: string | null;
   color?: string | null;
   categoryId: string | null;
   category: BudgetCategory | null;
-  /** Unplanned has no pot: the caller picks any account to draw on. */
+  /** Unplanned draws on whatever the chosen wallet has free. */
   isUnplanned: boolean;
   sources: BudgetSource[];
 }
 
 export interface BudgetSourcesResponse {
   items: BudgetSpendSource[];
+}
+
+// ---------------------------------------------------------------------------
+// Movements, undo, and the Money Doctor
+// ---------------------------------------------------------------------------
+
+export type MovementType =
+  | 'expense'
+  | 'income'
+  | 'transfer'
+  | 'fund'
+  | 'release'
+  | 'move'
+  | 'adjust';
+
+/** One thing that moved money, from any of the three ledgers. */
+export interface Movement {
+  /** `tx:<id>`, `alloc:<id>` or `adj:<id>`. */
+  id: string;
+  type: MovementType;
+  title: string;
+  subtitle: string | null;
+  /** Signed: negative took money out or tied it up. */
+  amount: string;
+  currency: string;
+  at: string;
+  recordedAt: string;
+  undoable: boolean;
+  /** Why it cannot be undone, when it cannot. */
+  blockedReason: string | null;
+  accountId: string | null;
+  budgetId: string | null;
+}
+
+export interface MovementsResponse {
+  items: Movement[];
+  undoWindowHours: number;
+}
+
+export interface UndoResponse {
+  undone: MovementType;
+  message: string;
+}
+
+export type InvariantCode = 'I2' | 'I3' | 'I4' | 'I5' | 'I6';
+
+export interface MoneyProblem {
+  code: InvariantCode;
+  message: string;
+  accountId?: string;
+  budgetId?: string;
+  amount: string;
+}
+
+export interface WalletDrift {
+  account: { id: string; name: string; currency: string; icon: string | null; color: string | null };
+  santimBalance: string;
+  bankBalance: string;
+  difference: string;
+  reportedAt: string | null;
+  direction: 'missing-spending' | 'missing-income';
+}
+
+/** The health check on your own books, and everything needed to act on it. */
+export interface MoneyHealth {
+  healthy: boolean;
+  checkedAt: string;
+  problems: MoneyProblem[];
+  drift: WalletDrift[];
+  currency: string;
+  money: { real: string; reserved: string; readyToAssign: string };
+  wallets: Array<{
+    id: string;
+    name: string;
+    currency: string;
+    icon: string | null;
+    color: string | null;
+    real: string;
+    reserved: string;
+    free: string;
+  }>;
+  plans: Array<{
+    id: string;
+    name: string;
+    currency: string;
+    icon: string | null;
+    color: string | null;
+    holding: string;
+  }>;
+}
+
+export interface MoneyRepairResult extends Omit<MoneyHealth, 'drift' | 'money' | 'wallets' | 'plans' | 'problems'> {
+  violations: MoneyProblem[];
+  actions: Array<{
+    kind: 'released' | 'rebalanced';
+    budgetId: string;
+    accountId: string;
+    amount: string;
+    explanation: string;
+  }>;
+  remaining: MoneyProblem[];
+}
+
+export interface ReadyToAssignResponse {
+  items: Array<{ currency: string; amount: string }>;
+}
+
+// ---------------------------------------------------------------------------
+// Payday rules
+// ---------------------------------------------------------------------------
+
+export type FundingStepMode = 'FIXED' | 'PERCENT' | 'FILL';
+
+export interface FundingStep {
+  id: string;
+  budgetId: string;
+  budget: {
+    id: string;
+    name: string;
+    icon: string | null;
+    color: string | null;
+    currency: string;
+    plannedAmount: string;
+  } | null;
+  position: number;
+  mode: FundingStepMode;
+  amount: string;
+}
+
+/** "When my salary lands, fill Rent, then Groceries, then Transport." */
+export interface FundingRule {
+  id: string;
+  name: string;
+  accountId: string | null;
+  account: { id: string; name: string; type: AccountType; currency: string } | null;
+  currency: string;
+  minAmount: string;
+  active: boolean;
+  /** Ask before moving money. On by default. */
+  confirmFirst: boolean;
+  lastRunAt: string | null;
+  steps: FundingStep[];
+  createdAt: string;
+}
+
+export interface PlannedFill {
+  budgetId: string;
+  budgetName: string;
+  icon: string | null;
+  color: string | null;
+  amount: string;
+  mode: FundingStepMode;
+  /** Set when the money ran out before this plan got its full share. */
+  short: string | null;
+}
+
+export interface FundingPreview {
+  ruleId: string;
+  ruleName: string;
+  accountId: string;
+  accountName: string;
+  currency: string;
+  availableAmount: string;
+  triggerAmount: string | null;
+  fills: PlannedFill[];
+  totalAmount: string;
+  leftOver: string;
+  /** Set on the response to a run, and on a suggestion after income lands. */
+  ran?: boolean;
 }
 
 export interface Notification {

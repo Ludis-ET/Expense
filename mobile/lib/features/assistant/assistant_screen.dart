@@ -1,22 +1,21 @@
-import 'dart:convert';
+import 'dart:async';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import 'package:shared_preferences/shared_preferences.dart';
 
 import '../../core/api/api_client.dart';
 import '../../core/haptics.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../core/utils/format.dart';
 import '../../models/common.dart';
-import '../../state/data_state.dart';
-import '../../state/prefs_state.dart';
 import '../../widgets/charts.dart';
-import '../../widgets/fields.dart';
+import '../../widgets/markdown.dart';
 import '../../widgets/ui.dart';
 import '../settings/settings_screen.dart';
 
-/// "Ask Santim"   chat about your own figures. Messages persist locally.
+/// Ask Santim — multi-chat, server-backed, Markdown answers.
 class AssistantScreen extends StatefulWidget {
   const AssistantScreen({super.key});
 
@@ -24,81 +23,43 @@ class AssistantScreen extends StatefulWidget {
   State<AssistantScreen> createState() => _AssistantScreenState();
 }
 
-class _Message {
-  _Message.user(this.text)
-    : fromUser = true,
-      chart = null,
-      provider = null,
-      failed = false,
-      at = DateTime.now();
-
-  _Message.reply(this.text, {this.chart, this.provider})
-    : fromUser = false,
-      failed = false,
-      at = DateTime.now();
-
-  _Message.error(this.text)
-    : fromUser = false,
-      chart = null,
-      provider = null,
-      failed = true,
-      at = DateTime.now();
-
-  _Message._({
-    required this.text,
-    required this.fromUser,
-    required this.failed,
-    required this.at,
+class _ChatMessage {
+  _ChatMessage({
+    required this.id,
+    required this.role,
+    required this.content,
     this.chart,
     this.provider,
-  });
+    DateTime? at,
+  }) : at = at ?? DateTime.now();
 
-  final String text;
-  final bool fromUser;
-  final _Chart? chart;
+  final String id;
+  final String role; // user | assistant | error
+  final String content;
+  final _ChartData? chart;
   final String? provider;
-  final bool failed;
   final DateTime at;
 
-  Map<String, dynamic> toJson() => {
-    'text': text,
-    'fromUser': fromUser,
-    'failed': failed,
-    'provider': provider,
-    'at': at.toIso8601String(),
-    if (chart != null) 'chart': chart!.toJson(),
-  };
-
-  factory _Message.fromJson(Map<String, dynamic> j) => _Message._(
-    text: asStr(j['text']),
-    fromUser: asBool(j['fromUser']),
-    failed: asBool(j['failed']),
-    provider: asStrOrNull(j['provider']),
-    at: DateTime.tryParse(asStr(j['at'])) ?? DateTime.now(),
-    chart: _Chart.maybe(j['chart']),
-  );
+  bool get fromUser => role == 'user';
+  bool get failed => role == 'error';
 }
 
-class _Chart {
-  const _Chart({required this.type, required this.title, required this.points});
+class _ChartData {
+  const _ChartData({
+    required this.type,
+    required this.title,
+    required this.points,
+  });
   final String type;
   final String title;
   final List<(String, double)> points;
 
-  Map<String, dynamic> toJson() => {
-    'type': type,
-    'title': title,
-    'data': [
-      for (final p in points) {'label': p.$1, 'value': p.$2},
-    ],
-  };
-
-  static _Chart? maybe(dynamic v) {
+  static _ChartData? maybe(dynamic v) {
     if (v is! Map) return null;
     final m = Map<String, dynamic>.from(v);
     final data = asList(m['data']);
     if (data.isEmpty) return null;
-    return _Chart(
+    return _ChartData(
       type: asStr(m['type'], 'bar'),
       title: asStr(m['title'], ''),
       points: [
@@ -108,89 +69,68 @@ class _Chart {
   }
 }
 
-class _AssistantScreenState extends State<AssistantScreen> {
-  static const _storageKey = 'santim_ai_chat_v1';
-  static const _maxStored = 60;
+class _ConversationSummary {
+  _ConversationSummary({
+    required this.id,
+    required this.title,
+    required this.updatedAt,
+    this.preview,
+    this.messageCount = 0,
+  });
 
+  final String id;
+  final String title;
+  final DateTime updatedAt;
+  final String? preview;
+  final int messageCount;
+}
+
+class _AssistantScreenState extends State<AssistantScreen> {
   final _controller = TextEditingController();
   final _scroll = ScrollController();
-  final _messages = <_Message>[];
+  final _focus = FocusNode();
+
+  String? _conversationId;
+  String _title = 'New chat';
+  final _messages = <_ChatMessage>[];
+  List<_ConversationSummary> _history = const [];
 
   bool _thinking = false;
-  bool _loaded = false;
+  bool _loadingThread = true;
+  bool _loadingHistory = false;
   bool? _configured;
 
   static const _starters = [
-    'Where did most of my money go this month?',
-    'Am I saving enough?',
-    'Who still owes me money?',
-    'Which budget plan is closest to running out?',
-    'What can I cut back on?',
+    ('Where did most of my money go this month?', Icons.pie_chart_outline_rounded),
+    ('Am I saving enough?', Icons.savings_outlined),
+    ('Who still owes me money?', Icons.volunteer_activism_outlined),
+    ('Which plan is closest to running out?', Icons.warning_amber_rounded),
+    ('What can I cut back on?', Icons.content_cut_rounded),
+    ('Summarise my Money Tab', Icons.handshake_outlined),
   ];
 
   @override
   void initState() {
     super.initState();
-    _restore();
-    _checkStatus();
+    _bootstrap();
   }
 
   @override
   void dispose() {
     _controller.dispose();
     _scroll.dispose();
+    _focus.dispose();
     super.dispose();
   }
 
-  Future<void> _restore() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final raw = prefs.getString(_storageKey);
-      if (raw != null && raw.isNotEmpty) {
-        final list = jsonDecode(raw);
-        if (list is List) {
-          _messages
-            ..clear()
-            ..addAll([
-              for (final item in list)
-                if (item is Map)
-                  _Message.fromJson(Map<String, dynamic>.from(item)),
-            ]);
-        }
-      }
-    } catch (_) {}
-    if (mounted) {
-      setState(() => _loaded = true);
-      if (_messages.isNotEmpty) _scrollToEnd(jump: true);
+  Future<void> _bootstrap() async {
+    await Future.wait([_checkStatus(), _loadHistory()]);
+    if (!mounted) return;
+    if (_history.isNotEmpty) {
+      await _openConversation(_history.first.id);
+    } else {
+      setState(() => _loadingThread = false);
     }
-  }
-
-  Future<void> _persist() async {
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final slice = _messages.length > _maxStored
-          ? _messages.sublist(_messages.length - _maxStored)
-          : _messages;
-      await prefs.setString(
-        _storageKey,
-        jsonEncode([for (final m in slice) m.toJson()]),
-      );
-    } catch (_) {}
-  }
-
-  Future<void> _clearChat() async {
-    final ok = await confirm(
-      context,
-      title: 'Clear chat?',
-      message:
-          'This removes your saved Ask Santim conversation on this device.',
-      confirmLabel: 'Clear',
-      danger: true,
-    );
-    if (!ok || !mounted) return;
-    setState(() => _messages.clear());
-    await _persist();
-    Haptics.toggle();
   }
 
   Future<void> _checkStatus() async {
@@ -204,43 +144,155 @@ class _AssistantScreenState extends State<AssistantScreen> {
     }
   }
 
+  Future<void> _loadHistory() async {
+    setState(() => _loadingHistory = true);
+    try {
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/ai/conversations',
+      );
+      if (!mounted) return;
+      setState(() {
+        _history = [
+          for (final item in asList(json['items']))
+            _ConversationSummary(
+              id: asStr(item['id']),
+              title: asStr(item['title'], 'Chat'),
+              updatedAt: DateTime.tryParse(asStr(item['updatedAt'])) ??
+                  DateTime.now(),
+              preview: asStrOrNull(item['preview']),
+              messageCount: asInt(item['messageCount']),
+            ),
+        ];
+        _loadingHistory = false;
+      });
+    } catch (_) {
+      if (mounted) setState(() => _loadingHistory = false);
+    }
+  }
+
+  Future<void> _openConversation(String id) async {
+    setState(() {
+      _loadingThread = true;
+      _conversationId = id;
+      _messages.clear();
+    });
+    try {
+      final json = await context.read<ApiClient>().get<Map<String, dynamic>>(
+        '/ai/conversations/$id',
+      );
+      if (!mounted) return;
+      setState(() {
+        _title = asStr(json['title'], 'Chat');
+        _messages
+          ..clear()
+          ..addAll([
+            for (final m in asList(json['messages']))
+              _ChatMessage(
+                id: asStr(m['id']),
+                role: asStr(m['role'], 'assistant'),
+                content: asStr(m['content']),
+                chart: _ChartData.maybe(m['chart']),
+                provider: asStrOrNull(m['provider']),
+                at: DateTime.tryParse(asStr(m['createdAt'])) ?? DateTime.now(),
+              ),
+          ]);
+        _loadingThread = false;
+      });
+      _scrollToEnd(jump: true);
+    } catch (e) {
+      if (!mounted) return;
+      setState(() => _loadingThread = false);
+      toast(
+        context,
+        e is ApiError ? e.message : 'Could not open that chat.',
+      );
+    }
+  }
+
+  Future<void> _newChat() async {
+    Haptics.select();
+    setState(() {
+      _conversationId = null;
+      _title = 'New chat';
+      _messages.clear();
+      _loadingThread = false;
+    });
+    _focus.requestFocus();
+  }
+
+  Future<void> _deleteConversation(String id) async {
+    final ok = await confirm(
+      context,
+      title: 'Delete this chat?',
+      message: 'The whole conversation will be removed from the server.',
+      confirmLabel: 'Delete',
+      danger: true,
+    );
+    if (!ok || !mounted) return;
+    try {
+      await context.read<ApiClient>().delete('/ai/conversations/$id');
+      if (!mounted) return;
+      final wasOpen = _conversationId == id;
+      await _loadHistory();
+      if (wasOpen) await _newChat();
+      Haptics.toggle();
+    } on ApiError catch (e) {
+      if (mounted) toast(context, e.message);
+    }
+  }
+
   Future<void> _ask([String? preset]) async {
     final question = (preset ?? _controller.text).trim();
     if (question.length < 2 || _thinking) return;
     final api = context.read<ApiClient>();
 
+    final tempId = 'local-${DateTime.now().microsecondsSinceEpoch}';
     setState(() {
-      _messages.add(_Message.user(question));
+      _messages.add(
+        _ChatMessage(id: tempId, role: 'user', content: question),
+      );
       _thinking = true;
       _controller.clear();
     });
-    await _persist();
     _scrollToEnd();
 
     try {
-      final json = await api.post<Map<String, dynamic>>(
-        '/ai/ask',
-        body: {'question': question},
-      );
+      final body = <String, dynamic>{
+        'question': question,
+        'persist': true,
+      };
+      if (_conversationId != null) body['conversationId'] = _conversationId;
+
+      final json = await api.post<Map<String, dynamic>>('/ai/ask', body: body);
       if (!mounted) return;
+
+      final conversationId = asStr(json['conversationId'], _conversationId ?? '');
       setState(() {
+        _conversationId = conversationId.isEmpty ? _conversationId : conversationId;
+        if (_title == 'New chat' && question.isNotEmpty) {
+          _title = question.length > 42 ? '${question.substring(0, 41)}…' : question;
+        }
         _messages.add(
-          _Message.reply(
-            asStr(json['answer'], 'No answer came back.'),
-            chart: _Chart.maybe(json['chart']),
+          _ChatMessage(
+            id: asStr(json['messageId'], 'a-$tempId'),
+            role: 'assistant',
+            content: asStr(json['answer'], 'No answer came back.'),
+            chart: _ChartData.maybe(json['chart']),
             provider: asStrOrNull(json['provider']),
           ),
         );
         _thinking = false;
       });
+      unawaited(_loadHistory());
     } on ApiError catch (e) {
       if (!mounted) return;
       setState(() {
-        _messages.add(_Message.error(e.message));
+        _messages.add(
+          _ChatMessage(id: 'err-$tempId', role: 'error', content: e.message),
+        );
         _thinking = false;
       });
     }
-    await _persist();
     _scrollToEnd();
   }
 
@@ -256,9 +308,38 @@ class _AssistantScreenState extends State<AssistantScreen> {
     });
   }
 
+  Future<void> _showHistory() async {
+    Haptics.select();
+    await _loadHistory();
+    if (!mounted) return;
+    await showAppSheet<void>(
+      context,
+      title: 'Your chats',
+      subtitle: 'Synced across your devices',
+      builder: (ctx) => _HistorySheet(
+        loading: _loadingHistory,
+        items: _history,
+        activeId: _conversationId,
+        onNew: () {
+          Navigator.pop(ctx);
+          _newChat();
+        },
+        onOpen: (id) {
+          Navigator.pop(ctx);
+          _openConversation(id);
+        },
+        onDelete: (id) async {
+          Navigator.pop(ctx);
+          await _deleteConversation(id);
+        },
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final empty = !_loadingThread && _messages.isEmpty;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -266,58 +347,46 @@ class _AssistantScreenState extends State<AssistantScreen> {
         child: SafeArea(
           child: Column(
             children: [
-              _ChatHeader(
-                hasMessages: _messages.isNotEmpty,
-                onClear: _messages.isEmpty ? null : _clearChat,
+              _Header(
+                title: _title,
+                onHistory: _showHistory,
+                onNew: _newChat,
                 onClose: () => Navigator.of(context).maybePop(),
               ),
               if (_configured == false)
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(14, 4, 14, 0),
-                  child: AppCard(
-                    padding: const EdgeInsets.all(S.lg),
-                    color: t.warning.withValues(alpha: 0.08),
-                    borderColor: t.warning.withValues(alpha: 0.25),
+                  padding: const EdgeInsets.fromLTRB(16, 4, 16, 0),
+                  child: _SetupBanner(
                     onTap: () => Navigator.of(context).push(
                       MaterialPageRoute(builder: (_) => const SettingsScreen()),
-                    ),
-                    child: Row(
-                      children: [
-                        Icon(Icons.key_outlined, size: 17, color: t.warning),
-                        const GapX(S.md),
-                        Expanded(
-                          child: Text(
-                            'No AI provider set up yet. Add a key in Settings to start asking.',
-                            style: TextStyle(
-                              fontSize: AppType.label,
-                              height: 1.4,
-                              color: t.foreground,
-                            ),
-                          ),
-                        ),
-                        Icon(Icons.chevron_right, size: 18, color: t.warning),
-                      ],
                     ),
                   ),
                 ),
               Expanded(
-                child: !_loaded
-                    ? const Center(child: PageLoader(rows: 2, hero: false))
-                    : _messages.isEmpty
-                    ? _Intro(starters: _starters, onAsk: _ask)
-                    : ListView.builder(
-                        controller: _scroll,
-                        padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
-                        itemCount: _messages.length + (_thinking ? 1 : 0),
-                        itemBuilder: (context, i) {
-                          if (i == _messages.length) return const _Thinking();
-                          return _Bubble(message: _messages[i]);
-                        },
-                      ),
+                child: _loadingThread
+                    ? const Center(child: PageLoader(rows: 3, hero: false))
+                    : empty
+                        ? _EmptyState(
+                            starters: _starters,
+                            onAsk: _ask,
+                          )
+                        : ListView.builder(
+                            controller: _scroll,
+                            padding: const EdgeInsets.fromLTRB(14, 8, 14, 20),
+                            itemCount: _messages.length + (_thinking ? 1 : 0),
+                            itemBuilder: (context, i) {
+                              if (i == _messages.length) {
+                                return const _ThinkingBubble();
+                              }
+                              return _MessageBubble(message: _messages[i]);
+                            },
+                          ),
               ),
               _Composer(
                 controller: _controller,
+                focusNode: _focus,
                 thinking: _thinking,
+                enabled: _configured != false,
                 onAsk: _ask,
               ),
             ],
@@ -328,406 +397,415 @@ class _AssistantScreenState extends State<AssistantScreen> {
   }
 }
 
-class _ChatHeader extends StatelessWidget {
-  const _ChatHeader({
-    required this.hasMessages,
-    this.onClear,
+class _Header extends StatelessWidget {
+  const _Header({
+    required this.title,
+    required this.onHistory,
+    required this.onNew,
     required this.onClose,
   });
 
-  final bool hasMessages;
-  final VoidCallback? onClear;
+  final String title;
+  final VoidCallback onHistory;
+  final VoidCallback onNew;
   final VoidCallback onClose;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return Container(
-      padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
-      decoration: BoxDecoration(
-        border: Border(
-          bottom: BorderSide(color: t.border.withValues(alpha: 0.7)),
-        ),
-      ),
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(6, 4, 6, 8),
       child: Row(
         children: [
           IconPill(
-            icon: Icons.arrow_back_rounded,
+            icon: Icons.close_rounded,
             background: Colors.transparent,
-            tooltip: 'Back',
             onTap: onClose,
           ),
-          const GapX(S.xs),
-          Container(
-            width: 36,
-            height: 36,
-            decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(12),
-              gradient: LinearGradient(colors: [t.primary, t.accent]),
-              boxShadow: [
-                BoxShadow(
-                  color: t.primary.withValues(alpha: 0.28),
-                  blurRadius: 12,
-                  offset: const Offset(0, 4),
-                ),
-              ],
-            ),
-            child: Icon(
-              Icons.auto_awesome,
-              size: 18,
-              color: t.primaryForeground,
-            ),
+          IconPill(
+            icon: Icons.menu_rounded,
+            background: Colors.transparent,
+            tooltip: 'Chat history',
+            onTap: onHistory,
           ),
-          const GapX(S.md),
           Expanded(
             child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
                   'Ask Santim',
                   style: TextStyle(
-                    fontSize: AppType.lead,
-                    fontWeight: FontWeight.w800,
-                    color: t.foreground,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.4,
+                    color: t.mutedForeground,
                   ),
                 ),
+                const Gap(2),
                 Text(
-                  hasMessages
-                      ? 'Chat saved on this phone'
-                      : 'Answers from your own figures',
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  textAlign: TextAlign.center,
                   style: TextStyle(
-                    fontSize: AppType.caption,
-                    color: t.mutedForeground,
+                    fontSize: AppType.bodySm,
+                    fontWeight: FontWeight.w700,
+                    color: t.foreground,
                   ),
                 ),
               ],
             ),
           ),
-          if (onClear != null)
-            IconPill(
-              icon: Icons.delete_outline_rounded,
-              tooltip: 'Clear chat',
-              onTap: onClear,
-            ),
+          IconPill(
+            icon: Icons.edit_square,
+            background: Colors.transparent,
+            tooltip: 'New chat',
+            onTap: onNew,
+          ),
+          const GapX(4),
         ],
       ),
     );
   }
 }
 
-class _Composer extends StatelessWidget {
-  const _Composer({
-    required this.controller,
-    required this.thinking,
-    required this.onAsk,
-  });
-
-  final TextEditingController controller;
-  final bool thinking;
-  final Future<void> Function([String?]) onAsk;
+class _SetupBanner extends StatelessWidget {
+  const _SetupBanner({required this.onTap});
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    return Container(
-      padding: EdgeInsets.fromLTRB(
-        14,
-        10,
-        14,
-        12 + MediaQuery.paddingOf(context).bottom,
-      ),
-      decoration: BoxDecoration(
-        color: t.surface.withValues(alpha: 0.92),
-        border: Border(top: BorderSide(color: t.border.withValues(alpha: 0.8))),
-      ),
+    return AppCard(
+      padding: const EdgeInsets.all(S.lg),
+      color: t.warning.withValues(alpha: 0.08),
+      borderColor: t.warning.withValues(alpha: 0.28),
+      onTap: onTap,
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          Icon(Icons.key_outlined, size: 18, color: t.warning),
+          const GapX(S.md),
           Expanded(
-            child: AppTextField(
-              controller: controller,
-              placeholder: 'Ask about your money…',
-              prefixIcon: Icons.chat_bubble_outline_rounded,
-              textInputAction: TextInputAction.send,
-              onSubmitted: (_) => onAsk(),
-            ),
-          ),
-          const GapX(S.sm),
-          PressableScale(
-            scale: 0.92,
-            onTap: thinking ? null : () => onAsk(),
-            child: Container(
-              width: 48,
-              height: 48,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                gradient: LinearGradient(colors: [t.primary, t.accent]),
-                boxShadow: [
-                  BoxShadow(
-                    color: t.primary.withValues(alpha: 0.35),
-                    blurRadius: 14,
-                    offset: const Offset(0, 4),
-                  ),
-                ],
-              ),
-              child: Icon(
-                Icons.arrow_upward_rounded,
-                size: 21,
-                color: t.primaryForeground,
+            child: Text(
+              'Add an AI provider key in Settings to start chatting.',
+              style: TextStyle(
+                fontSize: AppType.label,
+                height: 1.4,
+                color: t.foreground,
               ),
             ),
           ),
+          Icon(Icons.chevron_right, size: 18, color: t.warning),
         ],
       ),
     );
   }
 }
 
-class _Intro extends StatelessWidget {
-  const _Intro({required this.starters, required this.onAsk});
-  final List<String> starters;
-  final Future<void> Function(String) onAsk;
+class _EmptyState extends StatelessWidget {
+  const _EmptyState({required this.starters, required this.onAsk});
+  final List<(String, IconData)> starters;
+  final void Function(String) onAsk;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     return ListView(
-      padding: const EdgeInsets.fromLTRB(S.xl, S.xxl, S.xl, S.md),
+      padding: const EdgeInsets.fromLTRB(20, 28, 20, 20),
       children: [
         Center(
-          child: PopIn(
-            child: Container(
-              width: 78,
-              height: 78,
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(R.xl),
-                gradient: LinearGradient(colors: [t.primary, t.accent]),
-                boxShadow: [
-                  BoxShadow(
-                    color: t.primary.withValues(alpha: 0.35),
-                    blurRadius: 24,
-                    offset: const Offset(0, 8),
-                  ),
+          child: Container(
+            width: 64,
+            height: 64,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+                colors: [
+                  t.primary.withValues(alpha: 0.18),
+                  t.accent.withValues(alpha: 0.12),
                 ],
               ),
-              child: Icon(
-                Icons.auto_awesome,
-                size: 34,
-                color: t.primaryForeground,
-              ),
+              border: Border.all(color: t.primary.withValues(alpha: 0.25)),
             ),
+            child: Icon(Icons.auto_awesome, color: t.primary, size: 28),
+          ),
+        ),
+        const Gap(S.lg),
+        Text(
+          'Your money, explained',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: 22,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            color: t.foreground,
+          ),
+        ),
+        const Gap(S.sm),
+        Text(
+          'Ask anything about your balances, plans, debts, or habits. Answers stay grounded in your real numbers.',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: AppType.bodySm,
+            height: 1.45,
+            color: t.mutedForeground,
           ),
         ),
         const Gap(S.xl),
-        FadeInUp(
-          delay: const Duration(milliseconds: 80),
-          child: Text(
-            'Your money, in conversation',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: AppType.heading,
-              fontWeight: FontWeight.bold,
-              letterSpacing: -0.4,
-              color: t.foreground,
-            ),
+        Text(
+          'Try asking',
+          style: TextStyle(
+            fontSize: 12,
+            fontWeight: FontWeight.w700,
+            letterSpacing: 0.3,
+            color: t.mutedForeground,
           ),
         ),
-        const Gap(S.xs),
-        FadeInUp(
-          delay: const Duration(milliseconds: 120),
-          child: Text(
-            'Ask anything about your spending, plans, or tabs. Chats stay on this device.',
-            textAlign: TextAlign.center,
-            style: TextStyle(
-              fontSize: AppType.bodySm,
-              height: 1.5,
-              color: t.mutedForeground,
-            ),
+        const Gap(S.sm),
+        for (final (label, icon) in starters) ...[
+          _StarterChip(
+            label: label,
+            icon: icon,
+            onTap: () => onAsk(label),
           ),
-        ),
-        const Gap(S.xxl),
-        for (var i = 0; i < starters.length; i++)
-          Padding(
-            padding: const EdgeInsets.only(bottom: S.md),
-            child: FadeInUp.staggered(
-              index: i + 2,
-              child: AppCard(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: S.lg,
-                  vertical: S.md,
-                ),
-                onTap: () => onAsk(starters[i]),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 28,
-                      height: 28,
-                      decoration: BoxDecoration(
-                        color: t.primary.withValues(alpha: 0.1),
-                        borderRadius: BorderRadius.circular(R.sm),
-                      ),
-                      child: Icon(
-                        Icons.north_east_rounded,
-                        size: 14,
-                        color: t.primary,
-                      ),
-                    ),
-                    const GapX(S.md),
-                    Expanded(
-                      child: Text(
-                        starters[i],
-                        style: TextStyle(
-                          fontSize: AppType.bodySm,
-                          color: t.foreground,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-            ),
-          ),
+          const Gap(S.sm),
+        ],
       ],
     );
   }
 }
 
-class _Bubble extends StatelessWidget {
-  const _Bubble({required this.message});
-  final _Message message;
+class _StarterChip extends StatelessWidget {
+  const _StarterChip({
+    required this.label,
+    required this.icon,
+    required this.onTap,
+  });
+  final String label;
+  final IconData icon;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
-    final m = message;
-    final prefs = context.watch<PrefsState>();
-    final currency = context.watch<DataState>().activeCurrency;
-
-    return FadeInUp(
-      offset: 8,
-      child: Padding(
-        padding: const EdgeInsets.only(bottom: S.md),
-        child: Row(
-          mainAxisAlignment: m.fromUser
-              ? MainAxisAlignment.end
-              : MainAxisAlignment.start,
-          crossAxisAlignment: CrossAxisAlignment.end,
-          children: [
-            if (!m.fromUser) ...[
-              Container(
-                width: 30,
-                height: 30,
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(R.sm + 2),
-                  gradient: LinearGradient(colors: [t.primary, t.accent]),
-                ),
-                child: Icon(
-                  Icons.auto_awesome,
-                  size: 15,
-                  color: t.primaryForeground,
+    return Material(
+      color: t.surface,
+      borderRadius: BorderRadius.circular(R.lg),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(R.lg),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 13),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(R.lg),
+            border: Border.all(color: t.border.withValues(alpha: 0.85)),
+          ),
+          child: Row(
+            children: [
+              Icon(icon, size: 18, color: t.primary),
+              const GapX(12),
+              Expanded(
+                child: Text(
+                  label,
+                  style: TextStyle(
+                    fontSize: AppType.bodySm,
+                    fontWeight: FontWeight.w600,
+                    height: 1.35,
+                    color: t.foreground,
+                  ),
                 ),
               ),
-              const GapX(S.sm),
+              Icon(Icons.north_east_rounded, size: 15, color: t.mutedForeground),
             ],
-            Flexible(
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: S.lg,
-                  vertical: S.md,
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _MessageBubble extends StatelessWidget {
+  const _MessageBubble({required this.message});
+  final _ChatMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final user = message.fromUser;
+
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 14),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment:
+            user ? MainAxisAlignment.end : MainAxisAlignment.start,
+        children: [
+          if (!user) ...[
+            Container(
+              width: 30,
+              height: 30,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: message.failed
+                    ? t.danger.withValues(alpha: 0.12)
+                    : t.primary.withValues(alpha: 0.12),
+                border: Border.all(
+                  color: message.failed
+                      ? t.danger.withValues(alpha: 0.3)
+                      : t.primary.withValues(alpha: 0.28),
                 ),
-                decoration: BoxDecoration(
-                  gradient: m.fromUser
-                      ? LinearGradient(colors: [t.primary, t.accent])
-                      : null,
-                  color: m.fromUser
-                      ? null
-                      : m.failed
-                      ? t.danger.withValues(alpha: 0.1)
-                      : t.surface,
-                  borderRadius: BorderRadius.only(
-                    topLeft: const Radius.circular(R.card),
-                    topRight: const Radius.circular(R.card),
-                    bottomLeft: Radius.circular(m.fromUser ? R.card : 4),
-                    bottomRight: Radius.circular(m.fromUser ? 4 : R.card),
+              ),
+              child: Icon(
+                message.failed
+                    ? Icons.error_outline_rounded
+                    : Icons.auto_awesome,
+                size: 15,
+                color: message.failed ? t.danger : t.primary,
+              ),
+            ),
+            const GapX(10),
+          ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment:
+                  user ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+              children: [
+                Container(
+                  padding: EdgeInsets.fromLTRB(
+                    user ? 14 : 14,
+                    12,
+                    14,
+                    message.chart != null ? 10 : 12,
                   ),
-                  border: m.fromUser ? null : Border.all(color: t.border),
-                  boxShadow: m.fromUser
-                      ? [
-                          BoxShadow(
-                            color: t.primary.withValues(alpha: 0.22),
-                            blurRadius: 12,
-                            offset: const Offset(0, 4),
-                          ),
-                        ]
-                      : t.cardShadow,
-                ),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      m.text,
-                      style: TextStyle(
-                        fontSize: AppType.bodySm,
-                        height: 1.55,
-                        color: m.fromUser
-                            ? t.primaryForeground
-                            : m.failed
-                            ? t.danger
-                            : t.foreground,
-                      ),
+                  decoration: BoxDecoration(
+                    color: user
+                        ? t.primary
+                        : message.failed
+                            ? t.danger.withValues(alpha: 0.08)
+                            : t.surface,
+                    borderRadius: BorderRadius.only(
+                      topLeft: const Radius.circular(18),
+                      topRight: const Radius.circular(18),
+                      bottomLeft: Radius.circular(user ? 18 : 6),
+                      bottomRight: Radius.circular(user ? 6 : 18),
                     ),
-                    if (m.chart != null) ...[
-                      const Gap(S.md),
-                      Text(
-                        m.chart!.title,
-                        style: TextStyle(
-                          fontSize: AppType.label,
-                          fontWeight: FontWeight.w700,
-                          color: t.mutedForeground,
-                        ),
+                    border: user
+                        ? null
+                        : Border.all(
+                            color: message.failed
+                                ? t.danger.withValues(alpha: 0.25)
+                                : t.border.withValues(alpha: 0.8),
+                          ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: Colors.black.withValues(alpha: t.isDark ? 0.25 : 0.04),
+                        blurRadius: 12,
+                        offset: const Offset(0, 4),
                       ),
-                      const Gap(S.sm),
-                      SizedBox(
-                        width: 250,
-                        child: m.chart!.type == 'donut'
-                            ? Center(
-                                child: DonutChart(
-                                  size: 150,
-                                  data: [
-                                    for (
-                                      var i = 0;
-                                      i < m.chart!.points.length;
-                                      i++
-                                    )
-                                      Slice(
-                                        label: m.chart!.points[i].$1,
-                                        value: m.chart!.points[i].$2,
-                                        color: financeColorAt(i),
-                                      ),
-                                  ],
-                                  format: (v) => prefs.money(
-                                    v,
-                                    currency: currency,
-                                    compact: true,
-                                  ),
-                                ),
-                              )
-                            : RankedBars(
-                                data: [
-                                  for (final p in m.chart!.points)
-                                    BarDatum(label: p.$1, value: p.$2),
-                                ],
-                                format: (v) =>
-                                    prefs.money(v, currency: currency),
+                    ],
+                  ),
+                  child: user
+                      ? Text(
+                          message.content,
+                          style: TextStyle(
+                            color: t.primaryForeground,
+                            fontSize: AppType.body,
+                            height: 1.4,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        )
+                      : message.failed
+                          ? Text(
+                              message.content,
+                              style: TextStyle(
+                                color: t.danger,
+                                fontSize: AppType.bodySm,
+                                height: 1.4,
                               ),
+                            )
+                          : Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                MarkdownBody(message.content, dense: true),
+                                if (message.chart != null) ...[
+                                  const Gap(S.md),
+                                  _ChartCard(chart: message.chart!),
+                                ],
+                              ],
+                            ),
+                ),
+                if (!user && !message.failed) ...[
+                  const Gap(6),
+                  Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      if (message.provider != null)
+                        Text(
+                          message.provider!,
+                          style: TextStyle(
+                            fontSize: 10,
+                            fontWeight: FontWeight.w600,
+                            color: t.mutedForeground,
+                          ),
+                        ),
+                      if (message.provider != null) const GapX(8),
+                      _MiniAction(
+                        icon: Icons.copy_rounded,
+                        label: 'Copy',
+                        onTap: () async {
+                          await Clipboard.setData(
+                            ClipboardData(text: message.content),
+                          );
+                          Haptics.select();
+                          if (context.mounted) {
+                            toast(context, 'Copied');
+                          }
+                        },
                       ),
                     ],
-                    if (m.provider != null) ...[
-                      const Gap(S.sm),
-                      Muted('via ${m.provider}', size: 10),
-                    ],
-                  ],
-                ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          if (user) const GapX(4),
+        ],
+      ),
+    );
+  }
+}
+
+class _MiniAction extends StatelessWidget {
+  const _MiniAction({
+    required this.icon,
+    required this.label,
+    required this.onTap,
+  });
+  final IconData icon;
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(icon, size: 12, color: t.mutedForeground),
+            const GapX(4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 10,
+                fontWeight: FontWeight.w600,
+                color: t.mutedForeground,
               ),
             ),
           ],
@@ -737,46 +815,143 @@ class _Bubble extends StatelessWidget {
   }
 }
 
-class _Thinking extends StatelessWidget {
-  const _Thinking();
+class _ChartCard extends StatelessWidget {
+  const _ChartCard({required this.chart});
+  final _ChartData chart;
+
+  static const _swatches = [
+    Color(0xFF059669),
+    Color(0xFF0EA5E9),
+    Color(0xFFF59E0B),
+    Color(0xFFEF4444),
+    Color(0xFF8B5CF6),
+    Color(0xFF14B8A6),
+  ];
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(10),
+      decoration: BoxDecoration(
+        color: t.surfaceMuted.withValues(alpha: 0.65),
+        borderRadius: BorderRadius.circular(R.md),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          if (chart.title.isNotEmpty)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 8),
+              child: Text(
+                chart.title,
+                style: TextStyle(
+                  fontSize: 12,
+                  fontWeight: FontWeight.w700,
+                  color: t.foreground,
+                ),
+              ),
+            ),
+          if (chart.type == 'donut')
+            Center(
+              child: DonutChart(
+                size: 150,
+                data: [
+                  for (var i = 0; i < chart.points.length; i++)
+                    Slice(
+                      label: chart.points[i].$1,
+                      value: chart.points[i].$2,
+                      color: _swatches[i % _swatches.length],
+                    ),
+                ],
+              ),
+            )
+          else
+            RankedBars(
+              format: (v) => v.toStringAsFixed(v == v.roundToDouble() ? 0 : 1),
+              data: [
+                for (final p in chart.points)
+                  BarDatum(label: p.$1, value: p.$2),
+              ],
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ThinkingBubble extends StatefulWidget {
+  const _ThinkingBubble();
+
+  @override
+  State<_ThinkingBubble> createState() => _ThinkingBubbleState();
+}
+
+class _ThinkingBubbleState extends State<_ThinkingBubble>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _pulse =
+      AnimationController(vsync: this, duration: const Duration(milliseconds: 900))
+        ..repeat(reverse: true);
+
+  @override
+  void dispose() {
+    _pulse.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     return Padding(
-      padding: const EdgeInsets.only(bottom: S.md),
+      padding: const EdgeInsets.only(bottom: 14),
       child: Row(
         children: [
           Container(
             width: 30,
             height: 30,
             decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(R.sm + 2),
-              gradient: LinearGradient(colors: [t.primary, t.accent]),
+              shape: BoxShape.circle,
+              color: t.primary.withValues(alpha: 0.12),
             ),
-            child: Icon(
-              Icons.auto_awesome,
-              size: 15,
-              color: t.primaryForeground,
-            ),
+            child: Icon(Icons.auto_awesome, size: 15, color: t.primary),
           ),
-          const GapX(S.sm),
-          Container(
-            padding: const EdgeInsets.symmetric(
-              horizontal: S.lg,
-              vertical: S.lg,
-            ),
-            decoration: BoxDecoration(
-              color: t.surface,
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(R.card),
-                topRight: Radius.circular(R.card),
-                bottomRight: Radius.circular(R.card),
-                bottomLeft: Radius.circular(4),
+          const GapX(10),
+          FadeTransition(
+            opacity: Tween(begin: 0.45, end: 1.0).animate(_pulse),
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              decoration: BoxDecoration(
+                color: t.surface,
+                borderRadius: BorderRadius.circular(18),
+                border: Border.all(color: t.border.withValues(alpha: 0.8)),
               ),
-              border: Border.all(color: t.border),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  for (var i = 0; i < 3; i++) ...[
+                    if (i > 0) const GapX(5),
+                    Container(
+                      width: 6,
+                      height: 6,
+                      decoration: BoxDecoration(
+                        color: t.primary.withValues(alpha: 0.55 + i * 0.1),
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                  ],
+                  const GapX(10),
+                  Text(
+                    'Thinking…',
+                    style: TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: t.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
             ),
-            child: const BouncingDots(),
           ),
         ],
       ),
@@ -784,17 +959,227 @@ class _Thinking extends StatelessWidget {
   }
 }
 
-/// Cycles the category swatches so an AI-returned chart is still colourful.
-Color financeColorAt(int index) {
-  const palette = [
-    Color(0xFF10B981),
-    Color(0xFF3B82F6),
-    Color(0xFFF59E0B),
-    Color(0xFF8B5CF6),
-    Color(0xFFEC4899),
-    Color(0xFF14B8A6),
-    Color(0xFFEF4444),
-    Color(0xFF6366F1),
-  ];
-  return palette[index % palette.length];
+class _Composer extends StatelessWidget {
+  const _Composer({
+    required this.controller,
+    required this.focusNode,
+    required this.thinking,
+    required this.enabled,
+    required this.onAsk,
+  });
+
+  final TextEditingController controller;
+  final FocusNode focusNode;
+  final bool thinking;
+  final bool enabled;
+  final VoidCallback onAsk;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final bottom = MediaQuery.of(context).viewInsets.bottom;
+
+    return AnimatedPadding(
+      duration: Motion.fast,
+      padding: EdgeInsets.only(bottom: bottom > 0 ? 0 : 4),
+      child: Container(
+        padding: const EdgeInsets.fromLTRB(12, 8, 12, 10),
+        decoration: BoxDecoration(
+          color: t.surface.withValues(alpha: 0.92),
+          border: Border(
+            top: BorderSide(color: t.border.withValues(alpha: 0.7)),
+          ),
+        ),
+        child: SafeArea(
+          top: false,
+          child: Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            children: [
+              Expanded(
+                child: Container(
+                  constraints: const BoxConstraints(maxHeight: 140),
+                  decoration: BoxDecoration(
+                    color: t.background,
+                    borderRadius: BorderRadius.circular(22),
+                    border: Border.all(color: t.border),
+                  ),
+                  child: TextField(
+                    controller: controller,
+                    focusNode: focusNode,
+                    enabled: enabled && !thinking,
+                    minLines: 1,
+                    maxLines: 5,
+                    textInputAction: TextInputAction.send,
+                    onSubmitted: (_) => onAsk(),
+                    style: TextStyle(
+                      fontSize: AppType.body,
+                      color: t.foreground,
+                      height: 1.35,
+                    ),
+                    decoration: InputDecoration(
+                      hintText: 'Ask about your money…',
+                      hintStyle: TextStyle(color: t.mutedForeground),
+                      border: InputBorder.none,
+                      contentPadding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+                    ),
+                  ),
+                ),
+              ),
+              const GapX(8),
+              GestureDetector(
+                onTap: enabled && !thinking ? onAsk : null,
+                child: AnimatedContainer(
+                  duration: Motion.fast,
+                  width: 46,
+                  height: 46,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    color: thinking || !enabled
+                        ? t.surfaceMuted
+                        : t.primary,
+                  ),
+                  child: thinking
+                      ? Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            color: t.mutedForeground,
+                          ),
+                        )
+                      : Icon(
+                          Icons.arrow_upward_rounded,
+                          color: enabled
+                              ? t.primaryForeground
+                              : t.mutedForeground,
+                        ),
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HistorySheet extends StatelessWidget {
+  const _HistorySheet({
+    required this.loading,
+    required this.items,
+    required this.activeId,
+    required this.onNew,
+    required this.onOpen,
+    required this.onDelete,
+  });
+
+  final bool loading;
+  final List<_ConversationSummary> items;
+  final String? activeId;
+  final VoidCallback onNew;
+  final void Function(String id) onOpen;
+  final void Function(String id) onDelete;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final bottom = MediaQuery.of(context).padding.bottom;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(12, 0, 12, 16 + bottom),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          AppButton(
+            label: 'New chat',
+            icon: Icons.edit_square,
+            onPressed: onNew,
+          ),
+          const Gap(S.md),
+          if (loading && items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.all(24),
+              child: PageLoader(rows: 3, hero: false),
+            )
+          else if (items.isEmpty)
+            const Padding(
+              padding: EdgeInsets.symmetric(vertical: 28),
+              child: EmptyState(
+                icon: Icons.chat_bubble_outline_rounded,
+                title: 'No chats yet',
+                description: 'Start a conversation and it will show up here.',
+              ),
+            )
+          else
+            Flexible(
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: items.length,
+                separatorBuilder: (_, _) => const Gap(S.sm),
+                itemBuilder: (context, i) {
+                  final c = items[i];
+                  final active = c.id == activeId;
+                  return AppCard(
+                    padding: const EdgeInsets.fromLTRB(14, 12, 8, 12),
+                    color: active
+                        ? t.primary.withValues(alpha: 0.08)
+                        : t.surface,
+                    borderColor: active
+                        ? t.primary.withValues(alpha: 0.35)
+                        : t.border,
+                    onTap: () => onOpen(c.id),
+                    child: Row(
+                      children: [
+                        Icon(
+                          Icons.chat_bubble_outline_rounded,
+                          size: 18,
+                          color: active ? t.primary : t.mutedForeground,
+                        ),
+                        const GapX(12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                c.title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: AppType.bodySm,
+                                  fontWeight: FontWeight.w700,
+                                  color: t.foreground,
+                                ),
+                              ),
+                              const Gap(3),
+                              Text(
+                                c.preview?.isNotEmpty == true
+                                    ? c.preview!
+                                    : relativeTime(c.updatedAt),
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                  fontSize: 11,
+                                  color: t.mutedForeground,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        IconButton(
+                          icon: Icon(
+                            Icons.delete_outline_rounded,
+                            size: 18,
+                            color: t.mutedForeground,
+                          ),
+                          onPressed: () => onDelete(c.id),
+                        ),
+                      ],
+                    ),
+                  );
+                },
+              ),
+            ),
+        ],
+      ),
+    );
+  }
 }

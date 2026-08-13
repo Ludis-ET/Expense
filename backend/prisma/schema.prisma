@@ -51,8 +51,13 @@ enum RecurrenceUnit {
   YEAR
 }
 
-// A plan runs once until its money is gone, renews on a cadence, or is the
-// single built-in UNPLANNED plan that catches spending you never reserved for.
+// A plan runs once until its money is gone, or renews on a cadence.
+//
+// UNPLANNED is retired. Spending you never reserved for is now `budgetId = null`
+// on the transaction itself - one representation instead of two, so no aggregate
+// has to remember to exclude a pot-less envelope that held a negative balance.
+// The value stays in the enum because dropping a Postgres enum member means
+// recreating the type; nothing writes it any more.
 enum BudgetKind {
   ONE_TIME
   RECURRING
@@ -155,8 +160,10 @@ model User {
   budgets           Budget[]
   budgetAllocations BudgetAllocation[]
   budgetAdjustments BudgetAdjustment[]
+  fundingRules      FundingRule[]
   notifications     Notification[]
   aiSetting         AiSetting?
+  aiConversations   AiConversation[]
   householdMembers  HouseholdMember[]
   sentInvites       HouseholdInvite[] @relation("InviteSender")
   ledgerEntries     LedgerEntry[]
@@ -237,6 +244,12 @@ model Account {
   isDefault      Boolean     @default(false)
   archived       Boolean     @default(false)
 
+  /// The balance the bank itself last reported, read out of a parsed message.
+  /// Santim compares it to its own figure to spot drift - a transaction the
+  /// user never recorded, or a fee nobody told them about.
+  reportedBalance Decimal?  @db.Decimal(14, 2)
+  reportedAt      DateTime?
+
   transactions   Transaction[]      @relation("TxAccount")
   transfersIn    Transaction[]      @relation("TxTransferAccount")
   planSpends     Transaction[]      @relation("TxBudgetSourceAccount")
@@ -244,6 +257,7 @@ model Account {
   allocations    BudgetAllocation[]
   senderRules    BankSenderRule[]
   inboxMessages  InboxMessage[]
+  fundingRules   FundingRule[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -294,6 +308,15 @@ model Transaction {
   categoryId        String? // null for transfers
   category          Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
+  /// What the destination actually received, in *its* currency. Always set for
+  /// a transfer - equal to `amount` unless the two wallets hold different
+  /// currencies. Crediting the source amount across currencies invents money,
+  /// so the destination is only ever credited from this column.
+  transferAmount Decimal? @db.Decimal(14, 2)
+  /// The rate that produced `transferAmount`, kept so the movement can be
+  /// explained later even after the user edits their rate table.
+  transferRate   Decimal? @db.Decimal(18, 8)
+
   // Paid out of a budget plan's pot instead of straight from the account. The
   // money was already reserved when the plan was funded, so the spend releases
   // that reservation and takes the real balance down at the same time.
@@ -305,9 +328,15 @@ model Transaction {
   // same as accountId, but not always: you can fill a plan from one wallet and
   // pay from another, and the reservation still has to come off the wallet that
   // was actually holding it. Reservation aggregates group by this, never by
-  // accountId. Null for anything that is not a funded-plan expense.
+  // accountId.
+  //
+  // Set on exactly the rows that carry a budgetId, and enforced by a database
+  // check. It used to be nullable and SET NULL on account delete, which produced
+  // spends that drained a pot while freeing nothing - money counted as both
+  // spent and still reserved, permanently. RESTRICT now refuses the delete
+  // instead of quietly corrupting the books.
   budgetSourceAccountId String?
-  budgetSourceAccount   Account? @relation("TxBudgetSourceAccount", fields: [budgetSourceAccountId], references: [id], onDelete: SetNull)
+  budgetSourceAccount   Account? @relation("TxBudgetSourceAccount", fields: [budgetSourceAccountId], references: [id], onDelete: Restrict)
 
   note            String?
   payee           String? // merchant / person
@@ -321,15 +350,23 @@ model Transaction {
   // inbox instead of orphaning it.
   inboxMessage InboxMessage?
 
+  /// The client's own id for the operation that produced this row. A phone that
+  /// loses the reply to a queued write retries it; without this, the retry books
+  /// the money a second time. Unique per user, so the replay returns the row
+  /// that already exists instead of creating a twin.
+  clientOpId String?
+
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
+  @@unique([userId, clientOpId])
   @@index([userId, date])
   @@index([userId, categoryId])
   @@index([userId, kind])
   @@index([accountId])
   @@index([budgetId, budgetCycle])
   @@index([budgetSourceAccountId])
+  @@index([userId, createdAt])
   @@map("transactions")
 }
 
@@ -347,6 +384,12 @@ model RecurringRule {
   category   Category? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   payee      String?
   note       String?
+
+  /// Pay this out of a plan's pot rather than straight from the wallet. A
+  /// subscription that draws down its own envelope every month, instead of
+  /// showing up as unplanned spending forever.
+  budgetId String?
+  budget   Budget? @relation(fields: [budgetId], references: [id], onDelete: SetNull)
 
   frequency  Frequency
   interval   Int       @default(1) // every N periods
@@ -409,11 +452,13 @@ model Budget {
   nextResetAt    DateTime? // RECURRING only
   endDate        DateTime? // stop recurring after this
 
-  allocations   BudgetAllocation[]
-  adjustments   BudgetAdjustment[]
-  cycles        BudgetCycle[]
-  transactions  Transaction[]
-  wishlistItems WishlistItem[]
+  allocations    BudgetAllocation[]
+  adjustments    BudgetAdjustment[]
+  cycles         BudgetCycle[]
+  transactions   Transaction[]
+  wishlistItems  WishlistItem[]
+  recurringRules RecurringRule[]
+  fundingSteps   FundingStep[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -438,10 +483,21 @@ model BudgetAllocation {
   date       DateTime             @default(now())
   note       String?
 
+  /// Ties the two halves of a single move together: plan-to-plan, or shifting a
+  /// reservation from one wallet to another. Both halves are shown as one
+  /// movement and undone as one movement - a half-undone move would leave money
+  /// duplicated or destroyed.
+  groupId String?
+  /// See Transaction.clientOpId - the same replay protection for fill-ups.
+  clientOpId String?
+
   createdAt DateTime @default(now())
 
+  @@unique([userId, clientOpId])
   @@index([budgetId, cycleIndex])
   @@index([userId, accountId])
+  @@index([userId, createdAt])
+  @@index([groupId])
   @@map("budget_allocations")
 }
 
@@ -459,9 +515,21 @@ model BudgetAdjustment {
   reason     String?
   date       DateTime @default(now())
 
+  /// True when Santim raised the plan itself to cover an overspend, rather than
+  /// the user deciding to. Undoing the spend undoes this with it.
+  automatic Boolean @default(false)
+  /// Ties an automatic raise to the spend that caused it, so the two are undone
+  /// together. Holds the transaction's id.
+  groupId    String?
+  /// See Transaction.clientOpId.
+  clientOpId String?
+
   createdAt DateTime @default(now())
 
+  @@unique([userId, clientOpId])
   @@index([budgetId, cycleIndex])
+  @@index([userId, createdAt])
+  @@index([groupId])
   @@map("budget_adjustments")
 }
 
@@ -493,6 +561,72 @@ model BudgetCycle {
   @@map("budget_cycles")
 }
 
+// How much of an arriving payday a step puts into its plan.
+//   FIXED   - this many birr, if that much is left
+//   PERCENT - this share of the money that arrived
+//   FILL    - top the plan up to its planned amount
+enum FundingStepMode {
+  FIXED
+  PERCENT
+  FILL
+}
+
+/// "When my salary lands, fill Rent, then Groceries, then Transport."
+///
+/// The actual envelope workflow, and the one thing the app was missing to make
+/// plans worth keeping: without it, every payday means filling each plan by
+/// hand, and a plan nobody refills is just a number that goes stale.
+model FundingRule {
+  id     String @id @default(cuid())
+  userId String
+  user   User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  name   String
+
+  /// Only fire for income landing here. Null means any wallet.
+  accountId String?
+  account   Account? @relation(fields: [accountId], references: [id], onDelete: Cascade)
+  currency  String   @default("ETB")
+
+  /// Ignore anything smaller, so a 20-birr refund does not trigger payday.
+  minAmount Decimal @db.Decimal(14, 2) @default(0)
+
+  /// Off by default on creation is wrong here - a rule you just wrote should
+  /// work - but it can be paused without deleting the steps.
+  active Boolean @default(true)
+
+  /// Ask before filling, instead of doing it silently. On by default: money
+  /// moving on its own is alarming the first time it happens.
+  confirmFirst Boolean @default(true)
+
+  lastRunAt DateTime?
+  steps     FundingStep[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([userId, active])
+  @@map("funding_rules")
+}
+
+model FundingStep {
+  id            String      @id @default(cuid())
+  fundingRuleId String
+  fundingRule   FundingRule @relation(fields: [fundingRuleId], references: [id], onDelete: Cascade)
+  budgetId      String
+  budget        Budget      @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  /// Fill order. Earlier steps take their share first, so the plans that matter
+  /// are funded even when the money runs out partway down the list.
+  position Int
+  mode     FundingStepMode @default(FILL)
+  /// The birr for FIXED, the percentage for PERCENT, ignored for FILL.
+  amount   Decimal         @db.Decimal(14, 2) @default(0)
+
+  @@index([fundingRuleId, position])
+  @@index([budgetId])
+  @@map("funding_steps")
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -518,6 +652,36 @@ model AiSetting {
   updatedAt DateTime @updatedAt
 
   @@map("ai_settings")
+}
+
+/// A saved Ask Santim thread. Messages sync across devices.
+model AiConversation {
+  id        String      @id @default(cuid())
+  userId    String
+  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  title     String      @default("New chat")
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+  messages  AiMessage[]
+
+  @@index([userId, updatedAt])
+  @@map("ai_conversations")
+}
+
+model AiMessage {
+  id             String         @id @default(cuid())
+  conversationId String
+  conversation   AiConversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  /// "user" | "assistant" | "error"
+  role           String
+  content        String
+  /// Optional chart payload from /ai/ask ({ type, title, data }).
+  chart          Json?
+  provider       String?
+  createdAt      DateTime       @default(now())
+
+  @@index([conversationId, createdAt])
+  @@map("ai_messages")
 }
 
 model LedgerEntry {

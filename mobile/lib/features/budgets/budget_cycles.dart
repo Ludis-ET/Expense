@@ -110,23 +110,26 @@ class BudgetCycleSections extends StatelessWidget {
           children: [
             Icon(Icons.repeat_rounded, size: 16, color: t.mutedForeground),
             const GapX(S.sm),
-            Expanded(
-              child: Text(
-                'Every $noun',
-                style: TextStyle(
-                  fontSize: AppType.body,
-                  fontWeight: FontWeight.w700,
-                  color: t.foreground,
-                ),
+            Text(
+              'Every $noun',
+              style: TextStyle(
+                fontSize: AppType.body,
+                fontWeight: FontWeight.w700,
+                color: t.foreground,
               ),
             ),
+            const GapX(S.xs),
+            InfoHint(
+              label: 'Every $noun',
+              body:
+                  'Each $noun keeps the amount it opened with, so a mid-cycle '
+                  'raise shows up as a change rather than rewriting history. '
+                  'Quiet periods where nothing moved are skipped.',
+              size: 14,
+            ),
+            const Spacer(),
             Muted('${cycles.length} ${cycles.length == 1 ? 'period' : 'periods'}', size: 11),
           ],
-        ),
-        const Gap(S.xxs),
-        Muted(
-          'Each $noun keeps the amount it opened with. Tap a card to see its spending.',
-          size: 11.5,
         ),
         const Gap(S.md),
         for (var i = 0; i < cycles.length; i++) ...[
@@ -143,11 +146,7 @@ class BudgetCycleSections extends StatelessWidget {
         ],
         if (plan.cycles.isEmpty) ...[
           const Gap(S.sm),
-          Muted(
-            'Finished ${noun}s appear here once this one rolls over. '
-            'Quiet periods where nothing moved are skipped.',
-            size: 11.5,
-          ),
+          Muted('None yet', size: 11.5),
         ],
       ],
     );

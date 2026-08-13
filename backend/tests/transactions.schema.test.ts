@@ -14,8 +14,31 @@ describe('createTransactionSchema', () => {
   it('accepts an expense with a category', () => {
     const parsed = createTransactionSchema.parse({ ...base, kind: 'EXPENSE', categoryId: 'cat1' });
     expect(parsed.kind).toBe('EXPENSE');
-    expect(parsed.currency).toBe('ETB'); // default
+    // No currency default any more: the wallet decides. Defaulting to ETB here
+    // let a request name a currency the account does not hold, and the balance
+    // arithmetic then subtracted one from the other.
+    expect(parsed.currency).toBeUndefined();
     expect(parsed.tags).toEqual([]); // default
+  });
+
+  it('takes an explicit currency when one is given', () => {
+    const parsed = createTransactionSchema.parse({
+      ...base,
+      kind: 'EXPENSE',
+      categoryId: 'cat1',
+      currency: 'usd',
+    });
+    expect(parsed.currency).toBe('USD');
+  });
+
+  it('accepts what actually arrived on a cross-currency transfer', () => {
+    const parsed = createTransactionSchema.parse({
+      ...base,
+      kind: 'TRANSFER',
+      transferAccountId: 'acc2',
+      transferAmount: 5650,
+    });
+    expect(parsed.kind === 'TRANSFER' && parsed.transferAmount).toBe(5650);
   });
 
   it('rejects an expense without a category', () => {

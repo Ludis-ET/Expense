@@ -18,6 +18,9 @@ import { guidesRouter } from './modules/guides/guides.router.js';
 import { devicesRouter } from './modules/devices/devices.router.js';
 import { ingestRouter } from './modules/ingest/ingest.router.js';
 import { appRouter } from './modules/app/app.router.js';
+import { moneyRouter } from './modules/money/money.router.js';
+import { fundingRouter } from './modules/funding/funding.router.js';
+import { searchRouter } from './modules/search/search.router.js';
 
 export const apiRouter = Router();
 
@@ -31,6 +34,7 @@ apiRouter.use('/budgets', budgetsRouter);
 apiRouter.use('/analytics', analyticsRouter);
 apiRouter.use('/dashboard', dashboardRouter);
 apiRouter.use('/ai', aiRouter);
+apiRouter.use('/search', searchRouter);
 apiRouter.use('/notifications', notificationsRouter);
 apiRouter.use('/household', householdRouter);
 apiRouter.use('/ledger', ledgerRouter);
@@ -40,3 +44,7 @@ apiRouter.use('/guides', guidesRouter);
 apiRouter.use('/devices', devicesRouter);
 apiRouter.use('/ingest', ingestRouter);
 apiRouter.use('/app', appRouter);
+// Recent movements, undo, and the Money Doctor.
+apiRouter.use('/money', moneyRouter);
+// Payday rules: "when my salary lands, fill these plans, in this order".
+apiRouter.use('/funding', fundingRouter);

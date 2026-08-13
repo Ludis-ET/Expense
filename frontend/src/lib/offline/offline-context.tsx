@@ -19,6 +19,7 @@ import {
   getOp,
   isLocalId,
   newId,
+  opKey,
   putOp,
   type OutboxOp,
 } from './outbox';
@@ -122,7 +123,11 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
     switch (op.kind) {
       case 'create':
       case 'transfer':
-        await api.post('/transactions', op.payload);
+        // The op's own id travels with the request. If the reply is lost and we
+        // retry, the server returns the transaction it already made rather than
+        // making a second one - the difference between a flaky connection and
+        // money appearing twice.
+        await api.post('/transactions', { ...op.payload, clientOpId: opKey(op) });
         return;
       case 'update':
         await api.put(`/transactions/${op.targetId}`, op.payload);
@@ -200,6 +205,9 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
           return { queued: false };
         } catch (err) {
           if (!isNetworkError(err)) throw err; // real server error → let caller surface it
+          // The direct attempt may have reached the server before the connection
+          // dropped. It carried the same op key, so the queued retry is a replay
+          // the server recognises rather than a second transaction.
         }
       }
       await enqueue(op);
@@ -211,9 +219,19 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const saveTransaction = useCallback(
     (body: Record<string, unknown>, optimistic: Transaction) => {
       const id = optimistic.id;
-      return attemptOrQueue(
-        { id, kind: 'create', payload: body, optimistic, status: 'pending', attempts: 0, createdAt: Date.now() },
-        () => api.post('/transactions', body),
+      const op: OutboxOp = {
+        id,
+        kind: 'create',
+        payload: body,
+        optimistic,
+        status: 'pending',
+        attempts: 0,
+        createdAt: Date.now(),
+      };
+      // Sent on the first attempt too, not only on retries: the reply to the
+      // direct call is exactly what can go missing.
+      return attemptOrQueue(op, () =>
+        api.post('/transactions', { ...body, clientOpId: opKey(op) }),
       );
     },
     [attemptOrQueue],
@@ -222,9 +240,17 @@ export function OfflineProvider({ children }: { children: ReactNode }) {
   const saveTransfer = useCallback(
     (body: Record<string, unknown>, optimistic: Transaction) => {
       const id = optimistic.id;
-      return attemptOrQueue(
-        { id, kind: 'transfer', payload: body, optimistic, status: 'pending', attempts: 0, createdAt: Date.now() },
-        () => api.post('/transactions', body),
+      const op: OutboxOp = {
+        id,
+        kind: 'transfer',
+        payload: body,
+        optimistic,
+        status: 'pending',
+        attempts: 0,
+        createdAt: Date.now(),
+      };
+      return attemptOrQueue(op, () =>
+        api.post('/transactions', { ...body, clientOpId: opKey(op) }),
       );
     },
     [attemptOrQueue],

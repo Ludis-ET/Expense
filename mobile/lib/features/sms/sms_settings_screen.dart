@@ -364,13 +364,12 @@ class _SmsSettingsScreenState extends State<SmsSettingsScreen> {
               ),
             ],
             const Gap(S.lg),
-            Muted(
-              'Santim is distributed by direct APK install. Google Play does not '
-              'allow expense apps to request SMS permission. Pair each phone you '
-              'want to capture from   they all share the same inbox and wallet mappings.',
-              size: 11.5,
-              height: 1.4,
-              maxLines: 5,
+            const InfoHint(
+              label: 'Why pair phones',
+              body:
+                  'Santim is distributed by direct APK install. Google Play does not '
+                  'allow expense apps to request SMS permission. Pair each phone you '
+                  'want to capture from — they all share the same inbox and wallet mappings.',
             ),
           ],
         ),

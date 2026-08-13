@@ -14,7 +14,13 @@ export const anthropicAdapter: AiProviderAdapter = {
       model: cfg.model || 'claude-opus-4-8',
       max_tokens: req.maxTokens ?? 4096,
       system: req.json ? `${req.system}\n\nRespond with a single valid JSON object and nothing else.` : req.system,
-      messages: [{ role: 'user', content: req.prompt }],
+      messages: [
+        ...(req.history ?? []).map((t) => ({
+          role: t.role as 'user' | 'assistant',
+          content: t.content,
+        })),
+        { role: 'user', content: req.prompt },
+      ],
     });
     return message.content
       .map((block) => (block.type === 'text' ? block.text : ''))

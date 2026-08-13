@@ -300,26 +300,59 @@ export async function dailySpending(user: AuthUser, query: DailySpendQuery = {})
   };
 }
 
-/** The compact form the dashboard card needs: last 30 days. */
+/**
+ * The compact form the dashboard card needs: the last 30 days, measured against
+ * the same "per day" figure every other screen shows.
+ *
+ * The pace used to be the 30-day window's own average, which meant the card said
+ * one number while the tile directly above it said another. Both were defensible
+ * and together they were just confusing. The window still decides the *strip* -
+ * 30 days is a better picture of a run than four days into a new month - but
+ * what counts as a good day is the month-to-date average, and that is the number
+ * printed on the card.
+ */
 export async function spendingStreak(user: AuthUser, currency?: string) {
   const d = await dailySpending(user, { currency });
+  const { dailyAverages } = await import('./analytics.averages.js');
+  const averages = await dailyAverages(user.id, d.currency);
+  const pace = Number(averages.spend);
+
+  const days = d.days.map((day) => ({ ...day, under: Number(day.amount) <= pace }));
+
+  let bestStreak = 0;
+  let run = 0;
+  for (const day of days) {
+    run = day.under ? run + 1 : 0;
+    if (run > bestStreak) bestStreak = run;
+  }
+  let currentStreak = 0;
+  for (let i = days.length - 1; i >= 0; i -= 1) {
+    if (!days[i]!.under) break;
+    currentStreak += 1;
+  }
+  const daysUnder = days.filter((day) => day.under).length;
+
   return {
     currency: d.currency,
     label:
-      d.stats.currentStreak >= 7
+      currentStreak >= 7
         ? 'On fire'
-        : d.stats.currentStreak >= 3
+        : currentStreak >= 3
           ? 'Building momentum'
-          : d.stats.currentStreak > 0
+          : currentStreak > 0
             ? 'Keep going'
             : 'Start today',
-    avgDailySpend: d.stats.pace,
-    currentDays: d.stats.currentStreak,
-    bestStreak: d.stats.bestStreak,
-    daysUnder: d.stats.daysUnder,
-    dayCount: d.stats.dayCount,
+    /** The canonical figure - identical to the dashboard tile and analytics. */
+    avgDailySpend: averages.spend,
+    /** Earned per day over the same days, for the comparison that matters. */
+    avgDailyIncome: averages.income,
+    daysElapsed: averages.daysElapsed,
+    currentDays: currentStreak,
+    bestStreak,
+    daysUnder,
+    dayCount: days.length,
     total: d.stats.total,
     /** The 30-day strip, so the card can show the whole run at a glance. */
-    days: d.days,
+    days,
   };
 }

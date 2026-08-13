@@ -1,4 +1,4 @@
-import { BudgetKind, Prisma, TxKind } from "../../core/prisma.js";
+import { Prisma, TxKind } from "../../core/prisma.js";
 import { prisma } from "../../core/db.js";
 import type { AuthUser } from "../../core/context.js";
 import { resolveCurrency } from "../../core/currency.service.js";
@@ -72,9 +72,11 @@ export async function outlookHistory(
       where: {
         userId: user.id,
         currency: cur,
+        // Unplanned spending is "no plan behind it", the same definition the
+        // budgets and analytics pages use.
         kind: TxKind.EXPENSE,
+        budgetId: null,
         date: { gte: windowStart, lt: firstOfThisMonth },
-        budget: { is: { kind: BudgetKind.UNPLANNED } },
       },
       select: { amount: true, date: true },
     }),

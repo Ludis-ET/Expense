@@ -1,12 +1,14 @@
 import 'package:flutter/material.dart';
 
 import '../core/haptics.dart';
+import '../core/profile_presets.dart';
 import '../core/theme/theme.dart';
 import '../core/theme/tokens.dart';
 import '../core/utils/format.dart';
 import 'empty_art.dart';
 import 'motion.dart';
 
+export '../core/profile_presets.dart';
 export 'empty_art.dart';
 export 'glass.dart';
 export 'motion.dart';
@@ -89,6 +91,13 @@ class BrandWord extends StatelessWidget {
 }
 
 /// Gradient initials bubble, or the user's chosen avatar art.
+/// Somebody's face.
+///
+/// An account with a preset gets its drawn picture - the same one the web shows,
+/// so a person looks like themselves on either. Anyone else in the app who is
+/// not an account holder (a Tab counterparty, a category owner) keeps initials
+/// on a gradient, because inventing a face for a name in someone's contacts
+/// would be a small lie.
 class Avatar extends StatelessWidget {
   const Avatar({super.key, required this.name, this.size = 36, this.avatarId});
 
@@ -98,15 +107,12 @@ class Avatar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (avatarId != null) {
+      return ProfileAvatar(avatarId: avatarId, name: name, size: size);
+    }
+
     final t = context.t;
-    final seed = (avatarId ?? name).hashCode;
-    final hue = (seed % 360).toDouble();
-    final colors = avatarId != null
-        ? [
-            HSLColor.fromAHSL(1, hue, 0.62, 0.55).toColor(),
-            HSLColor.fromAHSL(1, (hue + 42) % 360, 0.6, 0.45).toColor(),
-          ]
-        : [t.primary, t.accent];
+    final colors = [t.primary, t.accent];
 
     return Container(
       width: size,

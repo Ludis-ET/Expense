@@ -312,8 +312,6 @@ class DashboardScreen extends StatelessWidget {
       if (insightPages.isNotEmpty) ...[
         const Gap(S.xl),
         const _TierLabel('Worth knowing'),
-        const Gap(S.xs),
-        Muted('Swipe cards · tap any for the full story', size: 12),
         const Gap(S.md),
         FadeInUp(
           delay: const Duration(milliseconds: 60),
@@ -378,9 +376,38 @@ class _QuickStats extends StatelessWidget {
             const GapX(S.md),
             Expanded(
               child: StatMini(
-                label: 'Avg daily spend',
+                label: 'Spending a day',
                 value: money(month.avgDailySpend),
                 icon: Icons.trending_down,
+              ),
+            ),
+          ],
+        ),
+        const Gap(S.md),
+        // Both averages share a denominator - the days gone by this month - so
+        // they read against each other rather than being two loose figures.
+        Row(
+          children: [
+            Expanded(
+              child: StatMini(
+                label: 'Earning a day',
+                value: money(month.avgDailyIncome),
+                icon: Icons.trending_up,
+                positive: toNum(month.avgDailyIncome) >
+                    toNum(month.avgDailySpend),
+              ),
+            ),
+            const GapX(S.md),
+            Expanded(
+              child: StatMini(
+                label: 'Left a day',
+                value: money(
+                  (toNum(month.avgDailyIncome) - toNum(month.avgDailySpend))
+                      .toStringAsFixed(2),
+                ),
+                icon: Icons.savings_outlined,
+                positive: toNum(month.avgDailyIncome) >=
+                    toNum(month.avgDailySpend),
               ),
             ),
           ],
@@ -426,11 +453,22 @@ class _SetAside extends StatelessWidget {
       children: [
         Amount(money(totals.locked), size: AppType.figure, color: t.primary),
         const Gap(S.hair),
-        Muted(
-          'locked in ${totals.activeCount} active plan'
-          '${totals.activeCount == 1 ? '' : 's'}   every balance above is shown '
-          'after this money is taken out',
-          size: AppType.caption,
+        Row(
+          children: [
+            Muted(
+              'locked in ${totals.activeCount} plan'
+              '${totals.activeCount == 1 ? '' : 's'}',
+              size: AppType.caption,
+            ),
+            const GapX(S.xs),
+            const InfoHint(
+              label: 'Set aside',
+              body:
+                  'Every balance above is shown after this money is taken out. '
+                  'Filling a plan reserves it so it cannot be spent twice.',
+              size: 14,
+            ),
+          ],
         ),
         const Gap(S.lg),
         Row(

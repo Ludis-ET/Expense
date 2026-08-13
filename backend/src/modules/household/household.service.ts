@@ -1,4 +1,4 @@
-import { InviteStatus, HouseholdRole, TxKind } from '../../core/prisma.js';
+import { InviteStatus, HouseholdRole } from '../../core/prisma.js';
 import { randomBytes } from 'node:crypto';
 import type { AuthUser } from '../../core/context.js';
 import { prisma } from '../../core/db.js';
@@ -15,7 +15,18 @@ export async function getMembership(userId: string) {
           },
           accounts: {
             where: { archived: false },
-            select: { id: true, name: true, type: true, currency: true, isShared: true, color: true, icon: true },
+            select: {
+              id: true,
+              // Whose books the wallet lives in. Balances are derived per owner,
+              // because that is the scope every money figure is computed in.
+              userId: true,
+              name: true,
+              type: true,
+              currency: true,
+              isShared: true,
+              color: true,
+              icon: true,
+            },
           },
         },
       },
@@ -28,25 +39,29 @@ export async function overview(user: AuthUser) {
   if (!membership) return null;
 
   const sharedAccounts = membership.household.accounts.filter((a) => a.isShared);
+
+  // This used to add up transactions by hand, and got it wrong three ways: it
+  // ignored transfers entirely, ignored money reserved by plans, and summed
+  // across currencies. The result disagreed with the accounts page for the very
+  // same wallet. There is one balance derivation now, and this uses it.
+  const { loadSnapshot, availableOf, realOf } = await import('../../core/money/index.js');
+  const owners = [...new Set(sharedAccounts.map((a) => a.userId))];
+  const snapshots = new Map(
+    await Promise.all(owners.map(async (id) => [id, await loadSnapshot(id)] as const)),
+  );
+
   let balance = 0;
+  let realBalance = 0;
   for (const a of sharedAccounts) {
-    const account = await prisma.account.findUnique({ where: { id: a.id } });
-    if (!account) continue;
-    const opening = Number(account.openingBalance);
-    const txs = await prisma.transaction.findMany({
-      where: { accountId: a.id },
-      select: { kind: true, amount: true },
-    });
-    let bal = opening;
-    for (const t of txs) {
-      const amt = Number(t.amount);
-      if (t.kind === TxKind.INCOME) bal += amt;
-      else if (t.kind === TxKind.EXPENSE) bal -= amt;
-    }
-    balance += bal;
+    const snap = snapshots.get(a.userId);
+    if (!snap) continue;
+    balance += Number(availableOf(snap, a.id));
+    realBalance += Number(realOf(snap, a.id));
   }
 
   return {
+    /** Money physically in the shared wallets, before plans reserve any of it. */
+    sharedRealBalance: realBalance.toFixed(2),
     id: membership.household.id,
     name: membership.household.name,
     role: membership.role,

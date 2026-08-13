@@ -14,6 +14,7 @@ import {
   Users,
   Tags,
   Sparkles,
+  Stethoscope,
   type LucideIcon,
 } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
@@ -30,6 +31,7 @@ import { AiProviders } from "@/components/settings/ai-providers";
 import { CategoryManager } from "@/components/settings/category-manager";
 import { HouseholdPanel } from "@/components/settings/household-panel";
 import { AppLockPanel } from "@/components/settings/app-lock-panel";
+import { MoneyDoctor } from "@/components/settings/money-doctor";
 import { api, ApiError } from "@/lib/api";
 import { formatEthiopian } from "@/lib/ethiopian-calendar";
 import { useAuth } from "@/lib/auth";
@@ -54,6 +56,7 @@ const SECTIONS: {
   { id: "profile", label: "Profile", short: "Profile", icon: User },
   { id: "appearance", label: "Appearance", short: "Look", icon: Palette },
   { id: "security", label: "Security", short: "Lock", icon: Shield },
+  { id: "money-doctor", label: "Money check", short: "Check", icon: Stethoscope },
   { id: "currencies", label: "Currencies", short: "Rates", icon: Coins },
   { id: "household", label: "Household", short: "Home", icon: Users },
   { id: "categories", label: "Categories", short: "Tags", icon: Tags },
@@ -62,6 +65,8 @@ const SECTIONS: {
 
 const HASH_ALIASES: Record<string, string> = {
   "app-lock": "security",
+  // Repair notifications link here.
+  "money-check": "money-doctor",
 };
 
 /** Highlight the nav item for whichever section is in view. */
@@ -417,6 +422,10 @@ export default function SettingsPage() {
 
           <section id="security" className="scroll-mt-44 lg:scroll-mt-24">
             <AppLockPanel />
+          </section>
+
+          <section id="money-doctor" className="scroll-mt-44 lg:scroll-mt-24">
+            <MoneyDoctor />
           </section>
 
           <section id="currencies" className="scroll-mt-44 lg:scroll-mt-24">

@@ -1,10 +1,9 @@
 import bcrypt from 'bcryptjs';
-import { AccountType, BudgetKind } from '../../core/prisma.js';
+import { AccountType } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { ConflictError, UnauthorizedError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
 import { DEFAULT_CATEGORIES } from '../categories/default-categories.js';
-import { UNPLANNED_NAME, unplannedId } from '../budgets/budgets.service.js';
 import { signAccessToken, signRefreshToken, verifyRefreshToken } from './jwt.js';
 import type { LoginInput, RegisterInput } from './auth.schema.js';
 import { randomAvatarId, randomBannerId } from '../users/profile-presets.js';
@@ -57,22 +56,10 @@ export async function register(input: RegisterInput) {
       },
     });
 
-    // The built-in catch-all plan, so spending has somewhere to land from day
-    // one. Its id is derived from the user id, keeping it unique per account.
-    await tx.budget.create({
-      data: {
-        id: unplannedId(created.id),
-        userId: created.id,
-        name: UNPLANNED_NAME,
-        kind: BudgetKind.UNPLANNED,
-        plannedAmount: 0,
-        currency: created.currency,
-        icon: 'circle-ellipsis',
-        color: '#64748b',
-        note: 'Everything you spend without setting money aside first.',
-        alertThreshold: 100,
-      },
-    });
+    // No catch-all plan is created. Spending you never set money aside for is
+    // simply an expense with no plan on it, which the budgets page presents as
+    // an Unplanned card. A row that could not be funded, closed or deleted was
+    // only ever a source of special cases.
 
     return created;
   });

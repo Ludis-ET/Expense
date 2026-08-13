@@ -3,16 +3,33 @@ import { TxKind } from '../../core/prisma.js';
 
 const money = z.coerce.number().positive().max(1_000_000_000);
 
+/**
+ * The client's own id for this write. A queued transaction whose reply was lost
+ * on the way back gets retried by the outbox; without this, the retry books the
+ * money a second time. Sending it makes the retry return the row that already
+ * exists.
+ */
+const clientOpId = z.string().min(1).max(80).nullish();
+
+/** Where the money comes from when a plan cannot cover a spend on its own. */
+const coverSchema = z
+  .discriminatedUnion('from', [
+    z.object({ from: z.literal('BUDGET'), budgetId: z.string().min(1) }),
+    z.object({ from: z.literal('ACCOUNT'), accountId: z.string().min(1) }),
+  ])
+  .nullish();
+
 const baseTx = {
   amount: money,
-  currency: z.string().length(3).toUpperCase().default('ETB'),
+  /** Must match the wallet's currency. Defaults to it when omitted. */
+  currency: z.string().length(3).toUpperCase().optional(),
   date: z.coerce.date(),
-  /** Optional when `budgetId` is set: the plan decides which account pays. */
-  accountId: z.string().min(1).optional(),
+  accountId: z.string().min(1),
   note: z.string().max(2000).optional(),
   payee: z.string().max(200).optional(),
   tags: z.array(z.string().min(1).max(40)).max(10).default([]),
   receiptUrl: z.string().url().optional(),
+  clientOpId,
 };
 
 /** INCOME and EXPENSE need a category; TRANSFER needs a distinct destination account. */
@@ -22,35 +39,40 @@ export const createTransactionSchema = z
       kind: z.literal(TxKind.INCOME),
       categoryId: z.string().min(1),
       ...baseTx,
-      accountId: z.string().min(1),
     }),
     z.object({
       kind: z.literal(TxKind.EXPENSE),
       categoryId: z.string().min(1),
-      /** Pay out of a budget plan's pot instead of straight from an account. */
-      budgetId: z.string().min(1).optional(),
       /**
-       * Which funding account's reservation to free. Only meaningful with
-       * `budgetId`, and only needs saying when the plan was filled from more
-       * than one account - otherwise the single funder is assumed.
+       * The plan this comes out of. Omit it - or send "unplanned" - for spending
+       * you never set money aside for; that is stored as no plan at all, which
+       * is the single representation of it.
+       */
+      budgetId: z.string().min(1).nullish(),
+      /**
+       * Which wallet's reservation to free. Only meaningful with a plan, and only
+       * worth saying when the plan holds money in more than one wallet.
        */
       budgetSourceAccountId: z.string().min(1).optional(),
+      /** Where to take the shortfall from when the plan cannot cover this. */
+      cover: coverSchema,
       ...baseTx,
     }),
     z.object({
       kind: z.literal(TxKind.TRANSFER),
       transferAccountId: z.string().min(1),
+      /**
+       * What actually arrived, in the destination's currency. Required when the
+       * two wallets hold different currencies - crediting the source amount
+       * across a currency boundary invents money.
+       */
+      transferAmount: money.optional(),
       ...baseTx,
-      accountId: z.string().min(1),
     }),
   ])
   .refine((d) => d.kind !== TxKind.TRANSFER || d.transferAccountId !== d.accountId, {
-    message: 'Transfer destination must be a different account',
+    message: 'A transfer needs two different wallets',
     path: ['transferAccountId'],
-  })
-  .refine((d) => d.kind !== TxKind.EXPENSE || !!d.accountId || !!d.budgetId, {
-    message: 'Pick an account or a budget plan to pay from',
-    path: ['accountId'],
   });
 
 export const updateTransactionSchema = z.object({
@@ -59,7 +81,8 @@ export const updateTransactionSchema = z.object({
   date: z.coerce.date().optional(),
   accountId: z.string().min(1).optional(),
   transferAccountId: z.string().min(1).optional(),
-  /** Which funding account's reservation a plan expense frees. */
+  transferAmount: money.optional(),
+  /** Which wallet's reservation a plan expense frees. */
   budgetSourceAccountId: z.string().min(1).optional(),
   categoryId: z.string().min(1).optional(),
   note: z.string().max(2000).nullable().optional(),

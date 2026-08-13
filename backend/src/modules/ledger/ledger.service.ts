@@ -145,6 +145,14 @@ async function resolveCategory(
   return category.id;
 }
 
+/**
+ * Money moving because of a Tab entry is money like any other.
+ *
+ * This used to call `prisma.transaction.create` directly, which meant lending
+ * someone cash could silently spend money a budget plan had reserved, and paying
+ * back a debt could overdraw a wallet. It goes through the posting core now, so
+ * the same guards apply as to anything typed by hand.
+ */
 async function createLinkedTransaction(
   user: AuthUser,
   entry: EntryWithPayments,
@@ -161,19 +169,16 @@ async function createLinkedTransaction(
         ? 'Paid'
         : 'Settlement';
 
-  const tx = await prisma.transaction.create({
-    data: {
-      userId: user.id,
-      kind: txKind,
-      amount: input.amount,
-      currency: entry.currency,
-      date: input.date,
-      accountId: input.accountId,
-      categoryId,
-      payee: entry.counterparty,
-      note: input.note ?? `${action}: ${label}`,
-      tags: ['tab'],
-    },
+  const { postTransaction } = await import('../../core/money/postings.js');
+  const tx = await postTransaction(user.id, {
+    kind: txKind,
+    amount: input.amount,
+    date: input.date,
+    accountId: input.accountId,
+    categoryId,
+    payee: entry.counterparty,
+    note: input.note ?? `${action}: ${label}`,
+    tags: ['tab'],
   });
   return tx.id;
 }
@@ -392,9 +397,9 @@ export async function create(user: AuthUser, input: CreateLedgerInput) {
         ? await resolveCategory(user.id, input.categoryId, input.kind, txKind)
         : await resolveCategory(user.id, undefined, input.kind, txKind);
 
-    await prisma.transaction.create({
-      data: {
-        userId: user.id,
+    const { postTransaction } = await import('../../core/money/postings.js');
+    try {
+      await postTransaction(user.id, {
         kind: txKind,
         amount: input.totalAmount,
         currency: account.currency,
@@ -407,8 +412,14 @@ export async function create(user: AuthUser, input: CreateLedgerInput) {
             ? `Lent to ${entry.counterparty}`
             : `Borrowed from ${entry.counterparty}`,
         tags: ['tab'],
-      },
-    });
+      });
+    } catch (err) {
+      // The entry itself is a record of the agreement and is still true even if
+      // the wallet cannot cover the movement. Remove it rather than leaving a
+      // half-made Tab behind, and let the guard's own words explain why.
+      await prisma.ledgerEntry.delete({ where: { id: entry.id } });
+      throw err;
+    }
   }
 
   const fresh = await prisma.ledgerEntry.findUniqueOrThrow({ where: { id: entry.id }, include: entryInclude });

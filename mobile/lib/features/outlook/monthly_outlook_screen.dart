@@ -969,7 +969,6 @@ class _RepeatCandidatesCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final t = context.t;
     final items = outlook.repeatCandidates.take(5).toList();
 
     return AppCard(
@@ -1019,20 +1018,6 @@ class _RepeatCandidatesCard extends StatelessWidget {
               size: AppType.caption,
             ),
           ],
-          const Gap(S.md),
-          Container(
-            padding: const EdgeInsets.all(S.md),
-            decoration: BoxDecoration(
-              color: t.surfaceMuted.withValues(alpha: 0.5),
-              borderRadius: BorderRadius.circular(R.md),
-            ),
-            child: Muted(
-              'These are suggestions, not commitments   none of them move your income '
-              'target until you make one a rule.',
-              size: AppType.caption,
-              maxLines: 3,
-            ),
-          ),
         ],
       ),
     );
@@ -1635,7 +1620,6 @@ class _MonthlyOutlookCardState extends State<MonthlyOutlookCard> {
       icon: Icons.insights_rounded,
       eyebrow: 'MONTHLY OUTLOOK',
       accent: t.primary,
-      cta: 'Open full outlook',
       onOpen: () => shell.push(const MonthlyOutlookScreen()),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,

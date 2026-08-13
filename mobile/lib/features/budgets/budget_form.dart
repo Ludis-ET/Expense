@@ -180,14 +180,10 @@ class _BudgetFormState extends State<_BudgetForm> {
             controller: _amount,
             currency: widget.existing?.currency ?? data.activeCurrency,
             label: 'Planned per cycle',
+            hint:
+                'Both what you intend to spend and the ceiling the pot can be '
+                'filled to.',
             tint: tint,
-          ),
-          const Gap(S.xs),
-          Muted(
-            'This is both what you intend to spend and the ceiling the pot can '
-            'be filled to.',
-            size: 11.5,
-            height: 1.4,
           ),
           const Gap(S.lg),
 

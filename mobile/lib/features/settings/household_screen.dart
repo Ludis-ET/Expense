@@ -224,12 +224,11 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                 ),
                 const Gap(S.xl),
 
-                SectionLabel('SHARED WALLETS'),
-                Muted(
-                  'Only the wallets you switch on here are visible to the rest '
-                  'of the household.',
-                  size: 11.5,
-                  height: 1.4,
+                SectionLabel(
+                  'SHARED WALLETS',
+                  hint:
+                      'Only the wallets you switch on here are visible to the '
+                      'rest of the household. Everything else stays yours alone.',
                 ),
                 const Gap(S.sm),
                 AppCard(

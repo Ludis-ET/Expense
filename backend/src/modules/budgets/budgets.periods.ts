@@ -70,6 +70,80 @@ export function addRecurrence(unit: RecurrenceUnit, interval: number, from: Date
   }
 }
 
+/**
+ * Which cycle a date belongs to.
+ *
+ * Not "which cycle is open right now" - that is what the code used to stamp, and
+ * it meant a receipt typed up on the 2nd for a purchase made on the 30th landed
+ * in the wrong month, permanently, in a snapshot that is never recomputed. A
+ * phone syncing three days late did the same thing to every queued expense.
+ *
+ * `pastCycles` are the closed cycles, newest or oldest order does not matter.
+ * Dates beyond the current cycle project forward, so a future-dated expense
+ * waits in the cycle it actually belongs to instead of inflating this one.
+ */
+export function cycleIndexForDate(
+  budget: {
+    kind: 'ONE_TIME' | 'RECURRING' | 'UNPLANNED';
+    cycleIndex: number;
+    cycleStartedAt: Date;
+    nextResetAt: Date | null;
+    recurrenceUnit: RecurrenceUnit | null;
+    recurrenceInterval: number;
+  },
+  date: Date,
+  pastCycles: Array<{ index: number; startedAt: Date; endedAt: Date }> = [],
+): number {
+  // A one-time plan has exactly one cycle, whatever the date says.
+  if (budget.kind !== 'RECURRING' || !budget.recurrenceUnit) return 0;
+
+  if (date >= budget.cycleStartedAt) {
+    // Inside the open cycle, or past its end for a plan that has not rolled yet.
+    if (!budget.nextResetAt || date < budget.nextResetAt) return budget.cycleIndex;
+
+    let index = budget.cycleIndex;
+    let edge = budget.nextResetAt;
+    // Generous but finite: an hourly plan dated a year out would otherwise spin.
+    for (let steps = 0; steps < 10_000 && date >= edge; steps += 1) {
+      index += 1;
+      edge = addRecurrence(budget.recurrenceUnit, budget.recurrenceInterval, edge);
+    }
+    return index;
+  }
+
+  const closed = pastCycles.find((c) => date >= c.startedAt && date < c.endedAt);
+  if (closed) return closed.index;
+
+  // Older than anything on record - a plan that skipped snapshotting quiet
+  // cycles, or a date from before the plan existed. Walk back from the open one.
+  let index = budget.cycleIndex;
+  let edge = budget.cycleStartedAt;
+  for (let steps = 0; steps < 10_000 && date < edge && index > 0; steps += 1) {
+    index -= 1;
+    edge = subRecurrence(budget.recurrenceUnit, budget.recurrenceInterval, edge);
+  }
+  return Math.max(0, index);
+}
+
+/** One cadence step earlier. The mirror of `addRecurrence`, for walking back. */
+export function subRecurrence(unit: RecurrenceUnit, interval: number, from: Date): Date {
+  const n = Math.max(1, Math.trunc(interval));
+  switch (unit) {
+    case RecurrenceUnit.HOUR:
+      return new Date(from.getTime() - n * HOUR);
+    case RecurrenceUnit.DAY:
+      return new Date(from.getTime() - n * DAY);
+    case RecurrenceUnit.WEEK:
+      return new Date(from.getTime() - n * 7 * DAY);
+    case RecurrenceUnit.MONTH:
+      return clampedMonthShift(from, -n);
+    case RecurrenceUnit.QUARTER:
+      return clampedMonthShift(from, -3 * n);
+    case RecurrenceUnit.YEAR:
+      return clampedMonthShift(from, -12 * n);
+  }
+}
+
 const UNIT_NOUN: Record<RecurrenceUnit, string> = {
   [RecurrenceUnit.HOUR]: 'hour',
   [RecurrenceUnit.DAY]: 'day',

@@ -19,6 +19,7 @@ import { HouseholdWidget } from '@/components/finance/household-widget';
 import { TabWidget } from '@/components/finance/tab-widget';
 import { WishlistWidget } from '@/components/finance/wishlist-widget';
 import { TransactionList } from '@/components/finance/transaction-list';
+import { RecentMovements } from '@/components/finance/recent-movements';
 import { financeIcon } from '@/components/finance/icons';
 import { useAuth } from '@/lib/auth';
 import { useMoney } from '@/lib/amount-visibility';
@@ -148,9 +149,12 @@ export default function DashboardPage() {
       </div>
 
       <div className="grid gap-6 lg:grid-cols-2">
-        <FamilySupportTracker data={data.familySupport} money={money} />
+        {/* Everything that just moved, with a one-tap take-back. */}
+        <RecentMovements />
         <CategoryHeatAlerts alerts={data.categoryHeatAlerts} money={money} />
       </div>
+
+      <FamilySupportTracker data={data.familySupport} money={money} />
 
       <HouseholdWidget household={data.household} money={money} />
 

@@ -24,6 +24,9 @@ import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { Account, BudgetRow, Category, Transaction, TransactionPage, TxKind } from '@/lib/types';
 
+/** Spending with no plan behind it. One id, understood the same way everywhere. */
+const UNPLANNED_ID = 'unplanned';
+
 function monthBounds(month: string) {
   const [y, m] = month.split('-').map(Number);
   const from = new Date(Date.UTC(y!, (m ?? 1) - 1, 1)).toISOString().slice(0, 10);
@@ -85,7 +88,13 @@ function TransactionsInner() {
       if (day < from || day > to) return false;
       if (kind && t.kind !== kind) return false;
       if (categoryId && t.categoryId !== categoryId) return false;
-      if (budgetId && t.budgetId !== budgetId) return false;
+      // "unplanned" is a view, not a plan id: it means no plan at all, which is
+      // how the server reads it too.
+      if (budgetId === UNPLANNED_ID) {
+        if (t.kind !== 'EXPENSE' || t.budgetId) return false;
+      } else if (budgetId && t.budgetId !== budgetId) {
+        return false;
+      }
       if (q && !`${t.payee ?? ''} ${t.note ?? ''}`.toLowerCase().includes(q.toLowerCase())) return false;
       return true;
     };
@@ -208,6 +217,7 @@ function TransactionsInner() {
           {(budgetsData?.items ?? []).map((plan) => (
             <option key={plan.id} value={plan.id}>{plan.name}</option>
           ))}
+          <option value={UNPLANNED_ID}>Unplanned</option>
         </Select>
         {/* Mobile export button */}
         <Button variant="outline" size="sm" onClick={() => setExportImportOpen(true)} className="sm:hidden">

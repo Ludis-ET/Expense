@@ -40,7 +40,10 @@ export const confirmInboxSchema = z.object({
    * the server falls back to the user's nominated cash wallet.
    */
   transferAccountId: z.string().min(1).optional(),
-  budgetId: z.string().min(1).optional(),
+  /** What arrived, when the two wallets hold different currencies. */
+  transferAmount: z.coerce.number().positive().max(1_000_000_000).optional(),
+  /** Omit, or send "unplanned", for spending no money was set aside for. */
+  budgetId: z.string().min(1).nullish(),
   budgetSourceAccountId: z.string().min(1).optional(),
   kind: z.nativeEnum(TxKind).optional(),
   amount: z.coerce.number().positive().max(1_000_000_000).optional(),

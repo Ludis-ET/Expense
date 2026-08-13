@@ -5,6 +5,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/api/api_client.dart';
 import '../models/models.dart';
+import '../models/money.dart';
 import '../data/local_db.dart';
 import '../data/outbox_store.dart';
 
@@ -183,7 +184,7 @@ class SyncState extends ChangeNotifier {
   Future<void> _send(OutboxOp op) async {
     switch (op.method.toUpperCase()) {
       case 'POST':
-        await api.post(op.path, body: op.payload);
+        await api.post(op.path, body: withOpKey(op, op.payload));
       case 'PUT':
         await api.put(op.path, body: op.payload);
       case 'PATCH':
@@ -242,16 +243,23 @@ class SyncState extends ChangeNotifier {
     }
   }
 
-  Future<QueueResult> attemptOrQueue(
-    OutboxOp op,
-    Future<void> Function() direct,
-  ) async {
+  /// Send now if we can, queue durably if we cannot.
+  ///
+  /// The op is the single description of the request - method, path, body - and
+  /// both paths send it through `_send`. Callers used to pass a closure that
+  /// restated the same call, which is how the online attempt ended up without
+  /// the replay key the queued retry carried: two descriptions of one request,
+  /// drifting apart.
+  Future<QueueResult> attemptOrQueue(OutboxOp op) async {
     if (online) {
       try {
-        await direct();
+        await _send(op);
         return const QueueResult(queued: false);
       } catch (err) {
         if (err is ApiError && !err.isNetwork) rethrow;
+        // The attempt may have reached the server before the connection
+        // dropped. It carried the same op key, so the queued retry is a replay
+        // the server recognises rather than a second movement.
       }
     }
     await _db.database;
@@ -320,7 +328,6 @@ class SyncState extends ChangeNotifier {
         payload: body,
         optimistic: optimistic,
       ),
-      () async => api.post('/transactions', body: body),
     );
   }
 
@@ -358,7 +365,6 @@ class SyncState extends ChangeNotifier {
         payload: body,
         optimistic: optimistic,
       ),
-      () async => api.put('/transactions/$id', body: body),
     );
   }
 
@@ -377,7 +383,6 @@ class SyncState extends ChangeNotifier {
         label: 'Delete transaction',
         targetId: id,
       ),
-      () async => api.delete('/transactions/$id'),
     );
   }
 
@@ -400,7 +405,6 @@ class SyncState extends ChangeNotifier {
           targetId: id,
           payload: body,
         ),
-        () async => api.put('/accounts/$id', body: body),
       );
     }
     return attemptOrQueue(
@@ -413,7 +417,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         payload: body,
       ),
-      () async => api.post('/accounts', body: body),
     );
   }
 
@@ -428,7 +431,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         targetId: id,
       ),
-      () async => api.delete('/accounts/$id'),
     );
   }
 
@@ -451,7 +453,6 @@ class SyncState extends ChangeNotifier {
           targetId: id,
           payload: body,
         ),
-        () async => api.put('/categories/$id', body: body),
       );
     }
     return attemptOrQueue(
@@ -464,7 +465,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         payload: body,
       ),
-      () async => api.post('/categories', body: body),
     );
   }
 
@@ -487,7 +487,6 @@ class SyncState extends ChangeNotifier {
           targetId: id,
           payload: body,
         ),
-        () async => api.put('/budgets/$id', body: body),
       );
     }
     return attemptOrQueue(
@@ -500,7 +499,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         payload: body,
       ),
-      () async => api.post('/budgets', body: body),
     );
   }
 
@@ -532,13 +530,6 @@ class SyncState extends ChangeNotifier {
         targetId: budgetId,
         payload: body,
       ),
-      () async {
-        if (method == 'DELETE') {
-          await api.delete(path);
-        } else {
-          await api.post(path, body: body ?? const {});
-        }
-      },
     );
   }
 
@@ -561,7 +552,6 @@ class SyncState extends ChangeNotifier {
           targetId: id,
           payload: body,
         ),
-        () async => api.put('/ledger/$id', body: body),
       );
     }
     return attemptOrQueue(
@@ -574,7 +564,6 @@ class SyncState extends ChangeNotifier {
         detail: label,
         payload: body,
       ),
-      () async => api.post('/ledger', body: body),
     );
   }
 
@@ -594,7 +583,6 @@ class SyncState extends ChangeNotifier {
         targetId: entryId,
         payload: body,
       ),
-      () async => api.post('/ledger/$entryId/payments', body: body),
     );
   }
 
@@ -610,7 +598,6 @@ class SyncState extends ChangeNotifier {
         targetId: id,
         payload: const {},
       ),
-      () async => api.post('/ledger/$id/cancel', body: const {}),
     );
   }
 
@@ -625,7 +612,6 @@ class SyncState extends ChangeNotifier {
         detail: label,
         targetId: id,
       ),
-      () async => api.delete('/ledger/$id'),
     );
   }
 
@@ -648,7 +634,6 @@ class SyncState extends ChangeNotifier {
           targetId: id,
           payload: body,
         ),
-        () async => api.put('/wishlist/$id', body: body),
       );
     }
     return attemptOrQueue(
@@ -661,7 +646,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         payload: body,
       ),
-      () async => api.post('/wishlist', body: body),
     );
   }
 
@@ -677,7 +661,6 @@ class SyncState extends ChangeNotifier {
         targetId: id,
         payload: const {},
       ),
-      () async => api.post('/wishlist/$id/bought', body: const {}),
     );
   }
 
@@ -697,7 +680,6 @@ class SyncState extends ChangeNotifier {
         targetId: id,
         payload: body,
       ),
-      () async => api.post('/wishlist/$id/plan', body: body),
     );
   }
 
@@ -712,7 +694,6 @@ class SyncState extends ChangeNotifier {
         detail: name,
         targetId: id,
       ),
-      () async => api.delete('/wishlist/$id'),
     );
   }
 
@@ -727,6 +708,157 @@ class SyncState extends ChangeNotifier {
   Future<void> discard(String id) async {
     await _outbox.delete(id);
     await _refreshOps();
+  }
+
+  // ── Movements, undo, and the Money Doctor ────────────────────────────────
+  //
+  // Deliberately online-only. Undo removes a movement and the server re-proves
+  // the books afterwards; queueing that would mean guessing at an outcome only
+  // the server can work out, and showing a take-back that might not hold.
+
+  Future<MovementsResponse> movements({int limit = 25}) async {
+    final json = await api.get('/money/movements?limit=$limit');
+    return MovementsResponse.fromJson(asMap(json));
+  }
+
+  /// Take a movement back. Removed, not reversed - a mistake leaves no trace.
+  Future<String> undoMovement(String movementId) async {
+    final json = await api.post(
+      '/money/movements/${Uri.encodeComponent(movementId)}/undo',
+      body: const {},
+    );
+    return asStr(asMap(json)['message'], 'Undone');
+  }
+
+  Future<MoneyHealth> moneyHealth({String? currency}) async {
+    final json = await api.get(
+      '/money/health${currency == null ? '' : '?currency=$currency'}',
+    );
+    return MoneyHealth.fromJson(asMap(json));
+  }
+
+  Future<MoneyHealth> repairMoney() async {
+    await api.post('/money/health/fix', body: const {});
+    return moneyHealth();
+  }
+
+  /// Record the gap between our figure and the bank's as a real movement.
+  Future<void> settleDrift({
+    required String accountId,
+    required String categoryId,
+  }) async {
+    await api.post(
+      '/money/drift/settle',
+      body: {'accountId': accountId, 'categoryId': categoryId},
+    );
+  }
+
+  // ── Payday rules ─────────────────────────────────────────────────────────
+
+  Future<List<FundingRule>> fundingRules() async {
+    final json = await api.get('/funding');
+    return mapList(asMap(json)['items'], FundingRule.fromJson);
+  }
+
+  Future<FundingPreview> previewPayday(String ruleId, {String? accountId}) async {
+    final json = await api.get(
+      '/funding/$ruleId/preview${accountId == null ? '' : '?accountId=$accountId'}',
+    );
+    return FundingPreview.fromJson(asMap(json));
+  }
+
+  Future<FundingPreview> runPayday(String ruleId, {String? accountId}) async {
+    final json = await api.post(
+      '/funding/$ruleId/run',
+      body: {'accountId': ?accountId},
+    );
+    return FundingPreview.fromJson(asMap(json));
+  }
+
+  Future<QueueResult> saveFundingRule({
+    required Map<String, dynamic> body,
+    String? id,
+    required String name,
+  }) {
+    return attemptOrQueue(
+      _op(
+        entity: OutboxEntity.budget,
+        action: id == null ? OutboxAction.create : OutboxAction.update,
+        method: id == null ? 'POST' : 'PUT',
+        path: id == null ? '/funding' : '/funding/$id',
+        label: id == null ? 'Create payday rule' : 'Update payday rule',
+        detail: name,
+        targetId: id,
+        payload: body,
+      ),
+    );
+  }
+
+  Future<QueueResult> deleteFundingRule(String id, {required String name}) {
+    return attemptOrQueue(
+      _op(
+        entity: OutboxEntity.budget,
+        action: OutboxAction.delete,
+        method: 'DELETE',
+        path: '/funding/$id',
+        label: 'Delete payday rule',
+        detail: name,
+        targetId: id,
+      ),
+    );
+  }
+
+  /// Move a plan's reservation to another wallet, so the envelope follows the
+  /// cash. There was no way to do this at all before.
+  Future<QueueResult> movePlanHolding({
+    required String budgetId,
+    required String fromAccountId,
+    required String toAccountId,
+    required double amount,
+    required String planName,
+  }) {
+    return attemptOrQueue(
+      _op(
+        entity: OutboxEntity.budget,
+        action: OutboxAction.fund,
+        method: 'POST',
+        path: '/budgets/$budgetId/move-holding',
+        label: 'Move where money is held',
+        detail: planName,
+        targetId: budgetId,
+        payload: {
+          'fromAccountId': fromAccountId,
+          'toAccountId': toAccountId,
+          'amount': amount,
+        },
+      ),
+    );
+  }
+
+  /// Move money straight from one plan to another, in one step.
+  Future<QueueResult> movePlanMoney({
+    required String fromBudgetId,
+    required String toBudgetId,
+    required double amount,
+    required String label,
+    bool raiseTarget = false,
+  }) {
+    return attemptOrQueue(
+      _op(
+        entity: OutboxEntity.budget,
+        action: OutboxAction.fund,
+        method: 'POST',
+        path: '/budgets/$fromBudgetId/move',
+        label: 'Move money between plans',
+        detail: label,
+        targetId: fromBudgetId,
+        payload: {
+          'toBudgetId': toBudgetId,
+          'amount': amount,
+          'raiseTarget': raiseTarget,
+        },
+      ),
+    );
   }
 
   // ── Cache helpers used by DataState ──────────────────────────────────────

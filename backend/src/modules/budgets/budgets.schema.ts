@@ -54,11 +54,40 @@ export const updateBudgetSchema = z.object({
   endDate: z.coerce.date().nullish(),
 });
 
+/**
+ * The client's own id for this operation. A queued write whose reply was lost
+ * gets retried; without this the retry sets the money aside a second time.
+ */
+const clientOpId = z.string().min(1).max(80).nullish();
+
 export const fundBudgetSchema = z.object({
   accountId: z.string().min(1, 'Pick an account'),
   amount: money,
   date: z.coerce.date().optional(),
   note: z.string().max(200).nullish(),
+  clientOpId,
+});
+
+/** Move money straight from one plan to another, without a round trip through a wallet. */
+export const movePlanMoneySchema = z.object({
+  toBudgetId: z.string().min(1, 'Pick where the money is going'),
+  amount: money,
+  /** Raise the receiving plan if the money would not fit inside it. */
+  raiseTarget: z.boolean().default(false),
+  date: z.coerce.date().optional(),
+  clientOpId,
+});
+
+/**
+ * Move a plan's reservation from one wallet to another. The plan is untouched -
+ * this is for when the cash itself has moved and the envelope has to follow.
+ */
+export const moveReservationSchema = z.object({
+  fromAccountId: z.string().min(1, 'Pick the wallet holding it now'),
+  toAccountId: z.string().min(1, 'Pick where it should be held'),
+  amount: money,
+  date: z.coerce.date().optional(),
+  clientOpId,
 });
 
 /**
@@ -70,6 +99,7 @@ export const adjustBudgetSchema = z.object({
   amount: money,
   reason: z.string().trim().max(200).nullish(),
   date: z.coerce.date().optional(),
+  clientOpId,
 });
 
 export const releaseBudgetSchema = z.object({
@@ -78,6 +108,7 @@ export const releaseBudgetSchema = z.object({
   amount: money,
   date: z.coerce.date().optional(),
   note: z.string().max(200).nullish(),
+  clientOpId,
 });
 
 export const listBudgetsQuery = z.object({
@@ -96,4 +127,6 @@ export type UpdateBudgetInput = z.infer<typeof updateBudgetSchema>;
 export type FundBudgetInput = z.infer<typeof fundBudgetSchema>;
 export type AdjustBudgetInput = z.infer<typeof adjustBudgetSchema>;
 export type ReleaseBudgetInput = z.infer<typeof releaseBudgetSchema>;
+export type MovePlanMoneyInput = z.infer<typeof movePlanMoneySchema>;
+export type MoveReservationInput = z.infer<typeof moveReservationSchema>;
 export type ListBudgetsQuery = z.infer<typeof listBudgetsQuery>;

@@ -18,6 +18,7 @@ export const openaiAdapter: AiProviderAdapter = {
         max_tokens: req.maxTokens ?? 4096,
         messages: [
           { role: 'system', content: req.system },
+          ...(req.history ?? []).map((t) => ({ role: t.role, content: t.content })),
           { role: 'user', content: req.prompt },
         ],
         ...(req.json ? { response_format: { type: 'json_object' } } : {}),

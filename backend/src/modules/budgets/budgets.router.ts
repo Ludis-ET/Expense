@@ -9,6 +9,8 @@ import {
   createBudgetSchema,
   fundBudgetSchema,
   listBudgetsQuery,
+  movePlanMoneySchema,
+  moveReservationSchema,
   releaseBudgetSchema,
   updateBudgetSchema,
 } from './budgets.schema.js';
@@ -74,6 +76,24 @@ budgetsRouter.post(
   validate({ params: budgetIdParam, body: releaseBudgetSchema }),
   asyncHandler(async (req, res) => {
     res.json(await budgets.release(req.user!, req.params.id!, req.body));
+  }),
+);
+
+/** Move money straight into another plan, without a round trip through a wallet. */
+budgetsRouter.post(
+  '/:id/move',
+  validate({ params: budgetIdParam, body: movePlanMoneySchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.moveMoney(req.user!, req.params.id!, req.body));
+  }),
+);
+
+/** Move this plan's reservation to another wallet, so the envelope follows the cash. */
+budgetsRouter.post(
+  '/:id/move-holding',
+  validate({ params: budgetIdParam, body: moveReservationSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.moveHolding(req.user!, req.params.id!, req.body));
   }),
 );
 

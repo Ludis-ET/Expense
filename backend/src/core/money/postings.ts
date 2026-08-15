@@ -25,6 +25,7 @@ import {
   BudgetAllocationKind,
   BudgetKind,
   BudgetState,
+  BudgetType,
   CategoryKind,
   Prisma,
   TxKind,
@@ -384,6 +385,23 @@ async function resolvePlanCharge(
   excludeTxId?: string,
 ): Promise<PlanCharge> {
   const budget = await ownedBudget(tx, userId, budgetId);
+
+  // Money does not leave a saving plan as spending. It leaves by being given
+  // back to a wallet, moved to another plan, or by converting the plan to a
+  // spending one - all of which are deliberate acts with their own screens.
+  //
+  // The alternative was a Withdraw action, which is one tap and would let a
+  // holiday fund quietly become grocery money. Giving it back first is one tap
+  // more, and that tap is the entire point.
+  if (budget.type === BudgetType.SAVING) {
+    throw new BadRequestError(
+      `"${budget.name}" is a saving plan, so it cannot be spent from directly. ` +
+        'Give the money back to a wallet and spend it from there, or turn the plan ' +
+        'into a spending plan first.',
+      { reason: 'SAVING_PLAN_NOT_SPENDABLE', budgetId: budget.id },
+    );
+  }
+
   if (budget.state === BudgetState.CLOSED) {
     throw new BadRequestError(`"${budget.name}" is closed. Reopen it to spend from it.`);
   }
@@ -827,16 +845,28 @@ export async function fundPlan(
       );
     }
 
-    // Filling past the planned amount is a decision, not an accident: it is what
-    // `adjust` is for. The message says which one to reach for.
-    const funded = await fundedThisCycle(tx, budget);
-    const fillable = Prisma.Decimal.max(ZERO, budget.plannedAmount.sub(funded));
-    if (amount.gt(fillable)) {
-      throw new BadRequestError(
-        fillable.lte(0)
-          ? `"${budget.name}" is already filled to its planned ${budget.plannedAmount.toFixed(2)} ${budget.currency}. Raise the plan first if it needs to hold more.`
-          : `"${budget.name}" can take ${fillable.toFixed(2)} ${budget.currency} more before hitting its planned ${budget.plannedAmount.toFixed(2)}.`,
-      );
+    // The one place the two plan types diverge in the money core.
+    //
+    // On a SPENDING plan, plannedAmount is a ceiling and filling past it is a
+    // decision rather than an accident - `adjust` is what raises it, and the
+    // message says so.
+    //
+    // On a SAVING plan nothing here is a cap. plannedAmount is a target (the
+    // whole goal when one-time, the per-period contribution when recurring)
+    // and goalAmount is a finish line. Refusing the contribution that happens
+    // to land a little past either would force the user to go and edit the
+    // goal before they could save - and the money is reserved either way.
+    // Overshoot is surfaced by the client, not rejected here.
+    if (budget.type === BudgetType.SPENDING) {
+      const funded = await fundedThisCycle(tx, budget);
+      const fillable = Prisma.Decimal.max(ZERO, budget.plannedAmount.sub(funded));
+      if (amount.gt(fillable)) {
+        throw new BadRequestError(
+          fillable.lte(0)
+            ? `"${budget.name}" is already filled to its planned ${budget.plannedAmount.toFixed(2)} ${budget.currency}. Raise the plan first if it needs to hold more.`
+            : `"${budget.name}" can take ${fillable.toFixed(2)} ${budget.currency} more before hitting its planned ${budget.plannedAmount.toFixed(2)}.`,
+        );
+      }
     }
 
     const created = await tx.budgetAllocation.create({

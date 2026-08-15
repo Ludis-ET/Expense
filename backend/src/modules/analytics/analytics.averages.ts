@@ -51,6 +51,40 @@ export function daysInMonth(start: Date, end: Date): number {
   return Math.round((end.getTime() - start.getTime()) / DAY);
 }
 
+/**
+ * The same per-day arithmetic over an arbitrary span, for a caller that has
+ * already decided which rows it means.
+ *
+ * The transactions page needs this: showing a *month* average above a list
+ * filtered to *last week* would recreate the exact disagreement this file was
+ * written to end. So the page passes the totals from its own filtered query and
+ * the span it covers, and the division happens in one place as always.
+ *
+ * `from`/`to` are inclusive of the days they name. An open-ended filter has no
+ * span to divide by, so the caller supplies the observed range instead.
+ */
+export function averagesOverSpan(args: {
+  income: Prisma.Decimal;
+  expense: Prisma.Decimal;
+  from: Date;
+  to: Date;
+  currency: string;
+}): { currency: string; days: number; spend: string; income: string; net: string } {
+  const span = Math.max(
+    1,
+    Math.round((args.to.getTime() - args.from.getTime()) / DAY) + 1,
+  );
+  const spend = args.expense.div(span);
+  const income = args.income.div(span);
+  return {
+    currency: args.currency,
+    days: span,
+    spend: spend.toFixed(2),
+    income: income.toFixed(2),
+    net: income.sub(spend).toFixed(2),
+  };
+}
+
 /** The canonical per-day figures for one month and currency. */
 export async function dailyAverages(
   userId: string,

@@ -43,6 +43,15 @@ class _BudgetFormState extends State<_BudgetForm> {
     text: '${widget.existing?.recurrenceInterval ?? 1}',
   );
 
+  /// The finish line, on a recurring saving plan. A one-time saving plan's
+  /// target *is* its goal, so it uses [_amount] and never shows this.
+  late final _goal = TextEditingController(
+    text: widget.existing?.saving?.goalAmount == null
+        ? ''
+        : toNum(widget.existing!.saving!.goalAmount).toString(),
+  );
+
+  late BudgetType _type = widget.existing?.type ?? BudgetType.spending;
   late BudgetKind _kind = widget.existing?.kind ?? BudgetKind.oneTime;
   late RecurrenceUnit? _unit =
       widget.existing?.recurrenceUnit ?? RecurrenceUnit.month;
@@ -67,12 +76,19 @@ class _BudgetFormState extends State<_BudgetForm> {
     });
   }
 
+  bool get _isSaving => _type.isSaving;
+  bool get _isRecurring => _kind == BudgetKind.recurring;
+
+  /// Only a recurring saving plan has two numbers to keep apart.
+  bool get _showsGoalField => _isSaving && _isRecurring;
+
   @override
   void dispose() {
     _name.dispose();
     _amount.dispose();
     _note.dispose();
     _interval.dispose();
+    _goal.dispose();
     super.dispose();
   }
 
@@ -101,10 +117,15 @@ class _BudgetFormState extends State<_BudgetForm> {
     });
 
     final data = context.read<DataState>();
+    final goal = double.tryParse(_goal.text.trim());
     final body = <String, dynamic>{
       'name': _name.text.trim(),
       'kind': _kind.wire,
+      if (!_isEdit) 'type': _type.wire,
       'plannedAmount': amount,
+      // Only sent where it means something. A one-time saving plan's goal is
+      // its target, which the server fills in from plannedAmount.
+      if (_isSaving && _isRecurring) 'goalAmount': goal,
       'alertThreshold': _alertThreshold.round(),
       'startsAt': wireDate(_startsAt),
       'categoryId': _categoryId,
@@ -177,15 +198,56 @@ class _BudgetFormState extends State<_BudgetForm> {
             textCapitalization: TextCapitalization.sentences,
           ),
           const Gap(S.lg),
+
+          // What the money is for, before anything else - it changes what the
+          // amount below means, so asking second would be asking backwards.
+          // Locked after creation: changing it is a conversion, which carries
+          // consequences an inline toggle cannot present.
+          if (!_isEdit) ...[
+            SegmentedTabs<BudgetType>(
+              value: _type,
+              options: BudgetType.values,
+              labelOf: (v) => v.isSaving ? 'Saving' : 'Spending',
+              iconOf: (v) => v.isSaving
+                  ? Icons.savings_rounded
+                  : Icons.shopping_bag_outlined,
+              colorOf: (v) => v.isSaving ? t.save : t.primary,
+              onChanged: (v) => setState(() => _type = v),
+            ),
+            const Gap(S.lg),
+          ],
+
           AmountField(
             controller: _amount,
             currency: widget.existing?.currency ?? data.activeCurrency,
-            label: 'Planned per cycle',
-            hint:
-                'Both what you intend to spend and the ceiling the pot can be '
-                'filled to.',
-            tint: tint,
+            label: _isSaving
+                ? (_isRecurring ? 'Save each cycle' : 'Target')
+                : 'Planned per cycle',
+            hint: _isSaving
+                ? (_isRecurring
+                      ? 'What you aim to put in each period. Not a limit - '
+                            'putting in more is a good month.'
+                      : 'How much you are saving up. Reaching it completes the plan.')
+                : 'Both what you intend to spend and the ceiling the pot can be '
+                      'filled to.',
+            tint: _isSaving ? t.save : tint,
           ),
+
+          // The second dial, and only where there genuinely are two: "5,000 a
+          // month" *until* "120,000".
+          if (_showsGoalField) ...[
+            const Gap(S.lg),
+            AmountField(
+              controller: _goal,
+              currency: widget.existing?.currency ?? data.activeCurrency,
+              label: 'Until you reach (optional)',
+              hint:
+                  'Leave this empty for a habit with no end - an emergency '
+                  'fund that just keeps growing.',
+              tint: t.save,
+            ),
+          ],
+
           const Gap(S.lg),
 
           SegmentedTabs<BudgetKind>(

@@ -21,6 +21,7 @@ import 'budget_common.dart';
 import 'budget_cycles.dart';
 import 'budget_form.dart';
 import 'budget_transactions.dart';
+import 'convert_sheet.dart';
 import 'move_sheet.dart';
 
 /// One plan in full   parity with the web budget detail page: hero, banners,
@@ -276,6 +277,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
         if (done == true) await _afterWrite();
       case 'move':
         final done = await showMoveSheet(context, detail: detail);
+        if (done == true) await _afterWrite();
+      case 'convert':
+        final done = await showConvertSheet(context, detail: detail);
         if (done == true) await _afterWrite();
       case 'adjust':
         final done = await showAdjustSheet(context, budget: b);
@@ -661,7 +665,7 @@ class _Hero extends StatelessWidget {
               runSpacing: 8,
               children: [
                 _HeroAction(
-                  label: 'Put money in',
+                  label: b.type.isSaving ? 'Add money' : 'Put money in',
                   icon: Icons.add_rounded,
                   filled: true,
                   tint: tint,
@@ -673,7 +677,11 @@ class _Hero extends StatelessWidget {
                     icon: Icons.undo_rounded,
                     onTap: () => onAction('release', detail),
                   ),
-                if (toNum(b.balance) > 0 && b.started)
+                // No Spend on a saving plan: the server refuses it, and
+                // offering a button whose only outcome is a refusal is worse
+                // than not offering it. Money leaves by give-back, move, or
+                // conversion - all present here.
+                if (!b.type.isSaving && toNum(b.balance) > 0 && b.started)
                   _HeroAction(
                     label: 'Spend',
                     icon: Icons.shopping_bag_outlined,
@@ -691,6 +699,13 @@ class _Hero extends StatelessWidget {
                   label: 'Add / Deduct',
                   icon: Icons.tune_rounded,
                   onTap: () => onAction('adjust', detail),
+                ),
+                // The deliberate route for "I saved for it, now let me spend
+                // it against the plan" - and back again, as often as you like.
+                _HeroAction(
+                  label: b.type.isSaving ? 'Make it spending' : 'Make it saving',
+                  icon: Icons.swap_vert_rounded,
+                  onTap: () => onAction('convert', detail),
                 ),
                 _HeroAction(
                   label: 'Edit',

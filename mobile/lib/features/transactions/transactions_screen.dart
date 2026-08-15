@@ -17,6 +17,7 @@ import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../recurring/recurring_screen.dart';
 import '../shell/app_shell.dart';
+import 'export_sheet.dart';
 import 'transaction_detail.dart';
 import 'transaction_list.dart';
 
@@ -47,6 +48,13 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   final List<Transaction> _items = [];
   int _page = 1;
   int _total = 0;
+
+  /// Per-day spend and income for the filter currently on screen.
+  ///
+  /// Comes down with the page rather than from its own request: a separate
+  /// fetch could answer for a different filter than the list, which is the one
+  /// thing these figures must never do.
+  RangeAverages? _averages;
   bool _loading = false;
   bool _initialised = false;
   Object? _error;
@@ -108,6 +116,19 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     if (_to != null) 'to': isoDate(_to!),
   };
 
+  /// The active filters, minus paging and minus the range.
+  ///
+  /// The export sheet picks its own span - that is the one thing it asks - so
+  /// `from`/`to` are deliberately left out here and everything else carries
+  /// across untouched.
+  Map<String, dynamic> _exportFilters() => {
+    'currency': context.read<DataState>().activeCurrency,
+    if (_query.trim().isNotEmpty) 'q': _query.trim(),
+    if (_kind != null) 'kind': _kind!.wire,
+    if (_accountId != null) 'accountId': _accountId,
+    if (_categoryId != null) 'categoryId': _categoryId,
+  };
+
   Future<void> _reload() async {
     setState(() {
       _loading = true;
@@ -128,6 +149,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
           ..clear()
           ..addAll(page.items);
         _total = page.total;
+        _averages = page.averages;
         _loading = false;
         _initialised = true;
       });
@@ -143,6 +165,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
               ..clear()
               ..addAll(page.items);
             _total = page.total;
+            _averages = page.averages;
             _loading = false;
             _initialised = true;
             _error = null;
@@ -250,11 +273,28 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       'Every income, expense and transfer in '
                       '${data.activeCurrency}. Filters narrow the list without '
                       'changing your balances.',
-                  action: HeaderAction(
-                    icon: Icons.repeat_rounded,
-                    label: 'Recurring',
-                    primary: false,
-                    onTap: () => shell.push(const RecurringScreen()),
+                  action: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      HeaderAction(
+                        icon: Icons.ios_share_rounded,
+                        label: 'Export',
+                        primary: false,
+                        // The sheet inherits whatever is filtered right now, so
+                        // the file matches the list rather than guessing.
+                        onTap: () => showExportSheet(
+                          context,
+                          filters: _exportFilters(),
+                        ),
+                      ),
+                      const GapX(S.xs),
+                      HeaderAction(
+                        icon: Icons.repeat_rounded,
+                        label: 'Recurring',
+                        primary: false,
+                        onTap: () => shell.push(const RecurringScreen()),
+                      ),
+                    ],
                   ),
                 ),
                 const OfflineBanner(),
@@ -378,6 +418,17 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       ),
                     ],
                   ),
+
+                // Per day, for exactly the filter above. One line, no card -
+                // the chips already say which range it covers.
+                if (_averages != null) ...[
+                  const Gap(S.sm),
+                  _PerDayStrip(
+                    averages: _averages!,
+                    money: (v) => money(v, data.activeCurrency),
+                  ),
+                ],
+
                 const Gap(S.md),
               ]),
             ),
@@ -737,6 +788,84 @@ class _FilterChip extends StatelessWidget {
             ),
           ],
         ),
+      ),
+    );
+  }
+}
+
+/// Spend and income per day, over whatever the filter covers.
+///
+/// One line, deliberately. The figures above already give the totals; this
+/// answers the different question of *rate*, and a card around it would make a
+/// footnote look like a headline. The denominator is shown because "per day"
+/// over four days and over four months are not the same claim.
+class _PerDayStrip extends StatelessWidget {
+  const _PerDayStrip({required this.averages, required this.money});
+
+  final RangeAverages averages;
+  final String Function(Object?) money;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    final a = averages;
+
+    return Semantics(
+      label:
+          'Per day over ${a.days} days: ${a.spend} spent, ${a.income} earned',
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: S.md, vertical: S.sm),
+        decoration: BoxDecoration(
+          color: t.surfaceMuted.withValues(alpha: t.isDark ? 0.4 : 0.55),
+          borderRadius: BorderRadius.circular(R.md),
+        ),
+        child: Row(
+          children: [
+            Muted('PER DAY', size: AppType.micro),
+            const GapX(S.md),
+            _Figure(
+              icon: Icons.north_east_rounded,
+              color: t.danger,
+              value: money(a.spend),
+            ),
+            const GapX(S.md),
+            _Figure(
+              icon: Icons.south_west_rounded,
+              color: t.success,
+              value: money(a.income),
+            ),
+            const Spacer(),
+            Muted('${a.days}d', size: AppType.micro),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+class _Figure extends StatelessWidget {
+  const _Figure({required this.icon, required this.color, required this.value});
+
+  final IconData icon;
+  final Color color;
+  final String value;
+
+  @override
+  Widget build(BuildContext context) {
+    return Flexible(
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const GapX(S.xxs),
+          Flexible(
+            child: FittedBox(
+              fit: BoxFit.scaleDown,
+              alignment: Alignment.centerLeft,
+              child: Amount(value, size: AppType.bodySm),
+            ),
+          ),
+        ],
       ),
     );
   }

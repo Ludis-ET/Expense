@@ -47,7 +47,12 @@ export async function withMoneyLock<T>(
 
   return prisma.$transaction(
     async (tx) => {
-      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LOCK_NAMESPACE}, hashtext(${userId}))`;
+      // The `::int` cast is load-bearing. Postgres offers
+      // `pg_advisory_xact_lock(bigint)` and `pg_advisory_xact_lock(int, int)` -
+      // there is no `(bigint, int)`. Prisma binds a JS number as bigint, and
+      // `hashtext` returns int, so without the cast this resolves to no
+      // overload at all and every money write fails with 42883.
+      await tx.$executeRaw`SELECT pg_advisory_xact_lock(${LOCK_NAMESPACE}::int, hashtext(${userId}))`;
       return fn(tx);
     },
     { timeout: TIMEOUT_MS, maxWait: MAX_WAIT_MS },

@@ -197,6 +197,57 @@ class ApiClient {
     return data as T;
   }
 
+  /// A GET whose body is a file, not JSON.
+  ///
+  /// The export streams CSV or JSON straight to disk, so it bypasses the JSON
+  /// decoding in [_request] and hands back the bytes. Refresh-on-401 is handled
+  /// the same way, because a long download is exactly when a 15-minute access
+  /// token is most likely to have expired.
+  Future<List<int>> getRaw(
+    String path, {
+    Map<String, dynamic>? query,
+    bool isRetry = false,
+  }) async {
+    final uri = _uri(path, query, cacheBust: true);
+    final headers = <String, String>{};
+    final token = tokens.access;
+    if (token != null) headers['Authorization'] = 'Bearer $token';
+
+    http.Response res;
+    try {
+      res = await _http
+          .get(uri, headers: headers)
+          // Generous: this is a whole history, not a page.
+          .timeout(const Duration(minutes: 3));
+    } on TimeoutException {
+      throw ApiError(0, 'The export took too long. Try a smaller range.');
+    } catch (_) {
+      throw ApiError(0, 'Cannot reach the server. Check your connection.');
+    }
+
+    if (res.statusCode == 401 && !isRetry && tokens.refresh != null) {
+      final refreshed = await refreshSession();
+      if (refreshed == true) {
+        return getRaw(path, query: query, isRetry: true);
+      }
+    }
+
+    if (res.statusCode >= 400) {
+      String message = 'Export failed (${res.statusCode}).';
+      try {
+        final decoded = jsonDecode(res.body);
+        if (decoded is Map && decoded['error'] is Map) {
+          message = '${(decoded['error'] as Map)['message'] ?? message}';
+        }
+      } catch (_) {
+        // A non-JSON error body is not worth surfacing raw.
+      }
+      throw ApiError(res.statusCode, message);
+    }
+
+    return res.bodyBytes;
+  }
+
   Future<T> _request<T>(
     String method,
     String path, {

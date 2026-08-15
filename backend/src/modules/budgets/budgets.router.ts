@@ -6,6 +6,7 @@ import {
   adjustBudgetSchema,
   budgetIdParam,
   budgetSourcesQuery,
+  convertBudgetSchema,
   createBudgetSchema,
   fundBudgetSchema,
   listBudgetsQuery,
@@ -97,12 +98,36 @@ budgetsRouter.post(
   }),
 );
 
-/** Raise or cut the plan amount, tracked as a movement instead of an edit. */
+/**
+ * Raise or cut one of the plan's amounts, tracked as a movement instead of an
+ * edit. `dial` picks which - the per-cycle amount, or a saving plan's goal.
+ */
 budgetsRouter.post(
   '/:id/adjust',
   validate({ params: budgetIdParam, body: adjustBudgetSchema }),
   asyncHandler(async (req, res) => {
     res.json(await budgets.adjust(req.user!, req.params.id!, req.body));
+  }),
+);
+
+/**
+ * Turn a spending plan into a saving plan, or back. Moves no money; the pot
+ * keeps its balance and every conversion is recorded.
+ */
+budgetsRouter.post(
+  '/:id/convert',
+  validate({ params: budgetIdParam, body: convertBudgetSchema }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.convert(req.user!, req.params.id!, req.body));
+  }),
+);
+
+/** The plan's conversion history, for its timeline. */
+budgetsRouter.get(
+  '/:id/type-changes',
+  validate({ params: budgetIdParam }),
+  asyncHandler(async (req, res) => {
+    res.json(await budgets.typeChanges(req.user!, req.params.id!));
   }),
 );
 

@@ -13,7 +13,7 @@ import '../../widgets/sync_ui.dart';
 import '../../widgets/ui.dart';
 import '../shell/app_shell.dart';
 import '../wishlist/wishlist_screen.dart';
-import 'budget_common.dart';
+import 'plan_card.dart';
 import 'budget_detail_screen.dart';
 import 'budget_form.dart';
 
@@ -51,7 +51,12 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
     final all = (response?.items ?? const <BudgetRow>[])
         .where((b) => b.currency == currency)
         .toList();
-    final active = all.where((b) => !b.isClosed).toList();
+    final live = all.where((b) => !b.isClosed).toList();
+    // Grouped, because the two answer different questions - "am I overspending"
+    // and "will I get there" - and reading them interleaved means switching
+    // frame on every card.
+    final active = live.where((b) => !b.type.isSaving).toList();
+    final saving = live.where((b) => b.type.isSaving).toList();
     final closed = all.where((b) => b.isClosed).toList();
     final totals = response?.totals;
     // Not one of `items` any more: spending with no plan behind it is a view
@@ -136,7 +141,9 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             ),
             const Gap(S.lg),
 
-            if (active.isEmpty)
+            // `live`, not `active`: someone whose only plans are saving plans
+            // has plans.
+            if (live.isEmpty)
               EmptyState(
                 icon: Icons.savings_outlined,
                 art: EmptyArt.plan,
@@ -152,19 +159,37 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                 ),
               )
             else ...[
-              SectionLabel('ACTIVE PLANS'),
-              for (var i = 0; i < active.length; i++)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: S.md),
-                  child: FadeInUp.staggered(
-                    index: i,
-                    child: BudgetCard(
-                      budget: active[i],
-                      money: money,
-                      onTap: () => _open(context, active[i]),
+              if (active.isNotEmpty) ...[
+                SectionLabel(saving.isEmpty ? 'ACTIVE PLANS' : 'SPENDING'),
+                for (var i = 0; i < active.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: S.md),
+                    child: FadeInUp.staggered(
+                      index: i,
+                      child: PlanCard(
+                        budget: active[i],
+                        money: money,
+                        onTap: () => _open(context, active[i]),
+                      ),
                     ),
                   ),
-                ),
+              ],
+              if (saving.isNotEmpty) ...[
+                if (active.isNotEmpty) const Gap(S.xs),
+                SectionLabel('SAVING'),
+                for (var i = 0; i < saving.length; i++)
+                  Padding(
+                    padding: const EdgeInsets.only(bottom: S.md),
+                    child: FadeInUp.staggered(
+                      index: i,
+                      child: PlanCard(
+                        budget: saving[i],
+                        money: money,
+                        onTap: () => _open(context, saving[i]),
+                      ),
+                    ),
+                  ),
+              ],
             ],
 
             if (unplanned != null) ...[
@@ -197,7 +222,7 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
                   padding: const EdgeInsets.only(bottom: S.md),
                   child: Opacity(
                     opacity: 0.65,
-                    child: BudgetCard(
+                    child: PlanCard(
                       budget: b,
                       money: money,
                       onTap: () => _open(context, b),
@@ -457,157 +482,6 @@ class _Fig extends StatelessWidget {
               ),
             ),
           ),
-        ],
-      ),
-    );
-  }
-}
-
-/// `BudgetPlanCard`   the pot's shape at a glance: how much went in, how much
-/// is gone, and one line of plain English about where it stands.
-class BudgetCard extends StatelessWidget {
-  const BudgetCard({
-    super.key,
-    required this.budget,
-    required this.money,
-    this.onTap,
-  });
-
-  final BudgetRow budget;
-  final String Function(Object?) money;
-  final VoidCallback? onTap;
-
-  @override
-  Widget build(BuildContext context) {
-    final t = context.t;
-    final b = budget;
-    final tint = parseHexColor(b.color) ?? healthColor(context, b.health);
-    final planned = toNum(b.plannedAmount) <= 0 ? 0.01 : toNum(b.plannedAmount);
-    final spentPct = (toNum(b.spentAmount) / planned * 100).clamp(0.0, 100.0);
-    final fundedPct = (toNum(b.fundedAmount) / planned * 100).clamp(0.0, 100.0);
-
-    return AppCard(
-      padding: const EdgeInsets.all(S.lg),
-      onTap: onTap,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          Row(
-            children: [
-              IconTile(
-                icon: b.isUnplanned
-                    ? Icons.more_horiz
-                    : financeIcon(b.icon ?? b.category?.icon),
-                color: tint,
-                size: 42,
-              ),
-              const GapX(S.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      b.name,
-                      overflow: TextOverflow.ellipsis,
-                      style: TextStyle(
-                        fontSize: AppType.body,
-                        fontWeight: FontWeight.w700,
-                        color: t.foreground,
-                      ),
-                    ),
-                    const Gap(S.xxs),
-                    Row(
-                      children: [
-                        AppBadge(
-                          b.health.label,
-                          tone: healthTone(b.health),
-                          dense: true,
-                        ),
-                        const GapX(S.xs),
-                        Flexible(
-                          child: Muted(cadenceLabel(b), size: 11, maxLines: 1),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const GapX(S.sm),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  Amount(money(b.balance), size: 16, color: tint),
-                  const Gap(S.hair),
-                  Muted('left', size: 10.5),
-                ],
-              ),
-            ],
-          ),
-          if (!b.isUnplanned) ...[
-            const Gap(S.md),
-            // Two bars on one track: how full the pot got, and how much of it
-            // has been spent.
-            Stack(
-              children: [
-                ProgressBar(
-                  value: fundedPct,
-                  height: 8,
-                  gradient: [
-                    tint.withValues(alpha: 0.35),
-                    tint.withValues(alpha: 0.25),
-                  ],
-                ),
-                ProgressBar(
-                  value: spentPct,
-                  height: 8,
-                  tone: healthTone(b.health),
-                ),
-              ],
-            ),
-            const Gap(S.sm),
-            Row(
-              children: [
-                Muted('${money(b.spentAmount)} spent', size: 11),
-                const Spacer(),
-                Muted(
-                  '${money(b.fundedAmount)} of ${money(b.plannedAmount)} filled',
-                  size: 11,
-                ),
-              ],
-            ),
-          ],
-          const Gap(S.sm),
-          Text(
-            healthSentence(b, money),
-            style: TextStyle(
-              fontSize: AppType.caption,
-              height: 1.4,
-              color: t.mutedForeground,
-            ),
-          ),
-          if (b.carriedIn != '0' && toNum(b.carriedIn) > 0) ...[
-            const Gap(S.xs),
-            Row(
-              children: [
-                Icon(Icons.subdirectory_arrow_right, size: 13, color: t.accent),
-                const GapX(S.xxs),
-                Muted(
-                  '${money(b.carriedIn)} carried over from last cycle',
-                  size: 11,
-                ),
-              ],
-            ),
-          ],
-          if (b.nextResetAt != null) ...[
-            const Gap(S.xs),
-            Row(
-              children: [
-                Icon(Icons.autorenew, size: 13, color: t.mutedForeground),
-                const GapX(S.xxs),
-                Muted('Resets ${relativeTime(b.nextResetAt!)}', size: 11),
-              ],
-            ),
-          ],
         ],
       ),
     );

@@ -5,7 +5,7 @@
  * Acting on one means *planning* it, which spins up a budget plan and links
  * the two; from then on the money lives in the plan, where it belongs.
  */
-import { Prisma, WishlistStatus } from '../../core/prisma.js';
+import { BudgetType, Prisma, WishlistStatus } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
@@ -216,9 +216,17 @@ export async function plan(user: AuthUser, id: string, input: PlanWishlistInput)
   const created = await budgets.create(user, {
     name: (input.name ?? existing.name).trim(),
     kind: input.kind,
+    // A want you are putting money aside for is a saving plan - that is the
+    // whole boundary: the wishlist is the wanting, the plan is the money.
+    // Spending straight from it is refused, so buying runs give-back then
+    // spend, which is what `buy` below does.
+    type: BudgetType.SAVING,
     recurrenceUnit: input.recurrenceUnit ?? null,
     recurrenceInterval: input.recurrenceInterval,
     plannedAmount: input.plannedAmount,
+    // One-time wants finish when the price is reached; a recurring saving
+    // habit toward a want keeps the price as its finish line too.
+    goalAmount: input.plannedAmount,
     currency: input.currency,
     categoryId: input.categoryId ?? null,
     // Carry the want's own face onto the plan so the two read as one thing.

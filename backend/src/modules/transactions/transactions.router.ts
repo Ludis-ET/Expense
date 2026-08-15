@@ -5,11 +5,13 @@ import { validate } from '../../core/middleware/validate.js';
 import { recurringCatchUp } from '../recurring/recurring.middleware.js';
 import {
   createTransactionSchema,
+  exportTransactionsQuery,
   listTransactionsQuery,
   transactionIdParam,
   updateTransactionSchema,
 } from './transactions.schema.js';
 import * as transactions from './transactions.service.js';
+import { exportPreview, streamExport } from './transactions.export.js';
 
 export const transactionsRouter = Router();
 
@@ -27,6 +29,33 @@ transactionsRouter.get(
   '/tags',
   asyncHandler(async (req, res) => {
     res.json(await transactions.listTags(req.user!));
+  }),
+);
+
+/**
+ * How much a download would contain. Lets the sheet say "1,284 transactions,
+ * about 160 KB" before anyone commits to it.
+ */
+transactionsRouter.get(
+  '/export/preview',
+  validate({ query: exportTransactionsQuery }),
+  asyncHandler(async (req, res) => {
+    const query = req.query as never as import('./transactions.schema.js').ExportTransactionsQuery;
+    res.json(await exportPreview(transactions.buildWhere(req.user!, query)));
+  }),
+);
+
+/**
+ * The download itself, streamed.
+ *
+ * Declared before `/:id` or Express would read "export" as a transaction id.
+ */
+transactionsRouter.get(
+  '/export',
+  validate({ query: exportTransactionsQuery }),
+  asyncHandler(async (req, res) => {
+    const query = req.query as never as import('./transactions.schema.js').ExportTransactionsQuery;
+    await streamExport(req.user!, query, transactions.buildWhere(req.user!, query), res);
   }),
 );
 

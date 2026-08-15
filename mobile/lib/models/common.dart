@@ -228,6 +228,38 @@ enum WishlistStatus {
 }
 
 /// `BudgetKind`
+/// What a plan's money is for. Orthogonal to [BudgetKind], which is cadence:
+/// either type can be one-off or recurring.
+enum BudgetType {
+  /// A ceiling to stay under. Spending from it is the everyday act.
+  spending,
+
+  /// A goal to reach. Spending directly from it is refused - money leaves by
+  /// being given back, moved, or by converting the plan.
+  saving;
+
+  static BudgetType parse(dynamic v) =>
+      '$v' == 'SAVING' ? BudgetType.saving : BudgetType.spending;
+
+  String get wire => this == BudgetType.saving ? 'SAVING' : 'SPENDING';
+
+  String get label => this == BudgetType.saving ? 'Saving' : 'Spending';
+
+  bool get isSaving => this == BudgetType.saving;
+}
+
+/// Which of a plan's amounts an adjustment moves. A recurring saving plan has
+/// two, and they pull in opposite directions.
+enum AdjustmentDial {
+  /// The per-cycle ceiling, or the per-period contribution target.
+  planned,
+
+  /// The finish line a saving pot accumulates toward.
+  goal;
+
+  String get wire => this == AdjustmentDial.goal ? 'GOAL' : 'PLANNED';
+}
+
 enum BudgetKind {
   oneTime,
   recurring,

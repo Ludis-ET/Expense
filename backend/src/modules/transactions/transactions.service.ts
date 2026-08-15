@@ -11,6 +11,7 @@ import { Prisma, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
+import { averagesOverSpan } from '../analytics/analytics.averages.js';
 import {
   deleteTransaction,
   patchTransaction,
@@ -66,7 +67,17 @@ async function assertOwnedTransaction(id: string, userId: string) {
   return tx;
 }
 
-export async function list(user: AuthUser, query: ListTransactionsQuery) {
+/**
+ * The filter, from a query.
+ *
+ * Shared by the list and the export on purpose. If the export built its own,
+ * "download what I am looking at" would drift from the list the first time
+ * either changed - so there is one builder and both call it.
+ */
+export function buildWhere(
+  user: AuthUser,
+  query: Omit<ListTransactionsQuery, 'page' | 'pageSize' | 'sort'>,
+): Prisma.TransactionWhereInput {
   // "unplanned" is a view, not a row: filtering by it means budgetId IS NULL.
   const budgetFilter =
     query.budgetId === undefined
@@ -75,7 +86,7 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
         ? { budgetId: null, kind: TxKind.EXPENSE }
         : { budgetId: resolveBudgetId(query.budgetId)! };
 
-  const where: Prisma.TransactionWhereInput = {
+  return {
     userId: user.id,
     ...(query.from || query.to
       ? { date: { ...(query.from ? { gte: query.from } : {}), ...(query.to ? { lte: query.to } : {}) } }
@@ -106,6 +117,10 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
         }
       : {}),
   };
+}
+
+export async function list(user: AuthUser, query: ListTransactionsQuery) {
+  const where = buildWhere(user, query);
 
   const orderBy: Prisma.TransactionOrderByWithRelationInput =
     query.sort === 'date_asc'
@@ -116,7 +131,7 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
           ? { amount: 'asc' }
           : { date: 'desc' };
 
-  const [items, total] = await Promise.all([
+  const [items, total, sums, span] = await Promise.all([
     prisma.transaction.findMany({
       where,
       orderBy: [orderBy, { createdAt: 'desc' }],
@@ -125,9 +140,48 @@ export async function list(user: AuthUser, query: ListTransactionsQuery) {
       include: txInclude,
     }),
     prisma.transaction.count({ where }),
+    // Totals over the *whole* filtered set, not the page - the per-day figures
+    // describe the filter, and paging through must not change them.
+    prisma.transaction.groupBy({
+      by: ['kind'],
+      where: { ...where, kind: { in: [TxKind.INCOME, TxKind.EXPENSE] } },
+      _sum: { amount: true },
+    }),
+    // The days the filter actually covers. An open-ended range has no span of
+    // its own, so the observed first and last dates stand in for one.
+    prisma.transaction.aggregate({ where, _min: { date: true }, _max: { date: true } }),
   ]);
 
-  return { items: items.map(serialize), total, page: query.page, pageSize: query.pageSize };
+  const pick = (kind: TxKind) =>
+    sums.find((s) => s.kind === kind)?._sum.amount ?? new Prisma.Decimal(0);
+
+  const from = query.from ?? span._min.date;
+  const to = query.to ?? span._max.date;
+
+  return {
+    items: items.map(serialize),
+    total,
+    page: query.page,
+    pageSize: query.pageSize,
+    /**
+     * Per-day spend and income for the current filter.
+     *
+     * Returned with the list rather than fetched separately, because a second
+     * request could answer for a different filter than the one on screen -
+     * which is the disagreement `analytics.averages.ts` exists to prevent.
+     * Null when nothing matched: there is no average of no days.
+     */
+    averages:
+      from && to
+        ? averagesOverSpan({
+            income: pick(TxKind.INCOME),
+            expense: pick(TxKind.EXPENSE),
+            from,
+            to,
+            currency: query.currency ?? items[0]?.currency ?? 'ETB',
+          })
+        : null,
+  };
 }
 
 export async function getById(user: AuthUser, id: string) {

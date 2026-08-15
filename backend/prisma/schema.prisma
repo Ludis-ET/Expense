@@ -64,9 +64,40 @@ enum BudgetKind {
   UNPLANNED
 }
 
+/// What a plan's money is *for*. Orthogonal to `BudgetKind`, which is cadence:
+/// a saving plan can be one-off ("laptop") or recurring ("2,000 a month"), and
+/// so can a spending plan.
+///
+/// Both are the same money primitive - a pot funded from wallets holding
+/// reserved money - so this is a discriminator, not a second ledger. The
+/// posting core stays type-agnostic apart from one guard: see `fundPlan`.
+enum BudgetType {
+  /// A ceiling. plannedAmount is the most that may go in, and spending from it
+  /// is the everyday act.
+  SPENDING
+
+  /// A goal. plannedAmount is a target to reach (per period when recurring),
+  /// goalAmount is the finish line, and spending directly from it is refused.
+  SAVING
+}
+
 enum BudgetState {
   ACTIVE
+  /// Saving plans only: the goal was reached. Contributions stop being asked
+  /// for, the pot is untouched, and it returns to ACTIVE only by raising the
+  /// goal or converting to a spending plan - never automatically.
+  COMPLETED
   CLOSED
+}
+
+/// Which number an adjustment moved. A recurring saving plan has two, and they
+/// pull in opposite directions: raising the contribution finishes it sooner,
+/// raising the goal finishes it later.
+enum AdjustmentDial {
+  /// plannedAmount - the per-cycle ceiling, or per-period contribution target.
+  PLANNED
+  /// goalAmount - the finish line a saving pot accumulates toward.
+  GOAL
 }
 
 // Money moving between an account and a plan's pot. FUND is positive (account
@@ -179,6 +210,7 @@ model User {
   budgets           Budget[]
   budgetAllocations BudgetAllocation[]
   budgetAdjustments BudgetAdjustment[]
+  budgetTypeChanges BudgetTypeChange[]
   fundingRules      FundingRule[]
   notifications     Notification[]
   aiSetting         AiSetting?
@@ -449,7 +481,24 @@ model Budget {
   categoryId     String? // optional hint, auto-selected when spending
   category       Category?    @relation(fields: [categoryId], references: [id], onDelete: SetNull)
   kind           BudgetKind   @default(ONE_TIME)
-  plannedAmount  Decimal      @db.Decimal(14, 2) // how much you plan to spend per cycle, after adjustments
+
+  /// Spending or saving. Existing rows default to SPENDING, which is what they
+  /// have always been.
+  type           BudgetType   @default(SPENDING)
+
+  /// SPENDING: the per-cycle ceiling, and a hard cap on funding.
+  /// SAVING: a target to reach - the whole goal when one-time, the per-period
+  /// contribution when recurring. Never a cap.
+  plannedAmount  Decimal      @db.Decimal(14, 2)
+
+  /// SAVING only: the finish line the pot accumulates toward.
+  ///
+  /// Null means the plan runs forever - the open-ended habit. Split from
+  /// plannedAmount so a recurring saving plan can say two things at once:
+  /// "2,000 a month" *until* "50,000". Reaching it flips the state to
+  /// COMPLETED; it never refuses money.
+  goalAmount     Decimal?     @db.Decimal(14, 2)
+
   // What plannedAmount was when the current cycle opened. Frozen per cycle so a
   // mid-cycle top-up or cut shows as a movement instead of rewriting history.
   cycleOpeningPlanned Decimal @default(0) @db.Decimal(14, 2)
@@ -481,13 +530,52 @@ model Budget {
   wishlistItems  WishlistItem[]
   recurringRules RecurringRule[]
   fundingSteps   FundingStep[]
+  typeChanges    BudgetTypeChange[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([userId, state])
   @@index([userId, kind, nextResetAt])
+  @@index([userId, type, state])
   @@map("budgets")
+}
+
+/// Every time a plan changed what it was for.
+///
+/// A log rather than a flag, because converting is meant to be repeatable: a
+/// holiday fund can become a monthly travel budget and back again. Conversion
+/// moves no money - the pot keeps its balance - but it changes what every
+/// number on the plan *means*, so it is worth a record. Feeds the detail
+/// page's timeline, which is how a plan keeps one continuous story instead of
+/// losing its past each time it flips.
+model BudgetTypeChange {
+  id       String @id @default(cuid())
+  userId   String
+  user     User   @relation(fields: [userId], references: [id], onDelete: Cascade)
+  budgetId String
+  budget   Budget @relation(fields: [budgetId], references: [id], onDelete: Cascade)
+
+  fromType BudgetType
+  toType   BudgetType
+
+  /// What the pot held at the moment of the change, so the timeline can show
+  /// the money that carried across.
+  balanceAtChange Decimal @db.Decimal(14, 2)
+
+  plannedBefore Decimal  @db.Decimal(14, 2)
+  plannedAfter  Decimal  @db.Decimal(14, 2)
+  goalBefore    Decimal? @db.Decimal(14, 2)
+  goalAfter     Decimal? @db.Decimal(14, 2)
+
+  cycleIndexAtChange Int     @default(0)
+  reason             String?
+
+  at DateTime @default(now())
+
+  @@index([budgetId, at])
+  @@index([userId, at])
+  @@map("budget_type_changes")
 }
 
 // One fill-up (or give-back) of a plan's pot from a specific account.
@@ -536,6 +624,10 @@ model BudgetAdjustment {
   cycleIndex Int      @default(0)
   reason     String?
   date       DateTime @default(now())
+
+  /// Which number moved. Everything written before saving plans existed moved
+  /// plannedAmount, which is what the default records.
+  dial       AdjustmentDial @default(PLANNED)
 
   /// True when Santim raised the plan itself to cover an overspend, rather than
   /// the user deciding to. Undoing the spend undoes this with it.

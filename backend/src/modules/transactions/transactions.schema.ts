@@ -109,8 +109,21 @@ export const listTransactionsQuery = z.object({
   sort: z.enum(['date_desc', 'date_asc', 'amount_desc', 'amount_asc']).default('date_desc'),
 });
 
+/**
+ * Export takes the same filters as the list, minus paging.
+ *
+ * Built from the list schema rather than restated, so the two cannot drift:
+ * adding a filter to one adds it to the other.
+ */
+export const exportTransactionsQuery = listTransactionsQuery
+  .omit({ page: true, pageSize: true, sort: true })
+  .extend({
+    format: z.enum(['csv', 'json']).default('csv'),
+  });
+
 export const transactionIdParam = z.object({ id: z.string().min(1) });
 
 export type CreateTransactionInput = z.infer<typeof createTransactionSchema>;
 export type UpdateTransactionInput = z.infer<typeof updateTransactionSchema>;
 export type ListTransactionsQuery = z.infer<typeof listTransactionsQuery>;
+export type ExportTransactionsQuery = z.infer<typeof exportTransactionsQuery>;

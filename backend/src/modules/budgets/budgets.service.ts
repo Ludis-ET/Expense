@@ -22,6 +22,8 @@ import {
   BudgetAllocationKind,
   BudgetKind,
   BudgetState,
+  BudgetType,
+  AdjustmentDial,
   Prisma,
   TxKind,
   type Budget,
@@ -45,8 +47,15 @@ import {
   type LedgerSnapshot,
 } from '../../core/money/index.js';
 import { addRecurrence, cycleLabel, periodNoun, recurrenceLabel } from './budgets.periods.js';
+import {
+  savingFacts,
+  stateForSaving,
+  type Contribution,
+  type SavingFacts,
+} from './budgets.saving.js';
 import type {
   AdjustBudgetInput,
+  ConvertBudgetInput,
   CreateBudgetInput,
   FundBudgetInput,
   ListBudgetsQuery,
@@ -121,6 +130,47 @@ async function totalsFor(budgetId: string, cycleIndex: number): Promise<Totals> 
     spentThisCycle: spentCycle._sum.amount ?? ZERO,
     adjustedThisCycle: adjCycle._sum.amount ?? ZERO,
   };
+}
+
+/**
+ * Every contribution to one saving plan.
+ *
+ * Only positive allocations count: a give-back is money leaving, and counting
+ * it as a contribution would let someone build a streak by moving the same
+ * 2,000 in and out.
+ *
+ * Deliberately not reusing the timeline's allocation fetch: that one is capped
+ * at TIMELINE_LIMIT and includes give-backs, so a rate computed from it would
+ * quietly go wrong on any plan with a long history.
+ */
+async function contributionsFor(budget: Pick<Budget, 'id' | 'type'>): Promise<Contribution[]> {
+  if (budget.type !== BudgetType.SAVING) return [];
+  const rows = await prisma.budgetAllocation.findMany({
+    where: { budgetId: budget.id, amount: { gt: 0 } },
+    select: { amount: true, date: true, cycleIndex: true },
+    orderBy: { date: 'asc' },
+  });
+  return rows;
+}
+
+/** The same for a whole list, in one query. Spending plans are skipped. */
+async function contributionsForMany(budgets: Budget[]): Promise<Map<string, Contribution[]>> {
+  const map = new Map<string, Contribution[]>();
+  const savingIds = budgets.filter((b) => b.type === BudgetType.SAVING).map((b) => b.id);
+  if (savingIds.length === 0) return map;
+
+  for (const id of savingIds) map.set(id, []);
+
+  const rows = await prisma.budgetAllocation.findMany({
+    where: { budgetId: { in: savingIds }, amount: { gt: 0 } },
+    select: { budgetId: true, amount: true, date: true, cycleIndex: true },
+    orderBy: { date: 'asc' },
+  });
+
+  for (const r of rows) {
+    map.get(r.budgetId)?.push({ amount: r.amount, date: r.date, cycleIndex: r.cycleIndex });
+  }
+  return map;
 }
 
 /** Batched `totalsFor` for a whole list of plans. */
@@ -216,9 +266,20 @@ export function hasStarted(budget: Pick<Budget, 'startsAt'>, at = new Date()): b
   return budget.startsAt <= at;
 }
 
-function health(budget: Budget, d: ReturnType<typeof derive>): Health {
+function health(budget: Budget, d: ReturnType<typeof derive>, facts: SavingFacts | null): Health {
   if (budget.state === BudgetState.CLOSED) return 'closed';
   if (!hasStarted(budget)) return 'scheduled';
+
+  // A saving plan is judged on progress, never on how much of it is gone.
+  // Running the spending ladder over one would call a healthy pot "drained"
+  // the moment it was emptied into the thing it was saved for.
+  if (facts) {
+    if (facts.goalMet) return 'ready';
+    if (d.funded.lte(0)) return 'empty';
+    if (facts.pace === 'behind') return 'low';
+    return 'spending';
+  }
+
   if (d.funded.lte(0)) return 'empty';
   if (d.balance.lte(0)) return 'drained';
   if (d.spent.lte(0)) return d.fillable.gt(0) ? 'partly-funded' : 'ready';
@@ -227,8 +288,14 @@ function health(budget: Budget, d: ReturnType<typeof derive>): Health {
 
 type BudgetWithCategory = Budget & { category?: { id: string; name: string } | null };
 
-function serialize(budget: BudgetWithCategory, t: Totals, snap: LedgerSnapshot) {
+function serialize(
+  budget: BudgetWithCategory,
+  t: Totals,
+  snap: LedgerSnapshot,
+  contributions: Contribution[] = [],
+) {
   const d = derive(budget, t, snap);
+  const saving = savingFacts(budget, d.balance, contributions);
   return {
     id: budget.id,
     name: budget.name,
@@ -250,8 +317,20 @@ function serialize(budget: BudgetWithCategory, t: Totals, snap: LedgerSnapshot) 
     color: budget.color,
     note: budget.note,
     alertThreshold: budget.alertThreshold,
-    state: budget.state,
+
+    /** SPENDING or SAVING - what this plan's money is for. */
+    type: budget.type,
+
+    /**
+     * Derived rather than read, so the badge can never disagree with the
+     * numbers beside it: a pot at or past its goal reads COMPLETED, and drops
+     * back to ACTIVE the moment the goal is raised above it.
+     */
+    state: stateForSaving(budget, d.balance),
     closedAt: budget.closedAt ? budget.closedAt.toISOString() : null,
+
+    /** Everything a saving plan needs and a spending plan has no use for. */
+    saving,
 
     plannedAmount: budget.plannedAmount.toFixed(2),
     openingPlanned: budget.cycleOpeningPlanned.toFixed(2),
@@ -265,7 +344,7 @@ function serialize(budget: BudgetWithCategory, t: Totals, snap: LedgerSnapshot) 
     pctFunded: Math.min(100, d.pctFunded),
     pctOfPlan: Math.min(100, d.pctOfPlan),
     pctSpentOfFunded: Math.min(100, d.pctSpentOfFunded),
-    health: health(budget, d),
+    health: health(budget, d, saving),
 
     cycleIndex: budget.cycleIndex,
     startsAt: budget.startsAt.toISOString(),
@@ -523,7 +602,10 @@ export async function list(user: AuthUser, query: ListBudgetsQuery = {}) {
   ]);
 
   const totals = await totalsForMany(budgets);
-  const items = budgets.map((b) => serialize(b, totals.get(b.id)!, snap));
+  const contributions = await contributionsForMany(budgets);
+  const items = budgets.map((b) =>
+    serialize(b, totals.get(b.id)!, snap, contributions.get(b.id) ?? []),
+  );
   const active = items.filter((i) => i.state === BudgetState.ACTIVE);
 
   const sum = (rows: SerializedBudget[], pick: (i: SerializedBudget) => string) =>
@@ -566,6 +648,10 @@ export async function list(user: AuthUser, query: ListBudgetsQuery = {}) {
  * The "pay from" options on a transaction: every plan that still holds money,
  * plus Unplanned, which is always offered because it has no pot - it spends
  * whatever the chosen wallet has free.
+ *
+ * Saving plans are excluded at the query, not filtered later. `postTransaction`
+ * refuses to spend from one, so offering it here would be showing a choice that
+ * the next screen rejects.
  */
 export async function spendableSources(user: AuthUser, currency?: string) {
   await rollDueCycles(user.id);
@@ -575,6 +661,7 @@ export async function spendableSources(user: AuthUser, currency?: string) {
       where: {
         userId: user.id,
         state: BudgetState.ACTIVE,
+        type: BudgetType.SPENDING,
         ...(currency ? { currency: currency.toUpperCase() } : {}),
       },
       include: { category: { select: categorySelect } },
@@ -591,6 +678,8 @@ export async function spendableSources(user: AuthUser, currency?: string) {
 
   const totals = await totalsForMany(budgets);
   const items = budgets
+    // No contributions needed: only spending plans reach here, and saving facts
+    // are null for those anyway.
     .map((b) => ({ budget: b, view: serialize(b, totals.get(b.id)!, snap) }))
     .filter(({ view }) => view.started && Number(view.balance) > 0)
     .map(({ budget, view }) => ({
@@ -749,7 +838,7 @@ export async function getById(user: AuthUser, id: string) {
     .slice(0, TIMELINE_LIMIT);
 
   return {
-    ...serialize(budget, t, snap),
+    ...serialize(budget, t, snap, await contributionsFor(budget)),
     timeline,
     timelineTruncated: txCount + allocations.length > TIMELINE_LIMIT,
     allocations: allocations.filter((a) => a.cycleIndex === budget.cycleIndex).map(serializeAlloc),
@@ -813,7 +902,15 @@ export async function create(user: AuthUser, input: CreateBudgetInput) {
       name: input.name.trim(),
       categoryId: input.categoryId ?? null,
       kind: recurring ? BudgetKind.RECURRING : BudgetKind.ONE_TIME,
+      type: input.type,
       plannedAmount: input.plannedAmount,
+      // A one-time saving plan's target and its goal are the same thing, so the
+      // form shows one field and it lands in both. Only a recurring saving plan
+      // genuinely has two numbers to keep apart.
+      goalAmount:
+        input.type === BudgetType.SAVING
+          ? (input.goalAmount ?? (recurring ? null : input.plannedAmount))
+          : null,
       cycleOpeningPlanned: input.plannedAmount,
       currency: input.currency.toUpperCase(),
       icon: input.icon ?? null,
@@ -831,7 +928,12 @@ export async function create(user: AuthUser, input: CreateBudgetInput) {
   });
 
   const snap = await loadSnapshot(user.id);
-  return serialize(budget, await totalsFor(budget.id, budget.cycleIndex), snap);
+  return serialize(
+    budget,
+    await totalsFor(budget.id, budget.cycleIndex),
+    snap,
+    await contributionsFor(budget),
+  );
 }
 
 export async function update(user: AuthUser, id: string, input: UpdateBudgetInput) {
@@ -843,7 +945,13 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
     const snap = await loadSnapshot(user.id);
     const t = await totalsFor(existing.id, existing.cycleIndex);
     const { funded } = derive(existing, t, snap);
-    if (dec(input.plannedAmount).lt(funded)) {
+
+    // A spending plan's planned amount is the cap the pot sits under, so it
+    // cannot drop below what the pot already holds. A saving plan's is a target
+    // to reach - dropping "2,000 a month" to "1,000 a month" while 30,000 is
+    // already saved is an ordinary thing to want, and refusing it would make
+    // the number impossible to lower once the pot outgrew it.
+    if (existing.type === BudgetType.SPENDING && dec(input.plannedAmount).lt(funded)) {
       throw new BadRequestError(
         `This plan already holds ${funded.toFixed(2)} ${existing.currency}. Give money back to a wallet before lowering the planned amount.`,
       );
@@ -871,6 +979,11 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
       ...(input.categoryId !== undefined ? { categoryId: input.categoryId } : {}),
       ...(input.plannedAmount !== undefined
         ? { plannedAmount: input.plannedAmount, cycleOpeningPlanned: openingPlanned! }
+        : {}),
+      // Explicit null removes the finish line, turning a goal back into an
+      // open-ended habit. Only meaningful on a saving plan.
+      ...(input.goalAmount !== undefined && existing.type === BudgetType.SAVING
+        ? { goalAmount: input.goalAmount ?? null }
         : {}),
       ...(input.icon !== undefined ? { icon: input.icon } : {}),
       ...(input.color !== undefined ? { color: input.color } : {}),
@@ -901,18 +1014,170 @@ export async function update(user: AuthUser, id: string, input: UpdateBudgetInpu
   });
 
   const snap = await loadSnapshot(user.id);
-  return serialize(budget, await totalsFor(budget.id, budget.cycleIndex), snap);
+  return serialize(
+    budget,
+    await totalsFor(budget.id, budget.cycleIndex),
+    snap,
+    await contributionsFor(budget),
+  );
 }
 
 /** Raise or cut what a plan is meant to hold, kept as a movement, not an edit. */
 export async function adjust(user: AuthUser, id: string, input: AdjustBudgetInput) {
   const delta = input.direction === 'DEDUCT' ? dec(input.amount).neg() : dec(input.amount);
+
+  // Moving the goal is a different operation from moving the planned amount.
+  // `adjustPlan` lives in the money core because a planned amount is the cap
+  // the funding guard tests against; a goal caps nothing, so it is a plain
+  // column write and does not belong there.
+  if (input.dial === AdjustmentDial.GOAL) {
+    const budget = await assertOwned(id, user.id);
+    if (budget.type !== BudgetType.SAVING) {
+      throw new BadRequestError('Only a saving plan has a goal to move.');
+    }
+
+    const before = budget.goalAmount ?? ZERO;
+    const after = before.add(delta);
+    if (after.lte(0)) {
+      throw new BadRequestError(
+        'A goal has to stay above zero. Remove the goal instead if the plan should run open-ended.',
+      );
+    }
+
+    await prisma.$transaction([
+      prisma.budget.update({ where: { id }, data: { goalAmount: after } }),
+      prisma.budgetAdjustment.create({
+        data: {
+          userId: user.id,
+          budgetId: id,
+          amount: delta,
+          dial: AdjustmentDial.GOAL,
+          cycleIndex: budget.cycleIndex,
+          reason: input.reason ?? null,
+          date: input.date ?? new Date(),
+          clientOpId: input.clientOpId ?? null,
+        },
+      }),
+    ]);
+
+    // The state is derived from the numbers on read, so raising the goal past
+    // the pot re-opens a completed plan without a separate re-open button that
+    // could disagree with them.
+    return getById(user, id);
+  }
+
   await adjustPlan(user.id, id, delta, {
     reason: input.reason ?? null,
     date: input.date,
     clientOpId: input.clientOpId ?? null,
   });
   return getById(user, id);
+}
+
+/**
+ * Turn a plan from one kind into the other.
+ *
+ * Moves no money - the pot keeps its balance - but changes what every number on
+ * the plan means, so it is recorded rather than silently toggled. Repeatable by
+ * design: a holiday fund can become a monthly travel budget and back again, and
+ * the log keeps the whole story.
+ */
+export async function convert(user: AuthUser, id: string, input: ConvertBudgetInput) {
+  const budget = await assertOwned(id, user.id);
+
+  if (budget.type === input.type) {
+    throw new BadRequestError(
+      input.type === BudgetType.SAVING
+        ? 'This is already a saving plan.'
+        : 'This is already a spending plan.',
+    );
+  }
+
+  const snap = await loadSnapshot(user.id);
+  const balance = potOf(snap, budget.id);
+
+  const toSaving = input.type === BudgetType.SAVING;
+  const nextKind = input.kind ?? (toSaving ? BudgetKind.ONE_TIME : budget.kind);
+  const recurring = nextKind === BudgetKind.RECURRING;
+
+  // Becoming a spending plan means the balance lands in a cycle that has a
+  // ceiling. If it does not fit, opening the plan already over its own line is
+  // the worst outcome - so the surplus is offered back to a wallet first.
+  const planned = dec(input.plannedAmount ?? Number(budget.plannedAmount));
+  let released: string | null = null;
+  if (!toSaving && balance.gt(planned) && input.releaseSurplusTo) {
+    const surplus = balance.sub(planned);
+    await releasePlan(user.id, budget.id, {
+      accountId: input.releaseSurplusTo,
+      amount: surplus,
+      note: `Surplus when "${budget.name}" became a spending plan`,
+    });
+    released = surplus.toFixed(2);
+  }
+
+  const goalAfter = toSaving ? (input.goalAmount ?? null) : null;
+
+  await prisma.$transaction([
+    prisma.budget.update({
+      where: { id },
+      data: {
+        type: input.type,
+        plannedAmount: planned,
+        goalAmount: goalAfter === null ? null : dec(goalAfter),
+        kind: nextKind,
+        recurrenceUnit: recurring ? (input.recurrenceUnit ?? budget.recurrenceUnit) : null,
+        recurrenceInterval: input.recurrenceInterval ?? budget.recurrenceInterval,
+        endDate: input.endDate === undefined ? budget.endDate : (input.endDate ?? null),
+        // A completed saving plan becoming a spending plan is the deliberate
+        // route for "I saved for it, now let me spend it against the plan".
+        state: BudgetState.ACTIVE,
+        // The new shape's cycle opens with what is already in the pot.
+        cycleOpeningPlanned: planned,
+      },
+    }),
+    prisma.budgetTypeChange.create({
+      data: {
+        userId: user.id,
+        budgetId: id,
+        fromType: budget.type,
+        toType: input.type,
+        balanceAtChange: balance,
+        plannedBefore: budget.plannedAmount,
+        plannedAfter: planned,
+        goalBefore: budget.goalAmount,
+        goalAfter: goalAfter === null ? null : dec(goalAfter),
+        cycleIndexAtChange: budget.cycleIndex,
+        reason: input.reason ?? null,
+      },
+    }),
+  ]);
+
+  const view = await getById(user, id);
+  return { ...view, releasedSurplus: released };
+}
+
+/** Every time this plan changed what it was for, newest first. */
+export async function typeChanges(user: AuthUser, id: string) {
+  await assertOwned(id, user.id);
+  const rows = await prisma.budgetTypeChange.findMany({
+    where: { budgetId: id, userId: user.id },
+    orderBy: { at: 'desc' },
+    take: 50,
+  });
+  return {
+    items: rows.map((r) => ({
+      id: r.id,
+      fromType: r.fromType,
+      toType: r.toType,
+      balanceAtChange: r.balanceAtChange.toFixed(2),
+      plannedBefore: r.plannedBefore.toFixed(2),
+      plannedAfter: r.plannedAfter.toFixed(2),
+      goalBefore: r.goalBefore ? r.goalBefore.toFixed(2) : null,
+      goalAfter: r.goalAfter ? r.goalAfter.toFixed(2) : null,
+      reason: r.reason,
+      at: r.at.toISOString(),
+    })),
+  };
 }
 
 export async function remove(user: AuthUser, id: string) {

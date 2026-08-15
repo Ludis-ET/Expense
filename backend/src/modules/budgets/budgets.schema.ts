@@ -1,7 +1,21 @@
 import { z } from 'zod';
-import { BudgetKind, BudgetState, RecurrenceUnit } from '../../core/prisma.js';
+import {
+  AdjustmentDial,
+  BudgetKind,
+  BudgetState,
+  BudgetType,
+  RecurrenceUnit,
+} from '../../core/prisma.js';
 
 const money = z.coerce.number().positive().max(1_000_000_000);
+
+/**
+ * The finish line a saving pot accumulates toward.
+ *
+ * Explicitly nullable, because null is meaningful rather than missing: it is
+ * the open-ended habit that runs forever.
+ */
+const goalAmount = money.nullish();
 
 /**
  * Users cannot create the built-in UNPLANNED plan - it is provisioned once per
@@ -18,9 +32,12 @@ export const createBudgetSchema = z
     /** Optional - only pre-selects itself when you spend from the plan. */
     categoryId: z.string().min(1).nullish(),
     kind: authorableKind.default(BudgetKind.ONE_TIME),
+    /** Spending ceiling or savings goal. Defaults to what plans have always been. */
+    type: z.nativeEnum(BudgetType).default(BudgetType.SPENDING),
     recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
     recurrenceInterval: recurrenceInterval.default(1),
     plannedAmount: money,
+    goalAmount,
     currency: z.string().length(3).default('ETB'),
     icon: z.string().max(40).nullish(),
     color: z.string().max(20).nullish(),
@@ -46,6 +63,7 @@ export const updateBudgetSchema = z.object({
   recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
   recurrenceInterval: recurrenceInterval.optional(),
   plannedAmount: money.optional(),
+  goalAmount,
   icon: z.string().max(40).nullish(),
   color: z.string().max(20).nullish(),
   note: z.string().max(500).nullish(),
@@ -53,6 +71,41 @@ export const updateBudgetSchema = z.object({
   startsAt: z.coerce.date().optional(),
   endDate: z.coerce.date().nullish(),
 });
+
+/**
+ * Turning a plan from one kind into the other.
+ *
+ * `type` is deliberately required rather than a toggle: the client states where
+ * it wants to end up, so a retry is idempotent instead of flipping it back.
+ *
+ * The rest is the same set of questions the create form asks, because that is
+ * genuinely what conversion needs. A monthly grocery ceiling makes a nonsense
+ * savings goal, so the target is asked for rather than inherited; and a saving
+ * plan has no cadence, so becoming a spending plan needs one.
+ */
+export const convertBudgetSchema = z
+  .object({
+    type: z.nativeEnum(BudgetType),
+    /** Required when converting to SPENDING - a plan with no ceiling has nothing to reset against. */
+    plannedAmount: money.optional(),
+    /** The finish line. Omit or null for an open-ended saving habit. */
+    goalAmount,
+    kind: authorableKind.optional(),
+    recurrenceUnit: z.nativeEnum(RecurrenceUnit).nullish(),
+    recurrenceInterval: recurrenceInterval.optional(),
+    endDate: z.coerce.date().nullish(),
+    /** Give the surplus back rather than opening the plan already over its line. */
+    releaseSurplusTo: z.string().min(1).nullish(),
+    reason: z.string().max(200).nullish(),
+  })
+  .refine((d) => d.type !== BudgetType.SPENDING || d.plannedAmount !== undefined, {
+    message: 'A spending plan needs a planned amount',
+    path: ['plannedAmount'],
+  })
+  .refine((d) => d.kind !== BudgetKind.RECURRING || !!d.recurrenceUnit, {
+    message: 'Pick how often this plan repeats',
+    path: ['recurrenceUnit'],
+  });
 
 /**
  * The client's own id for this operation. A queued write whose reply was lost
@@ -91,11 +144,18 @@ export const moveReservationSchema = z.object({
 });
 
 /**
- * Raise or cut the plan amount. The direction is explicit rather than a signed
- * number so a stray minus sign can never turn a top-up into a cut.
+ * Raise or cut one of a plan's amounts. The direction is explicit rather than a
+ * signed number so a stray minus sign can never turn a top-up into a cut.
+ *
+ * `dial` says *which* amount. A recurring saving plan has two, and they pull in
+ * opposite directions - raising the monthly contribution finishes it sooner,
+ * raising the goal finishes it later - so leaving it implicit would be the
+ * obvious way to get this wrong. Defaults to PLANNED, which is every adjustment
+ * that existed before saving plans did.
  */
 export const adjustBudgetSchema = z.object({
   direction: z.enum(['ADD', 'DEDUCT']),
+  dial: z.nativeEnum(AdjustmentDial).default(AdjustmentDial.PLANNED),
   amount: money,
   reason: z.string().trim().max(200).nullish(),
   date: z.coerce.date().optional(),
@@ -124,6 +184,7 @@ export const budgetIdParam = z.object({ id: z.string().min(1) });
 
 export type CreateBudgetInput = z.infer<typeof createBudgetSchema>;
 export type UpdateBudgetInput = z.infer<typeof updateBudgetSchema>;
+export type ConvertBudgetInput = z.infer<typeof convertBudgetSchema>;
 export type FundBudgetInput = z.infer<typeof fundBudgetSchema>;
 export type AdjustBudgetInput = z.infer<typeof adjustBudgetSchema>;
 export type ReleaseBudgetInput = z.infer<typeof releaseBudgetSchema>;

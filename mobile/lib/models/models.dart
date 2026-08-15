@@ -312,18 +312,58 @@ class Transaction {
   );
 }
 
+/// Per-day spend and income for whatever filter produced the list.
+///
+/// Arrives with the page rather than from a second request: fetching it
+/// separately would let it answer for a different filter than the one on
+/// screen, which is the exact disagreement the server's one-definition rule
+/// exists to prevent.
+class RangeAverages {
+  RangeAverages({
+    required this.currency,
+    required this.days,
+    required this.spend,
+    required this.income,
+    required this.net,
+  });
+
+  final String currency;
+
+  /// Days the filter covers - the denominator, stated so it can be shown.
+  final int days;
+  final String spend;
+  final String income;
+  final String net;
+
+  static RangeAverages? maybe(dynamic v) {
+    if (v is! Map) return null;
+    final m = Map<String, dynamic>.from(v);
+    return RangeAverages(
+      currency: asStr(m['currency'], 'ETB'),
+      days: asInt(m['days'], 1),
+      spend: asStr(m['spend']),
+      income: asStr(m['income']),
+      net: asStr(m['net']),
+    );
+  }
+}
+
 class TransactionPage {
   TransactionPage({
     required this.items,
     required this.total,
     required this.page,
     required this.pageSize,
+    this.averages,
   });
 
   final List<Transaction> items;
   final int total;
   final int page;
   final int pageSize;
+
+  /// Null when nothing matched: there is no average of no days.
+  final RangeAverages? averages;
 
   bool get hasMore => page * pageSize < total;
 
@@ -332,6 +372,7 @@ class TransactionPage {
     total: asInt(j['total']),
     page: asInt(j['page'], 1),
     pageSize: asInt(j['pageSize'], 20),
+    averages: RangeAverages.maybe(j['averages']),
   );
 }
 
@@ -442,12 +483,84 @@ enum BudgetHealth {
   };
 }
 
+/// The figures a saving plan needs and a spending plan has no use for.
+///
+/// Null on every spending plan, which is what the card and the detail page
+/// branch on: `row.saving == null` means render the envelope.
+class SavingFacts {
+  SavingFacts({
+    required this.goalAmount,
+    required this.pctOfGoal,
+    required this.remainingToGoal,
+    required this.goalMet,
+    required this.periodTarget,
+    required this.periodContributed,
+    required this.pctOfPeriod,
+    required this.ratePerDay,
+    required this.projectedAt,
+    required this.pace,
+    required this.streak,
+    required this.recentPeriods,
+  });
+
+  /// The finish line, or null for an open-ended habit. Decides which card
+  /// treatment the plan gets: a goal gets the vault, none gets the period bar.
+  final String? goalAmount;
+  final double? pctOfGoal;
+  final String? remainingToGoal;
+  final bool goalMet;
+
+  /// Recurring only: what this period asked for and what it has had.
+  final String? periodTarget;
+  final String? periodContributed;
+  final double? pctOfPeriod;
+
+  final String? ratePerDay;
+
+  /// When the goal lands at the current rate.
+  final DateTime? projectedAt;
+
+  /// 'ahead' | 'on-track' | 'behind', against [BudgetRow.endDate].
+  final String? pace;
+
+  /// Consecutive finished periods that met their target.
+  final int streak;
+
+  /// The last few periods as met/missed, oldest first - the card's dots.
+  final List<bool> recentPeriods;
+
+  bool get hasGoal => goalAmount != null;
+
+  static SavingFacts? maybe(dynamic v) {
+    if (v is! Map) return null;
+    final m = Map<String, dynamic>.from(v);
+    return SavingFacts(
+      goalAmount: asStrOrNull(m['goalAmount']),
+      pctOfGoal: m['pctOfGoal'] == null ? null : asNum(m['pctOfGoal']),
+      remainingToGoal: asStrOrNull(m['remainingToGoal']),
+      goalMet: asBool(m['goalMet']),
+      periodTarget: asStrOrNull(m['periodTarget']),
+      periodContributed: asStrOrNull(m['periodContributed']),
+      pctOfPeriod: m['pctOfPeriod'] == null ? null : asNum(m['pctOfPeriod']),
+      ratePerDay: asStrOrNull(m['ratePerDay']),
+      projectedAt: asDate(m['projectedAt']),
+      pace: asStrOrNull(m['pace']),
+      streak: asInt(m['streak']),
+      recentPeriods: (m['recentPeriods'] as List? ?? const [])
+          .map((e) => e == true)
+          .toList(),
+    );
+  }
+}
+
 class BudgetRow {
   BudgetRow({
     required this.id,
     required this.name,
     required this.kind,
+    required this.type,
     required this.isUnplanned,
+    this.saving,
     required this.currency,
     required this.recurrenceInterval,
     required this.alertThreshold,
@@ -487,6 +600,13 @@ class BudgetRow {
   final String? categoryId;
   final Ref? category;
   final BudgetKind kind;
+
+  /// Spending ceiling or savings goal.
+  final BudgetType type;
+
+  /// Present only on saving plans. Its `goalAmount` decides the card treatment:
+  /// a finish line gets the vault, none gets the period bar.
+  final SavingFacts? saving;
 
   /// The built-in catch-all plan: no pot, never funded, cannot be deleted.
   final bool isUnplanned;
@@ -539,6 +659,8 @@ class BudgetRow {
     categoryId: asStrOrNull(j['categoryId']),
     category: Ref.maybe(j['category']),
     kind: BudgetKind.parse(j['kind']),
+    type: BudgetType.parse(j['type']),
+    saving: SavingFacts.maybe(j['saving']),
     isUnplanned: asBool(j['isUnplanned']),
     recurrenceUnit: RecurrenceUnit.parse(j['recurrenceUnit']),
     recurrenceInterval: asInt(j['recurrenceInterval'], 1),

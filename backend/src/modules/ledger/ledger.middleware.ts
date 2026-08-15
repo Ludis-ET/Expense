@@ -1,23 +1,14 @@
 import type { RequestHandler } from 'express';
-import { logger } from '../../core/logger.js';
+import { runClaimed } from '../../core/catch-up-claim.js';
 import { syncReminders } from './ledger.reminders.js';
 
-const DEBOUNCE_MS = 5 * 60 * 1000;
-const lastRun = new Map<string, number>();
-
-/** Lazy tab due-date reminders - same debounce pattern as recurring catch-up. */
+/**
+ * Lazy tab due-date reminders. Shares the database-backed claim with the
+ * recurring catch-up, so the two cannot both fire for the same user in the
+ * same window and cannot duplicate across replicas.
+ */
 export const tabReminderCatchUp: RequestHandler = (req, _res, next) => {
   const userId = req.user?.id;
-  if (userId) {
-    const prev = lastRun.get(userId) ?? 0;
-    const now = Date.now();
-    if (now - prev > DEBOUNCE_MS) {
-      lastRun.set(userId, now);
-      syncReminders(userId).catch((err) => {
-        lastRun.delete(userId);
-        logger.error({ err, userId }, 'tab reminder sync failed');
-      });
-    }
-  }
+  if (userId) runClaimed(userId, 'lastReminderSyncAt', 'tab reminder sync', syncReminders);
   next();
 };

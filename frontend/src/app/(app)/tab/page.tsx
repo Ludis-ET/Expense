@@ -26,6 +26,7 @@ import { CurrencyBadge, currencyScopeHint } from '@/components/finance/currency-
 import { useCurrencyView } from '@/lib/currency-view-context';
 import { cn } from '@/lib/utils';
 import type { Account, Category, LedgerEntry, LedgerKind, LedgerPersonGroup, LedgerSummary } from '@/lib/types';
+import { todayInputValue } from '@/lib/date-range';
 
 type TabFilter = 'all' | LedgerKind;
 type ViewMode = 'entries' | 'people';
@@ -491,7 +492,7 @@ function PaymentModal({
   useEffect(() => {
     if (!entry) return;
     setAmount(String(Number(entry.remaining)));
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayInputValue());
     setNote('');
     setAccountId('');
     setCategoryId(entry.category?.id ?? '');

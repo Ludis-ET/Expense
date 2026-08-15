@@ -36,6 +36,10 @@ Future<void> main() async {
 
   final prefs = await SharedPreferences.getInstance();
   final tokens = TokenStore(prefs);
+  // Secure storage is async, and the whole app reads the token synchronously
+  // from here on - so the first read has to happen before anything else does.
+  // This is also where a plaintext pair from an older build gets migrated.
+  await tokens.load();
   final api = ApiClient(tokens: tokens);
 
   // Anyone already signed in when this build arrived has been using Santim for

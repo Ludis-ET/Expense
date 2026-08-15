@@ -6,6 +6,7 @@ import '../../core/api/api_client.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
+import '../../core/utils/format.dart';
 import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
@@ -878,8 +879,8 @@ class _WishPlanSheetState extends State<_WishPlanSheet> {
           'plannedAmount': amount,
           'currency': context.read<DataState>().activeCurrency,
           'kind': _kind.wire,
-          'startsAt': _startsAt.toUtc().toIso8601String(),
-          'endDate': _endDate?.toUtc().toIso8601String(),
+          'startsAt': wireDate(_startsAt),
+          'endDate': _endDate == null ? null : wireDate(_endDate!),
           if (_kind == BudgetKind.recurring) 'recurrenceUnit': _unit!.wire,
         },
       );

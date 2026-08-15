@@ -133,7 +133,24 @@ class AuthState extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Signs out here *and* on the server.
+  ///
+  /// Clearing local tokens used to be the whole of it, which left the refresh
+  /// token valid for the rest of its seven days - so "sign out" on a shared or
+  /// stolen phone meant nothing. The server call bumps the token version and
+  /// invalidates every session for this account.
+  ///
+  /// The local clear happens either way: if the network is down, the user still
+  /// gets signed out on this device, and the server-side token expires on its
+  /// own schedule. Refusing to sign out because the API is unreachable would be
+  /// the worse failure.
   Future<void> logout() async {
+    try {
+      await api.post('/auth/logout');
+    } on ApiError catch (e) {
+      // A 401 means the token was already dead - nothing left to revoke.
+      if (!e.isNetwork && !e.isAuth) rethrow;
+    }
     await api.tokens.clear();
     _clearCachedUser();
     _user = null;

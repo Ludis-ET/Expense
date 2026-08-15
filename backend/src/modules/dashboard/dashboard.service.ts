@@ -67,7 +67,10 @@ async function familySupport(user: AuthUser) {
     }),
     prisma.transaction.findMany({
       where: { userId: user.id, categoryId: category.id },
-      orderBy: { date: 'desc' },
+      // `createdAt` breaks the tie: dates are stored as the calendar day now,
+      // so everything entered on the same day shares one value and would
+      // otherwise come back in arbitrary order.
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       take: 5,
       select: { id: true, amount: true, date: true, payee: true, note: true },
     }),

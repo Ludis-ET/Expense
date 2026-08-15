@@ -25,6 +25,7 @@ import { WishEmojiPicker, DEFAULT_WISH_EMOJI } from '@/components/finance/wish-e
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
 import { cn } from '@/lib/utils';
+import { todayInputValue } from '@/lib/date-range';
 import type {
   BudgetKind,
   Category,
@@ -211,7 +212,7 @@ export function PlanWishModal({
     setInterval('1');
     setCategoryId('');
     setColor('#a855f7');
-    setStartsAt(new Date().toISOString().slice(0, 10));
+    setStartsAt(todayInputValue());
   }, [wish]);
 
   if (!wish) return null;

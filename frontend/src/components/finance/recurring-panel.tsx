@@ -1,4 +1,5 @@
 'use client';
+import { todayInputValue } from '@/lib/date-range';
 
 import { useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
@@ -152,7 +153,7 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
   const [frequency, setFrequency] = useState<Frequency>('MONTHLY');
   const [interval, setInterval] = useState('1');
   const [dayOfMonth, setDayOfMonth] = useState('1');
-  const [nextRun, setNextRun] = useState(new Date().toISOString().slice(0, 10));
+  const [nextRun, setNextRun] = useState(todayInputValue());
   const [autoPost, setAutoPost] = useState(true);
   const [saving, setSaving] = useState(false);
   const accounts = useMemo(
@@ -171,7 +172,7 @@ function RecurringForm({ open, editing, onClose, onSaved }: { open: boolean; edi
     setFrequency(editing?.frequency ?? 'MONTHLY');
     setInterval(String(editing?.interval ?? 1));
     setDayOfMonth(String(editing?.dayOfMonth ?? 1));
-    setNextRun(editing?.nextRun ? editing.nextRun.slice(0, 10) : new Date().toISOString().slice(0, 10));
+    setNextRun(editing?.nextRun ? editing.nextRun.slice(0, 10) : todayInputValue());
     setAutoPost(editing?.autoPost ?? true);
   }, [open, editing]);
 

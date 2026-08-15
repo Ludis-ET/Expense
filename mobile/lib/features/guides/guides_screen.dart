@@ -45,11 +45,13 @@ class _GuidesScreenState extends State<GuidesScreen> {
         api.get<Map<String, dynamic>>('/guides/for-you'),
       ]);
       if (!mounted) return;
-      final base = GuidesOverview.fromJson(results[0] as Map<String, dynamic>);
-      final forYou = results[1];
-      final personalised = forYou == null
-          ? const <GuideSuggestion>[]
-          : mapList(forYou['suggestions'], GuideSuggestion.fromJson);
+      // Both entries are non-nullable `Map<String, dynamic>` - the old null
+      // check could never fire, which made the fallback below dead code.
+      final base = GuidesOverview.fromJson(results[0]);
+      final personalised = mapList(
+        results[1]['suggestions'],
+        GuideSuggestion.fromJson,
+      );
       setState(() {
         _data = GuidesOverview(
           guides: base.guides,

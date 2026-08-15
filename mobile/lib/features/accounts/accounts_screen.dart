@@ -473,14 +473,8 @@ class AccountCard extends StatelessWidget {
                               dense: true,
                             ),
                           ],
-                          if (account.isShared) ...[
-                            const GapX(S.xs),
-                            AppBadge(
-                              'Shared',
-                              tone: BadgeTone.info,
-                              dense: true,
-                            ),
-                          ],
+                          // No "Shared" badge: household sharing has no read
+                          // path, so the flag never meant anyone could see it.
                         ],
                       ),
                       const Gap(S.xxs),

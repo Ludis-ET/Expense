@@ -11,6 +11,7 @@ import { IconPicker, ColorPicker } from '@/components/finance/pickers';
 import { api, ApiError } from '@/lib/api';
 import { useMoney } from '@/lib/amount-visibility';
 import { cn } from '@/lib/utils';
+import { todayInputValue } from '@/lib/date-range';
 import type {
   Account,
   BudgetDetail,
@@ -101,7 +102,7 @@ export function BudgetPlanForm({
     setUnit(editing?.recurrenceUnit ?? 'MONTH');
     setInterval(String(editing?.recurrenceInterval ?? 1));
     setStartsAt(
-      editing?.startsAt ? editing.startsAt.slice(0, 10) : new Date().toISOString().slice(0, 10),
+      editing?.startsAt ? editing.startsAt.slice(0, 10) : todayInputValue(),
     );
     setPlannedAmount(editing ? String(Number(editing.plannedAmount)) : '');
     setCategoryId(editing?.categoryId ?? '');
@@ -385,7 +386,7 @@ export function FundPlanModal({
   const [accountId, setAccountId] = useState('');
   const [amount, setAmount] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayInputValue());
   const [saving, setSaving] = useState(false);
 
   const releasing = mode === 'release';
@@ -420,7 +421,7 @@ export function FundPlanModal({
     if (!plan) return;
     setAmount('');
     setNote('');
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayInputValue());
   }, [plan, mode]);
 
   useEffect(() => {
@@ -572,7 +573,7 @@ export function AdjustPlanModal({
   const [direction, setDirection] = useState<'ADD' | 'DEDUCT'>('ADD');
   const [amount, setAmount] = useState('');
   const [reason, setReason] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayInputValue());
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
@@ -580,7 +581,7 @@ export function AdjustPlanModal({
     setDirection('ADD');
     setAmount('');
     setReason('');
-    setDate(new Date().toISOString().slice(0, 10));
+    setDate(todayInputValue());
   }, [plan]);
 
   if (!plan) return null;

@@ -328,13 +328,72 @@ class DataState extends ChangeNotifier {
       ]);
 
   /// Called after any write, so balances and plan pots never go stale.
-  Future<void> refreshAfterWrite() => Future.wait([
+  /// Reload everything a write can have changed.
+  ///
+  /// This used to fan out into five parallel requests, and each of those
+  /// handlers independently rebuilt the server's money snapshot - five
+  /// aggregate queries apiece. Saving one transaction cost six round trips and
+  /// about twenty-five aggregates, which is what made the app feel slow on
+  /// mobile data.
+  ///
+  /// `/sync` returns the same five payloads from one snapshot. The fan-out
+  /// stays as the fallback: an older server without the route 404s, and there
+  /// is no reason to make the app unusable over a deployment ordering.
+  Future<void> refreshAfterWrite() async {
+    try {
+      final json = await api.get<Map<String, dynamic>>(
+        '/sync',
+        query: {'currency': _activeCurrency},
+      );
+      await _applySync(json);
+      return;
+    } on ApiError catch (e) {
+      if (e.status != 404) rethrow;
+    }
+    await _refreshIndividually();
+  }
+
+  Future<void> _refreshIndividually() => Future.wait([
         loadDashboard(force: true),
         loadAccounts(force: true),
         loadBudgets(force: true),
         loadSpendSources(force: true),
         loadRecurring(force: true),
       ]);
+
+  /// Unpacks a `/sync` body into the five slots, caching each exactly as its
+  /// own loader would so offline reads keep working.
+  Future<void> _applySync(Map<String, dynamic> json) async {
+    final dashboardJson = asMap(json['dashboard']);
+    final accountsJson = json['accounts'];
+    final budgetsJson = asMap(json['budgets']);
+    final sourcesJson = asMap(json['sources']);
+    final recurringJson = json['recurring'];
+
+    final dashboardData = DashboardData.fromJson(dashboardJson);
+    final accountItems = mapItemsList(accountsJson, Account.fromJson);
+    final budgetsData = BudgetsResponse.fromJson(budgetsJson);
+    final sourceItems = mapList(sourcesJson['items'], BudgetSpendSource.fromJson);
+    final recurringItems = mapItemsList(recurringJson, RecurringRule.fromJson);
+
+    dashboard = Async.data(dashboardData);
+    accounts = Async.data(accountItems);
+    budgets = Async.data(budgetsData);
+    spendSources = Async.data(sourceItems);
+    recurring = Async.data(recurringItems);
+
+    _syncCurrencyFromDashboard(dashboardData);
+    _publishHomeWidget(dashboardData);
+    notifyListeners();
+
+    await Future.wait([
+      sync?.cacheDashboard(dashboardJson) ?? Future.value(),
+      sync?.cacheAccounts(accountItems) ?? Future.value(),
+      sync?.cacheBudgets(budgetsJson) ?? Future.value(),
+      sync?.cacheSpendSources(sourcesJson) ?? Future.value(),
+      sync?.cacheRecurring(recurringItems) ?? Future.value(),
+    ]);
+  }
 
   Future<void> markNotificationRead(String id) async {
     final current = notifications.data;
@@ -394,6 +453,15 @@ class DataState extends ChangeNotifier {
   List<Account> get scopedAccounts => (accounts.data ?? const <Account>[])
       .where((a) => !a.archived && a.currency == _activeCurrency)
       .toList();
+
+  /// Every live wallet, whatever it holds.
+  ///
+  /// Only the transfer sheet wants this. Moving your own money between a birr
+  /// wallet and a dollar one is an ordinary thing to do and the server has
+  /// always recorded both figures   but a picker scoped to one currency could
+  /// never offer the other side, so the flow was unreachable from the app.
+  List<Account> get transferableAccounts =>
+      (accounts.data ?? const <Account>[]).where((a) => !a.archived).toList();
 
   List<TxCategory> categoriesOfKind(TxKind kind) =>
       (categories.data ?? const <TxCategory>[])

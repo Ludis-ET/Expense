@@ -40,31 +40,33 @@ export async function syncReminders(userId: string): Promise<void> {
     const label = entry.title?.trim() || entry.counterparty;
     const amt = remaining.toFixed(2);
 
+    // The period lives in the dedupe key - one overdue notice per entry per
+    // week, one due notice per entry per day - so the upsert enforces the
+    // cadence that a per-entry `findFirst` used to check with an extra query
+    // each, and does it atomically rather than racily.
     if (entry.dueDate < now) {
-      const existing = await prisma.notification.findFirst({
-        where: { userId, type: 'tab_overdue', link, createdAt: { gte: weekStart } },
-      });
-      if (existing) continue;
       await notify(
         userId,
         'tab_overdue',
         `⚠️ Overdue tab: ${label} - ${amt} ${entry.currency} was due ${entry.dueDate.toISOString().slice(0, 10)}`,
         link,
+        `tab_overdue:${entry.id}:${weekStart.toISOString().slice(0, 10)}`,
+        // Same week, same news. Re-marking it unread on every five-minute
+        // sweep would be nagging.
+        { resurface: false },
       );
       continue;
     }
 
     if (entry.dueDate <= inThreeDays) {
-      const existing = await prisma.notification.findFirst({
-        where: { userId, type: 'tab_due', link, createdAt: { gte: todayStart } },
-      });
-      if (existing) continue;
       const days = Math.max(0, Math.ceil((entry.dueDate.getTime() - now.getTime()) / 86_400_000));
       await notify(
         userId,
         'tab_due',
         `📅 Due ${days === 0 ? 'today' : `in ${days} day${days === 1 ? '' : 's'}`}: ${label} - ${amt} ${entry.currency}`,
         link,
+        `tab_due:${entry.id}:${todayStart.toISOString().slice(0, 10)}`,
+        { resurface: false },
       );
     }
   }

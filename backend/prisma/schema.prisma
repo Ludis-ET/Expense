@@ -153,6 +153,25 @@ model User {
   /// safe way to guess which of their wallets is the cash one.
   cashAccountId  String?
 
+  /// Bumped to invalidate every refresh token this user holds.
+  ///
+  /// Refresh tokens are stateless JWTs, so before this there was no way to end
+  /// a session: signing out cleared the phone and left the token working for
+  /// the rest of its seven days. The version is baked into each refresh token
+  /// and compared on use, which turns "sign out" into something the server
+  /// actually enforces - and gives a future password change the same power.
+  tokenVersion   Int    @default(0)
+
+  /// Claim stamps for the two lazy sweeps that run off the request path.
+  ///
+  /// These used to be in-process Maps, which leaked and did not hold across
+  /// replicas - two instances would both run the same sweep for the same user.
+  /// A conditional update on these lets exactly one of them win. They are
+  /// separate columns because the two sweeps are mounted on different routers
+  /// and must not starve each other.
+  lastCatchUpAt       DateTime?
+  lastReminderSyncAt  DateTime?
+
   accounts          Account[]
   categories        Category[]
   transactions      Transaction[]
@@ -367,6 +386,9 @@ model Transaction {
   @@index([budgetId, budgetCycle])
   @@index([budgetSourceAccountId])
   @@index([userId, createdAt])
+  /// The snapshot's transfers-in aggregate groups by this column on every
+  /// request, and had no index to sit on.
+  @@index([userId, transferAccountId])
   @@map("transactions")
 }
 
@@ -635,9 +657,21 @@ model Notification {
   message   String
   link      String?
   readFlag  Boolean  @default(false)
-  createdAt DateTime @default(now())
 
+  /// Identity of the *thing being announced*, not of the row.
+  ///
+  /// Without it a dormant recurring rule caught up 120 occurrences and sent 120
+  /// notifications, flushing every real alert out of the 50-row window the app
+  /// reads. Notifications carrying a key upsert instead of stacking.
+  dedupeKey String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([userId, dedupeKey])
   @@index([userId, readFlag])
+  /// Retention sweep reads by age.
+  @@index([userId, createdAt])
   @@map("notifications")
 }
 

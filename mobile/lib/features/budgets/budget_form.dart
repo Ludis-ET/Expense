@@ -11,6 +11,7 @@ import '../../state/data_state.dart';
 import '../../state/sync_state.dart';
 import '../../data/outbox_store.dart';
 import '../../widgets/fields.dart';
+import '../../widgets/money_delta.dart';
 import '../../widgets/ui.dart';
 
 /// Create or edit a budget plan. Returns true when something was written.
@@ -105,12 +106,12 @@ class _BudgetFormState extends State<_BudgetForm> {
       'kind': _kind.wire,
       'plannedAmount': amount,
       'alertThreshold': _alertThreshold.round(),
-      'startsAt': _startsAt.toUtc().toIso8601String(),
+      'startsAt': wireDate(_startsAt),
       'categoryId': _categoryId,
       'icon': _icon,
       'color': _color,
       'note': _note.text.trim().isEmpty ? null : _note.text.trim(),
-      'endDate': _endDate?.toUtc().toIso8601String(),
+      'endDate': _endDate == null ? null : wireDate(_endDate!),
       if (_kind == BudgetKind.recurring) ...{
         'recurrenceUnit': _unit!.wire,
         'recurrenceInterval': int.tryParse(_interval.text.trim()) ?? 1,
@@ -385,6 +386,7 @@ class _FundSheetState extends State<_FundSheet> {
   @override
   void initState() {
     super.initState();
+    _amount.addListener(_onTyped);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<DataState>().loadAccounts();
       if (!mounted) return;
@@ -403,8 +405,23 @@ class _FundSheetState extends State<_FundSheet> {
     });
   }
 
+  void _onTyped() {
+    if (mounted) setState(() {});
+  }
+
+  /// The one number that can stop this, phrased as the cap it exceeds.
+  String? _impactWarning(double typed, Object? ceiling) {
+    final cap = toNum(ceiling);
+    if (typed <= 0 || typed <= cap) return null;
+    final currency = widget.detail.row.currency;
+    return widget.release
+        ? 'The pot only holds ${formatMoney(cap, currency: currency)}.'
+        : 'Only ${formatMoney(cap, currency: currency)} more fits in this plan.';
+  }
+
   @override
   void dispose() {
+    _amount.removeListener(_onTyped);
     _amount.dispose();
     _note.dispose();
     super.dispose();
@@ -446,7 +463,7 @@ class _FundSheetState extends State<_FundSheet> {
       final body = {
         if (_accountId != null) 'accountId': _accountId,
         'amount': amount,
-        'date': _date.toUtc().toIso8601String(),
+        'date': wireDate(_date),
         if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
       };
       final result = await context.read<SyncState>().budgetAction(
@@ -485,6 +502,14 @@ class _FundSheetState extends State<_FundSheet> {
         : data.scopedAccounts.map((a) => (a.id, a.name, a.balance)).toList();
 
     final ceiling = widget.release ? b.balance : b.fillable;
+    final typed = double.tryParse(_amount.text.trim()) ?? 0;
+
+    // The picker in release mode lists what the *plan* holds in each wallet,
+    // which is a different figure from what the wallet has available   the
+    // preview needs the wallet itself.
+    final wallet = data.scopedAccounts
+        .where((a) => a.id == _accountId)
+        .firstOrNull;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -541,6 +566,35 @@ class _FundSheetState extends State<_FundSheet> {
             iconOf: (_) => Icons.account_balance_wallet_outlined,
             onChanged: (o) => setState(() => _accountId = o?.$1),
           ),
+
+          // Reserving money moves no cash, which is exactly why it needs
+          // showing: the wallet keeps the notes and loses the spending power.
+          const Gap(S.lg),
+          MoneyImpact(
+            warning: _impactWarning(typed, ceiling),
+            rows: [
+              if (wallet != null)
+                MoneyDelta(
+                  label: wallet.name,
+                  caption: 'available',
+                  currency: wallet.currency,
+                  before: toNum(wallet.balance),
+                  after: toNum(wallet.balance) + (widget.release ? typed : -typed),
+                  icon: accountTypeIcon(wallet.type.wire),
+                  color: parseHexColor(wallet.color) ?? t.mutedForeground,
+                ),
+              MoneyDelta(
+                label: b.name,
+                caption: 'in the pot',
+                currency: b.currency,
+                before: toNum(b.balance),
+                after: toNum(b.balance) + (widget.release ? -typed : typed),
+                icon: financeIcon(b.icon),
+                color: parseHexColor(b.color) ?? t.primary,
+              ),
+            ],
+          ),
+
           const Gap(S.lg),
           DateField(
             label: 'Date',

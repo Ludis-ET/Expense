@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -20,29 +21,78 @@ class ApiError implements Exception {
   String toString() => message;
 }
 
-/// Persisted access/refresh pair. Keys match the web app so a user reading
-/// support docs sees the same names.
+/// The access/refresh pair, held in the keystore-backed store.
+///
+/// These used to live in `SharedPreferences` - an unencrypted XML file in the
+/// app's data directory - while the device ingest token and the app-lock PIN
+/// both already used `FlutterSecureStorage`. The most sensitive credential in
+/// the app was the one stored the least carefully, and with `allowBackup`
+/// defaulting to true it was eligible for cloud backup as well.
+///
+/// [load] must be awaited before the store is read: secure storage is async and
+/// the rest of the client wants a synchronous getter, so the pair is held in
+/// memory for the session and written through.
 class TokenStore {
-  TokenStore(this._prefs) {
-    // Drop any previously saved in-app API base override.
-    _prefs.remove(_legacyBaseKey);
-  }
+  TokenStore(this._prefs);
 
   static const _accessKey = 'rt.accessToken';
   static const _refreshKey = 'rt.refreshToken';
   static const _legacyBaseKey = 'santim.apiBase';
 
   final SharedPreferences _prefs;
+  final FlutterSecureStorage _secure = const FlutterSecureStorage(
+    // Matches the app lock's configuration, so the app uses one mechanism for
+    // secrets rather than two.
+    aOptions: AndroidOptions(encryptedSharedPreferences: true),
+  );
 
-  String? get access => _prefs.getString(_accessKey);
-  String? get refresh => _prefs.getString(_refreshKey);
+  String? _access;
+  String? _refresh;
+
+  String? get access => _access;
+  String? get refresh => _refresh;
+
+  /// Reads the pair into memory, migrating any plaintext copy left behind by an
+  /// older build. Call once during startup, before the first request.
+  Future<void> load() async {
+    // Drop any previously saved in-app API base override.
+    await _prefs.remove(_legacyBaseKey);
+
+    _access = await _secure.read(key: _accessKey);
+    _refresh = await _secure.read(key: _refreshKey);
+
+    // One-time migration: someone updating from a build that kept tokens in
+    // plaintext should stay signed in, and the plaintext copy must not survive.
+    final legacyAccess = _prefs.getString(_accessKey);
+    final legacyRefresh = _prefs.getString(_refreshKey);
+    if (legacyAccess != null || legacyRefresh != null) {
+      _access ??= legacyAccess;
+      _refresh ??= legacyRefresh;
+      if (_access != null && _refresh != null) {
+        await _write(_access!, _refresh!);
+      }
+      await _prefs.remove(_accessKey);
+      await _prefs.remove(_refreshKey);
+    }
+  }
+
+  Future<void> _write(String access, String refresh) async {
+    await _secure.write(key: _accessKey, value: access);
+    await _secure.write(key: _refreshKey, value: refresh);
+  }
 
   Future<void> set(String access, String refresh) async {
-    await _prefs.setString(_accessKey, access);
-    await _prefs.setString(_refreshKey, refresh);
+    _access = access;
+    _refresh = refresh;
+    await _write(access, refresh);
   }
 
   Future<void> clear() async {
+    _access = null;
+    _refresh = null;
+    await _secure.delete(key: _accessKey);
+    await _secure.delete(key: _refreshKey);
+    // Belt and braces: an interrupted migration could have left these behind.
     await _prefs.remove(_accessKey);
     await _prefs.remove(_refreshKey);
   }

@@ -225,7 +225,11 @@ export async function preview(
     if (!step.budget) continue;
     if (step.budget.currency !== account.currency) continue;
 
-    const budget = await prisma.budget.findUnique({ where: { id: step.budgetId } });
+    // Scoped rather than trusting that the step's budget belongs to the rule's
+    // owner - the same defence-in-depth as the wallet reservations lookup.
+    const budget = await prisma.budget.findFirst({
+      where: { id: step.budgetId, userId: rule.userId },
+    });
     if (!budget) continue;
     const funded = await fundedThisCycle(prisma, budget);
     const room = Prisma.Decimal.max(ZERO, budget.plannedAmount.sub(funded));

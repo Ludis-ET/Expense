@@ -929,7 +929,7 @@ class _LedgerFormState extends State<_LedgerForm> {
             'counterparty': _counterparty.text.trim(),
             'title': _title.text.trim().isEmpty ? null : _title.text.trim(),
             'totalAmount': amount,
-            'dueDate': _dueDate?.toUtc().toIso8601String(),
+            'dueDate': _dueDate == null ? null : wireDate(_dueDate!),
             'note': _note.text.trim().isEmpty ? null : _note.text.trim(),
           },
         );
@@ -943,7 +943,7 @@ class _LedgerFormState extends State<_LedgerForm> {
             'totalAmount': amount,
             'currency': data.activeCurrency,
             if (_dueDate != null)
-              'dueDate': _dueDate!.toUtc().toIso8601String(),
+              'dueDate': wireDate(_dueDate!),
             if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
             if (canMove && _recordMovement) ...{
               'recordMovement': true,
@@ -1161,7 +1161,7 @@ class _PaymentSheetState extends State<_PaymentSheet> {
         label: widget.entry.counterparty,
         body: {
           'amount': amount,
-          'date': _date.toUtc().toIso8601String(),
+          'date': wireDate(_date),
           if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
           'recordTransaction': _recordTransaction,
           if (_recordTransaction && _accountId != null) 'accountId': _accountId,

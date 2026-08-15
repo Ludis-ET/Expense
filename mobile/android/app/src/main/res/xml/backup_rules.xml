@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Pre-Android-12 backup rules.
+
+  `android:allowBackup="false"` already stops backups entirely, so nothing here
+  should ever run. It exists so that if backup is ever re-enabled, the exclusions
+  are already correct rather than being remembered at the time.
+
+  Everything holding a credential is named: the token store, the app-lock PIN,
+  the paired device token, and the offline SQLite mirror of the ledger.
+-->
+<full-backup-content>
+    <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+    <exclude domain="sharedpref" path="FlutterSharedPreferences.xml" />
+    <exclude domain="database" path="santim.db" />
+    <exclude domain="file" path="." />
+</full-backup-content>

@@ -50,3 +50,15 @@ if (!parsed.success) {
 export const env = parsed.data;
 export const isProd = env.NODE_ENV === 'production';
 export const isTest = env.NODE_ENV === 'test';
+
+// A production deploy with no origin list used to reflect whatever origin asked,
+// with credentials enabled. Refusing to boot is better than either of the two
+// alternatives: silently permissive (the old behaviour) or silently blocking
+// every browser request, which looks like a bug in the frontend.
+if (isProd && env.CORS_ORIGINS.length === 0) {
+  console.error(
+    'CORS_ORIGINS must list the allowed origins in production, comma-separated.\n' +
+      '  e.g. CORS_ORIGINS=https://santim.app,https://www.santim.app',
+  );
+  process.exit(1);
+}

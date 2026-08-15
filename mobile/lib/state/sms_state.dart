@@ -94,6 +94,24 @@ class SmsState extends ChangeNotifier {
     _incomingSub = _bridge.incoming.listen((sms) {
       unawaited(_onIncoming(sms));
     });
+    // Anything the manifest receiver caught while the app was closed. Drained
+    // after the listener is attached so a message arriving in between is not
+    // missed by both paths.
+    await _drainPending();
+  }
+
+  /// Take delivery of whatever the native receiver queued while we were gone.
+  ///
+  /// Each goes through the same allowlist and outbox as a live capture, and the
+  /// outbox is keyed by content, so a message that also turns up in a later
+  /// inbox backfill does not enqueue twice.
+  Future<void> _drainPending() async {
+    if (!isAndroid || !captureEnabled) return;
+    final pending = await _bridge.drainPending();
+    if (pending.isEmpty) return;
+    for (final sms in pending) {
+      await _onIncoming(sms);
+    }
   }
 
   Future<void> _onIncoming(CapturedSms sms) async {

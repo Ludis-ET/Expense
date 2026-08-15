@@ -59,6 +59,39 @@ class SmsBridge {
     _sub = null;
   }
 
+  /// Messages the manifest receiver captured while no Flutter engine existed.
+  ///
+  /// The native side queues them durably and clears the queue as it hands them
+  /// over, so this is safe to call on every launch and every resume - it
+  /// returns an empty list when there is nothing waiting. Call it *before*
+  /// falling back to an inbox backfill: these carry the carrier's own
+  /// timestamp and survive the user deleting the message.
+  Future<List<CapturedSms>> drainPending() async {
+    if (!isAndroidNative) return const [];
+    try {
+      final raw = await _methods.invokeMethod<List<dynamic>>('drainPendingSms');
+      return (raw ?? const [])
+          .whereType<Map>()
+          .map((e) {
+            final m = Map<String, dynamic>.from(e);
+            return CapturedSms(
+              sender: m['sender']?.toString() ?? '',
+              body: m['body']?.toString() ?? '',
+              receivedAt: DateTime.fromMillisecondsSinceEpoch(
+                (m['receivedAtMs'] as num?)?.toInt() ??
+                    DateTime.now().millisecondsSinceEpoch,
+              ),
+            );
+          })
+          .where((m) => m.sender.isNotEmpty && m.body.isNotEmpty)
+          .toList();
+    } on PlatformException catch (e) {
+      // An older APK without the native half. Backfill still covers it.
+      debugPrint('drainPendingSms unavailable: ${e.message}');
+      return const [];
+    }
+  }
+
   Future<List<CapturedSms>> getInbox({DateTime? min, DateTime? max}) async {
     if (!isAndroidNative) return const [];
     final raw = await _methods.invokeMethod<List<dynamic>>('getInbox', {

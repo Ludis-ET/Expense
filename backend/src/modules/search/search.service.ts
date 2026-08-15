@@ -119,7 +119,8 @@ export async function search(userId: string, q: string, limit = 10) {
         category: { select: { id: true, name: true, icon: true, color: true } },
         account: { select: { id: true, name: true } },
       },
-      orderBy: { date: 'desc' },
+      // Same-day rows share a date, so createdAt decides the order.
+      orderBy: [{ date: 'desc' }, { createdAt: 'desc' }],
       take,
     }),
     prisma.budget.findMany({

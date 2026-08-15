@@ -10,8 +10,21 @@ import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
 import '../../state/sync_state.dart';
+import '../../widgets/money_delta.dart';
 import '../../widgets/ui.dart';
 import 'transaction_form.dart';
+
+/// "1 USD = 132.4000 ETB"   the rate the two recorded figures imply, rather
+/// than one Santim looked up. Shown to four places because that is what
+/// distinguishes a bank rate from a round-number guess.
+String? _rateLine(Transaction tx) {
+  final sent = toNum(tx.amount);
+  final got = toNum(tx.transferAmount);
+  if (sent <= 0 || got <= 0) return null;
+  final to = tx.transferAccount?.currency;
+  if (to == null) return null;
+  return '1 ${tx.currency} = ${(got / sent).toStringAsFixed(4)} $to';
+}
 
 /// `TransactionDetailModal`   the full record, with edit and delete.
 /// Returns true when the transaction was changed or removed.
@@ -41,6 +54,10 @@ class _TransactionDetail extends StatelessWidget {
 
     String money(Object? v) =>
         prefs.money(v, currency: tx.currency, decimals: true);
+
+    /// A two-sided movement names both wallets and both figures on its own.
+    final crossCurrency = isTransfer && tx.crossCurrency;
+    final flowShown = crossCurrency || tx.fronted;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -113,6 +130,61 @@ class _TransactionDetail extends StatelessWidget {
             ),
           ),
           const Gap(S.xl),
+
+          // Two facts the ledger records that a single figure cannot carry.
+          // Both are two-sided, so both get the two-sided treatment rather
+          // than a row that shows one half and drops the other.
+          if (crossCurrency) ...[
+            MoneyFlow(
+              from: FlowSide(
+                label: tx.account?.name ?? 'Wallet',
+                amount: formatMoney(
+                  tx.amount,
+                  currency: tx.currency,
+                  decimals: true,
+                ),
+                caption: 'sent',
+                icon: Icons.north_east_rounded,
+                color: t.mutedForeground,
+              ),
+              to: FlowSide(
+                label: tx.transferAccount?.name ?? 'Wallet',
+                amount: formatMoney(
+                  tx.transferAmount,
+                  currency: tx.transferAccount?.currency ?? '',
+                  decimals: true,
+                ),
+                caption: 'arrived',
+                icon: Icons.south_east_rounded,
+                color: t.accent,
+              ),
+              footnote: _rateLine(tx),
+            ),
+            const Gap(S.lg),
+          ] else if (tx.fronted) ...[
+            MoneyFlow(
+              tone: t.primary,
+              from: FlowSide(
+                label: tx.account?.name ?? 'Wallet',
+                amount: '−${money(tx.amount)}',
+                caption: 'paid',
+                icon: Icons.account_balance_wallet_outlined,
+                color: t.mutedForeground,
+              ),
+              to: FlowSide(
+                label: tx.budgetSourceAccount!.name,
+                amount: '+${money(tx.amount)}',
+                caption: 'freed',
+                icon: Icons.lock_open_rounded,
+                color: t.primary,
+              ),
+              footnote:
+                  'Paid from one wallet against money reserved in another. '
+                  'Your total free money is unchanged.',
+            ),
+            const Gap(S.lg),
+          ],
+
           _DetailRow(
             label: 'Date',
             value: formatDate(tx.date),
@@ -123,13 +195,15 @@ class _TransactionDetail extends StatelessWidget {
             value: formatEthiopian(tx.date),
             icon: Icons.event_note_outlined,
           ),
-          if (tx.account != null)
+          // Both wallets are already named, with their figures, by the flow
+          // above   repeating them as rows would say the same thing twice.
+          if (tx.account != null && !flowShown)
             _DetailRow(
               label: isTransfer ? 'From' : 'Account',
               value: tx.account!.name,
               icon: Icons.account_balance_wallet_outlined,
             ),
-          if (tx.transferAccount != null)
+          if (tx.transferAccount != null && !flowShown)
             _DetailRow(
               label: 'To',
               value: tx.transferAccount!.name,
@@ -150,12 +224,6 @@ class _TransactionDetail extends StatelessWidget {
                   (tx.budgetCycle != null ? ' · cycle ${tx.budgetCycle}' : ''),
               icon: Icons.savings_outlined,
               color: parseHexColor(tx.budget!.color),
-            ),
-          if (tx.budgetSourceAccount != null)
-            _DetailRow(
-              label: 'Freed reservation on',
-              value: tx.budgetSourceAccount!.name,
-              icon: Icons.lock_open_outlined,
             ),
           if (tx.payee != null)
             _DetailRow(

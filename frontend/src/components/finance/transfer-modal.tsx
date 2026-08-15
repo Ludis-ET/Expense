@@ -10,6 +10,7 @@ import { ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
 import { newId } from '@/lib/offline/outbox';
 import type { Account, Transaction } from '@/lib/types';
+import { todayInputValue } from '@/lib/date-range';
 
 export function TransferModal({
   open,
@@ -33,7 +34,7 @@ export function TransferModal({
   /** What actually arrived, when the two wallets hold different currencies. */
   const [received, setReceived] = useState('');
   const [note, setNote] = useState('');
-  const [date, setDate] = useState(() => new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(() => todayInputValue());
   const [saving, setSaving] = useState(false);
 
   const fromAccount = accounts.find((a) => a.id === from);
@@ -68,7 +69,7 @@ export function TransferModal({
     if (crossCurrency && !(Number(received) > 0)) {
       return toast.error(`Say how much ${toAccount!.currency} arrived.`);
     }
-    const txDate = date || new Date().toISOString().slice(0, 10);
+    const txDate = date || todayInputValue();
     setSaving(true);
     const payload = {
       kind: 'TRANSFER',
@@ -103,7 +104,7 @@ export function TransferModal({
       onClose();
       setAmount('');
       setReceived('');
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(todayInputValue());
       setNote('');
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : 'Failed to transfer');

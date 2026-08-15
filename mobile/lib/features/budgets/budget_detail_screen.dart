@@ -21,6 +21,7 @@ import 'budget_common.dart';
 import 'budget_cycles.dart';
 import 'budget_form.dart';
 import 'budget_transactions.dart';
+import 'move_sheet.dart';
 
 /// One plan in full   parity with the web budget detail page: hero, banners,
 /// stats, holdings, cycle cards / transaction list, movements timeline.
@@ -272,6 +273,9 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           presetKind: 'EXPENSE',
           presetBudgetId: b.id,
         );
+        if (done == true) await _afterWrite();
+      case 'move':
+        final done = await showMoveSheet(context, detail: detail);
         if (done == true) await _afterWrite();
       case 'adjust':
         final done = await showAdjustSheet(context, budget: b);
@@ -674,6 +678,14 @@ class _Hero extends StatelessWidget {
                     label: 'Spend',
                     icon: Icons.shopping_bag_outlined,
                     onTap: () => onAction('spend', detail),
+                  ),
+                // Moving beats give-back-then-refill: one movement in the
+                // history, and the money is never briefly spendable.
+                if (toNum(b.balance) > 0)
+                  _HeroAction(
+                    label: 'Move',
+                    icon: Icons.swap_horiz_rounded,
+                    onTap: () => onAction('move', detail),
                   ),
                 _HeroAction(
                   label: 'Add / Deduct',

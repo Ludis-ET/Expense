@@ -120,6 +120,7 @@ export async function catchUpUser(userId: string): Promise<void> {
     let nextRun = rule.nextRun;
     let posted = 0;
     let held = 0;
+    let reminders = 0;
 
     while (nextRun <= now && posted < MAX_OCCURRENCES) {
       if (rule.endDate && nextRun > rule.endDate) break;
@@ -128,16 +129,31 @@ export async function catchUpUser(userId: string): Promise<void> {
         const outcome = await applyOccurrence(userId, rule, nextRun);
         if (outcome === "held") held += 1;
       } else {
-        await notify(
-          userId,
-          "recurring_due",
-          `Reminder: ${rule.name} (${rule.amount.toFixed(2)} ${rule.currency}) is due.`,
-          "/recurring",
-        );
+        // Counted here, announced once below. Filing one notification per
+        // missed occurrence meant a rule dormant for months buried every other
+        // alert the user had.
+        reminders += 1;
       }
 
       nextRun = advanceNextRun(rule, nextRun);
       posted += 1;
+    }
+
+    if (reminders > 0) {
+      const amount = `${rule.amount.toFixed(2)} ${rule.currency}`;
+      await notify(
+        userId,
+        "recurring_due",
+        reminders === 1
+          ? `Reminder: ${rule.name} (${amount}) is due.`
+          : `${rule.name} (${amount}) is due, and ${reminders - 1} earlier ${
+              reminders - 1 === 1 ? "one was" : "ones were"
+            } missed.`,
+        "/recurring",
+        // One live reminder per rule. If it falls behind again the row is
+        // rewritten and marked unread rather than a second one appearing.
+        `recurring_due:${rule.id}`,
+      );
     }
 
     const expired = rule.endDate ? nextRun > rule.endDate : false;

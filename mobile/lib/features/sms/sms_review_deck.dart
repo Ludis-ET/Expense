@@ -557,7 +557,7 @@ class DraftConfirm {
     if (kind != null) 'kind': kind!.wire,
     if (amount != null) 'amount': amount,
     if (currency != null) 'currency': currency,
-    if (date != null) 'date': date!.toUtc().toIso8601String(),
+    if (date != null) 'date': wireDate(date!),
     if (payee != null) 'payee': payee,
     if (note != null) 'note': note,
     'rememberMapping': rememberMapping,

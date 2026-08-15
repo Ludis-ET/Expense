@@ -6,7 +6,6 @@ import '../../core/theme/theme.dart';
 import '../../core/api/api_client.dart';
 import '../../core/theme/tokens.dart';
 import '../../core/layout.dart';
-import '../../core/utils/icons.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
@@ -224,25 +223,32 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
                 ),
                 const Gap(S.xl),
 
-                SectionLabel(
-                  'SHARED WALLETS',
-                  hint:
-                      'Only the wallets you switch on here are visible to the '
-                      'rest of the household. Everything else stays yours alone.',
-                ),
+                // The per-wallet share switches lived here. They wrote a
+                // householdId that no read path in the app has ever consulted,
+                // so a wallet marked shared was visible to precisely nobody
+                // while the UI insisted otherwise. Saying so is better than a
+                // control that does nothing.
+                SectionLabel('SHARED WALLETS'),
                 const Gap(S.sm),
                 AppCard(
-                  padding: const EdgeInsets.all(S.md),
-                  child: Column(
+                  prominence: Prominence.quiet,
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      for (final a in data.scopedAccounts)
-                        SwitchRow(
-                          title: a.name,
-                          subtitle: a.type.label,
-                          icon: accountTypeIcon(a.type.wire),
-                          value: a.isShared,
-                          onChanged: (v) => _toggleShare(context, a, v),
+                      Icon(
+                        Icons.construction_rounded,
+                        size: 16,
+                        color: context.t.warning,
+                      ),
+                      const GapX(S.sm),
+                      Expanded(
+                        child: Muted(
+                          'Not built yet. Members can see each other here, but '
+                          'balances stay private to whoever owns them.',
+                          size: AppType.caption,
+                          height: 1.45,
                         ),
+                      ),
                     ],
                   ),
                 ),
@@ -362,29 +368,11 @@ class _HouseholdScreenState extends State<HouseholdScreen> {
     );
   }
 
-  Future<void> _toggleShare(
-    BuildContext context,
-    Account account,
-    bool shared,
-  ) async {
-    try {
-      await context.read<ApiClient>().put(
-        '/household/accounts/${account.id}/share',
-        body: {'shared': shared},
-      );
-      await _load();
-      if (context.mounted) await context.read<DataState>().refreshAfterWrite();
-    } on ApiError catch (e) {
-      if (context.mounted) toast(context, e.message, error: true);
-    }
-  }
-
   Future<void> _leave(BuildContext context) async {
     final ok = await confirm(
       context,
       title: 'Leave this household?',
-      message:
-          'Your wallets stop being visible to the others, and theirs to you.',
+      message: 'You will no longer see the other members, or they you.',
       confirmLabel: 'Leave',
     );
     if (!ok || !context.mounted) return;

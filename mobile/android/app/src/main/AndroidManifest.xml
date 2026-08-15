@@ -11,10 +11,20 @@
     <!-- In-app APK updates (sideload / direct release, not Play Store). -->
     <uses-permission android:name="android.permission.REQUEST_INSTALL_PACKAGES"/>
 
+    <!--
+      Backup is off. This app's data directory holds session tokens, a full
+      financial history and captured bank messages; none of that should travel
+      to a cloud backup or come out through `adb backup`. The two rule files
+      cover the pre- and post-Android-12 mechanisms, and are only consulted if
+      a future build turns backup back on.
+    -->
     <application
         android:label="Santim"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:allowBackup="false"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules">
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -33,6 +43,24 @@
                 <category android:name="android.intent.category.LAUNCHER"/>
             </intent-filter>
         </activity>
+        <!--
+          Bank SMS capture. Declared here rather than registered at runtime so
+          Android instantiates it on delivery even when no part of Santim is
+          running - the runtime registration died with the Activity, which is
+          why "live capture" only worked while the app was open.
+
+          `BROADCAST_SMS` is a system-only permission: it means the receiver
+          accepts this broadcast from the OS and from nothing else.
+        -->
+        <receiver
+            android:name=".SmsCaptureReceiver"
+            android:exported="true"
+            android:permission="android.permission.BROADCAST_SMS">
+            <intent-filter android:priority="999">
+                <action android:name="android.provider.Telephony.SMS_RECEIVED" />
+            </intent-filter>
+        </receiver>
+
         <!-- Home-screen widget: remaining spend today + one-tap add. -->
         <receiver
             android:name=".SantimWidgetProvider"

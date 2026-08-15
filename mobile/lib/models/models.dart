@@ -225,6 +225,8 @@ class Transaction {
     this.budgetCycle,
     this.budgetSourceAccountId,
     this.budgetSourceAccount,
+    this.transferAmount,
+    this.transferRate,
     this.note,
     this.payee,
     this.recurringRuleId,
@@ -249,6 +251,14 @@ class Transaction {
   final int? budgetCycle;
   final String? budgetSourceAccountId;
   final Ref? budgetSourceAccount;
+
+  /// TRANSFER only: what actually landed in the destination wallet, in *its*
+  /// currency. Equal to [amount] unless the two wallets hold different money.
+  final String? transferAmount;
+
+  /// Set by the server only when a transfer crossed a currency, which makes it
+  /// the honest test for "were there two different figures here".
+  final String? transferRate;
   final String? note;
   final String? payee;
   final List<String> tags;
@@ -256,6 +266,15 @@ class Transaction {
   final PendingState pending;
 
   double get value => asNum(amount);
+
+  /// The paying wallet is not the one holding the plan's money   it fronted the
+  /// cash, and the plan's own wallet freed the reservation instead. Same test
+  /// the server serialises as `fronted`.
+  bool get fronted =>
+      budgetSourceAccountId != null && budgetSourceAccountId != accountId;
+
+  /// Two figures in two denominations, so neither can be shown on its own.
+  bool get crossCurrency => transferRate != null && transferAmount != null;
 
   /// What the row should read as: payee, else note, else the category name.
   String get title {
@@ -284,6 +303,8 @@ class Transaction {
     budgetCycle: j['budgetCycle'] == null ? null : asInt(j['budgetCycle']),
     budgetSourceAccountId: asStrOrNull(j['budgetSourceAccountId']),
     budgetSourceAccount: Ref.maybe(j['budgetSourceAccount']),
+    transferAmount: asStrOrNull(j['transferAmount']),
+    transferRate: asStrOrNull(j['transferRate']),
     note: asStrOrNull(j['note']),
     payee: asStrOrNull(j['payee']),
     tags: asStrList(j['tags']),
@@ -660,6 +681,38 @@ class BudgetSource {
     account: Ref.maybe(j['account']),
     available: asStr(j['available']),
   );
+}
+
+/// The mirror of [BudgetSource]: one plan's claim on a single wallet.
+///
+/// A plan has always been able to say where its money sits. A wallet showing
+/// "set aside in plans" could not say who set it aside, which made the figure
+/// impossible to act on   this is the row that answers it.
+class WalletReservation {
+  WalletReservation({
+    required this.plan,
+    required this.amount,
+    required this.closed,
+  });
+
+  final Ref plan;
+  final String amount;
+
+  /// A closed plan can still be holding money, and that is exactly the case
+  /// worth surfacing   nothing else in the app would ever mention it.
+  final bool closed;
+
+  static WalletReservation? maybe(dynamic v) {
+    if (v is! Map) return null;
+    final m = Map<String, dynamic>.from(v);
+    final plan = Ref.maybe(m['plan']);
+    if (plan == null) return null;
+    return WalletReservation(
+      plan: plan,
+      amount: asStr(m['amount']),
+      closed: asStr(m['plan']?['state']) == 'CLOSED',
+    );
+  }
 }
 
 class BudgetAllocation {

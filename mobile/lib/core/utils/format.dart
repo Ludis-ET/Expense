@@ -52,6 +52,25 @@ double toNum(Object? amount) {
   return double.tryParse('$amount') ?? 0;
 }
 
+/// A date the user *chose*, serialised as the calendar day they meant.
+///
+/// `showDatePicker` hands back local midnight, and `.toUtc()` on that in
+/// Ethiopia (UTC+3) rewinds it to 21:00 the previous day. Picking 1 September
+/// was being stored as `2026-08-31T21:00:00Z`, so the server - which buckets
+/// every month, week and day boundary in UTC - filed it under August. The app
+/// then rendered it back in local time as 1 September, so the transaction
+/// showed one month and counted against another.
+///
+/// Anchoring to UTC midnight of the chosen day makes the stored value mean the
+/// calendar date, which is the only thing a ledger date has ever meant. The
+/// real instant is not lost: `createdAt` keeps it, and the transaction list
+/// already breaks same-day ties on it.
+///
+/// Use this for every date a person picks. Do **not** use it for an observed
+/// instant - an SMS `receivedAt` is a moment in time, not a calendar day.
+String wireDate(DateTime d) =>
+    DateTime.utc(d.year, d.month, d.day).toIso8601String();
+
 /// `formatMoney`   "Br 12,450".
 String formatMoney(
   Object? amount, {

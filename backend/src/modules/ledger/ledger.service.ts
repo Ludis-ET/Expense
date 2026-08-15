@@ -23,7 +23,10 @@ const OUTGOING_KINDS: LedgerKind[] = [LedgerKind.BORROWED, LedgerKind.EXPECTED_O
 
 const entryInclude = {
   category: { select: { id: true, name: true, icon: true, color: true, kind: true } },
-  payments: { orderBy: { date: 'desc' as const } },
+  // Two repayments on one day share a date, so createdAt orders them.
+  payments: {
+    orderBy: [{ date: 'desc' as const }, { createdAt: 'desc' as const }],
+  },
 } satisfies Prisma.LedgerEntryInclude;
 
 type EntryWithPayments = Prisma.LedgerEntryGetPayload<{ include: typeof entryInclude }>;

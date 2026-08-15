@@ -20,8 +20,26 @@ class MainActivity : FlutterFragmentActivity() {
     private val eventChannelName = "santim/sms_events"
     private val widgetChannelName = "santim/widget"
 
-    private var eventSink: EventChannel.EventSink? = null
     private var smsReceiver: BroadcastReceiver? = null
+
+    companion object {
+        /**
+         * The live sink, when there is a UI to deliver to.
+         *
+         * [SmsCaptureReceiver] runs with or without us, so it cannot assume an
+         * engine exists. It posts here for the case where one does, and queues
+         * durably either way.
+         */
+        private var eventSink: EventChannel.EventSink? = null
+
+        /** Delivered on the main thread - the receiver's thread is not it. */
+        fun emit(message: Map<String, Any>) {
+            val sink = eventSink ?: return
+            android.os.Handler(android.os.Looper.getMainLooper()).post {
+                runCatching { sink.success(message) }
+            }
+        }
+    }
 
     /**
      * Set when the activity was started by the widget's add button. Dart reads
@@ -59,6 +77,9 @@ class MainActivity : FlutterFragmentActivity() {
                         pendingAction = null
                         result.success(action)
                     }
+                    // Everything the manifest receiver captured while no engine
+                    // was running. Returns and clears in one step.
+                    "drainPendingSms" -> result.success(SmsCaptureReceiver.drain(this))
                     else -> result.notImplemented()
                 }
             }

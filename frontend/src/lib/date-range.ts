@@ -62,6 +62,21 @@ export function toApiQuery(range: Pick<DateRange, 'from' | 'to'>) {
   return `from=${f}&to=${t}`;
 }
 
+/**
+ * Today as the user's calendar sees it, formatted for `<input type="date">`.
+ *
+ * Slicing an ISO string gives the UTC date, not the local one. East of
+ * Greenwich the two disagree for the first hours of every day: at 01:00 in
+ * Addis it is still yesterday in UTC, so every date field in the app opened
+ * pre-filled with the wrong day until 03:00.
+ */
+export function todayInputValue(now = new Date()): string {
+  const y = now.getFullYear();
+  const m = String(now.getMonth() + 1).padStart(2, '0');
+  const d = String(now.getDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
 export function presetLabel(preset: DatePreset): string {
   const labels: Record<DatePreset, string> = {
     '7d': '7 days',

@@ -12,6 +12,7 @@ import { api, ApiError } from '@/lib/api';
 import { useOffline } from '@/lib/offline/offline-context';
 import { newId } from '@/lib/offline/outbox';
 import { cn } from '@/lib/utils';
+import { todayInputValue } from '@/lib/date-range';
 import type {
   Account,
   BudgetSourcesResponse,
@@ -75,7 +76,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
   /** Where the shortfall comes from when the plan cannot cover this on its own. */
   const [cover, setCover] = useState('');
   const [categoryId, setCategoryId] = useState('');
-  const [date, setDate] = useState(new Date().toISOString().slice(0, 10));
+  const [date, setDate] = useState(todayInputValue());
   const [payee, setPayee] = useState('');
   const [note, setNote] = useState('');
   const [tags, setTags] = useState('');
@@ -165,7 +166,7 @@ export function TransactionForm({ open, onClose, onSaved, editing }: Transaction
       setKind('EXPENSE');
       setAmount('');
       setCategoryId('');
-      setDate(new Date().toISOString().slice(0, 10));
+      setDate(todayInputValue());
       setPayee('');
       setNote('');
       setTags('');

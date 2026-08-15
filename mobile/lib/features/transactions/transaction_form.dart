@@ -317,7 +317,7 @@ class _TransactionFormState extends State<TransactionForm> {
     final body = <String, dynamic>{
       'amount': double.parse(_amount.text.trim()),
       'currency': data.activeCurrency,
-      'date': _date.toUtc().toIso8601String(),
+      'date': wireDate(_date),
       'tags': tags,
       if (_payee.text.trim().isNotEmpty) 'payee': _payee.text.trim(),
       if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),

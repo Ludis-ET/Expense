@@ -55,7 +55,17 @@ function Sparkline({ points, color }: { points: number[]; color: string }) {
   );
 }
 
-/** Fetch last 14 days of transactions for a given account and compute daily running balance */
+/**
+ * Fetch last 14 days of transactions for a given account and compute daily
+ * running balance.
+ *
+ * Transfers count. The query returns rows where this wallet is either end, so
+ * each one is signed by which end it is: money out when the wallet is the
+ * source, and the *received* figure in when it is the destination, because a
+ * transfer that crossed a currency lands a different number than it sent.
+ * Ignoring them entirely - which this did - drew a flat line through the day
+ * someone moved half the balance out.
+ */
 function useAccountSparkline(accountId: string, openingBalance: string) {
   const today = new Date();
   const from = new Date(today.getTime() - 13 * 86_400_000).toISOString().slice(0, 10);
@@ -75,16 +85,21 @@ function useAccountSparkline(accountId: string, openingBalance: string) {
     }
     for (const tx of data.items) {
       const day = tx.date.slice(0, 10);
-      if (day in days) {
-        if (tx.kind === 'INCOME') days[day]! += Number(tx.amount);
-        else if (tx.kind === 'EXPENSE') days[day]! -= Number(tx.amount);
+      if (!(day in days)) continue;
+      if (tx.kind === 'INCOME') days[day]! += Number(tx.amount);
+      else if (tx.kind === 'EXPENSE') days[day]! -= Number(tx.amount);
+      else if (tx.kind === 'TRANSFER') {
+        if (tx.accountId === accountId) days[day]! -= Number(tx.amount);
+        else if (tx.transferAccountId === accountId) {
+          days[day]! += Number(tx.transferAmount ?? tx.amount);
+        }
       }
     }
     // Running balance from opening
     let balance = Number(openingBalance);
     return Object.values(days).map((delta) => { balance += delta; return balance; });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [data, openingBalance]);
+  }, [data, openingBalance, accountId]);
 
   return points;
 }

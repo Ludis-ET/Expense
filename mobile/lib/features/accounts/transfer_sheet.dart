@@ -11,6 +11,7 @@ import '../../data/outbox_store.dart';
 import '../../state/data_state.dart';
 import '../../state/sync_state.dart';
 import '../../widgets/fields.dart';
+import '../../widgets/money_delta.dart';
 import '../../widgets/ui.dart';
 
 /// `TransferModal`   money between two of your own wallets. Nothing is earned
@@ -34,6 +35,11 @@ class _TransferSheet extends StatefulWidget {
 
 class _TransferSheetState extends State<_TransferSheet> {
   final _amount = TextEditingController();
+
+  /// What landed on the far side, when the two wallets hold different money.
+  /// Crediting the destination the sent figure is how 100 USD silently becomes
+  /// 100 birr, so the server refuses to guess and neither does this sheet.
+  final _received = TextEditingController();
   final _note = TextEditingController();
 
   String? _fromId;
@@ -46,6 +52,9 @@ class _TransferSheetState extends State<_TransferSheet> {
   void initState() {
     super.initState();
     _fromId = widget.from?.id;
+    // The preview redraws on every keystroke, so both fields drive setState.
+    _amount.addListener(_onTyped);
+    _received.addListener(_onTyped);
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       await context.read<DataState>().loadAccounts();
       if (!mounted || _fromId != null) return;
@@ -57,9 +66,35 @@ class _TransferSheetState extends State<_TransferSheet> {
     });
   }
 
+  void _onTyped() {
+    if (mounted) setState(() {});
+  }
+
+  /// Why this transfer cannot go through, said before it is attempted.
+  ///
+  /// The interesting case is the middle one. A wallet can hold plenty of cash
+  /// and still not be able to send it, because plans have already reserved
+  /// part of it   and until now the only way to discover that was to tap
+  /// Transfer and read a server refusal.
+  String? _impactWarning(Account? from, double sent) {
+    if (from == null || sent <= 0) return null;
+    final free = toNum(from.balance);
+    if (sent <= free) return null;
+
+    final held = toNum(from.lockedAmount);
+    if (held > 0 && sent <= toNum(from.realBalance)) {
+      return '${formatMoney(held, currency: from.currency)} here is set aside '
+          'in plans. Give some back first, or send less.';
+    }
+    return 'Only ${formatMoney(free, currency: from.currency)} is free here.';
+  }
+
   @override
   void dispose() {
+    _amount.removeListener(_onTyped);
+    _received.removeListener(_onTyped);
     _amount.dispose();
+    _received.dispose();
     _note.dispose();
     super.dispose();
   }
@@ -81,8 +116,11 @@ class _TransferSheetState extends State<_TransferSheet> {
       );
       return;
     }
-    final source = data.scopedAccounts
+    final source = data.transferableAccounts
         .where((a) => a.id == _fromId)
+        .firstOrNull;
+    final target = data.transferableAccounts
+        .where((a) => a.id == _toId)
         .firstOrNull;
     if (source != null && amount > toNum(source.balance)) {
       setState(
@@ -92,12 +130,22 @@ class _TransferSheetState extends State<_TransferSheet> {
       return;
     }
 
+    final crossing =
+        source != null && target != null && source.currency != target.currency;
+    final received = double.tryParse(_received.text.trim());
+    if (crossing && (received == null || received <= 0)) {
+      setState(
+        () => _error = 'Say how much ${target.currency} actually arrived.',
+      );
+      return;
+    }
+
     setState(() {
       _saving = true;
       _error = null;
     });
     final from = source;
-    final to = data.scopedAccounts.where((a) => a.id == _toId).firstOrNull;
+    final to = target;
     Ref? asRef(Account? a) => a == null
         ? null
         : Ref(
@@ -108,14 +156,18 @@ class _TransferSheetState extends State<_TransferSheet> {
             currency: a.currency,
             type: a.type.wire,
           );
+    // The wallet the money leaves decides the denomination   not whichever
+    // currency the app happens to be scoped to.
+    final currency = from?.currency ?? data.activeCurrency;
     final body = {
       'kind': 'TRANSFER',
       'amount': amount,
-      'currency': data.activeCurrency,
-      'date': _date.toUtc().toIso8601String(),
+      'currency': currency,
+      'date': wireDate(_date),
       'accountId': _fromId,
       'transferAccountId': _toId,
       'tags': <String>[],
+      if (crossing) 'transferAmount': received,
       if (_note.text.trim().isNotEmpty) 'note': _note.text.trim(),
     };
     try {
@@ -124,13 +176,15 @@ class _TransferSheetState extends State<_TransferSheet> {
         id: localId,
         kind: TxKind.transfer,
         amount: amount.toString(),
-        currency: data.activeCurrency,
+        currency: currency,
         date: _date,
         accountId: _fromId!,
         tags: const [],
         account: asRef(from),
         transferAccountId: _toId,
         transferAccount: asRef(to),
+        transferAmount: (crossing ? received! : amount).toString(),
+        transferRate: crossing ? (received! / amount).toString() : null,
         note: _note.text.trim().isEmpty ? null : _note.text.trim(),
         pending: PendingState.pending,
       );
@@ -156,10 +210,18 @@ class _TransferSheetState extends State<_TransferSheet> {
   Widget build(BuildContext context) {
     final t = context.t;
     final data = context.watch<DataState>();
-    final accounts = data.scopedAccounts;
+    final accounts = data.transferableAccounts;
 
     Account? byId(String? id) =>
         id == null ? null : accounts.where((a) => a.id == id).firstOrNull;
+
+    final from = byId(_fromId);
+    final to = byId(_toId);
+    final crossing = from != null && to != null && from.currency != to.currency;
+
+    final sent = double.tryParse(_amount.text.trim()) ?? 0;
+    final received = double.tryParse(_received.text.trim()) ?? 0;
+    final landing = crossing ? received : sent;
 
     return SingleChildScrollView(
       padding: EdgeInsets.fromLTRB(
@@ -173,7 +235,7 @@ class _TransferSheetState extends State<_TransferSheet> {
         children: [
           AmountField(
             controller: _amount,
-            currency: data.activeCurrency,
+            currency: from?.currency ?? data.activeCurrency,
             tint: t.accent,
             autofocus: true,
           ),
@@ -220,6 +282,67 @@ class _TransferSheetState extends State<_TransferSheet> {
             colorOf: (a) => parseHexColor(a.color) ?? t.mutedForeground,
             onChanged: (a) => setState(() => _toId = a?.id),
           ),
+
+          // Crossing a currency needs the far-side figure. Santim will not
+          // invent a rate, so this is a field rather than a conversion.
+          if (crossing) ...[
+            const Gap(S.lg),
+            AppTextField(
+              controller: _received,
+              label: 'Arrived in ${to.name}',
+              placeholder: '0.00',
+              keyboardType: const TextInputType.numberWithOptions(
+                decimal: true,
+              ),
+              prefixIcon: Icons.south_east_rounded,
+              suffix: Text(
+                to.currency,
+                style: TextStyle(
+                  fontSize: AppType.bodySm,
+                  fontWeight: W.semibold,
+                  color: t.mutedForeground,
+                ),
+              ),
+            ),
+            if (sent > 0 && received > 0) ...[
+              const Gap(S.xs),
+              Muted(
+                '1 ${from.currency} = '
+                '${(received / sent).toStringAsFixed(4)} ${to.currency}',
+                size: AppType.caption,
+              ),
+            ],
+          ],
+
+          // What this does to both wallets, live. Replaces finding out from a
+          // refusal after tapping Transfer.
+          const Gap(S.lg),
+          MoneyImpact(
+            warning: _impactWarning(from, sent),
+            rows: [
+              if (from != null)
+                MoneyDelta(
+                  label: from.name,
+                  caption: 'available',
+                  currency: from.currency,
+                  before: toNum(from.balance),
+                  after: toNum(from.balance) - sent,
+                  icon: accountTypeIcon(from.type.wire),
+                  color: parseHexColor(from.color) ?? t.mutedForeground,
+                ),
+              if (to != null)
+                MoneyDelta(
+                  label: to.name,
+                  caption: 'available',
+                  currency: to.currency,
+                  before: toNum(to.balance),
+                  after: toNum(to.balance) + landing,
+                  icon: accountTypeIcon(to.type.wire),
+                  color: parseHexColor(to.color) ?? t.accent,
+                ),
+            ],
+          ),
+
           const Gap(S.lg),
           DateField(
             label: 'Date',

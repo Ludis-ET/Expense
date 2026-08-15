@@ -16,6 +16,21 @@ accountsRouter.get(
   }),
 );
 
+/**
+ * What this one wallet is holding, and for which plans.
+ *
+ * The other half of the reservation story: the plan page has always been able to
+ * say where its money sits, but a wallet showing "12,000 set aside" had no way
+ * to name who set it aside. Drives the wallet sheet.
+ */
+accountsRouter.get(
+  '/:id/reservations',
+  validate({ params: accountIdParam }),
+  asyncHandler(async (req, res) => {
+    res.json(await accounts.reservations(req.user!, req.params.id!));
+  }),
+);
+
 accountsRouter.post(
   '/',
   validate({ body: createAccountSchema }),

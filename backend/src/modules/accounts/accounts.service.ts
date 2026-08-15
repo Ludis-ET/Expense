@@ -74,7 +74,10 @@ export async function reservations(user: AuthUser, accountId: string) {
   if (rows.length === 0) return { items: [] };
 
   const budgets = await prisma.budget.findMany({
-    where: { id: { in: rows.map((r) => r.budgetId) } },
+    // The ids come from this user's own snapshot, so `userId` is redundant
+    // today. It is here so the guarantee is local to the query rather than an
+    // assumption about every future caller.
+    where: { userId: user.id, id: { in: rows.map((r) => r.budgetId) } },
     select: { id: true, name: true, icon: true, color: true, currency: true, state: true },
   });
   const byId = new Map(budgets.map((b) => [b.id, b]));

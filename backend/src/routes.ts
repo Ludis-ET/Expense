@@ -21,6 +21,7 @@ import { appRouter } from './modules/app/app.router.js';
 import { moneyRouter } from './modules/money/money.router.js';
 import { fundingRouter } from './modules/funding/funding.router.js';
 import { searchRouter } from './modules/search/search.router.js';
+import { syncRouter } from './modules/sync/sync.router.js';
 
 export const apiRouter = Router();
 
@@ -33,6 +34,8 @@ apiRouter.use('/recurring', recurringRouter);
 apiRouter.use('/budgets', budgetsRouter);
 apiRouter.use('/analytics', analyticsRouter);
 apiRouter.use('/dashboard', dashboardRouter);
+// Everything the app reloads after a write, in one round trip.
+apiRouter.use('/sync', syncRouter);
 apiRouter.use('/ai', aiRouter);
 apiRouter.use('/search', searchRouter);
 apiRouter.use('/notifications', notificationsRouter);

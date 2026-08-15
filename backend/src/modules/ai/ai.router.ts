@@ -2,6 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import { asyncHandler } from '../../core/http.js';
 import { requireAuth } from '../../core/middleware/auth.js';
+import { aiLimiter } from '../../core/middleware/rate-limit.js';
 import { validate } from '../../core/middleware/validate.js';
 import * as ai from './ai.service.js';
 import * as features from './ai.features.js';
@@ -108,6 +109,7 @@ aiRouter.delete(
 
 aiRouter.post(
   '/ask',
+  aiLimiter,
   validate({
     body: z.object({
       question: z.string().min(2).max(2000),
@@ -128,6 +130,7 @@ aiRouter.post(
 
 aiRouter.post(
   '/review',
+  aiLimiter,
   validate({
     body: z.object({
       month: z.string().regex(/^\d{4}-\d{2}$/, 'Expected YYYY-MM'),
@@ -140,6 +143,7 @@ aiRouter.post(
 
 aiRouter.post(
   '/categorize',
+  aiLimiter,
   validate({
     body: z.object({
       description: z.string().min(2).max(500),

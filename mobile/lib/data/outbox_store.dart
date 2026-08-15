@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:sqflite/sqflite.dart' hide Transaction;
 import 'package:uuid/uuid.dart';
 
+import '../core/utils/format.dart';
 import '../models/models.dart';
 import 'local_db.dart';
 
@@ -205,7 +206,7 @@ Map<String, dynamic> txToJson(Transaction tx) => {
       'kind': tx.kind.wire,
       'amount': tx.amount,
       'currency': tx.currency,
-      'date': tx.date.toUtc().toIso8601String(),
+      'date': wireDate(tx.date),
       'accountId': tx.accountId,
       if (tx.account != null)
         'account': {

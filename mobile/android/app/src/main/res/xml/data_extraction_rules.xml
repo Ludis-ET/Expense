@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Android 12+ replacement for backup_rules.xml, split into the two transfer
+  routes it distinguishes.
+
+  `cloud-backup` is Google's off-device backup. `device-transfer` is the
+  phone-to-phone copy during setup. Both are excluded for the same reason: the
+  data directory holds session tokens, the app-lock PIN, the paired SMS device
+  token, and an offline mirror of the ledger.
+
+  Sign in again on the new phone. That is a few seconds of friction in exchange
+  for credentials that never leave the device they were issued to.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSharedPreferences.xml" />
+        <exclude domain="database" path="santim.db" />
+        <exclude domain="file" path="." />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="FlutterSecureStorage.xml" />
+        <exclude domain="sharedpref" path="FlutterSharedPreferences.xml" />
+        <exclude domain="database" path="santim.db" />
+        <exclude domain="file" path="." />
+    </device-transfer>
+</data-extraction-rules>

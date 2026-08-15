@@ -36,9 +36,8 @@ keyPassword=<usually the same password>
 ```
 
 Then `flutter build apk --release` picks it up automatically. Without the file
-the release build still completes but is left **unsigned** and logs a warning —
-deliberately, so a misconfigured machine cannot silently produce a debug-signed
-artifact again.
+the release build **fails** — deliberately, so a misconfigured machine cannot
+silently produce an unsigned or debug-signed artifact.
 
 ## Back the keystore up
 

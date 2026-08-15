@@ -63,17 +63,15 @@ android {
 
     buildTypes {
         release {
-            if (hasReleaseKeystore) {
-                signingConfig = signingConfigs.getByName("release")
-            } else {
-                // Deliberately left unsigned rather than falling back to the
-                // debug key. A build that cannot be signed properly should fail
-                // to install, not quietly ship with a key everyone has.
-                logger.warn(
-                    "\n  android/key.properties not found - this release build is UNSIGNED." +
-                        "\n  See android/SIGNING.md. Do not distribute this artifact.\n",
+            if (!hasReleaseKeystore) {
+                // Fail the build instead of emitting an unsigned APK that
+                // looks fine until `adb install` returns NO_CERTIFICATES.
+                throw GradleException(
+                    "android/key.properties not found — cannot sign a release APK. " +
+                        "See android/SIGNING.md.",
                 )
             }
+            signingConfig = signingConfigs.getByName("release")
             isMinifyEnabled = true
             isShrinkResources = true
             proguardFiles(

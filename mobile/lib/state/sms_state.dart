@@ -20,11 +20,13 @@ class SmsState extends ChangeNotifier {
     required SharedPreferences prefs,
     SyncState? sync,
     LocalDb? db,
-  })  : devices = DeviceStore(prefs),
+  })  : _prefs = prefs,
+        devices = DeviceStore(prefs),
         _sync = sync,
         _outbox = SmsOutboxStore(db ?? LocalDb.instance);
 
   final ApiClient api;
+  final SharedPreferences _prefs;
   final DeviceStore devices;
   final SyncState? _sync;
   final SmsOutboxStore _outbox;
@@ -60,6 +62,11 @@ class SmsState extends ChangeNotifier {
     await _refreshPendingCount();
     if (isAndroid && isPaired && captureEnabled) {
       await _ensureListening();
+    }
+    if (isAndroid && isPaired) {
+      // Native SMS tray alerts need the allowlist while Flutter is asleep.
+      unawaited(loadBanks());
+      unawaited(refreshManifest());
     }
     _flushTimer = Timer.periodic(const Duration(seconds: 25), (_) {
       unawaited(flushUploads());
@@ -239,7 +246,17 @@ class SmsState extends ChangeNotifier {
   Future<void> loadBanks() async {
     final json = await api.get('/ingest/banks');
     banks = mapItemsList(json, BankCatalogItem.fromJson);
+    await _persistNativeAllowlist();
     notifyListeners();
+  }
+
+  /// Senders the native SMS receiver may tray-notify while Flutter is asleep.
+  Future<void> _persistNativeAllowlist() async {
+    final senders = <String>{
+      ...allowlist,
+      for (final b in banks) ...b.senders,
+    };
+    await _prefs.setStringList('santim.sms.allowlist', senders.toList());
   }
 
   Future<void> loadSenderRules() async {
@@ -282,6 +299,7 @@ class SmsState extends ChangeNotifier {
         ...asStrList(json['senders']),
         ...asStrList(json['knownSenders']),
       ];
+      await _persistNativeAllowlist();
       notifyListeners();
     } catch (e) {
       debugPrint('manifest refresh failed: $e');

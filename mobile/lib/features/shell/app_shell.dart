@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
@@ -6,6 +8,8 @@ import '../../core/haptics.dart';
 import '../../core/home_widget.dart';
 import '../../core/theme/theme.dart';
 import '../../core/theme/tokens.dart';
+import '../../models/models.dart';
+import '../../services/local_notifications.dart';
 import '../../state/auth_state.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
@@ -28,6 +32,7 @@ import '../wishlist/wishlist_screen.dart';
 import '../transactions/transaction_form.dart';
 import '../transactions/transactions_screen.dart';
 import '../update/app_update_sheet.dart';
+import 'notification_links.dart';
 import 'notifications_sheet.dart';
 
 /// The five bottom-nav destinations, matching `mobile-bottom-nav.tsx`. The
@@ -72,6 +77,8 @@ class AppShellState extends State<AppShell>
   /// incoming screen enters from the side it came from.
   int _swapDirection = 1;
 
+  StreamSubscription<Uri>? _notifTapSub;
+
   @override
   void initState() {
     super.initState();
@@ -80,22 +87,75 @@ class AppShellState extends State<AppShell>
       context.read<DataState>().primeAll();
       context.read<SmsState>().refreshStats();
       _syncBrandBar(forTab: _tab);
-      _handleWidgetLaunch();
+      _bootstrapSystemNotifications();
+      _handleLaunchActions();
       maybePromptAppUpdate(context);
     });
+    _notifTapSub = LocalNotifications.instance.taps.listen(_onNotificationTap);
   }
 
-  /// Opens the add sheet when the app was launched from the home-screen
-  /// widget's "+" rather than its body.
-  Future<void> _handleWidgetLaunch() async {
+  Future<void> _bootstrapSystemNotifications() async {
+    final prefs = context.read<PrefsState>().prefs;
+    await LocalNotifications.instance.ensurePermission(prefs);
+  }
+
+  /// Opens the add sheet / SMS inbox / notification destination when the app
+  /// was launched from the home-screen widget or a system notification.
+  Future<void> _handleLaunchActions() async {
     final action = await HomeWidget.consumeLaunchAction();
-    if (action == HomeWidget.addAction && mounted) {
+    if (!mounted) return;
+    if (action == HomeWidget.addAction) {
       await openAddTransaction(presetKind: 'EXPENSE');
+    } else if (action == 'sms_review') {
+      await _openSmsInbox();
+    }
+
+    final payload = LocalNotifications.instance.consumeLaunchPayload();
+    if (payload != null && mounted) await _onNotificationTap(payload);
+  }
+
+  Future<void> _openSmsInbox() async {
+    Haptics.select();
+    await Navigator.of(context).push(
+      MaterialPageRoute(builder: (_) => const SmsInboxHub()),
+    );
+  }
+
+  Future<void> _onNotificationTap(Uri payload) async {
+    if (!mounted) return;
+    if (payload.scheme != 'santim') return;
+
+    if (payload.host == 'sms') {
+      await _openSmsInbox();
+      return;
+    }
+
+    if (payload.host == 'notification') {
+      final id = payload.queryParameters['id'] ?? '';
+      final link = payload.queryParameters['link'];
+      final type = payload.queryParameters['type'] ?? '';
+      final data = context.read<DataState>();
+      final cached = data.notifications.data;
+      final match = cached?.where((n) => n.id == id).firstOrNull;
+      final n = match ??
+          AppNotification(
+            id: id,
+            type: type,
+            message: '',
+            link: link,
+            readFlag: false,
+            createdAt: DateTime.now(),
+          );
+      if (id.isNotEmpty && !n.readFlag) {
+        unawaited(data.markNotificationRead(id));
+      }
+      await openNotificationDestination(this, n);
     }
   }
 
   @override
   void dispose() {
+    _notifTapSub?.cancel();
     WidgetsBinding.instance.removeObserver(this);
     _swap.dispose();
     super.dispose();
@@ -106,6 +166,7 @@ class AppShellState extends State<AppShell>
     if (state == AppLifecycleState.resumed && mounted) {
       context.read<SmsState>().refreshStats();
       context.read<SmsState>().flushUploads();
+      context.read<DataState>().loadNotifications(force: true);
     }
   }
 

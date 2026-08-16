@@ -12,6 +12,7 @@ import 'features/lock/app_lock_screen.dart';
 import 'features/onboarding/onboarding_screen.dart';
 import 'features/shell/app_shell.dart';
 import 'features/splash/splash_screen.dart';
+import 'services/local_notifications.dart';
 import 'state/app_lock_state.dart';
 import 'state/auth_state.dart';
 import 'state/data_state.dart';
@@ -47,6 +48,8 @@ Future<void> main() async {
   if (!prefs.containsKey(PrefsState.onboardedKey) && tokens.refresh != null) {
     await prefs.setBool(PrefsState.onboardedKey, true);
   }
+
+  await LocalNotifications.instance.init();
 
   runApp(SantimApp(prefs: prefs, api: api));
 }

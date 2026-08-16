@@ -36,6 +36,8 @@ class PrefsState extends ChangeNotifier {
   Set<String> _collapsed;
   bool _onboarded;
 
+  SharedPreferences get prefs => _prefs;
+
   static ThemeMode _readTheme(SharedPreferences p) =>
       switch (p.getString(_themeKey)) {
         'light' => ThemeMode.light,

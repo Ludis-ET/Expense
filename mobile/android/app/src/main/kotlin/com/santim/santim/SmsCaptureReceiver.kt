@@ -37,6 +37,13 @@ class SmsCaptureReceiver : BroadcastReceiver() {
             // Straight through when the UI is alive, so nothing feels delayed.
             MainActivity.emit(captured)
             enqueue(context, captured)
+            // Tray ping only when Flutter is not listening — otherwise the
+            // in-app inbox / upload path already owns the feedback loop.
+            if (!MainActivity.hasLiveSink()) {
+                val sender = captured["sender"] as? String ?: continue
+                val body = captured["body"] as? String ?: ""
+                SmsNotificationHelper.maybeNotify(context, sender, body)
+            }
         }
     }
 

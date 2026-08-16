@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/foundation.dart';
 
 import '../core/api/api_client.dart';
@@ -5,6 +7,7 @@ import '../core/home_widget.dart';
 import '../core/utils/format.dart';
 import '../models/models.dart';
 import '../models/outlook_history.dart';
+import '../services/local_notifications.dart';
 import 'sync_state.dart';
 
 /// A single fetch's lifecycle. The UI branches on `hasData` first so a refresh
@@ -307,24 +310,29 @@ class DataState extends ChangeNotifier {
         },
       );
 
-  Future<void> loadNotifications({bool force = false}) =>
-      _load<List<AppNotification>>(
-        () => notifications,
-        (v) => notifications = v,
-        () async {
-          final items = mapItemsList(
-            await api.get('/notifications'),
-            AppNotification.fromJson,
-          );
-          await sync?.cacheNotifications(items);
-          return items;
-        },
-        force: force,
-        fromCache: () async {
-          if (sync == null) return null;
-          return sync!.readCachedNotifications();
-        },
-      );
+  Future<void> loadNotifications({bool force = false}) async {
+    await _load<List<AppNotification>>(
+      () => notifications,
+      (v) => notifications = v,
+      () async {
+        final items = mapItemsList(
+          await api.get('/notifications'),
+          AppNotification.fromJson,
+        );
+        await sync?.cacheNotifications(items);
+        return items;
+      },
+      force: force,
+      fromCache: () async {
+        if (sync == null) return null;
+        return sync!.readCachedNotifications();
+      },
+    );
+    final items = notifications.data;
+    if (items != null) {
+      await LocalNotifications.instance.syncServerNotifications(items);
+    }
+  }
 
   /// Everything the app shell needs before the first frame of the dashboard.
   Future<void> primeAll() => Future.wait([
@@ -429,6 +437,7 @@ class DataState extends ChangeNotifier {
       notifyListeners();
       await sync?.cacheNotifications(next);
     }
+    unawaited(LocalNotifications.instance.cancelServer(id));
     try {
       await api.post('/notifications/$id/read');
     } on ApiError catch (e) {
@@ -440,6 +449,11 @@ class DataState extends ChangeNotifier {
   Future<void> markAllNotificationsRead() async {
     final current = notifications.data;
     if (current != null) {
+      for (final n in current) {
+        if (!n.readFlag) {
+          unawaited(LocalNotifications.instance.cancelServer(n.id));
+        }
+      }
       final next = [
         for (final n in current)
           AppNotification(

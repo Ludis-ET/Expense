@@ -39,6 +39,9 @@ class MainActivity : FlutterFragmentActivity() {
                 runCatching { sink.success(message) }
             }
         }
+
+        /** True when Dart is subscribed to live SMS events. */
+        fun hasLiveSink(): Boolean = eventSink != null
     }
 
     /**

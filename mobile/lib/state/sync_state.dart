@@ -1184,6 +1184,8 @@ Map<String, dynamic> _recurringJson(RecurringRule r) => {
   if (r.account != null) 'account': _refJson(r.account),
   if (r.categoryId != null) 'categoryId': r.categoryId,
   if (r.category != null) 'category': _refJson(r.category),
+  if (r.budgetId != null) 'budgetId': r.budgetId,
+  if (r.budget != null) 'budget': _refJson(r.budget),
   if (r.payee != null) 'payee': r.payee,
   if (r.note != null) 'note': r.note,
   'frequency': r.frequency.wire,

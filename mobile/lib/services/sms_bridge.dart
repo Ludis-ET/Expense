@@ -92,11 +92,16 @@ class SmsBridge {
     }
   }
 
-  Future<List<CapturedSms>> getInbox({DateTime? min, DateTime? max}) async {
+  Future<List<CapturedSms>> getInbox({
+    DateTime? min,
+    DateTime? max,
+    int? limit,
+  }) async {
     if (!isAndroidNative) return const [];
     final raw = await _methods.invokeMethod<List<dynamic>>('getInbox', {
       'minMs': (min ?? DateTime.fromMillisecondsSinceEpoch(0)).millisecondsSinceEpoch,
       'maxMs': (max ?? DateTime.now()).millisecondsSinceEpoch,
+      if (limit != null && limit > 0) 'limit': limit,
     });
     return (raw ?? const [])
         .whereType<Map>()

@@ -1,4 +1,4 @@
-import 'package:flutter/material.dart';
+﻿import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../core/haptics.dart';
@@ -8,7 +8,6 @@ import '../../core/theme/theme.dart';
 import '../../core/api/api_client.dart';
 import '../../core/layout.dart';
 import '../../core/theme/tokens.dart';
-import '../../core/utils/format.dart';
 import '../../models/ingest.dart';
 import '../../state/data_state.dart';
 import '../../state/prefs_state.dart';
@@ -147,7 +146,7 @@ class _SmsInboxHubState extends State<SmsInboxHub> {
                                       ? 'Set up this phone to capture bank SMS'
                                       : sms.localPendingUploads > 0
                                       ? '${sms.localPendingUploads} waiting to upload'
-                                      : 'Swipe right to record · left to skip',
+                                      : 'Swipe right to record Â· left to skip',
                                   size: 12,
                                 ),
                               ],
@@ -273,6 +272,8 @@ class _InboxRow extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final unparsed =
+        message.status == 'UNPARSED' || message.parsedAmount == null;
     final credit = message.isCredit;
     final amount = message.parsedAmount;
     return Padding(
@@ -283,10 +284,16 @@ class _InboxRow extends StatelessWidget {
         child: Row(
           children: [
             IconTile(
-              icon: credit
+              icon: unparsed
+                  ? Icons.sms_outlined
+                  : credit
                   ? Icons.south_west_rounded
                   : Icons.north_east_rounded,
-              color: credit ? t.success : t.danger,
+              color: unparsed
+                  ? t.mutedForeground
+                  : credit
+                  ? t.success
+                  : t.danger,
               size: 40,
             ),
             const GapX(S.md),
@@ -295,7 +302,11 @@ class _InboxRow extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   Text(
-                    message.parsedPayee ?? message.bankLabel ?? message.sender,
+                    unparsed
+                        ? 'Not a money movement'
+                        : (message.parsedPayee ??
+                              message.bankLabel ??
+                              message.sender),
                     style: TextStyle(
                       fontWeight: FontWeight.w700,
                       fontSize: AppType.body,
@@ -307,36 +318,26 @@ class _InboxRow extends StatelessWidget {
                   Muted(
                     [
                       message.bankLabel ?? message.sender,
-                      formatDate(message.occurredAt ?? message.receivedAt),
-                      if (message.confidence > 0) '${message.confidence}%',
-                    ].join(' · '),
-                    size: 11.5,
+                      if (message.account != null) message.account!.name,
+                      if (unparsed) 'Skip or dismiss',
+                    ].join(' Â· '),
+                    size: 12,
+                    maxLines: 1,
                   ),
                 ],
               ),
             ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                Text(
-                  amount == null ? ' ' : money(amount),
-                  style: TextStyle(
-                    fontWeight: FontWeight.w800,
-                    color: credit ? t.success : t.foreground,
-                  ),
+            if (!unparsed && amount != null)
+              Text(
+                '${credit ? '+' : 'âˆ’'}${money(amount)}',
+                style: TextStyle(
+                  fontWeight: FontWeight.w800,
+                  color: credit ? t.success : t.foreground,
                 ),
-                TextButton(
-                  onPressed: onSkip,
-                  style: TextButton.styleFrom(
-                    visualDensity: VisualDensity.compact,
-                    foregroundColor: t.mutedForeground,
-                  ),
-                  child: const Text(
-                    'Skip',
-                    style: TextStyle(fontSize: AppType.label),
-                  ),
-                ),
-              ],
+              ),
+            IconButton(
+              icon: Icon(Icons.close_rounded, size: 18, color: t.mutedForeground),
+              onPressed: onSkip,
             ),
           ],
         ),

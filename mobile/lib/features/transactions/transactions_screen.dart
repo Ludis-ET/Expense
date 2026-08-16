@@ -63,22 +63,46 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   /// Combined write/flush epoch last handled by `_reload`.
   int _seenEpoch = -1;
 
-  // Filters
+  // Filters — Activity opens on the current calendar month by default.
   String _query = '';
   TxKind? _kind;
   String? _accountId;
   String? _categoryId;
-  DateTime? _from;
-  DateTime? _to;
+  DateTime? _from = DateTime(DateTime.now().year, DateTime.now().month, 1);
+  DateTime? _to = DateTime(
+    DateTime.now().year,
+    DateTime.now().month,
+    DateTime.now().day,
+  );
   TxSort _sort = TxSort.dateDesc;
 
   static const _pageSize = 25;
+
+  void _applyDefaultMonth() {
+    final now = DateTime.now();
+    _from = DateTime(now.year, now.month, 1);
+    _to = DateTime(now.year, now.month, now.day);
+  }
+
+  bool get _isDefaultMonthRange {
+    final now = DateTime.now();
+    final start = DateTime(now.year, now.month, 1);
+    final end = DateTime(now.year, now.month, now.day);
+    return _from != null &&
+        _to != null &&
+        _from!.year == start.year &&
+        _from!.month == start.month &&
+        _from!.day == start.day &&
+        _to!.year == end.year &&
+        _to!.month == end.month &&
+        _to!.day == end.day;
+  }
 
   int get _activeFilterCount => [
     _kind != null,
     _accountId != null,
     _categoryId != null,
-    _from != null || _to != null,
+    (_from != null || _to != null) && !_isDefaultMonthRange,
     _sort != TxSort.dateDesc,
   ].where((x) => x).length;
 
@@ -218,8 +242,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
       _kind = null;
       _accountId = null;
       _categoryId = null;
-      _from = null;
-      _to = null;
+      _applyDefaultMonth();
       _sort = TxSort.dateDesc;
     });
     _reload();

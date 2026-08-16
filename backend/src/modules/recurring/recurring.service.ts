@@ -1,4 +1,4 @@
-import { CategoryKind, TxKind } from '../../core/prisma.js';
+import { BudgetState, BudgetType, CategoryKind, TxKind } from '../../core/prisma.js';
 import { prisma } from '../../core/db.js';
 import { BadRequestError, NotFoundError } from '../../core/errors.js';
 import type { AuthUser } from '../../core/context.js';
@@ -28,15 +28,35 @@ async function assertOwnedRule(id: string, userId: string) {
   return rule;
 }
 
+/**
+ * Wallet, category, and (for expenses) the plan this rule draws from.
+ *
+ * Recurring spends always name an ACTIVE SPENDING plan — one-time or
+ * recurring envelopes are both fine. The plan's currency must match the rule
+ * (and the paying wallet). Pot shortfall is checked at post time, not here.
+ */
 async function assertRefsOwned(
   userId: string,
   kind: TxKind,
-  input: { accountId?: string; categoryId?: string | null; budgetId?: string | null },
+  input: {
+    accountId?: string;
+    categoryId?: string | null;
+    budgetId?: string | null;
+    currency?: string;
+  },
 ) {
+  let accountCurrency: string | null = null;
   if (input.accountId) {
     const account = await prisma.account.findFirst({ where: { id: input.accountId, userId } });
     if (!account) throw new NotFoundError('Account not found');
+    accountCurrency = account.currency;
+    if (input.currency && account.currency !== input.currency) {
+      throw new BadRequestError(
+        `"${account.name}" holds ${account.currency}; this rule is in ${input.currency}.`,
+      );
+    }
   }
+
   if (input.categoryId) {
     const category = await prisma.category.findFirst({ where: { id: input.categoryId, userId } });
     if (!category) throw new NotFoundError('Category not found');
@@ -45,12 +65,41 @@ async function assertRefsOwned(
       throw new BadRequestError(`"${category.name}" is a ${category.kind.toLowerCase()} category`);
     }
   }
-  if (input.budgetId) {
-    if (kind !== TxKind.EXPENSE) {
-      throw new BadRequestError('Only an expense can be paid out of a plan.');
+
+  if (kind === TxKind.EXPENSE) {
+    if (!input.budgetId) {
+      throw new BadRequestError('A recurring expense must spend from a plan.');
     }
-    const budget = await prisma.budget.findFirst({ where: { id: input.budgetId, userId } });
-    if (!budget) throw new NotFoundError('Budget plan not found');
+  } else if (input.budgetId) {
+    throw new BadRequestError('Only an expense can be paid out of a plan.');
+  }
+
+  if (!input.budgetId) return;
+
+  const budget = await prisma.budget.findFirst({ where: { id: input.budgetId, userId } });
+  if (!budget) throw new NotFoundError('Budget plan not found');
+
+  if (budget.state !== BudgetState.ACTIVE) {
+    throw new BadRequestError(
+      budget.state === BudgetState.CLOSED
+        ? `"${budget.name}" is closed - reopen it or pick another plan.`
+        : `"${budget.name}" is finished - pick an active spending plan.`,
+    );
+  }
+  if (budget.type !== BudgetType.SPENDING) {
+    throw new BadRequestError(
+      `"${budget.name}" is a saving plan - recurring spends need a spending envelope.`,
+    );
+  }
+  if (input.currency && budget.currency !== input.currency) {
+    throw new BadRequestError(
+      `"${budget.name}" is in ${budget.currency}; this rule is in ${input.currency}.`,
+    );
+  }
+  if (accountCurrency && budget.currency !== accountCurrency) {
+    throw new BadRequestError(
+      `"${budget.name}" is in ${budget.currency}; the paying wallet holds ${accountCurrency}.`,
+    );
   }
 }
 
@@ -67,9 +116,14 @@ export async function create(user: AuthUser, input: CreateRecurringInput) {
   const data = {
     ...input,
     categoryId: input.categoryId ?? null,
-    budgetId: input.budgetId ?? null,
+    budgetId: input.kind === TxKind.EXPENSE ? (input.budgetId ?? null) : null,
   };
-  await assertRefsOwned(user.id, input.kind, data);
+  await assertRefsOwned(user.id, input.kind, {
+    accountId: data.accountId,
+    categoryId: data.categoryId,
+    budgetId: data.budgetId,
+    currency: data.currency,
+  });
   const rule = await prisma.recurringRule.create({
     data: { ...data, userId: user.id },
     include: ruleInclude,
@@ -79,8 +133,34 @@ export async function create(user: AuthUser, input: CreateRecurringInput) {
 
 export async function update(user: AuthUser, id: string, input: UpdateRecurringInput) {
   const existing = await assertOwnedRule(id, user.id);
-  await assertRefsOwned(user.id, (input.kind ?? existing.kind) as TxKind, input);
-  const rule = await prisma.recurringRule.update({ where: { id }, data: input, include: ruleInclude });
+  const kind = (input.kind ?? existing.kind) as TxKind;
+  const currency = input.currency ?? existing.currency;
+  const accountId = input.accountId ?? existing.accountId;
+  const categoryId =
+    input.categoryId !== undefined ? input.categoryId : existing.categoryId;
+  const budgetId =
+    kind === TxKind.INCOME
+      ? null
+      : input.budgetId !== undefined
+        ? input.budgetId
+        : existing.budgetId;
+
+  await assertRefsOwned(user.id, kind, {
+    accountId,
+    categoryId,
+    budgetId,
+    currency,
+  });
+
+  const rule = await prisma.recurringRule.update({
+    where: { id },
+    data: {
+      ...input,
+      ...(kind === TxKind.INCOME ? { budgetId: null } : {}),
+      ...(kind === TxKind.EXPENSE && input.budgetId !== undefined ? { budgetId } : {}),
+    },
+    include: ruleInclude,
+  });
   return serialize(rule);
 }
 

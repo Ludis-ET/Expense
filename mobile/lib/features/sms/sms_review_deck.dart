@@ -43,7 +43,21 @@ class _SmsReviewDeckState extends State<SmsReviewDeck>
 
   Future<void> _confirm(InboxMessage m) async {
     if (_busy) return;
-    final draft = DraftConfirm.fromMessage(m);
+    final sms = context.read<SmsState>();
+    final rule = sms.senderRules
+        .where((r) => r.sender.toLowerCase() == m.sender.toLowerCase())
+        .firstOrNull;
+    final draft = DraftConfirm.fromMessage(m, rule: rule);
+
+    // Unparsed / non-money SMS: never force a ledger entry — open the clear UI.
+    if (m.status == 'UNPARSED' || draft.amount == null) {
+      Haptics.reject();
+      final edited = await showSmsEditSheet(context, message: m);
+      if (edited == null || !mounted) return;
+      await _submit(m.id, edited);
+      return;
+    }
+
     if (!_canConfirm(m, draft)) {
       Haptics.reject();
       final edited = await showSmsEditSheet(context, message: m);
@@ -205,8 +219,7 @@ class _SmsReviewDeckState extends State<SmsReviewDeck>
                       Expanded(
                         child: AppButton(
                           label: 'Edit',
-                          variant: BtnVariant.secondary,
-                          icon: Icons.tune_rounded,
+                          variant: BtnVariant.ghost,
                           onPressed: _busy
                               ? null
                               : () async {
@@ -214,17 +227,33 @@ class _SmsReviewDeckState extends State<SmsReviewDeck>
                                     context,
                                     message: current,
                                   );
-                                  if (body != null)
+                                  if (body != null) {
                                     await _submit(current.id, body);
+                                  }
                                 },
                         ),
                       ),
                       const GapX(S.sm),
                       Expanded(
                         child: AppButton(
-                          label: 'Record',
-                          icon: Icons.check_rounded,
-                          onPressed: _busy ? null : () => _confirm(current),
+                          label: current.status == 'UNPARSED' ||
+                                  current.parsedAmount == null
+                              ? 'Dismiss'
+                              : 'Record',
+                          icon: current.status == 'UNPARSED' ||
+                                  current.parsedAmount == null
+                              ? Icons.check_rounded
+                              : Icons.check_rounded,
+                          onPressed: _busy
+                              ? null
+                              : () {
+                                  if (current.status == 'UNPARSED' ||
+                                      current.parsedAmount == null) {
+                                    _reject(current);
+                                  } else {
+                                    _confirm(current);
+                                  }
+                                },
                         ),
                       ),
                     ],
@@ -267,6 +296,8 @@ class _CardFace extends StatelessWidget {
     final amount = message.parsedAmount;
     final currency = message.parsedCurrency ?? 'ETB';
     final kind = message.suggestion?.kind ?? message.parsedKind;
+    final unparsed = message.status == 'UNPARSED' || amount == null;
+    final wallet = message.account;
 
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: S.xl, vertical: S.md),
@@ -276,120 +307,178 @@ class _CardFace extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(S.xxl, S.xxl, S.xxl, S.xl),
           child: Stack(
             children: [
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Row(
-                    children: [
-                      _Pill(
-                        icon: Icons.account_balance_rounded,
-                        label: message.bankLabel ?? message.sender,
-                      ),
-                      const Spacer(),
-                      _Pill(
-                        label: credit ? 'Credited' : 'Debited',
-                        color: credit ? t.success : t.danger,
-                      ),
-                    ],
-                  ),
-                  const Gap(S.xxl),
-                  Text(
-                    amount == null ? ' ' : money(amount, currency: currency),
-                    style: TextStyle(
-                      fontSize: AppType.hero,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: -1.2,
-                      color: t.foreground,
-                      height: 1,
-                    ),
-                  ),
-                  const Gap(S.sm),
-                  Text(
-                    message.parsedPayee ?? 'Unknown counterparty',
-                    style: TextStyle(
-                      fontSize: AppType.lead,
-                      fontWeight: FontWeight.w700,
-                      color: t.foreground,
-                    ),
-                  ),
-                  const Gap(S.xs),
-                  Muted(
-                    [
-                      if (kind != null) kind.label,
-                      formatDate(message.occurredAt ?? message.receivedAt),
-                      if (message.parsedRef != null) 'ref ${message.parsedRef}',
-                    ].join(' · '),
-                    size: 13,
-                  ),
-                  if (message.suggestion?.reason != null) ...[
-                    const Gap(S.md),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.all(S.md),
-                      decoration: BoxDecoration(
-                        color: t.primary.withValues(alpha: 0.08),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: t.primary.withValues(alpha: 0.25),
+              if (unparsed)
+                _UnparsedFace(message: message)
+              else
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      children: [
+                        _Pill(
+                          icon: Icons.account_balance_rounded,
+                          label: message.bankLabel ?? message.sender,
                         ),
-                      ),
-                      child: Text(
-                        message.suggestion!.reason!,
-                        style: TextStyle(
-                          fontSize: AppType.label,
-                          height: 1.4,
-                          color: t.foreground,
+                        const Spacer(),
+                        _Pill(
+                          label: credit ? 'Credited' : 'Debited',
+                          color: credit ? t.success : t.danger,
                         ),
-                      ),
+                      ],
                     ),
-                  ],
-                  const Gap(S.lg),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _ConfChip(confidence: message.confidence),
-                      if (message.account == null)
-                        _NeedChip(label: 'Pick wallet', color: t.warning),
-                      if ((kind ?? TxKind.expense) == TxKind.transfer &&
-                          message.suggestion?.transferAccountId == null)
-                        _NeedChip(label: 'Pick destination', color: t.warning),
-                      if (message.parsedAmount == null)
-                        _NeedChip(label: 'Set amount', color: t.danger),
-                    ],
-                  ),
-                  const Spacer(),
-                  ExpansionTile(
-                    tilePadding: EdgeInsets.zero,
-                    childrenPadding: EdgeInsets.zero,
-                    title: Text(
-                      'Original SMS',
+                    const Gap(S.xxl),
+                    Text(
+                      money(amount, currency: currency),
                       style: TextStyle(
-                        fontSize: AppType.bodySm,
-                        color: t.mutedForeground,
+                        fontSize: AppType.hero,
+                        fontWeight: FontWeight.w900,
+                        letterSpacing: -1.2,
+                        color: t.foreground,
+                        height: 1,
                       ),
                     ),
-                    children: [
+                    const Gap(S.sm),
+                    Text(
+                      message.parsedPayee ?? 'Unknown counterparty',
+                      style: TextStyle(
+                        fontSize: AppType.lead,
+                        fontWeight: FontWeight.w700,
+                        color: t.foreground,
+                      ),
+                    ),
+                    const Gap(S.xs),
+                    Muted(
+                      [
+                        if (kind != null) kind.label,
+                        formatDate(message.occurredAt ?? message.receivedAt),
+                        if (message.parsedRef != null)
+                          'ref ${message.parsedRef}',
+                      ].join(' · '),
+                      size: 13,
+                    ),
+                    const Gap(S.md),
+                    if (wallet != null)
                       Container(
                         width: double.infinity,
                         padding: const EdgeInsets.all(S.md),
                         decoration: BoxDecoration(
-                          color: t.surfaceMuted.withValues(alpha: 0.5),
+                          color: t.success.withValues(alpha: 0.08),
                           borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: t.success.withValues(alpha: 0.28),
+                          ),
+                        ),
+                        child: Row(
+                          children: [
+                            Icon(
+                              Icons.account_balance_wallet_outlined,
+                              size: 18,
+                              color: t.success,
+                            ),
+                            const GapX(S.sm),
+                            Expanded(
+                              child: Text(
+                                'Fills ${wallet.name}',
+                                style: TextStyle(
+                                  fontSize: AppType.label,
+                                  fontWeight: FontWeight.w600,
+                                  color: t.foreground,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    else
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(S.md),
+                        decoration: BoxDecoration(
+                          color: t.warning.withValues(alpha: 0.1),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: t.warning.withValues(alpha: 0.35),
+                          ),
                         ),
                         child: Text(
-                          message.body,
+                          'No wallet linked to this sender yet. Tap to pick one — or map it under Messaging points.',
                           style: TextStyle(
                             fontSize: AppType.label,
-                            height: 1.45,
+                            height: 1.4,
+                            color: t.foreground,
+                          ),
+                        ),
+                      ),
+                    if (message.suggestion?.reason != null) ...[
+                      const Gap(S.md),
+                      Container(
+                        width: double.infinity,
+                        padding: const EdgeInsets.all(S.md),
+                        decoration: BoxDecoration(
+                          color: t.primary.withValues(alpha: 0.08),
+                          borderRadius: BorderRadius.circular(12),
+                          border: Border.all(
+                            color: t.primary.withValues(alpha: 0.25),
+                          ),
+                        ),
+                        child: Text(
+                          message.suggestion!.reason!,
+                          style: TextStyle(
+                            fontSize: AppType.label,
+                            height: 1.4,
                             color: t.foreground,
                           ),
                         ),
                       ),
                     ],
-                  ),
-                ],
-              ),
+                    const Gap(S.lg),
+                    Wrap(
+                      spacing: 8,
+                      runSpacing: 8,
+                      children: [
+                        _ConfChip(confidence: message.confidence),
+                        if (wallet == null)
+                          _NeedChip(label: 'Pick wallet', color: t.warning),
+                        if ((kind ?? TxKind.expense) == TxKind.transfer &&
+                            message.suggestion?.transferAccountId == null)
+                          _NeedChip(
+                            label: 'Pick destination',
+                            color: t.warning,
+                          ),
+                      ],
+                    ),
+                    const Spacer(),
+                    ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      childrenPadding: EdgeInsets.zero,
+                      title: Text(
+                        'Original SMS',
+                        style: TextStyle(
+                          fontSize: AppType.bodySm,
+                          color: t.mutedForeground,
+                        ),
+                      ),
+                      children: [
+                        Container(
+                          width: double.infinity,
+                          padding: const EdgeInsets.all(S.md),
+                          decoration: BoxDecoration(
+                            color: t.surfaceMuted.withValues(alpha: 0.5),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Text(
+                            message.body,
+                            style: TextStyle(
+                              fontSize: AppType.label,
+                              height: 1.45,
+                              color: t.foreground,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+                  ],
+                ),
               Positioned(
                 top: 70,
                 left: 8,
@@ -403,13 +492,100 @@ class _CardFace extends StatelessWidget {
                 right: 8,
                 child: Opacity(
                   opacity: confirmOpacity,
-                  child: _Stamp(label: 'RECORD', color: t.success),
+                  child: _Stamp(
+                    label: unparsed ? 'OPEN' : 'RECORD',
+                    color: t.success,
+                  ),
                 ),
               ),
             ],
           ),
         ),
       ),
+    );
+  }
+}
+
+class _UnparsedFace extends StatelessWidget {
+  const _UnparsedFace({required this.message});
+  final InboxMessage message;
+
+  @override
+  Widget build(BuildContext context) {
+    final t = context.t;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _Pill(
+          icon: Icons.sms_outlined,
+          label: message.bankLabel ?? message.sender,
+          color: t.mutedForeground,
+        ),
+        const Spacer(),
+        Center(
+          child: Container(
+            width: 72,
+            height: 72,
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              gradient: LinearGradient(
+                colors: [
+                  t.accent.withValues(alpha: 0.25),
+                  t.primary.withValues(alpha: 0.15),
+                ],
+              ),
+            ),
+            child: Icon(
+              Icons.mark_email_unread_outlined,
+              size: 34,
+              color: t.primary,
+            ),
+          ),
+        ),
+        const Gap(S.xl),
+        Text(
+          'Not a money movement',
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            fontSize: AppType.heading,
+            fontWeight: FontWeight.w800,
+            letterSpacing: -0.4,
+            color: t.foreground,
+          ),
+        ),
+        const Gap(S.sm),
+        Muted(
+          'Santim could not pull an amount from this SMS — OTPs, PIN notices, '
+          'account openings, and security tips stay here so you can dismiss them.',
+          size: 14,
+          height: 1.45,
+          maxLines: 5,
+        ),
+        const Gap(S.lg),
+        Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(S.md),
+          decoration: BoxDecoration(
+            color: t.surfaceMuted.withValues(alpha: 0.55),
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            message.body.replaceAll('\n', ' '),
+            maxLines: 5,
+            overflow: TextOverflow.ellipsis,
+            style: TextStyle(
+              fontSize: AppType.label,
+              height: 1.4,
+              color: t.mutedForeground,
+            ),
+          ),
+        ),
+        const Spacer(),
+        Muted(
+          'Swipe left or tap Skip to clear it.',
+          size: 12,
+        ),
+      ],
     );
   }
 }
@@ -534,10 +710,14 @@ class DraftConfirm {
   String? note;
   bool rememberMapping;
 
-  factory DraftConfirm.fromMessage(InboxMessage m) {
+  factory DraftConfirm.fromMessage(
+    InboxMessage m, {
+    SenderRule? rule,
+  }) {
     final kind = m.suggestion?.kind ?? m.parsedKind ?? TxKind.expense;
     return DraftConfirm(
-      accountId: m.account?.id,
+      accountId: m.account?.id ?? rule?.accountId,
+      categoryId: rule?.defaultCategoryId,
       transferAccountId: m.suggestion?.transferAccountId,
       kind: kind,
       amount: double.tryParse(m.parsedAmount ?? ''),

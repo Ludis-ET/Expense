@@ -14,7 +14,8 @@ const CURRENCY_WORDS: Array<[RegExp, string]> = [
   [/\b(?:gbp|pounds?|£)\b/i, 'GBP'],
 ];
 
-const MONEY = String.raw`\d{1,3}(?:,\d{3})*(?:\.\d{1,2})?|\d+(?:\.\d{1,2})?`;
+/** Prefer comma-grouped and decimal amounts so "2,000" is not read as "2". */
+const MONEY = String.raw`\d{1,3}(?:,\d{3})+(?:\.\d{1,2})?|\d+\.\d{1,2}|\d+`;
 
 /** "ETB 1,234.56" / "1,234.56 ETB" / "Birr1234" */
 const AMOUNT_PATTERNS: RegExp[] = [
@@ -46,6 +47,8 @@ const CREDIT_PATTERNS: Array<[RegExp, number]> = [
   [/\bhas been credited\b/i, 100],
   [/\bcredited (?:with|by|for)?\b/i, 95],
   [/\byou(?:r account)? (?:have |has )?received\b/i, 90],
+  [/\bsuccessfully deposited\b/i, 92],
+  [/\bsuccessfully withdraw\b/i, 90],
   [/\bdeposited (?:to|into|in)\b/i, 90],
   [/\btransferred to your\b/i, 88],
   [/\bcredit(?:ed)?\b/i, 60],
@@ -57,7 +60,9 @@ const CREDIT_PATTERNS: Array<[RegExp, number]> = [
 const DEBIT_PATTERNS: Array<[RegExp, number]> = [
   [/\bhas been debited\b/i, 100],
   [/\bdebited (?:with|by|for)?\b/i, 95],
+  [/\ba debit transaction of\b/i, 96],
   [/\byou have (?:transferred|sent|paid)\b/i, 92],
+  [/\bsuccessfully deposited .+ to your saving/i, 93],
   [/\bwithdraw(?:n|al)\b/i, 90],
   [/\bpurchase(?:d)? (?:of|at|for)\b/i, 88],
   [/\btransferred from your\b/i, 88],
@@ -169,18 +174,35 @@ export function detectCurrency(body: string): string {
 }
 
 /**
- * Pulls the balance out and returns both the value and the body with that
- * clause blanked, so downstream amount matching cannot see it.
+ * Pulls every balance clause out and blanks them so amount matching cannot
+ * see closing balances (telebirr often reports saving + e-money together).
  */
 function extractBalance(
   body: string,
   patterns: RegExp[],
 ): { balance?: number; masked: string } {
-  const m = firstMatch(body, patterns);
-  if (!m || m.index === undefined || !m[1]) return { masked: body };
-
-  const masked = body.slice(0, m.index) + ' '.repeat(m[0].length) + body.slice(m.index + m[0].length);
-  return { balance: toNumber(m[1]), masked };
+  let masked = body;
+  let balance: number | undefined;
+  let guard = 0;
+  while (guard++ < 8) {
+    const m = firstMatch(masked, patterns);
+    if (!m || m.index === undefined || !m[1]) break;
+    // Prefer the e-money / telebirr / available balance when several exist.
+    const clause = m[0].toLowerCase();
+    const prefer =
+      /telebirr|e-?money|available/.test(clause) || balance === undefined;
+    if (prefer) balance = toNumber(m[1]);
+    masked =
+      masked.slice(0, m.index) +
+      ' '.repeat(m[0].length) +
+      masked.slice(m.index + m[0].length);
+  }
+  // Also blank fee lines so "VAT … ETB 0.39" does not become the amount.
+  masked = masked.replace(
+    /(?:service fee|vat|disaster recovery)[^.]*?ETB\s*[\d,]+(?:\.\d+)?/gi,
+    (s) => ' '.repeat(s.length),
+  );
+  return { balance, masked };
 }
 
 function extractPayee(body: string, patterns: RegExp[]): string | undefined {
@@ -205,24 +227,44 @@ function extractPayee(body: string, patterns: RegExp[]): string | undefined {
 }
 
 /**
- * Date/time out of the body. Banks here use both `dd/mm/yyyy` and ISO, so the
- * ambiguous numeric form is only trusted when the first component is > 12.
+ * Date/time out of the body. Banks here use ISO, `dd/mm/yyyy`, and
+ * `14-AUG-2026` styles.
  */
 function extractDate(body: string): Date | undefined {
-  const iso = body.match(/\b(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
+  const iso = body.match(
+    /\b(\d{4})-(\d{2})-(\d{2})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
+  );
   if (iso) {
     const [, y, mo, d, h = '0', mi = '0', s = '0'] = iso;
     const dt = new Date(Date.UTC(+y!, +mo! - 1, +d!, +h, +mi, +s));
     if (!Number.isNaN(dt.getTime())) return dt;
   }
 
-  const dmy = body.match(/\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[ ,]+(\d{1,2}):(\d{2}))?/);
+  const mon = body.match(
+    /\b(\d{1,2})[-/]([A-Za-z]{3})[-/](\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/i,
+  );
+  if (mon) {
+    const months: Record<string, number> = {
+      jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+      jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11,
+    };
+    const miIdx = months[mon[2]!.slice(0, 3).toLowerCase()];
+    if (miIdx !== undefined) {
+      const dt = new Date(
+        Date.UTC(+mon[3]!, miIdx, +mon[1]!, +(mon[4] ?? 0), +(mon[5] ?? 0), +(mon[6] ?? 0)),
+      );
+      if (!Number.isNaN(dt.getTime())) return dt;
+    }
+  }
+
+  const dmy = body.match(
+    /\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})(?:[ ,]+(\d{1,2}):(\d{2})(?::(\d{2}))?)?/,
+  );
   if (dmy) {
-    const [, a, b, y, h = '0', mi = '0'] = dmy;
-    // Only commit when it is unambiguous which field is the day.
+    const [, a, b, y, h = '0', mi = '0', s = '0'] = dmy;
     const day = +a! > 12 ? +a! : +b! > 12 ? +b! : +a!;
     const month = +a! > 12 ? +b! : +b! > 12 ? +a! : +b!;
-    const dt = new Date(Date.UTC(+y!, month - 1, day, +h, +mi));
+    const dt = new Date(Date.UTC(+y!, month - 1, day, +h, +mi, +s));
     if (!Number.isNaN(dt.getTime())) return dt;
   }
 
@@ -257,10 +299,10 @@ export function extractFields(
   else if (debitScore > creditScore) direction = 'debit';
   if (direction) signals.push(`direction:${direction}`);
 
-  const ref = firstMatch(body, overrides.ref ?? REF_PATTERNS)?.[1];
+  const ref = firstMatch(body, [...(overrides.ref ?? []), ...REF_PATTERNS])?.[1];
   if (ref) signals.push('ref');
 
-  const payee = extractPayee(body, overrides.payee ?? PAYEE_PATTERNS);
+  const payee = extractPayee(body, [...(overrides.payee ?? []), ...PAYEE_PATTERNS]);
   if (payee) signals.push('payee');
 
   const occurredAt = extractDate(body);

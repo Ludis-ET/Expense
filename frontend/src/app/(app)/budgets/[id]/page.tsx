@@ -370,6 +370,7 @@ function PlanHero({
   const Icon = financeIcon(plan.icon ?? 'wallet');
   const meta = HEALTH_META[plan.health];
   const closed = plan.state === 'CLOSED';
+  const isSaving = plan.type === 'SAVING';
   const planned = Math.max(Number(plan.plannedAmount), 0.01);
   const spentPct = Math.min(100, (Number(plan.spentAmount) / planned) * 100);
   const balancePct = Math.min(100 - spentPct, (Number(plan.balance) / planned) * 100);
@@ -432,6 +433,14 @@ function PlanHero({
             <Button size="sm" variant="outline" onClick={onRelease}>
               <ArrowDownLeft className="h-4 w-4" /> Give back
             </Button>
+          )}
+          {!closed && !isSaving && (
+            <Link
+              href={`/transactions?tab=recurring&budgetId=${plan.id}`}
+              className="inline-flex h-8 items-center justify-center gap-1.5 rounded-xl border border-border bg-surface px-3 text-sm font-medium transition-all hover:bg-surface-muted"
+            >
+              <Repeat className="h-4 w-4" /> Recurring spend
+            </Link>
           )}
           {!closed && (
             <Button size="sm" variant="outline" onClick={onAdjust}>

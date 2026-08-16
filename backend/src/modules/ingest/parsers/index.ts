@@ -14,13 +14,20 @@ export type { BankDefinition } from './types.js';
  */
 export const AUTO_COMMIT_MIN_CONFIDENCE = 80;
 
-/** Marketing, OTPs, and balance-enquiry replies that are not transactions. */
+/** Marketing, OTPs, PINs, account-open notices, and security blasts. */
 const NON_TRANSACTION_PATTERNS: RegExp[] = [
   /\b(?:otp|one[- ]time password|verification code|passcode)\b/i,
+  /\byour otp is\b/i,
+  /\binitial pin is\b/i,
   /\bdo not share\b.*\b(?:code|pin)\b/i,
   /\b(?:dear customer,?\s*)?(?:your )?(?:account )?balance (?:enquiry|inquiry)\b/i,
   /\b(?:congratulations|win|offer|promo(?:tion)?|discount|dear valued)\b/i,
   /\bairtime\b.*\bbundle\b/i,
+  /\bsuccessfully opened\b/i,
+  /\bjoin our telegram\b/i,
+  /\bdial \*\d+# to complete registration\b/i,
+  /የጥንቃቄ መልዕክት/,
+  /ከሞባይል ባንኪንግ/,
 ];
 
 export function looksTransactional(body: string): boolean {

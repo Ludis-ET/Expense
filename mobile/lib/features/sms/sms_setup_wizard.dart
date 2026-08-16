@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
@@ -129,16 +130,38 @@ class _SmsSetupWizardState extends State<SmsSetupWizard> {
   }
 
   Future<void> _finish() async {
+    setState(() {
+      _busy = true;
+      _error = null;
+    });
     final sms = context.read<SmsState>();
-    await sms.loadBanks();
-    if (!mounted) return;
-    await Navigator.of(context).push(
-      MaterialPageRoute(
-        builder: (_) => const MessagingPointsScreen(fromSetup: true),
-      ),
-    );
-    await sms.completeSetup();
-    if (mounted) Navigator.pop(context, true);
+    try {
+      await sms.loadBanks();
+      if (!mounted) return;
+      final done = await Navigator.of(context).push<bool>(
+        MaterialPageRoute(
+          builder: (_) => const MessagingPointsScreen(fromSetup: true),
+        ),
+      );
+      if (!mounted) return;
+      if (done == false) {
+        setState(() => _busy = false);
+        return;
+      }
+      await sms.completeSetup();
+      // Pull anything queued while we were setting up, then flush.
+      await sms.refreshManifest();
+      unawaited(sms.flushUploads());
+      if (mounted) Navigator.pop(context, true);
+    } on ApiError catch (e) {
+      if (mounted) setState(() => _error = e.message);
+    } catch (e) {
+      if (mounted) {
+        setState(() => _error = 'Could not finish setup. Try again.');
+      }
+    } finally {
+      if (mounted) setState(() => _busy = false);
+    }
   }
 
   @override

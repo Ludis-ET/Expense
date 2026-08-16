@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
@@ -25,8 +27,10 @@ class MessagingPointsScreen extends StatefulWidget {
 
 class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
   bool _loading = true;
+  bool _scanning = false;
   String? _error;
-  List<({String sender, String sample, int count})> _scanned = const [];
+  List<({String sender, String sample, int count, bool knownBank})> _scanned =
+      const [];
 
   @override
   void initState() {
@@ -48,15 +52,70 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
         data.loadAccounts(),
         data.loadCategories(),
       ]);
-      try {
-        _scanned = await sms.scanCandidateSenders();
-      } catch (_) {
-        _scanned = const [];
-      }
+      if (!mounted) return;
+      // Show mapped banks immediately; inbox scan continues in the background.
+      setState(() => _loading = false);
+      await _scanInbox();
     } on ApiError catch (e) {
-      _error = e.message;
+      if (mounted) {
+        setState(() {
+          _error = e.message;
+          _loading = false;
+        });
+      }
+    } catch (_) {
+      if (mounted) {
+        setState(() {
+          _error = 'Could not load messaging points.';
+          _loading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _scanInbox() async {
+    if (!mounted) return;
+    setState(() => _scanning = true);
+    try {
+      final scanned = await context.read<SmsState>().scanCandidateSenders();
+      if (mounted) setState(() => _scanned = scanned);
+    } catch (_) {
+      if (mounted) setState(() => _scanned = const []);
     } finally {
-      if (mounted) setState(() => _loading = false);
+      if (mounted) setState(() => _scanning = false);
+    }
+  }
+
+  Future<void> _enableFoundBanks() async {
+    final data = context.read<DataState>();
+    final sms = context.read<SmsState>();
+    final accounts = data.scopedAccounts;
+    if (accounts.isEmpty) {
+      toast(context, 'Create a wallet first', error: true);
+      return;
+    }
+    final accountId = accounts.where((a) => a.isDefault).firstOrNull?.id ??
+        accounts.first.id;
+    final known = _scanned.where((s) => s.knownBank).toList();
+    if (known.isEmpty) {
+      toast(context, 'No known bank senders in recent SMS yet');
+      return;
+    }
+    try {
+      final n = await sms.enableFoundBanks(
+        scanned: known,
+        accountId: accountId,
+      );
+      if (!mounted) return;
+      toast(
+        context,
+        n == 0
+            ? 'Those banks were already mapped'
+            : 'Enabled $n bank sender${n == 1 ? '' : 's'} · importing history…',
+      );
+      await sms.loadSenderRules();
+    } on ApiError catch (e) {
+      if (mounted) toast(context, e.message, error: true);
     }
   }
 
@@ -69,17 +128,21 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
     final sms = context.read<SmsState>();
     final data = context.read<DataState>();
     var bankKey = existing?.bankKey ?? bank?.key ?? 'generic';
-    String? accountId = existing?.accountId ?? data.scopedAccounts.firstOrNull?.id;
+    String? accountId =
+        existing?.accountId ?? data.scopedAccounts.firstOrNull?.id;
     String? categoryId = existing?.defaultCategoryId;
     var enabled = existing?.enabled ?? true;
     var autoCommit = existing?.autoCommit ?? false;
-    final linked = data.accounts.data?.where((a) => a.id == accountId).firstOrNull;
-    final digitsCtrl = TextEditingController(text: linked?.accountNumber ?? '');
+    final linked =
+        data.accounts.data?.where((a) => a.id == accountId).firstOrNull;
+    final digitsCtrl =
+        TextEditingController(text: linked?.accountNumber ?? '');
 
     final saved = await showAppSheet<bool>(
       context,
       title: 'Bank message source',
-      subtitle: 'Mark "$sender" as a bank sender and choose which wallet it fills.',
+      subtitle:
+          'Mark "$sender" as a bank sender and choose which wallet it fills.',
       builder: (ctx) {
         return StatefulBuilder(
           builder: (ctx, setLocal) {
@@ -90,7 +153,9 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                 20,
                 0,
                 20,
-                20 + MediaQuery.of(ctx).viewInsets.bottom + MediaQuery.of(ctx).padding.bottom,
+                20 +
+                    MediaQuery.of(ctx).viewInsets.bottom +
+                    MediaQuery.of(ctx).padding.bottom,
               ),
               child: SingleChildScrollView(
                 child: Column(
@@ -119,7 +184,10 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                     ],
                     Text(
                       'Which bank is this?',
-                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                      style: TextStyle(
+                        fontSize: AppType.label,
+                        color: t.mutedForeground,
+                      ),
                     ),
                     const Gap(S.xs),
                     Wrap(
@@ -128,21 +196,32 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       children: [
                         for (final b in sms.banks)
                           ChoiceChip(
-                            label: Text(b.label, style: const TextStyle(fontSize: AppType.label)),
+                            label: Text(
+                              b.label,
+                              style: const TextStyle(fontSize: AppType.label),
+                            ),
                             selected: bankKey == b.key,
-                            onSelected: (_) => setLocal(() => bankKey = b.key),
+                            onSelected: (_) =>
+                                setLocal(() => bankKey = b.key),
                           ),
                         ChoiceChip(
-                          label: const Text('Generic', style: TextStyle(fontSize: AppType.label)),
+                          label: const Text(
+                            'Generic',
+                            style: TextStyle(fontSize: AppType.label),
+                          ),
                           selected: bankKey == 'generic',
-                          onSelected: (_) => setLocal(() => bankKey = 'generic'),
+                          onSelected: (_) =>
+                              setLocal(() => bankKey = 'generic'),
                         ),
                       ],
                     ),
                     const Gap(S.md),
                     Text(
                       'Deposit into wallet',
-                      style: TextStyle(fontSize: AppType.label, color: t.mutedForeground),
+                      style: TextStyle(
+                        fontSize: AppType.label,
+                        color: t.mutedForeground,
+                      ),
                     ),
                     const Gap(S.xs),
                     Wrap(
@@ -151,7 +230,10 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       children: [
                         for (final a in accounts)
                           ChoiceChip(
-                            label: Text(a.name, style: const TextStyle(fontSize: AppType.label)),
+                            label: Text(
+                              a.name,
+                              style: const TextStyle(fontSize: AppType.label),
+                            ),
                             selected: accountId == a.id,
                             onSelected: (_) => setLocal(() {
                               accountId = a.id;
@@ -184,7 +266,8 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       labelOf: (c) => c.name,
                       placeholder: 'None',
                       allowClear: true,
-                      onChanged: (c) => setLocal(() => categoryId = c?.id),
+                      onChanged: (c) =>
+                          setLocal(() => categoryId = c?.id),
                     ),
                     SwitchListTile(
                       contentPadding: EdgeInsets.zero,
@@ -232,7 +315,8 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
     if (saved != true || !mounted) return;
     try {
       if (accountId != null && digits.isNotEmpty) {
-        final acc = data.accounts.data?.where((a) => a.id == accountId).firstOrNull;
+        final acc =
+            data.accounts.data?.where((a) => a.id == accountId).firstOrNull;
         if (acc == null || acc.accountNumber != digits) {
           await context.read<ApiClient>().put(
             '/accounts/$accountId',
@@ -242,7 +326,9 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
         }
       }
       if (accountId == null) {
-        if (mounted) toast(context, 'Pick a wallet to link this sender', error: true);
+        if (mounted) {
+          toast(context, 'Pick a wallet to link this sender', error: true);
+        }
         return;
       }
       await sms.upsertSenderRule({
@@ -253,7 +339,15 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
         'enabled': enabled,
         'autoCommit': autoCommit,
       });
-      if (mounted) toast(context, 'Bank message mapping saved');
+      final imported = await sms.importSenderHistory(sender);
+      if (mounted) {
+        toast(
+          context,
+          imported > 0
+              ? 'Mapped · queued $imported recent SMS for review'
+              : 'Bank message mapping saved',
+        );
+      }
     } on ApiError catch (e) {
       if (mounted) toast(context, e.message, error: true);
     }
@@ -263,6 +357,8 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
   Widget build(BuildContext context) {
     final t = context.t;
     final sms = context.watch<SmsState>();
+    final knownFound =
+        _scanned.where((s) => s.knownBank).length;
 
     return Scaffold(
       backgroundColor: t.background,
@@ -279,7 +375,10 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
         ),
         actions: [
           if (widget.fromSetup)
-            TextButton(onPressed: () => Navigator.pop(context), child: const Text('Done')),
+            TextButton(
+              onPressed: () => Navigator.pop(context, true),
+              child: const Text('Done'),
+            ),
         ],
       ),
       body: MeshBackground(
@@ -289,7 +388,12 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                 onRefresh: _load,
                 color: t.primary,
                 child: ListView(
-                  padding: EdgeInsets.fromLTRB(14, 8, 14, ShellLayout.pageClearance(context)),
+                  padding: EdgeInsets.fromLTRB(
+                    14,
+                    8,
+                    14,
+                    ShellLayout.pageClearance(context),
+                  ),
                   children: [
                     SectionLabel(
                       'MAPPED BANK SENDERS',
@@ -313,14 +417,40 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                       for (final r in sms.senderRules)
                         _RuleTile(
                           rule: r,
-                          onTap: () => _editRule(sender: r.sender, existing: r),
+                          onTap: () =>
+                              _editRule(sender: r.sender, existing: r),
                           onDelete: () async {
                             await sms.deleteSenderRule(r.id);
                           },
                         ),
+                    if (knownFound > 0) ...[
+                      const Gap(S.md),
+                      AppButton(
+                        label: 'Enable $knownFound found bank'
+                            '${knownFound == 1 ? '' : 's'}',
+                        icon: Icons.auto_awesome_rounded,
+                        expand: true,
+                        onPressed: _enableFoundBanks,
+                      ),
+                      const Gap(S.xs),
+                      Muted(
+                        'Maps known bank short-codes from your SMS to your default wallet and imports recent history.',
+                        size: 12,
+                        maxLines: 3,
+                      ),
+                    ],
                     const Gap(S.lg),
-                    SectionLabel('FROM YOUR MESSAGES'),
-                    if (_scanned.isEmpty)
+                    SectionLabel(
+                      'FROM YOUR MESSAGES',
+                      trailing: _scanning
+                          ? const SizedBox(
+                              width: 14,
+                              height: 14,
+                              child: CircularProgressIndicator(strokeWidth: 2),
+                            )
+                          : null,
+                    ),
+                    if (!_scanning && _scanned.isEmpty)
                       const EmptyState(
                         title: 'No SMS found',
                         description:
@@ -334,8 +464,11 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                           sender: s.sender,
                           sample: s.sample,
                           count: s.count,
+                          knownBank: s.knownBank,
                           already: sms.senderRules.any(
-                            (r) => r.sender.toLowerCase() == s.sender.toLowerCase(),
+                            (r) =>
+                                r.sender.toLowerCase() ==
+                                s.sender.toLowerCase(),
                           ),
                           bank: _matchBank(sms.banks, s.sender),
                           onTap: () => _editRule(
@@ -348,11 +481,17 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                     SectionLabel('KNOWN BANKS'),
                     for (final b in sms.banks)
                       AppCard(
-                        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: S.lg,
+                          vertical: S.md,
+                        ),
                         onTap: () {
                           Haptics.select();
                           final sender = b.senders.firstOrNull ?? b.key;
-                          _editRule(sender: sender.toUpperCase(), bank: b);
+                          _editRule(
+                            sender: sender.toUpperCase(),
+                            bank: b,
+                          );
                         },
                         child: Row(
                           children: [
@@ -368,13 +507,21 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
                                 children: [
                                   Text(
                                     b.label,
-                                    style: const TextStyle(fontWeight: FontWeight.w700),
+                                    style: const TextStyle(
+                                      fontWeight: FontWeight.w700,
+                                    ),
                                   ),
-                                  Muted(b.senders.take(3).join(' · '), size: 12),
+                                  Muted(
+                                    b.senders.take(3).join(' · '),
+                                    size: 12,
+                                  ),
                                 ],
                               ),
                             ),
-                            Icon(Icons.add_rounded, color: t.mutedForeground),
+                            Icon(
+                              Icons.add_rounded,
+                              color: t.mutedForeground,
+                            ),
                           ],
                         ),
                       ),
@@ -387,7 +534,11 @@ class _MessagingPointsScreenState extends State<MessagingPointsScreen> {
 }
 
 class _RuleTile extends StatelessWidget {
-  const _RuleTile({required this.rule, required this.onTap, required this.onDelete});
+  const _RuleTile({
+    required this.rule,
+    required this.onTap,
+    required this.onDelete,
+  });
   final SenderRule rule;
   final VoidCallback onTap;
   final VoidCallback onDelete;
@@ -398,7 +549,10 @@ class _RuleTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: S.lg,
+          vertical: S.md,
+        ),
         onTap: onTap,
         child: Row(
           children: [
@@ -412,7 +566,10 @@ class _RuleTile extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(rule.sender, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    rule.sender,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   Muted(
                     [
                       rule.bankLabel ?? rule.bankKey,
@@ -442,6 +599,7 @@ class _ScanTile extends StatelessWidget {
     required this.count,
     required this.already,
     required this.onTap,
+    required this.knownBank,
     this.bank,
   });
 
@@ -449,6 +607,7 @@ class _ScanTile extends StatelessWidget {
   final String sample;
   final int count;
   final bool already;
+  final bool knownBank;
   final BankCatalogItem? bank;
   final VoidCallback onTap;
 
@@ -458,20 +617,33 @@ class _ScanTile extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.only(bottom: S.sm),
       child: AppCard(
-        padding: const EdgeInsets.symmetric(horizontal: S.lg, vertical: S.md),
+        padding: const EdgeInsets.symmetric(
+          horizontal: S.lg,
+          vertical: S.md,
+        ),
         onTap: already ? null : onTap,
         child: Row(
           children: [
-            IconTile(icon: Icons.sms_outlined, color: t.accent, size: 38),
+            IconTile(
+              icon: knownBank
+                  ? Icons.account_balance_rounded
+                  : Icons.sms_outlined,
+              color: knownBank ? t.primary : t.accent,
+              size: 38,
+            ),
             const GapX(S.md),
             Expanded(
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(sender, style: const TextStyle(fontWeight: FontWeight.w700)),
+                  Text(
+                    sender,
+                    style: const TextStyle(fontWeight: FontWeight.w700),
+                  ),
                   Muted(
                     [
                       if (bank != null) bank!.label,
+                      if (knownBank && bank == null) 'Bank-like',
                       '$count msgs',
                       sample.replaceAll('\n', ' '),
                     ].join(' · '),
@@ -497,10 +669,10 @@ class _ScanTile extends StatelessWidget {
 }
 
 BankCatalogItem? _matchBank(List<BankCatalogItem> banks, String sender) {
-  final n = sender.toLowerCase();
+  final n = sender.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
   for (final b in banks) {
     for (final s in b.senders) {
-      final x = s.toLowerCase();
+      final x = s.toLowerCase().replaceAll(RegExp(r'[^a-z0-9]'), '');
       if (n == x || n.contains(x) || x.contains(n)) return b;
     }
   }

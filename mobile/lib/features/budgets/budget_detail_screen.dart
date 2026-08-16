@@ -15,6 +15,7 @@ import '../../state/prefs_state.dart';
 import '../../state/sync_state.dart';
 import '../../data/outbox_store.dart';
 import '../../widgets/ui.dart';
+import '../recurring/recurring_form.dart';
 import '../transactions/transaction_detail.dart';
 import '../transactions/transaction_form.dart';
 import 'budget_common.dart';
@@ -282,6 +283,19 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
           context,
           presetKind: 'EXPENSE',
           presetBudgetId: b.id,
+        );
+        if (done == true) await _afterWrite();
+      case 'recurring':
+        final done = await showRecurringForm(
+          context,
+          presetBudgetId: b.id,
+          prefill: RecurringPrefill(
+            name: b.name,
+            amount: toNum(b.plannedAmount),
+            kind: TxKind.expense,
+            categoryId: b.categoryId,
+            budgetId: b.id,
+          ),
         );
         if (done == true) await _afterWrite();
       case 'move':
@@ -695,6 +709,12 @@ class _Hero extends StatelessWidget {
                     label: 'Spend',
                     icon: Icons.shopping_bag_outlined,
                     onTap: () => onAction('spend', detail),
+                  ),
+                if (!b.type.isSaving && !b.isUnplanned)
+                  _HeroAction(
+                    label: 'Recurring spend',
+                    icon: Icons.repeat_rounded,
+                    onTap: () => onAction('recurring', detail),
                   ),
                 // Moving beats give-back-then-refill: one movement in the
                 // history, and the money is never briefly spendable.

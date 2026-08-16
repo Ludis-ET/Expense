@@ -32,7 +32,7 @@ class DeviceStore {
     await _secure.write(key: _tokenKey, value: deviceToken);
     await _prefs.setString(_deviceIdKey, deviceId);
     await _prefs.setString(_deviceNameKey, deviceName);
-    await _prefs.setBool(_setupDoneKey, true);
+    // Setup is not done until the wizard finishes bank mapping.
     await _prefs.setBool(_captureKey, true);
   }
 

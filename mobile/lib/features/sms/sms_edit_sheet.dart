@@ -7,6 +7,7 @@ import '../../core/theme/tokens.dart';
 import '../../models/ingest.dart';
 import '../../models/models.dart';
 import '../../state/data_state.dart';
+import '../../state/sms_state.dart';
 import '../../widgets/fields.dart';
 import '../../widgets/ui.dart';
 import 'sms_review_deck.dart';
@@ -41,7 +42,12 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
   @override
   void initState() {
     super.initState();
-    _draft = DraftConfirm.fromMessage(widget.message);
+    final sms = context.read<SmsState>();
+    final rule = sms.senderRules
+        .where((r) =>
+            r.sender.toLowerCase() == widget.message.sender.toLowerCase())
+        .firstOrNull;
+    _draft = DraftConfirm.fromMessage(widget.message, rule: rule);
     _amount = TextEditingController(text: widget.message.parsedAmount ?? '');
     _payee = TextEditingController(text: _draft.payee ?? '');
     _note = TextEditingController(text: _draft.note ?? '');
@@ -84,11 +90,25 @@ class _SmsEditSheetState extends State<_SmsEditSheet> {
           const Gap(S.md),
           PickerField<Account>(
             label: 'Wallet',
+            hint: _draft.accountId != null
+                ? 'From your messaging-point mapping'
+                : 'Link this sender under Messaging points to autofill',
             value: accounts.where((a) => a.id == _draft.accountId).firstOrNull,
             options: accounts,
             labelOf: (a) => a.name,
             onChanged: (a) => setState(() => _draft.accountId = a?.id),
           ),
+          if (_draft.accountId == null) ...[
+            const Gap(S.sm),
+            Text(
+              'No wallet is connected for this bank sender yet. Pick one above — Santim will remember it if you enable “Remember mapping”.',
+              style: TextStyle(
+                fontSize: AppType.caption,
+                height: 1.35,
+                color: t.warning,
+              ),
+            ),
+          ],
           if (kind == TxKind.transfer) ...[
             const Gap(S.md),
             PickerField<Account>(

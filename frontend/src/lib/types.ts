@@ -139,6 +139,9 @@ export interface RecurringRule {
   account?: { id: string; name: string };
   categoryId?: string | null;
   category?: Pick<Category, 'id' | 'name' | 'icon' | 'color'> | null;
+  /** Required for EXPENSE — ACTIVE SPENDING plan the rule draws from. */
+  budgetId?: string | null;
+  budget?: { id: string; name: string } | null;
   payee?: string | null;
   note?: string | null;
   frequency: Frequency;
@@ -170,12 +173,15 @@ export type BudgetCategory = Pick<Category, 'id' | 'name' | 'icon' | 'color' | '
 export type BudgetAccount = Pick<Account, 'id' | 'name' | 'type' | 'currency' | 'color' | 'icon'>;
 
 /** A named spending envelope, filled from accounts and spent down. */
+export type BudgetType = 'SPENDING' | 'SAVING';
+
 export interface BudgetRow {
   id: string;
   name: string;
   categoryId: string | null;
   category: BudgetCategory | null;
   kind: BudgetKind;
+  type?: BudgetType;
   /** The built-in catch-all plan: no pot, never funded, cannot be deleted. */
   isUnplanned: boolean;
   recurrenceUnit: RecurrenceUnit | null;

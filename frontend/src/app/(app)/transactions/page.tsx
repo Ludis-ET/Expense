@@ -191,7 +191,7 @@ function TransactionsInner() {
       </div>
 
       {tab === 'recurring' ? (
-        <RecurringPanel />
+        <RecurringPanel presetBudgetId={params.get('budgetId') ?? undefined} />
       ) : (
         <>
       <div className="mb-4 flex flex-wrap items-center gap-2">

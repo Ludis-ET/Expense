@@ -393,6 +393,8 @@ class RecurringRule {
     this.account,
     this.categoryId,
     this.category,
+    this.budgetId,
+    this.budget,
     this.payee,
     this.note,
     this.dayOfMonth,
@@ -408,6 +410,10 @@ class RecurringRule {
   final Ref? account;
   final String? categoryId;
   final Ref? category;
+
+  /// Spending plan this expense rule draws from. Null only for income rules.
+  final String? budgetId;
+  final Ref? budget;
   final String? payee;
   final String? note;
   final Frequency frequency;
@@ -432,6 +438,8 @@ class RecurringRule {
     account: Ref.maybe(j['account']),
     categoryId: asStrOrNull(j['categoryId']),
     category: Ref.maybe(j['category']),
+    budgetId: asStrOrNull(j['budgetId']),
+    budget: Ref.maybe(j['budget']),
     payee: asStrOrNull(j['payee']),
     note: asStrOrNull(j['note']),
     frequency: Frequency.parse(j['frequency']),

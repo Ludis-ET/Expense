@@ -335,7 +335,7 @@ export async function ingestBatch(user: AuthUser, deviceId: string | null, input
         receivedAt: m.receivedAt,
         fingerprint: fp,
         status,
-        bankKey: parsed?.bankKey ?? null,
+        bankKey: rule?.bankKey ?? parsed?.bankKey ?? null,
         parsedKind: parsed?.kind ?? null,
         parsedAmount: parsed?.amount ?? null,
         parsedCurrency: parsed?.currency ?? null,

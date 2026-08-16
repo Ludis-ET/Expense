@@ -493,11 +493,16 @@ class SmsState extends ChangeNotifier {
   }
 
   /// Scan device SMS for candidate sender addresses.
-  Future<List<({String sender, String sample, int count})>> scanCandidateSenders({
-    Duration lookback = const Duration(days: 90),
+  ///
+  /// Bounded so setup never hangs on a huge inbox. Known bank short-codes
+  /// bubble to the top so the useful rows are visible first.
+  Future<List<({String sender, String sample, int count, bool knownBank})>>
+      scanCandidateSenders({
+    Duration lookback = const Duration(days: 60),
+    int limit = 400,
   }) async {
     final min = DateTime.now().subtract(lookback);
-    final messages = await _bridge.getInbox(min: min);
+    final messages = await _bridge.getInbox(min: min, limit: limit);
     final map = <String, ({String sample, int count})>{};
     for (final m in messages) {
       final key = m.sender.trim();
@@ -505,11 +510,87 @@ class SmsState extends ChangeNotifier {
       final prev = map[key];
       map[key] = (sample: prev?.sample ?? m.body, count: (prev?.count ?? 0) + 1);
     }
-    final list = map.entries
-        .map((e) => (sender: e.key, sample: e.value.sample, count: e.value.count))
-        .toList()
-      ..sort((a, b) => b.count.compareTo(a.count));
+
+    BankCatalogItem? matchBank(String sender) {
+      final n = _normalizeSender(sender);
+      for (final b in banks) {
+        for (final s in b.senders) {
+          final x = _normalizeSender(s);
+          if (n == x || n.contains(x) || x.contains(n)) return b;
+        }
+      }
+      return null;
+    }
+
+    final list = map.entries.map((e) {
+      final bank = matchBank(e.key);
+      return (
+        sender: e.key,
+        sample: e.value.sample,
+        count: e.value.count,
+        knownBank: bank != null,
+      );
+    }).toList()
+      ..sort((a, b) {
+        if (a.knownBank != b.knownBank) return a.knownBank ? -1 : 1;
+        return b.count.compareTo(a.count);
+      });
     return list;
+  }
+
+  /// Pull recent SMS from one sender into the upload outbox.
+  Future<int> importSenderHistory(
+    String sender, {
+    Duration lookback = const Duration(days: 45),
+  }) async {
+    final min = DateTime.now().subtract(lookback);
+    final messages = await _bridge.getInbox(min: min, limit: 500);
+    final want = _normalizeSender(sender);
+    var added = 0;
+    for (final m in messages) {
+      if (_normalizeSender(m.sender) != want) continue;
+      if (await _outbox.enqueue(m)) added++;
+    }
+    await _refreshPendingCount();
+    unawaited(flushUploads());
+    return added;
+  }
+
+  /// One-tap: map every scanned known-bank sender to [accountId].
+  Future<int> enableFoundBanks({
+    required List<({String sender, String sample, int count, bool knownBank})>
+        scanned,
+    required String accountId,
+  }) async {
+    var created = 0;
+    for (final s in scanned.where((e) => e.knownBank)) {
+      final already = senderRules.any(
+        (r) => _normalizeSender(r.sender) == _normalizeSender(s.sender),
+      );
+      if (already) continue;
+      BankCatalogItem? bank;
+      final n = _normalizeSender(s.sender);
+      for (final b in banks) {
+        for (final code in b.senders) {
+          final x = _normalizeSender(code);
+          if (n == x || n.contains(x) || x.contains(n)) {
+            bank = b;
+            break;
+          }
+        }
+        if (bank != null) break;
+      }
+      await upsertSenderRule({
+        'sender': s.sender,
+        'bankKey': bank?.key ?? 'generic',
+        'accountId': accountId,
+        'enabled': true,
+        'autoCommit': false,
+      });
+      created++;
+      unawaited(importSenderHistory(s.sender));
+    }
+    return created;
   }
 
   Future<int> countHistory({required DateTime min, DateTime? max}) {

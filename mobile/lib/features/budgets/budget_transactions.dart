@@ -314,21 +314,36 @@ class _BudgetTransactionsPanelState extends State<BudgetTransactionsPanel> {
                 backgroundColor: t.primary.withValues(alpha: 0.12),
               ),
             ),
-          for (var i = 0; i < items.length; i++) ...[
-            if (i > 0)
-              Divider(height: 1, color: t.border.withValues(alpha: 0.5)),
-            TransactionRow(
-              tx: items[i],
-              money: (amt, cur) => prefs.money(amt, currency: cur),
-              compact: true,
-              onTap: () async {
-                final changed = await showTransactionDetail(context, items[i]);
-                if (changed == true) {
-                  await _fetch();
-                  widget.onChanged?.call();
-                }
-              },
+          // One-time (and unlocked) plan history is easiest to scan by month.
+          for (final group in groupTransactionsByMonth(items)) ...[
+            Padding(
+              padding: const EdgeInsets.fromLTRB(0, S.sm, 0, S.xs),
+              child: Text(
+                group.$1,
+                style: TextStyle(
+                  fontSize: AppType.label,
+                  fontWeight: FontWeight.w700,
+                  color: t.mutedForeground,
+                ),
+              ),
             ),
+            for (var i = 0; i < group.$2.length; i++) ...[
+              if (i > 0)
+                Divider(height: 1, color: t.border.withValues(alpha: 0.5)),
+              TransactionRow(
+                tx: group.$2[i],
+                money: (amt, cur) => prefs.money(amt, currency: cur),
+                compact: true,
+                onTap: () async {
+                  final changed =
+                      await showTransactionDetail(context, group.$2[i]);
+                  if (changed == true) {
+                    await _fetch();
+                    widget.onChanged?.call();
+                  }
+                },
+              ),
+            ],
           ],
           if (pages > 1) ...[
             const Gap(S.md),

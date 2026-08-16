@@ -60,8 +60,12 @@ export interface BankDefinition {
    * done on a normalized form, so "CBE", "cbe", and "+251CBE" all land here.
    */
   senders: string[];
-  /** Extra phrases that identify the bank when the sender is a bare shortcode. */
-  bodyHints?: RegExp[];
+  /**
+   * Phrases that identify the bank when the sender is an unknown shortcode.
+   * Higher weight wins when several banks are mentioned in one SMS (e.g.
+   * telebirr transferring *to* CBE).
+   */
+  bodyHints?: Array<{ re: RegExp; weight: number }>;
   /** Overrides for the generic patterns, merged over the defaults. */
   patterns?: {
     credit?: RegExp[];

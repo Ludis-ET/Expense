@@ -361,21 +361,31 @@ MonthlyOutlook buildMonthlyOutlook({
   final expenseLines = expenseRules.map(lineFromRule).toList()
     ..sort((a, b) => b.monthlyAmount.compareTo(a.monthlyAmount));
 
-  // How much recurring spend each category already carries. A plan for the
-  // same category is how you *fund* that bill, not a second bill   without
-  // this, rent set aside in an envelope and rent paid by a rule both landed in
-  // the target.
+  // Prefer an explicit rule→plan link (budgetId). Category match is only a
+  // fallback for legacy unlinked pairs so rent-in-envelope + rent-rule don't
+  // both land in the target.
+  final linkedCoverByBudget = <String, double>{};
   final ruleSpendByCategory = <String, double>{};
   for (final r in expenseRules) {
+    final monthly = monthlyEquivalentAmount(
+      toNum(r.amount),
+      r.frequency,
+      r.interval,
+    );
+    final budgetId = r.budgetId;
+    if (budgetId != null && budgetId.isNotEmpty) {
+      linkedCoverByBudget[budgetId] =
+          (linkedCoverByBudget[budgetId] ?? 0) + monthly;
+      continue;
+    }
     final id = r.categoryId;
     if (id == null) continue;
-    ruleSpendByCategory[id] =
-        (ruleSpendByCategory[id] ?? 0) +
-        monthlyEquivalentAmount(toNum(r.amount), r.frequency, r.interval);
+    ruleSpendByCategory[id] = (ruleSpendByCategory[id] ?? 0) + monthly;
   }
 
   var duplicateCategories = 0;
   final remainingRuleCover = {...ruleSpendByCategory};
+  final remainingLinkedCover = {...linkedCoverByBudget};
 
   final planLines = <OutlookLine>[];
   for (final b in budgets) {
@@ -385,15 +395,27 @@ MonthlyOutlook buildMonthlyOutlook({
 
     var contribution = raw;
     var covered = false;
-    final categoryId = b.categoryId;
-    if (categoryId != null) {
-      final cover = remainingRuleCover[categoryId] ?? 0;
-      if (cover > 0) {
-        final absorbed = cover >= raw ? raw : cover;
-        contribution = raw - absorbed;
-        remainingRuleCover[categoryId] = cover - absorbed;
-        covered = true;
-        duplicateCategories += 1;
+    var coverHint = 'a recurring bill already covers this category';
+
+    final linked = remainingLinkedCover[b.id] ?? 0;
+    if (linked > 0) {
+      final absorbed = linked >= raw ? raw : linked;
+      contribution = raw - absorbed;
+      remainingLinkedCover[b.id] = linked - absorbed;
+      covered = true;
+      coverHint = 'linked recurring spend covers this plan';
+      duplicateCategories += 1;
+    } else {
+      final categoryId = b.categoryId;
+      if (categoryId != null) {
+        final cover = remainingRuleCover[categoryId] ?? 0;
+        if (cover > 0) {
+          final absorbed = cover >= raw ? raw : cover;
+          contribution = raw - absorbed;
+          remainingRuleCover[categoryId] = cover - absorbed;
+          covered = true;
+          duplicateCategories += 1;
+        }
       }
     }
 
@@ -409,7 +431,7 @@ MonthlyOutlook buildMonthlyOutlook({
         subtitle: [
           'Plan ${b.kind.label}',
           if (b.recurrenceLabel != null) b.recurrenceLabel!,
-          if (covered) 'a recurring bill already covers this category',
+          if (covered) coverHint,
         ].join(' · '),
         cadence: b.recurrenceLabel ?? b.kind.label,
         note: b.note,

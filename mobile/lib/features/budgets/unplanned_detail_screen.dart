@@ -13,8 +13,8 @@ import '../transactions/transaction_detail.dart';
 import '../transactions/transaction_form.dart';
 import '../transactions/transaction_list.dart';
 
-/// Virtual detail for Unplanned spending — not a pot, just this month's
-/// catch-all expenses and a way to log another.
+/// Virtual detail for Unplanned spending — not a pot; history is grouped by
+/// month. The "This month" tile still reflects the server month summary.
 class UnplannedDetailScreen extends StatefulWidget {
   const UnplannedDetailScreen({super.key, required this.summary});
 
@@ -49,7 +49,7 @@ class _UnplannedDetailScreenState extends State<UnplannedDetailScreen> {
           'budgetId': UnplannedSummary.id,
           'kind': 'EXPENSE',
           'currency': currency,
-          'pageSize': 50,
+          'pageSize': 200,
           'sort': 'date_desc',
         },
       );
@@ -194,7 +194,7 @@ class _UnplannedDetailScreenState extends State<UnplannedDetailScreen> {
                     ],
                   ),
                   const Gap(S.xl),
-                  SectionLabel('RECENT UNPLANNED'),
+                  SectionLabel('BY MONTH'),
                   if (_loading && _items.isEmpty)
                     const Column(
                       children: [
@@ -218,9 +218,9 @@ class _UnplannedDetailScreenState extends State<UnplannedDetailScreen> {
                     )
                   else if (_items.isEmpty)
                     const EmptyState(
-                      title: 'Nothing unplanned this month',
+                      title: 'Nothing unplanned yet',
                       description:
-                          'When you spend without a plan, those entries land here.',
+                          'When you spend without a plan, those entries land here — grouped by month.',
                       compact: true,
                     )
                   else
@@ -231,6 +231,7 @@ class _UnplannedDetailScreenState extends State<UnplannedDetailScreen> {
                       ),
                       child: TransactionList(
                         items: _items,
+                        groupByMonth: true,
                         money: (v, c) => prefs.money(v, currency: c),
                         onTap: (tx) async {
                           final data = context.read<DataState>();

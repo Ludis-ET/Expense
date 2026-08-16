@@ -147,6 +147,23 @@ class TransactionRow extends StatelessWidget {
   }
 }
 
+/// Groups rows under month headers ("August 2026", …). Newest months first
+/// when [items] are already date-desc sorted.
+List<(String, List<Transaction>)> groupTransactionsByMonth(
+  List<Transaction> items,
+) {
+  final out = <(String, List<Transaction>)>[];
+  for (final tx in items) {
+    final label = formatMonthKey(monthKey(tx.date));
+    if (out.isNotEmpty && out.last.$1 == label) {
+      out.last.$2.add(tx);
+    } else {
+      out.add((label, [tx]));
+    }
+  }
+  return out;
+}
+
 /// A list of rows with hairline separators, no outer padding   drop it inside
 /// a card or a sliver.
 class TransactionList extends StatelessWidget {
@@ -158,6 +175,7 @@ class TransactionList extends StatelessWidget {
     this.compact = false,
     this.animate = true,
     this.showDate = true,
+    this.groupByMonth = false,
   });
 
   final List<Transaction> items;
@@ -169,32 +187,69 @@ class TransactionList extends StatelessWidget {
   /// Off when the list is already grouped under a date header.
   final bool showDate;
 
+  /// When true, insert month section labels and hide per-row month noise.
+  final bool groupByMonth;
+
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    if (!groupByMonth) {
+      return _flatList(t, items, showDate: showDate);
+    }
+
+    final groups = groupTransactionsByMonth(items);
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        for (var g = 0; g < groups.length; g++) ...[
+          if (g > 0) const Gap(S.md),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(S.xxs, S.xs, S.xxs, S.sm),
+            child: Text(
+              groups[g].$1,
+              style: TextStyle(
+                fontSize: AppType.label,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.2,
+                color: t.mutedForeground,
+              ),
+            ),
+          ),
+          _flatList(t, groups[g].$2, showDate: true, animateBase: g * 3),
+        ],
+      ],
+    );
+  }
+
+  Widget _flatList(
+    SantimTokens t,
+    List<Transaction> rows, {
+    required bool showDate,
+    int animateBase = 0,
+  }) {
     return Column(
       children: [
-        for (var i = 0; i < items.length; i++) ...[
+        for (var i = 0; i < rows.length; i++) ...[
           if (i > 0) Divider(height: 1, color: t.border.withValues(alpha: 0.6)),
           if (animate)
             FadeInUp.staggered(
-              index: i.clamp(0, 10),
+              index: (animateBase + i).clamp(0, 12),
               offset: 6,
               child: TransactionRow(
-                tx: items[i],
+                tx: rows[i],
                 money: money,
                 compact: compact,
                 showDate: showDate,
-                onTap: onTap == null ? null : () => onTap!(items[i]),
+                onTap: onTap == null ? null : () => onTap!(rows[i]),
               ),
             )
           else
             TransactionRow(
-              tx: items[i],
+              tx: rows[i],
               money: money,
               compact: compact,
               showDate: showDate,
-              onTap: onTap == null ? null : () => onTap!(items[i]),
+              onTap: onTap == null ? null : () => onTap!(rows[i]),
             ),
         ],
       ],

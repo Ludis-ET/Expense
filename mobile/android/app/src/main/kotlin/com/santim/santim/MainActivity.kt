@@ -104,8 +104,9 @@ class MainActivity : FlutterFragmentActivity() {
                         val minMs = (call.argument<Number>("minMs")?.toLong()) ?: 0L
                         val maxMs = (call.argument<Number>("maxMs")?.toLong())
                             ?: System.currentTimeMillis()
+                        val limit = (call.argument<Number>("limit")?.toInt()) ?: 0
                         try {
-                            result.success(queryInbox(minMs, maxMs))
+                            result.success(queryInbox(minMs, maxMs, limit))
                         } catch (e: SecurityException) {
                             result.error("permission", "SMS permission denied", null)
                         } catch (e: Exception) {
@@ -131,6 +132,8 @@ class MainActivity : FlutterFragmentActivity() {
                         requestIgnoreBatteryOptimizations()
                         result.success(true)
                     }
+                    // Durable queue from SmsCaptureReceiver while no engine ran.
+                    "drainPendingSms" -> result.success(SmsCaptureReceiver.drain(this))
                     else -> result.notImplemented()
                 }
             }
@@ -189,7 +192,7 @@ class MainActivity : FlutterFragmentActivity() {
         smsReceiver = null
     }
 
-    private fun queryInbox(minMs: Long, maxMs: Long): List<Map<String, Any?>> {
+    private fun queryInbox(minMs: Long, maxMs: Long, limit: Int = 0): List<Map<String, Any?>> {
         val uri = Uri.parse("content://sms/inbox")
         val projection = arrayOf("address", "body", "date")
         val selection = "date >= ? AND date <= ?"
@@ -207,6 +210,7 @@ class MainActivity : FlutterFragmentActivity() {
                         "receivedAtMs" to cursor.getLong(iDate),
                     ),
                 )
+                if (limit > 0 && out.size >= limit) break
             }
         }
         return out

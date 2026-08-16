@@ -280,6 +280,22 @@ class _TransactionFormState extends State<TransactionForm> {
     if (planCat != null) _categoryId = planCat;
   }
 
+  /// Plan remaining as the form should see it.
+  ///
+  /// Spend sources already deduct this row while editing, so an unchanged save
+  /// looks like a shortfall. Put that amount back when the edit still charges
+  /// the same plan — same idea as the server's `excludeTxId` snapshot.
+  double _effectivePlanRemaining(BudgetSpendSource plan) {
+    var remaining = plan.remaining;
+    final existing = widget.existing;
+    if (existing != null &&
+        existing.kind == TxKind.expense &&
+        existing.budgetId == plan.id) {
+      remaining += existing.value;
+    }
+    return remaining;
+  }
+
   String? _validate(DataState data) {
     final amount = double.tryParse(_amount.text.trim());
     if (amount == null || amount <= 0)
@@ -302,13 +318,22 @@ class _TransactionFormState extends State<TransactionForm> {
     // plan says which envelope it draws down, never where the money came from.
     if (_accountId == null) return 'Pick the wallet this comes out of.';
 
-    // Going past what a plan holds is allowed, but you have to say where the
-    // rest comes from. Refusing outright just pushes people into recording it
-    // as unplanned, which quietly ruins both numbers.
-    if (payingFromPot && amount > plan.remaining && _cover == null) {
-      final short = amount - plan.remaining;
-      return '${plan.name} is ${formatMoney(short, currency: plan.currency)} short. '
-          'Choose where to cover it from.';
+    // Going past what a plan holds is allowed on create (with a cover). On
+    // edit the row already owns its slice of the pot - credit that back so a
+    // plain save is not mistaken for a new overspend. Updates cannot cover.
+    if (payingFromPot) {
+      final remaining = _effectivePlanRemaining(plan);
+      if (amount > remaining) {
+        final short = amount - remaining;
+        if (_isEdit) {
+          return 'This is ${formatMoney(short, currency: plan.currency)} more than '
+              '${plan.name} has free. Lower the amount or fund the plan first.';
+        }
+        if (_cover == null) {
+          return '${plan.name} is ${formatMoney(short, currency: plan.currency)} short. '
+              'Choose where to cover it from.';
+        }
+      }
     }
     return null;
   }
@@ -329,7 +354,7 @@ class _TransactionFormState extends State<TransactionForm> {
     final amount = double.tryParse(_amount.text.trim()) ?? 0;
     final plan = _plan(data);
     if (plan == null || plan.isUnplanned) return 0;
-    final over = amount - plan.remaining;
+    final over = amount - _effectivePlanRemaining(plan);
     return over > 0 ? over : 0;
   }
 
@@ -683,7 +708,9 @@ class _TransactionFormState extends State<TransactionForm> {
                               ),
 
                             // The plan is short. Cover it rather than refusing.
-                            if (payingFromPot && _shortfall(data) > 0)
+                            if (!_isEdit &&
+                                payingFromPot &&
+                                _shortfall(data) > 0)
                               _CoverPicker(
                                 plan: plan,
                                 shortfall: _shortfall(data),

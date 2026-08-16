@@ -389,12 +389,17 @@ class HeaderAction extends StatefulWidget {
     required this.label,
     this.onTap,
     this.primary = true,
+    this.iconOnly = false,
   });
 
   final IconData icon;
   final String label;
   final VoidCallback? onTap;
   final bool primary;
+
+  /// When true, draw only the icon circle (label stays for semantics/tooltip).
+  /// Used for secondary actions that would compress a page title.
+  final bool iconOnly;
 
   @override
   State<HeaderAction> createState() => _HeaderActionState();
@@ -447,7 +452,9 @@ class _HeaderActionState extends State<HeaderAction>
               : 0.22;
           return Container(
             height: 40,
-            padding: const EdgeInsets.fromLTRB(10, 0, 14, 0),
+            padding: widget.iconOnly
+                ? const EdgeInsets.symmetric(horizontal: 8)
+                : const EdgeInsets.fromLTRB(10, 0, 14, 0),
             decoration: BoxDecoration(
               borderRadius: BorderRadius.circular(R.pill),
               gradient: widget.primary
@@ -486,27 +493,34 @@ class _HeaderActionState extends State<HeaderAction>
                 color: widget.primary ? t.primaryForeground : t.primary,
               ),
             ),
-            const GapX(S.sm),
-            Text(
-              widget.label,
-              style: TextStyle(
-                fontSize: AppType.label,
-                fontWeight: FontWeight.w800,
-                letterSpacing: 0.1,
-                color: widget.primary ? t.primaryForeground : t.foreground,
+            if (!widget.iconOnly) ...[
+              const GapX(S.sm),
+              Text(
+                widget.label,
+                style: TextStyle(
+                  fontSize: AppType.label,
+                  fontWeight: FontWeight.w800,
+                  letterSpacing: 0.1,
+                  color: widget.primary ? t.primaryForeground : t.foreground,
+                ),
               ),
-            ),
+            ],
           ],
         ),
       ),
     );
 
-    return Semantics(
+    final wrapped = Semantics(
       button: true,
       enabled: widget.onTap != null,
       label: widget.label,
       child: ExcludeSemantics(child: child),
     );
+
+    if (widget.iconOnly) {
+      return Tooltip(message: widget.label, child: wrapped);
+    }
+    return wrapped;
   }
 }
 
@@ -766,7 +780,7 @@ class PageHeader extends StatelessWidget {
           ],
           if (badge != null) ...[const GapX(S.sm), badge!],
           const Spacer(),
-          ?action,
+          if (action != null) action!,
         ],
       ),
     );

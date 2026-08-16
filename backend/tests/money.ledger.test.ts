@@ -21,6 +21,7 @@ import {
   realBalances,
   sharesOfBudget,
   snapshot,
+  splitPair,
   type AccountSeed,
   type CashRow,
   type HoldRow,
@@ -136,6 +137,28 @@ describe('reservations', () => {
     // Plan funded from CBE, paid in cash. CBE's reservation is what comes off.
     const held = heldByPair([hold('cbe', 'rent', 3000)], [planSpend('rent', 'cbe', 1000)]);
     expect(held.get(pairKey('cbe', 'rent'))!.toFixed(2)).toBe('2000.00');
+  });
+
+  it('splitPair recovers wallet and plan from held keys (not space-split)', () => {
+    // accounts.reservations used to split on space and always returned [].
+    const key = pairKey('acc-wallet', 'bud-rent');
+    expect(key.includes(' ')).toBe(false);
+    expect(key.split(' ')[0]).not.toBe('acc-wallet');
+    const { accountId, budgetId } = splitPair(key);
+    expect(accountId).toBe('acc-wallet');
+    expect(budgetId).toBe('bud-rent');
+
+    const held = heldByPair([hold('acc-wallet', 'bud-rent', 500)], []);
+    const rows: Array<{ budgetId: string; amount: ReturnType<typeof d> }> = [];
+    for (const [k, amount] of held) {
+      const parts = splitPair(k);
+      if (parts.accountId === 'acc-wallet' && amount.gt(0)) {
+        rows.push({ budgetId: parts.budgetId, amount });
+      }
+    }
+    expect(rows).toHaveLength(1);
+    expect(rows[0]!.budgetId).toBe('bud-rent');
+    expect(rows[0]!.amount.toFixed(2)).toBe('500.00');
   });
 });
 

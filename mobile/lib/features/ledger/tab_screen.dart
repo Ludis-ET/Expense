@@ -34,6 +34,7 @@ class _TabScreenState extends State<TabScreen> {
   Object? _error;
   bool _showSettled = false;
   bool _didFocusEntry = false;
+  int _seenEpoch = -1;
 
   @override
   void initState() {
@@ -206,6 +207,15 @@ class _TabScreenState extends State<TabScreen> {
     final t = context.t;
     final prefs = context.watch<PrefsState>();
     final data = context.watch<DataState>();
+    final sync = context.watch<SyncState>();
+    final epoch = data.writeEpoch + sync.flushEpoch;
+    if (_seenEpoch >= 0 && epoch != _seenEpoch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+    _seenEpoch = epoch;
+
     final s = _summary;
     final currency = s?.currency ?? data.activeCurrency;
 

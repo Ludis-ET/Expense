@@ -53,6 +53,15 @@ class DataState extends ChangeNotifier {
   String _activeCurrency = 'ETB';
   String get activeCurrency => _activeCurrency;
 
+  /// Bumped after every successful write refresh (and currency switch) so
+  /// screens that keep their own paged lists can reload without a pull.
+  int _writeEpoch = 0;
+  int get writeEpoch => _writeEpoch;
+
+  void _bumpWriteEpoch() {
+    _writeEpoch++;
+  }
+
   List<String> get currencies {
     final list = dashboard.data?.currencies ?? const <String>[];
     return list.isEmpty ? [_activeCurrency] : list;
@@ -71,6 +80,7 @@ class DataState extends ChangeNotifier {
   void setActiveCurrency(String currency) {
     if (_activeCurrency == currency) return;
     _activeCurrency = currency;
+    _bumpWriteEpoch();
     notifyListeners();
   }
 
@@ -346,11 +356,14 @@ class DataState extends ChangeNotifier {
         query: {'currency': _activeCurrency},
       );
       await _applySync(json);
-      return;
     } on ApiError catch (e) {
       if (e.status != 404) rethrow;
+      await _refreshIndividually();
     }
-    await _refreshIndividually();
+    // Always bump so Activity / ledger / wallet sheets reload even when the
+    // shared `/sync` payload did not change shape.
+    _bumpWriteEpoch();
+    notifyListeners();
   }
 
   Future<void> _refreshIndividually() => Future.wait([

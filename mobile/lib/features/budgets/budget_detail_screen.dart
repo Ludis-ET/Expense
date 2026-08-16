@@ -38,6 +38,7 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   BudgetDetail? _detail;
   bool _loading = true;
   Object? _error;
+  int _seenEpoch = -1;
 
   @override
   void initState() {
@@ -75,6 +76,14 @@ class _BudgetDetailScreenState extends State<BudgetDetailScreen> {
   Widget build(BuildContext context) {
     final t = context.t;
     final prefs = context.watch<PrefsState>();
+    final data = context.watch<DataState>();
+    final epoch = data.writeEpoch;
+    if (_seenEpoch >= 0 && epoch != _seenEpoch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+    _seenEpoch = epoch;
     final detail = _detail;
 
     return Scaffold(

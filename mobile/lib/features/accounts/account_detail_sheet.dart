@@ -40,6 +40,7 @@ class _AccountDetailState extends State<_AccountDetail> {
   List<Transaction>? _recent;
   List<WalletReservation>? _held;
   bool _loading = true;
+  int _seenEpoch = -1;
 
   @override
   void initState() {
@@ -91,7 +92,22 @@ class _AccountDetailState extends State<_AccountDetail> {
   Widget build(BuildContext context) {
     final t = context.t;
     final prefs = context.watch<PrefsState>();
-    final a = widget.account;
+    final data = context.watch<DataState>();
+    final sync = context.watch<SyncState>();
+    final epoch = data.writeEpoch + sync.flushEpoch;
+    if (_seenEpoch >= 0 && epoch != _seenEpoch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+    _seenEpoch = epoch;
+
+    // Prefer the live account from DataState so locked/available update after
+    // a write without closing the sheet.
+    final a = data.accounts.data
+            ?.where((x) => x.id == widget.account.id)
+            .firstOrNull ??
+        widget.account;
     final tint = parseHexColor(a.color) ?? t.primary;
 
     String money(Object? v) =>
@@ -249,10 +265,13 @@ class _AccountDetailState extends State<_AccountDetail> {
                 items: _recent!,
                 money: moneyIn,
                 compact: true,
-                onTap: (tx) async {
-                  final changed = await showTransactionDetail(context, tx);
-                  if (changed == true) _load();
-                },
+                    onTap: (tx) async {
+                      final changed = await showTransactionDetail(context, tx);
+                      if (changed == true && context.mounted) {
+                        await context.read<DataState>().refreshAfterWrite();
+                        if (context.mounted) await _load();
+                      }
+                    },
               ),
             ),
           const Gap(S.lg),

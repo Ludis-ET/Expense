@@ -60,6 +60,9 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
   Object? _error;
   Timer? _debounce;
 
+  /// Combined write/flush epoch last handled by `_reload`.
+  int _seenEpoch = -1;
+
   // Filters
   String _query = '';
   TxKind? _kind;
@@ -245,6 +248,16 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
     final shell = AppShell.of(context);
     final items = sync.mergeTransactions(_items);
 
+    final epoch = data.writeEpoch + sync.flushEpoch;
+    if (_initialised && epoch != _seenEpoch) {
+      _seenEpoch = epoch;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _reload();
+      });
+    } else if (!_initialised || _seenEpoch < 0) {
+      _seenEpoch = epoch;
+    }
+
     String money(Object? v, String c) => prefs.money(v, currency: c);
 
     final groups = _groupedOf(items);
@@ -279,6 +292,7 @@ class _TransactionsScreenState extends State<TransactionsScreen> {
                       HeaderAction(
                         icon: Icons.ios_share_rounded,
                         label: 'Export',
+                        iconOnly: true,
                         primary: false,
                         // The sheet inherits whatever is filtered right now, so
                         // the file matches the list rather than guessing.

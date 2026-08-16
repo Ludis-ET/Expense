@@ -16,6 +16,7 @@ import '../wishlist/wishlist_screen.dart';
 import 'plan_card.dart';
 import 'budget_detail_screen.dart';
 import 'budget_form.dart';
+import 'unplanned_detail_screen.dart';
 
 /// Budgets & Wishes. A plan is an envelope: you fill it from a wallet, and the
 /// money is reserved out of your available balance until you spend it.
@@ -195,7 +196,13 @@ class _BudgetsScreenState extends State<BudgetsScreen> {
             if (unplanned != null) ...[
               const Gap(S.xs),
               SectionLabel('CATCH-ALL'),
-              _UnplannedCard(summary: unplanned, money: money),
+              _UnplannedCard(
+                summary: unplanned,
+                money: money,
+                onTap: () => shell.push(
+                  UnplannedDetailScreen(summary: unplanned),
+                ),
+              ),
             ],
 
             const Gap(S.lg),
@@ -354,65 +361,81 @@ class _TotalsHero extends StatelessWidget {
 /// progress bar, nothing to fill. It reports what was spent without setting
 /// money aside - a fact about the past, not a container for the future.
 class _UnplannedCard extends StatelessWidget {
-  const _UnplannedCard({required this.summary, required this.money});
+  const _UnplannedCard({
+    required this.summary,
+    required this.money,
+    this.onTap,
+  });
 
   final UnplannedSummary summary;
   final String Function(Object?) money;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
     final t = context.t;
     final tone = parseHexColor(summary.color) ?? t.mutedForeground;
 
-    return DashedCard(
-      child: Row(
-        children: [
-          IconTile(icon: Icons.more_horiz_rounded, color: tone),
-          const GapX(S.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
+    return PressableScale(
+      onTap: onTap,
+      child: DashedCard(
+        child: Row(
+          children: [
+            IconTile(icon: Icons.more_horiz_rounded, color: tone),
+            const GapX(S.md),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    summary.name,
+                    style: TextStyle(
+                      fontSize: AppType.body,
+                      fontWeight: FontWeight.w700,
+                      color: t.foreground,
+                    ),
+                  ),
+                  Text(
+                    'No money set aside · nothing to run out of',
+                    style: TextStyle(
+                      fontSize: AppType.caption,
+                      color: t.mutedForeground,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.end,
               children: [
                 Text(
-                  summary.name,
+                  money(summary.spentAmount),
                   style: TextStyle(
-                    fontSize: AppType.body,
+                    fontSize: AppType.lead,
                     fontWeight: FontWeight.w700,
                     color: t.foreground,
+                    fontFeatures: const [FontFeature.tabularFigures()],
                   ),
                 ),
                 Text(
-                  'No money set aside · nothing to run out of',
+                  'this month',
                   style: TextStyle(
-                    fontSize: AppType.caption,
+                    fontSize: AppType.micro,
                     color: t.mutedForeground,
                   ),
                 ),
               ],
             ),
-          ),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.end,
-            children: [
-              Text(
-                money(summary.spentAmount),
-                style: TextStyle(
-                  fontSize: AppType.lead,
-                  fontWeight: FontWeight.w700,
-                  color: t.foreground,
-                  fontFeatures: const [FontFeature.tabularFigures()],
-                ),
-              ),
-              Text(
-                'this month',
-                style: TextStyle(
-                  fontSize: AppType.micro,
-                  color: t.mutedForeground,
-                ),
+            if (onTap != null) ...[
+              const GapX(S.sm),
+              Icon(
+                Icons.chevron_right_rounded,
+                color: t.mutedForeground,
+                size: 20,
               ),
             ],
-          ),
-        ],
+          ],
+        ),
       ),
     );
   }

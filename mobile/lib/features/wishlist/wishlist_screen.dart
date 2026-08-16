@@ -31,6 +31,7 @@ class _WishlistScreenState extends State<WishlistScreen> {
   bool _loading = true;
   Object? _error;
   WishlistStatus? _filter = WishlistStatus.wanting;
+  int _seenEpoch = -1;
 
   @override
   void initState() {
@@ -75,6 +76,16 @@ class _WishlistScreenState extends State<WishlistScreen> {
   @override
   Widget build(BuildContext context) {
     final t = context.t;
+    final dataState = context.watch<DataState>();
+    final sync = context.watch<SyncState>();
+    final epoch = dataState.writeEpoch + sync.flushEpoch;
+    if (_seenEpoch >= 0 && epoch != _seenEpoch) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) _load();
+      });
+    }
+    _seenEpoch = epoch;
+
     final data = _data;
     final items = data == null
         ? const <WishlistItem>[]

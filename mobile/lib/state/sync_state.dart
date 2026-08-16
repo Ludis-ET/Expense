@@ -29,6 +29,10 @@ class SyncState extends ChangeNotifier {
   Timer? _retryTimer;
   Timer? _syncedTimer;
   bool _flushing = false;
+
+  /// Bumped when an offline queue flush successfully syncs anything, so
+  /// screens that merged optimistic rows can refetch the server page.
+  int flushEpoch = 0;
   bool _started = false;
 
   bool online = true;
@@ -239,7 +243,10 @@ class SyncState extends ChangeNotifier {
       _flushing = false;
       syncing = false;
       await _refreshOps();
-      if (anySynced) _markSynced();
+      if (anySynced) {
+        flushEpoch++;
+        _markSynced();
+      }
     }
   }
 

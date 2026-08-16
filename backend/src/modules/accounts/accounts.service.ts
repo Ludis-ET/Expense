@@ -8,6 +8,7 @@ import {
   loadSnapshot,
   realOf,
   readyToAssign,
+  splitPair,
   withMoneyLock,
   ZERO,
   type LedgerSnapshot,
@@ -68,7 +69,8 @@ export async function reservations(user: AuthUser, accountId: string) {
 
   const rows: Array<{ budgetId: string; amount: Money }> = [];
   for (const [key, amount] of snap.held) {
-    const [heldAccountId = '', budgetId = ''] = key.split(' ');
+    // Keys are `${accountId}\0${budgetId}` — never split on space.
+    const { accountId: heldAccountId, budgetId } = splitPair(key);
     if (heldAccountId === accountId && amount.gt(0)) rows.push({ budgetId, amount });
   }
   if (rows.length === 0) return { items: [] };

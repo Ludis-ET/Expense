@@ -173,10 +173,26 @@ class _TransactionFormState extends State<TransactionForm> {
               accounts.firstOrNull;
           if (fallback != null) _accountId = fallback.id;
         }
-        // Preset plan (e.g. Spend from plan detail) should also adopt its category.
-        if (!_isEdit && _categoryId == null && _budgetId != null) {
-          final planCat = _plan(data)?.categoryId;
-          if (planCat != null) _categoryId = planCat;
+        // Preset plan (e.g. Spend from plan detail) should adopt funder + category.
+        if (!_isEdit && _budgetId != null) {
+          final plan = _plan(data);
+          if (plan != null && !plan.isUnplanned) {
+            final preferred = _preferredSource(plan);
+            final funderId = preferred?.account?.id;
+            if (funderId != null) {
+              _budgetSourceAccountId ??= funderId;
+              // Prefer the plan's wallet over a generic default when opening
+              // from plan detail / FAB with a preset.
+              if (widget.presetBudgetId != null ||
+                  widget.presetAccountId == null) {
+                _accountId = funderId;
+              }
+            }
+          }
+          if (_categoryId == null) {
+            final planCat = plan?.categoryId;
+            if (planCat != null) _categoryId = planCat;
+          }
         }
       });
     });
@@ -235,6 +251,33 @@ class _TransactionFormState extends State<TransactionForm> {
       if (p.id == _budgetId) return p;
     }
     return null;
+  }
+
+  /// Largest funded share, or the only one. Used to default pay + release wallets.
+  BudgetSource? _preferredSource(BudgetSpendSource plan) {
+    final funded = plan.sources.where((s) => s.account != null).toList();
+    if (funded.isEmpty) return null;
+    funded.sort((a, b) {
+      final aa = double.tryParse(a.available) ?? 0;
+      final bb = double.tryParse(b.available) ?? 0;
+      return bb.compareTo(aa);
+    });
+    return funded.first;
+  }
+
+  /// Apply plan selection defaults: release wallet + pay wallet from funders.
+  void _applyPlanDefaults(BudgetSpendSource? p) {
+    _budgetId = p?.id;
+    _budgetSourceAccountId = null;
+    if (p == null || p.isUnplanned) return;
+    final preferred = _preferredSource(p);
+    final funderId = preferred?.account?.id;
+    if (funderId != null) {
+      _budgetSourceAccountId = funderId;
+      _accountId = funderId;
+    }
+    final planCat = p.categoryId;
+    if (planCat != null) _categoryId = planCat;
   }
 
   String? _validate(DataState data) {
@@ -599,17 +642,8 @@ class _TransactionFormState extends State<TransactionForm> {
                                 colorOf: (p) =>
                                     parseHexColor(p.color) ?? t.primary,
                                 onChanged: (p) => setState(() {
-                                  _budgetId = p?.id;
-                                  _budgetSourceAccountId = null;
-                                  if (p != null &&
-                                      !p.isUnplanned &&
-                                      p.sources.length == 1) {
-                                    _budgetSourceAccountId =
-                                        p.sources.first.account?.id;
-                                  }
-                                  // Plans with a linked category pre-select it.
-                                  final planCat = p?.categoryId;
-                                  if (planCat != null) _categoryId = planCat;
+                                  _cover = null;
+                                  _applyPlanDefaults(p);
                                 }),
                                 allowClear: true,
                                 placeholder: 'Straight from an account',
@@ -634,9 +668,17 @@ class _TransactionFormState extends State<TransactionForm> {
                                     '${s.account?.name ?? 'Unknown'} · ${formatMoney(s.available, currency: plan.currency)}',
                                 iconOf: (s) =>
                                     accountTypeIcon(s.account?.type ?? 'OTHER'),
-                                onChanged: (s) => setState(
-                                  () => _budgetSourceAccountId = s?.account?.id,
-                                ),
+                                onChanged: (s) => setState(() {
+                                  _budgetSourceAccountId = s?.account?.id;
+                                  // Keep pay wallet in sync when the user has
+                                  // not deliberately fronted from another wallet.
+                                  if (_accountId == null ||
+                                      plan.sources.every(
+                                        (x) => x.account?.id != _accountId,
+                                      )) {
+                                    _accountId = s?.account?.id;
+                                  }
+                                }),
                                 sheetTitle: 'Funding wallet',
                               ),
 
@@ -666,13 +708,65 @@ class _TransactionFormState extends State<TransactionForm> {
                                 sheetTitle: '${_kind.label} category',
                               ),
 
-                            if (!payingFromPot)
+                            if (_kind != TxKind.transfer)
                               PickerField<Account>(
-                                label: _kind == TxKind.transfer
-                                    ? 'From account'
-                                    : _kind == TxKind.income
+                                label: _kind == TxKind.income
                                     ? 'Into account'
-                                    : 'Account',
+                                    : 'Take it out of',
+                                hint: payingFromPot
+                                    ? 'Cash leaves this wallet. The plan only frees the reservation below (or the single funder).'
+                                    : null,
+                                value: accountById(_accountId),
+                                options: accounts,
+                                labelOf: (a) => a.name,
+                                subtitleOf: (a) =>
+                                    '${formatMoney(a.balance, currency: a.currency)} available',
+                                iconOf: (a) => accountTypeIcon(a.type.wire),
+                                colorOf: (a) =>
+                                    parseHexColor(a.color) ?? t.mutedForeground,
+                                onChanged: (a) =>
+                                    setState(() => _accountId = a?.id),
+                                placeholder: 'Pick an account',
+                              ),
+
+                            if (payingFromPot &&
+                                _accountId != null &&
+                                _budgetSourceAccountId != null &&
+                                _accountId != _budgetSourceAccountId)
+                              Padding(
+                                padding: const EdgeInsets.only(bottom: S.md),
+                                child: AppCard(
+                                  padding: const EdgeInsets.all(S.md),
+                                  child: Row(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Icon(
+                                        Icons.info_outline_rounded,
+                                        size: 18,
+                                        color: t.primary,
+                                      ),
+                                      const GapX(S.sm),
+                                      Expanded(
+                                        child: Text(
+                                          'Cash leaves ${accountById(_accountId)?.name ?? 'this wallet'}; '
+                                          'the plan frees money held in '
+                                          '${plan.sources.where((s) => s.account?.id == _budgetSourceAccountId).firstOrNull?.account?.name ?? 'another wallet'}.',
+                                          style: TextStyle(
+                                            fontSize: AppType.caption,
+                                            color: t.mutedForeground,
+                                            height: 1.35,
+                                          ),
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
+                              ),
+
+                            if (_kind == TxKind.transfer)
+                              PickerField<Account>(
+                                label: 'From account',
                                 value: accountById(_accountId),
                                 options: accounts,
                                 labelOf: (a) => a.name,

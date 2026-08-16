@@ -145,10 +145,19 @@ class AppShellState extends State<AppShell>
     MaterialPageRoute(builder: (_) => page),
   );
 
-  Future<void> openAddTransaction({String? presetKind}) async {
+  Future<void> openAddTransaction({
+    String? presetKind,
+    String? presetBudgetId,
+    String? presetAccountId,
+  }) async {
     // Opening a sheet is not a commit   the buzz belongs on the save.
     Haptics.toggle();
-    final created = await showTransactionForm(context, presetKind: presetKind);
+    final created = await showTransactionForm(
+      context,
+      presetKind: presetKind,
+      presetBudgetId: presetBudgetId,
+      presetAccountId: presetAccountId,
+    );
     if (created == true && mounted) {
       await context.read<DataState>().refreshAfterWrite();
     }
